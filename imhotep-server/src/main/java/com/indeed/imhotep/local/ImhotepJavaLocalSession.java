@@ -13,6 +13,7 @@
  */
 package com.indeed.imhotep.local;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -21,6 +22,8 @@ import com.indeed.flamdex.api.IntValueLookup;
 import com.indeed.flamdex.reader.FlamdexMetadata;
 import com.indeed.flamdex.simple.SimpleFlamdexReader;
 import com.indeed.flamdex.simple.SimpleFlamdexWriter;
+import com.indeed.flamdex.utils.FlamdexUtils;
+import com.indeed.flamdex.utils.ShardMetadataUtils;
 import com.indeed.imhotep.ImhotepMemoryPool;
 import com.indeed.imhotep.MemoryReservationContext;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
@@ -56,7 +59,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 public class ImhotepJavaLocalSession extends ImhotepLocalSession {
 
-    static final Logger log = Logger.getLogger(ImhotepJavaLocalSession.class);
+    private static final Logger log = Logger.getLogger(ImhotepJavaLocalSession.class);
 
     private final String optimizedIndexesDir;
     private final File optimizationLog;
@@ -147,8 +150,9 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
                 }
             }
 
-            final Collection<String> intFields = scan(paths, ".intterms");
-            final Collection<String> stringFields = scan(paths, ".strterms");
+            final ShardMetadataUtils.AllFields fields = ShardMetadataUtils.getFieldsFromFlamdexFiles(paths);
+            final Collection<String> intFields = fields.intFields;
+            final Collection<String> stringFields = fields.strFields;
             if (config.isWriteBTreesIfNotExisting()) {
                 final Set<String> pathNames = Sets.newHashSet();
                 for (Path path : paths) {
@@ -276,9 +280,7 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
             final FlamdexReader flamdex = AutoDeletingReader.open(writerOutputDir);
             this.flamdexReader = new CachedFlamdexReader(
                     new MemoryReservationContext(memory),
-                    flamdex,
-                    null,
-                    null);
+                    flamdex);
             this.flamdexReaderRef = SharedReference.create(this.flamdexReader);
         } catch (final IOException e) {
             throw Throwables.propagate(e);

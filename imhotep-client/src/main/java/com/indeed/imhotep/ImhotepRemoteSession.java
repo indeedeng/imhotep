@@ -17,7 +17,6 @@ import com.google.common.base.Function;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
-import com.google.common.collect.Lists;
 import com.google.common.io.ByteStreams;
 import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Ints;
@@ -36,7 +35,6 @@ import com.indeed.imhotep.io.Streams;
 import com.indeed.imhotep.io.TempFileSizeLimitExceededException;
 import com.indeed.imhotep.io.WriteLimitExceededException;
 import com.indeed.imhotep.marshal.ImhotepClientMarshaller;
-import com.indeed.imhotep.protobuf.DatasetInfoMessage;
 import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
 import com.indeed.imhotep.protobuf.GroupRemapMessage;
 import com.indeed.imhotep.protobuf.HostAndPort;
@@ -46,7 +44,7 @@ import com.indeed.imhotep.protobuf.IntFieldAndTerms;
 import com.indeed.imhotep.protobuf.QueryMessage;
 import com.indeed.imhotep.protobuf.QueryRemapMessage;
 import com.indeed.imhotep.protobuf.RegroupConditionMessage;
-import com.indeed.imhotep.protobuf.ShardInfoMessage;
+import com.indeed.imhotep.protobuf.ShardNameNumDocsPair;
 import com.indeed.imhotep.protobuf.StringFieldAndTerms;
 import com.indeed.util.core.Pair;
 import com.indeed.util.core.Throwables2;
@@ -72,6 +70,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
 
 /**
  * @author jsgroth
@@ -166,54 +165,6 @@ public class ImhotepRemoteSession
         this.targetAddr = tmpAddr;
     }
 
-    public static List<DatasetInfo> getShardInfoList(final String host, final int port) throws IOException {
-        final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.GET_SHARD_INFO_LIST)
-                .build();
-
-        final ImhotepResponse response = sendRequest(request, host, port);
-
-        final List<DatasetInfoMessage> protoShardInfo = response.getDatasetInfoList();
-        final List<DatasetInfo> ret = Lists.newArrayListWithCapacity(protoShardInfo.size());
-        for (final DatasetInfoMessage datasetInfo : protoShardInfo) {
-            ret.add(DatasetInfo.fromProto(datasetInfo));
-        }
-        return ret;
-    }
-
-    public static List<DatasetInfo> getDatasetMetadata(final String host, final int port) throws IOException {
-        final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.GET_DATASET_METADATA)
-                .build();
-
-        final ImhotepResponse response = sendRequest(request, host, port);
-
-        final List<DatasetInfoMessage> protoShardInfo = response.getDatasetInfoList();
-        final List<DatasetInfo> ret = Lists.newArrayListWithCapacity(protoShardInfo.size());
-        for (final DatasetInfoMessage datasetInfo : protoShardInfo) {
-            ret.add(DatasetInfo.fromProto(datasetInfo));
-        }
-        return ret;
-    }
-
-    public static List<ShardInfo> getShardlistForTime(final String host, final int port, final String dataset, final long startUnixtime, final long endUnixtime) throws IOException {
-        if (endUnixtime <= startUnixtime) {
-            throw new IllegalArgumentException("Start time must be before end time. Given start: " + startUnixtime + ", end: " + endUnixtime);
-        }
-        final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.GET_SHARD_LIST_FOR_TIME)
-                .setDataset(dataset)
-                .setStartUnixtime(startUnixtime)
-                .setEndUnixtime(endUnixtime)
-                .build();
-
-        final ImhotepResponse response = sendRequest(request, host, port);
-
-        final List<ShardInfoMessage> protoShardInfo = response.getShardInfoList();
-        final List<ShardInfo> ret = Lists.newArrayListWithCapacity(protoShardInfo.size());
-        for (final ShardInfoMessage shardInfo : protoShardInfo) {
-            ret.add(ShardInfo.fromProto(shardInfo));
-        }
-        return ret;
-    }
-
     public static ImhotepStatusDump getStatusDump(final String host, final int port) throws IOException {
         final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.GET_STATUS_DUMP)
                 .build();
@@ -223,16 +174,16 @@ public class ImhotepRemoteSession
         return ImhotepStatusDump.fromProto(response.getStatusDump());
     }
 
-    public static ImhotepRemoteSession openSession(final String host, final int port, final String dataset, final List<String> shards, @Nullable final String sessionId, final long sessionTimeout) throws ImhotepOutOfMemoryException, IOException {
+    public static ImhotepRemoteSession openSession(final String host, final int port, final String dataset, final List<Shard> shards, @Nullable final String sessionId, final long sessionTimeout) throws ImhotepOutOfMemoryException, IOException {
         return openSession(host, port, dataset, shards, DEFAULT_MERGE_THREAD_LIMIT, getUsername(), false, -1, sessionId, -1, null, sessionTimeout);
     }
 
-    public static ImhotepRemoteSession openSession(final String host, final int port, final String dataset, final List<String> shards,
+    public static ImhotepRemoteSession openSession(final String host, final int port, final String dataset, final List<Shard> shards,
                                                    final int mergeThreadLimit, @Nullable final String sessionId, final long sessionTimeout) throws ImhotepOutOfMemoryException, IOException {
         return openSession(host, port, dataset, shards, mergeThreadLimit, getUsername(), false, -1, sessionId, -1, null, sessionTimeout);
     }
 
-    public static ImhotepRemoteSession openSession(final String host, final int port, final String dataset, final List<String> shards,
+    public static ImhotepRemoteSession openSession(final String host, final int port, final String dataset, final List<Shard> shards,
                                                    final int mergeThreadLimit, final String username,
                                                    final boolean optimizeGroupZeroLookups, final int socketTimeout,
                                                    @Nullable final String sessionId, final long tempFileSizeLimit,
@@ -241,7 +192,7 @@ public class ImhotepRemoteSession
         return openSession(host, port, dataset, shards, mergeThreadLimit, username, optimizeGroupZeroLookups, socketTimeout, sessionId, tempFileSizeLimit, tempFileSizeBytesLeft, sessionTimeout, 0);
     }
 
-    public static ImhotepRemoteSession openSession(final String host, final int port, final String dataset, final List<String> shards,
+    public static ImhotepRemoteSession openSession(final String host, final int port, final String dataset, final List<Shard> shards,
                                                    final int mergeThreadLimit, final String username,
                                                    final boolean optimizeGroupZeroLookups, final int socketTimeout,
                                                    @Nullable final String sessionId, final long tempFileSizeLimit,
@@ -252,7 +203,7 @@ public class ImhotepRemoteSession
     }
 
 
-    public static ImhotepRemoteSession openSession(final String host, final int port, final String dataset, final List<String> shards,
+    public static ImhotepRemoteSession openSession(final String host, final int port, final String dataset, final List<Shard> shards,
                                                    final int mergeThreadLimit, final String username, final String clientName,
                                                    final boolean optimizeGroupZeroLookups, final int socketTimeout,
                                                    @Nullable String sessionId, final long tempFileSizeLimit,
@@ -270,7 +221,7 @@ public class ImhotepRemoteSession
                     .setClientName(clientName)
                     .setDataset(dataset)
                     .setMergeThreadLimit(mergeThreadLimit)
-                    .addAllShardRequest(shards)
+                    .addAllShards(shards.stream().map(shard -> ShardNameNumDocsPair.newBuilder().setShardName(shard.getFileName()).setNumDocs(shard.numDocs).build()).collect(Collectors.toList()))
                     .setOptimizeGroupZeroLookups(optimizeGroupZeroLookups)
                     .setClientVersion(CURRENT_CLIENT_VERSION)
                     .setSessionId(sessionId == null ? "" : sessionId)
@@ -472,11 +423,7 @@ public class ImhotepRemoteSession
                 .setField(field)
                 .setIsIntField(isIntField)
                 .setSplitIndex(splitIndex)
-                .addAllNodes(Iterables.transform(Arrays.asList(nodes), new Function<InetSocketAddress, HostAndPort>() {
-                    public HostAndPort apply(final InetSocketAddress input) {
-                        return HostAndPort.newBuilder().setHost(input.getHostName()).setPort(input.getPort()).build();
-                    }
-                }))
+                .addAllNodes(Iterables.transform(Arrays.asList(nodes), input -> HostAndPort.newBuilder().setHost(input.getHostName()).setPort(input.getPort()).build()))
                 .build();
         return sendGroupStatsIteratorRequest(request, timer);
     }

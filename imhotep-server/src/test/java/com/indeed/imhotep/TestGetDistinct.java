@@ -7,7 +7,7 @@ import com.indeed.imhotep.api.GroupStatsIterator;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.client.ImhotepClient;
-import com.indeed.imhotep.service.ImhotepDaemonClusterRunner;
+import com.indeed.imhotep.service.ShardMasterAndImhotepDaemonClusterRunner;
 import com.indeed.imhotep.service.ImhotepShardCreator;
 import org.apache.commons.io.FileUtils;
 import org.joda.time.DateTime;
@@ -27,7 +27,7 @@ import static org.junit.Assert.assertTrue;
 
 public class TestGetDistinct {
 
-    private ImhotepDaemonClusterRunner clusterRunner;
+    private ShardMasterAndImhotepDaemonClusterRunner clusterRunner;
     private Path storeDir;
     private Path tempDir;
 
@@ -35,7 +35,7 @@ public class TestGetDistinct {
     public void setUp() throws IOException {
         storeDir = Files.createTempDirectory("temp-imhotep");
         tempDir = Files.createTempDirectory("temp-imhotep");
-        clusterRunner = new ImhotepDaemonClusterRunner(
+        clusterRunner = new ShardMasterAndImhotepDaemonClusterRunner(
                 storeDir.toFile(),
                 tempDir.toFile(),
                 ImhotepShardCreator.DEFAULT);
@@ -49,7 +49,7 @@ public class TestGetDistinct {
     }
 
     @Test
-    public void testIntField() throws IOException, TimeoutException {
+    public void testIntField() throws IOException, TimeoutException, InterruptedException {
         final String dataset = "dataset";
         final DateTime date = new DateTime(2018, 1, 1, 0, 0);
         final int duration = 10;
@@ -72,7 +72,7 @@ public class TestGetDistinct {
     }
 
     @Test
-    public void testIntFieldManyGroups() throws IOException, TimeoutException, ImhotepOutOfMemoryException {
+    public void testIntFieldManyGroups() throws IOException, TimeoutException, ImhotepOutOfMemoryException, InterruptedException {
         final String dataset = "dataset";
         final DateTime date = new DateTime(2018, 1, 1, 0, 0);
         final int duration = 10;

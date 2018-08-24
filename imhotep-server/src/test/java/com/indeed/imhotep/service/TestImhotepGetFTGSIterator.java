@@ -71,11 +71,11 @@ public class TestImhotepGetFTGSIterator {
     @Rule
     public final TemporaryFolder rootDir = new TemporaryFolder();
 
-    private ImhotepDaemonClusterRunner clusterRunner;
+    private ShardMasterAndImhotepDaemonClusterRunner clusterRunner;
 
     @Before
     public void setUp() throws IOException {
-        clusterRunner = new ImhotepDaemonClusterRunner(rootDir.newFolder("shards"), rootDir.newFolder("temp"));
+        clusterRunner = new ShardMasterAndImhotepDaemonClusterRunner(rootDir.newFolder("shards"), rootDir.newFolder("temp"));
     }
 
     @After

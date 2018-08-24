@@ -74,7 +74,6 @@ class DaemonEvents {
                   beginTmMillis, elapsedTmMillis);
 
             getProperties().put(Keys.DATASET,            protoRequest.getDataset());
-            getProperties().put(Keys.SHARD_REQUEST_LIST, protoRequest.getShardRequestList());
             getProperties().put(Keys.USERNAME,           protoRequest.getUsername());
         }
     }

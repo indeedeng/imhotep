@@ -16,7 +16,6 @@
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.indeed.flamdex.query.Query;
 import com.indeed.imhotep.AbstractImhotepMultiSession;
-import com.indeed.imhotep.DatasetInfo;
 import com.indeed.imhotep.GroupMultiRemapRule;
 import com.indeed.imhotep.GroupRemapRule;
 import com.indeed.imhotep.ImhotepStatusDump;
@@ -24,7 +23,6 @@ import com.indeed.imhotep.Instrumentation;
 import com.indeed.imhotep.Instrumentation.Keys;
 import com.indeed.imhotep.QueryRemapRule;
 import com.indeed.imhotep.RegroupCondition;
-import com.indeed.imhotep.ShardInfo;
 import com.indeed.imhotep.TermCount;
 import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.api.FTGSParams;
@@ -34,6 +32,7 @@ import com.indeed.imhotep.api.ImhotepServiceCore;
 import com.indeed.imhotep.api.PerformanceStats;
 import com.indeed.imhotep.local.MTImhotepLocalMultiSession;
 import com.indeed.imhotep.protobuf.ImhotepResponse;
+import com.indeed.imhotep.protobuf.ShardNameNumDocsPair;
 import com.indeed.imhotep.scheduling.ImhotepTask;
 import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.core.reference.SharedReference;
@@ -243,12 +242,6 @@ public abstract class AbstractImhotepServiceCore
             return sendFTGSIterator(merger, os);
         });
     }
-
-    @Override
-    public abstract List<DatasetInfo> handleGetDatasetList();
-
-    @Override
-    public abstract List<ShardInfo> handleGetShardlistForTime(String dataset, long startUnixtime, long endUnixtime);
 
     @Override
     public abstract ImhotepStatusDump handleGetStatusDump(final boolean includeShardList);
@@ -483,12 +476,11 @@ public abstract class AbstractImhotepServiceCore
         });
     }
 
-    public abstract List<String> getShardIdsForSession(String sessionId);
+    public abstract List<String> getShardsForSession(String sessionId);
 
-    @Override
     public abstract String handleOpenSession(
             String dataset,
-            List<String> shardRequestList,
+            List<ShardNameNumDocsPair> shardRequestList,
             String username,
             String clientName,
             String ipAddress,

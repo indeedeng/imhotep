@@ -19,42 +19,34 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 import com.google.common.io.Closer;
-import com.google.common.util.concurrent.ListenableFuture;
 import com.indeed.imhotep.ZkEndpointPersister;
-import com.indeed.imhotep.client.CheckpointedHostsReloader;
-import com.indeed.imhotep.client.DummyHostsReloader;
-import com.indeed.imhotep.client.Host;
-import com.indeed.imhotep.client.HostsReloader;
-import com.indeed.imhotep.client.ZkHostsReloader;
-import com.indeed.imhotep.fs.RemoteCachingFileSystemProvider;
-import com.indeed.imhotep.fs.RemoteCachingPath;
-import com.indeed.imhotep.fs.sql.SchemaInitializer;
-import com.indeed.imhotep.shardmaster.db.shardinfo.Tables;
-import com.indeed.imhotep.shardmaster.rpc.MultiplexingRequestHandler;
-import com.indeed.imhotep.shardmaster.rpc.RequestMetricStatsEmitter;
-import com.indeed.imhotep.shardmaster.rpc.RequestResponseServer;
-import com.zaxxer.hikari.HikariConfig;
-import com.zaxxer.hikari.HikariDataSource;
+import com.indeed.imhotep.client.*;
+import com.indeed.imhotep.hadoopcommon.KerberosUtils;
+import com.indeed.imhotep.shardmaster.utils.SQLWriteManager;
+import com.indeed.imhotep.shardmasterrpc.MultiplexingRequestHandler;
+import com.indeed.imhotep.shardmasterrpc.RequestMetricStatsEmitter;
+import com.indeed.imhotep.shardmasterrpc.RequestResponseServer;
+import com.indeed.imhotep.shardmasterrpc.ShardMaster;
+import com.indeed.imhotep.shardmasterrpc.ShardMasterExecutors;
+import com.indeed.util.zookeeper.ZooKeeperConnection;
+import org.apache.commons.dbcp.BasicDataSource;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
-import org.apache.zookeeper.KeeperException;
+import org.apache.zookeeper.*;
 import org.joda.time.Duration;
+import org.springframework.jdbc.core.JdbcTemplate;
 
-import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
+import java.net.ServerSocket;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.sql.SQLException;
-import java.util.Collections;
-import java.util.List;
-import java.util.Set;
-import java.util.Timer;
-import java.util.TimerTask;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.*;
+import java.util.concurrent.*;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * @author kenh
@@ -64,91 +56,160 @@ public class ShardMasterDaemon {
     private static final Logger LOGGER = Logger.getLogger(ShardMasterDaemon.class);
     private final Config config;
     private volatile RequestResponseServer server;
+    private String leaderId;
+    private long lastDeleteTimeMillis;
+    private Lock startupLock = new ReentrantLock();
 
     public ShardMasterDaemon(final Config config) {
         this.config = config;
     }
 
-    public void run() throws IOException, ExecutionException, InterruptedException, KeeperException, SQLException {
+    public void waitForStartup(final long timeout) throws TimeoutException, InterruptedException {
+        Thread.sleep(300);
+        if(!startupLock.tryLock(timeout, TimeUnit.MILLISECONDS)){
+            throw new TimeoutException("ImhotepDaemon failed to start within " + timeout + " ms");
+        }
 
-        LOGGER.info("Initializing fs");
-        RemoteCachingFileSystemProvider.newFileSystem();
+    }
+
+    public void run() throws IOException, InterruptedException, KeeperException {
+        startupLock.lock();
+
+        lastDeleteTimeMillis = System.currentTimeMillis();
 
         LOGGER.info("Starting daemon...");
 
+        // TODO: fix for open source
+        KerberosUtils.loginFromKeytab(null, null);
+
         final ExecutorService executorService = config.createExecutorService();
-        final Timer timer = new Timer(DatasetShardAssignmentRefresher.class.getSimpleName());
+        final Timer hostReloadTimer = new Timer(ShardRefresher.class.getSimpleName());
+        final ScheduledExecutorService datasetReloadExecutor = Executors.newSingleThreadScheduledExecutor();
 
         final HostsReloader hostsReloader;
-        if (config.hasHostsOverride()) {
-            hostsReloader = config.createStaticHostReloader();
+        if (config.hasStaticHostsList()) {
+            if(config.hasDynamicHostsList()) {
+                final HostsReloader zkHostsReloader = config.createZkHostsReloader();
+                hostsReloader = new StaticWithDynamicDowntimeHostsReloader(config.getStaticHosts(), zkHostsReloader);
+            }
+            else {
+                hostsReloader = new DummyHostsReloader(config.getStaticHosts());
+            }
+        } else if(config.hasDynamicHostsList()) {
+                hostsReloader = config.createZkHostsReloader();
         } else {
-            hostsReloader = new CheckpointedHostsReloader(
-                    new File(config.getHostsFile()),
-                    config.createZkHostsReloader(),
-                    config.getHostsDropThreshold());
+            throw new IllegalArgumentException("At least one of the static hosts list or the zookeeper path has to be set");
         }
 
+        final ZooKeeperConnection zkConnection = config.getLeaderZkConnection();
+        final String leaderElectionRoot = config.getLeaderElectionRoot();
+        final JdbcTemplate dbConnection = config.getMetadataConnection();
+        final SQLWriteManager sqlWriteManager = new SQLWriteManager();
+
+        ShardData shardData = new ShardData();
+
         try (Closer closer = Closer.create()) {
-            final ShardAssignmentInfoDao shardAssignmentInfoDao;
-            if (config.getDbFile() != null) {
-                final HikariDataSource dataSource = closer.register(config.createDataSource());
-                new SchemaInitializer(dataSource).initialize(Collections.singletonList(Tables.TBLSHARDASSIGNMENTINFO));
-
-                shardAssignmentInfoDao = new H2ShardAssignmentInfoDao(dataSource, config.getStalenessThreshold());
-            } else {
-                shardAssignmentInfoDao = new InMemoryShardAssignmentInfoDao(config.getStalenessThreshold());
-            }
-
-            final RemoteCachingPath dataSetsDir = (RemoteCachingPath) Paths.get(RemoteCachingFileSystemProvider.URI);
+            final Path shardsRootPath = Paths.get(config.shardsRootPath);
 
             LOGGER.info("Reloading all daemon hosts");
             hostsReloader.run();
 
-            final DatasetShardAssignmentRefresher refresher = new DatasetShardAssignmentRefresher(
-                    dataSetsDir,
-                    config.getShardFilter(),
-                    executorService,
-                    hostsReloader,
-                    config.createAssigner(),
-                    shardAssignmentInfoDao
+            final org.apache.hadoop.fs.Path shardsRootHDFSPath = new org.apache.hadoop.fs.Path(shardsRootPath.toString());
+            final ShardRefresher refresher = new ShardRefresher(
+                    shardsRootHDFSPath,
+                    dbConnection,
+                    config.shardFilter,
+                    shardData,
+                    sqlWriteManager
             );
 
-            LOGGER.info("Initializing all shard assignments");
-            // synchronously assign all shards before proceeding
-            refresher.run();
+            refresher.refresh(config.initialRefreshReadFilesystem, config.readSQL, ShardFilter.ACCEPT_ALL.equals(config.shardFilter), config.writeSQL, isLeader(leaderElectionRoot, zkConnection));
 
-            timer.schedule(new TimerTask() {
+            hostReloadTimer.schedule(new TimerTask() {
                 @Override
                 public void run() {
                     hostsReloader.run();
                 }
             }, config.getHostsRefreshInterval().getMillis(), config.getHostsRefreshInterval().getMillis());
 
-            timer.schedule(refresher, config.getRefreshInterval().getMillis(), config.getRefreshInterval().getMillis());
+            datasetReloadExecutor.scheduleAtFixedRate(() -> {
+                final boolean shouldDelete = ShardFilter.ACCEPT_ALL.equals(config.shardFilter) && System.currentTimeMillis() - lastDeleteTimeMillis > config.getDeleteInterval().getMillis();
+                if(shouldDelete) {
+                    lastDeleteTimeMillis = System.currentTimeMillis();
+                }
+                final boolean leader = isLeader(leaderElectionRoot, zkConnection);
+                refresher.refresh(config.readFilesystem && leader, config.readSQL, shouldDelete, leader && config.writeSQL, leader);
+            }, config.getRefreshInterval().getMillis(), config.getRefreshInterval().getMillis(), TimeUnit.MILLISECONDS);
 
-            server = new RequestResponseServer(config.getServicePort(), new MultiplexingRequestHandler(
+            server = new RequestResponseServer(config.getServerSocket(), new MultiplexingRequestHandler(
                     config.statsEmitter,
-                    new DatabaseShardMaster(shardAssignmentInfoDao),
+                    new DatabaseShardMaster(config.createAssigner(), shardData, hostsReloader, refresher, config.localMode ? "" : ".sqar"),
                     config.shardsResponseBatchSize
             ), config.serviceConcurrency);
-            try (ZkEndpointPersister endpointPersister = getZKEndpointPersister()
-            ) {
+            startupLock.unlock();
+            try (ZkEndpointPersister endpointPersister = getZKEndpointPersister()) {
                 LOGGER.info("Starting service");
                 server.run();
             } finally {
                 LOGGER.info("shutting down service");
                 server.close();
             }
-        } finally {
-            timer.cancel();
+        } catch (Exception e) {
+            LOGGER.error("Error during startup", e);
+        }
+        finally {
+            startupLock.unlock();
+            hostReloadTimer.cancel();
+            datasetReloadExecutor.shutdown();
             executorService.shutdown();
             hostsReloader.shutdown();
+            if(zkConnection!=null) {
+                zkConnection.close();
+            }
+        }
+    }
+
+    public boolean isLeader(final String leaderElectionRoot, final ZooKeeperConnection zkConnection){
+        if(config.localMode) {
+            return true;
+        }
+
+        try {
+            if(!zkConnection.isConnected()) {
+                zkConnection.connect();
+                final String leaderPath = zkConnection.create(leaderElectionRoot+"/_", new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL_SEQUENTIAL);
+                leaderId = leaderPath.substring(leaderElectionRoot.length()+1);
+            } else if(leaderId == null) {
+                final String leaderPath = zkConnection.create(leaderElectionRoot+"/_", new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL_SEQUENTIAL);
+                leaderId = leaderPath.substring(leaderElectionRoot.length()+1);
+            }
+
+            final List<String> children = zkConnection.getChildren(leaderElectionRoot, false);
+            Collections.sort(children);
+
+            int index = Collections.binarySearch(children, leaderId);
+
+            if(index == 0) {
+                LOGGER.info("I am the leader");
+                return true;
+            }
+
+            if(index == -1) {
+                LOGGER.info("Lost my leader path. Resetting my connection to zookeeper.");
+                zkConnection.delete(leaderElectionRoot + leaderId, -1);
+                zkConnection.close();
+            }
+
+            return false;
+
+        } catch (InterruptedException | KeeperException | IOException e ) {
+            LOGGER.error(e.getMessage(), e.getCause());
+            return false;
         }
     }
 
     private ZkEndpointPersister getZKEndpointPersister() throws IOException, InterruptedException, KeeperException {
-        if(config.zkNodes == null || config.shardMastersZkPath == null) {
+        if(config.zkNodes == null || config.shardMastersZkPath == null || config.localMode) {
             LOGGER.info("Not registering in ZooKeeper as not configured for it");
             return null;
         }
@@ -157,33 +218,90 @@ public class ShardMasterDaemon {
     }
 
     @VisibleForTesting
-    void shutdown() throws IOException {
+    public void shutdown() throws IOException {
         if (server != null) {
             server.close();
         }
     }
 
-    static class Config {
+    public static class Config {
         private String zkNodes;
         private String imhotepDaemonsZkPath;
         private String shardMastersZkPath;
-        private String dbFile;
-        private String dbParams = "MULTI_THREADED=TRUE;CACHE_SIZE=" + (1024 * 1024);
-        private String hostsFile;
-        private String hostsOverride;
-        private String disabledHosts;
+        private String hostsListStatic;
         private String shardAssigner;
         private ShardFilter shardFilter = ShardFilter.ACCEPT_ALL;
-        private int servicePort = 0;
         private int serviceConcurrency = 10;
         private int shardsResponseBatchSize = 1000;
         private int threadPoolSize = 5;
         private int replicationFactor = 2;
-        private Duration refreshInterval = Duration.standardMinutes(5);
-        private Duration stalenessThreshold = Duration.standardMinutes(15);
+        private Duration refreshInterval = Duration.standardMinutes(1);
         private Duration hostsRefreshInterval = Duration.standardMinutes(1);
-        private double hostsDropThreshold = 0.5;
         private RequestMetricStatsEmitter statsEmitter = RequestMetricStatsEmitter.NULL_EMITTER;
+        private String metadataDBURL;
+        private Duration deleteInterval = Duration.standardDays(1);
+        private String metadataDBUsername;
+        private String metadataDBPassword;
+        private String shardsRootPath = "hdfs:///var/imhotep";
+        private ServerSocket serverSocket;
+        private boolean readSQL = true;
+        private boolean writeSQL = true;
+        private boolean readFilesystem = true;
+        private boolean initialRefreshReadFilesystem = false;
+
+        /*
+         * Local mode does:
+         * - prevent the shardmaster from registering in zookeeper (for leader election or as a daemon)
+         * - cause the shardmaster to behave as if it were a leader
+         * - change the forwarded file type from .sqar to unpacked shards
+         * Local mode does not:
+         * - disable reads / writes to SQL
+         * - make the shardmaster read the filesystem if readFilesystem = false
+         * - make the shardmaster read the filesystem on the initial refresh
+         * - prevent RefreshFieldsForDataset calls from being executed by the daemon
+         */
+        private boolean localMode = false;
+
+        public Config setReadSQL(boolean readSQL) {
+            this.readSQL = readSQL;
+            return this;
+        }
+
+        public Config setWriteSQL(boolean writeSQL) {
+            this.writeSQL = writeSQL;
+            return this;
+        }
+
+        public Config setReadFilesystem(boolean readFilesystem) {
+            this.readFilesystem = readFilesystem;
+            return this;
+        }
+
+        public Config setInitialRefreshReadFilesystem(boolean initialRefreshReadFilesystem) {
+            this.initialRefreshReadFilesystem = initialRefreshReadFilesystem;
+            return this;
+        }
+
+        public Config setHostsListStatic(String hostsListStatic) {
+            this.hostsListStatic = hostsListStatic;
+            return this;
+        }
+
+
+        public Config setMetadataDBUsername(final String username) {
+            this.metadataDBUsername = username;
+            return this;
+        }
+
+        public Config setMetadataDBPassword(final String password) {
+            this.metadataDBPassword = password;
+            return this;
+        }
+
+        public Config setMetadataDBURL(final String url){
+            this.metadataDBURL = url;
+            return this;
+        }
 
         public Config setZkNodes(final String zkNodes) {
             this.zkNodes = zkNodes;
@@ -200,31 +318,6 @@ public class ShardMasterDaemon {
             return this;
         }
 
-        public Config setDbFile(final String dbFile) {
-            this.dbFile = dbFile;
-            return this;
-        }
-
-        public Config setDbParams(final String dbParams) {
-            this.dbParams = dbParams;
-            return this;
-        }
-
-        public Config setHostsFile(final String hostsFile) {
-            this.hostsFile = hostsFile;
-            return this;
-        }
-
-        public Config setHostsOverride(final String hostsOverride) {
-            this.hostsOverride = hostsOverride;
-            return this;
-        }
-
-        public Config setDisabledHosts(final String disabledHosts) {
-            this.disabledHosts = disabledHosts;
-            return this;
-        }
-
         public Config setShardAssigner(String shardAssigner) {
             this.shardAssigner = shardAssigner;
             return this;
@@ -235,8 +328,8 @@ public class ShardMasterDaemon {
             return this;
         }
 
-        public Config setServicePort(final int servicePort) {
-            this.servicePort = servicePort;
+        public Config setServerSocket(final ServerSocket servicePort) {
+            this.serverSocket = servicePort;
             return this;
         }
 
@@ -265,18 +358,8 @@ public class ShardMasterDaemon {
             return this;
         }
 
-        public Config setStalenessThreshold(final long stalenessThreshold) {
-            this.stalenessThreshold = Duration.millis(stalenessThreshold);
-            return this;
-        }
-
         public Config setHostsRefreshInterval(final long hostsRefreshInterval) {
             this.hostsRefreshInterval = Duration.millis(hostsRefreshInterval);
-            return this;
-        }
-
-        public Config setHostsDropThreshold(final double hostsDropThreshold) {
-            this.hostsDropThreshold = hostsDropThreshold;
             return this;
         }
 
@@ -285,8 +368,17 @@ public class ShardMasterDaemon {
             return this;
         }
 
-        boolean hasHostsOverride() {
-            return StringUtils.isNotBlank(hostsOverride);
+        public Config setShardsRootPath(final String shardsRootPath) {
+            this.shardsRootPath = shardsRootPath;
+            return this;
+        }
+
+        boolean hasStaticHostsList() {
+            return StringUtils.isNotBlank(hostsListStatic);
+        }
+
+        boolean hasDynamicHostsList() {
+            return StringUtils.isNotBlank(imhotepDaemonsZkPath);
         }
 
         HostsReloader createZkHostsReloader() {
@@ -294,18 +386,9 @@ public class ShardMasterDaemon {
             return new ZkHostsReloader(zkNodes, imhotepDaemonsZkPath, false);
         }
 
-        HostsReloader createStaticHostReloader() throws IOException {
-            Preconditions.checkNotNull(hostsOverride, "Static hosts config is missing");
-            final List<Host> hostList = Lists.newArrayList(parseHostsList(hostsOverride));
-            if (StringUtils.isNotBlank(disabledHosts)) {
-                final Set<Host> disabledHostList = Sets.newHashSet(parseHostsList(disabledHosts));
-                for(int i = 0; i < hostList.size(); i++) {
-                    if(disabledHostList.contains(hostList.get(i))) {
-                        hostList.set(i, null);
-                    }
-                }
-            }
-            return new DummyHostsReloader(hostList);
+        List<Host> getStaticHosts() throws IOException {
+            Preconditions.checkNotNull(hostsListStatic, "Static hosts config is missing");
+            return Lists.newArrayList(parseHostsList(hostsListStatic));
         }
 
         private List<Host> parseHostsList(String value) {
@@ -325,44 +408,38 @@ public class ShardMasterDaemon {
             return ShardMasterExecutors.newBlockingFixedThreadPool(threadPoolSize);
         }
 
-        HikariDataSource createDataSource() {
-            final HikariConfig dbConfig = new HikariConfig();
-            // this is a bit arbitrary but we need to ensure that the pool size is large enough for the # of threads
-            dbConfig.setMaximumPoolSize(Math.max(10, threadPoolSize + serviceConcurrency + 5));
-
-            String url;
-            if (dbFile != null) {
-                url = "jdbc:h2:" + dbFile;
-            } else {
-                url = "jdbc:h2:mem:shardassignment";
-            }
-
-            if (dbParams != null) {
-                url += ";" + dbParams;
-            }
-            dbConfig.setJdbcUrl(url);
-            return new HikariDataSource(dbConfig);
-        }
-
-        int getServicePort() {
-            return servicePort;
-        }
-
         ShardFilter getShardFilter() {
             return shardFilter;
+        }
+
+        JdbcTemplate getMetadataConnection() {
+            if(this.readSQL || this.writeSQL) {
+                BasicDataSource ds = new BasicDataSource();
+                ds.setDriverClassName("com.mysql.jdbc.Driver");
+                ds.setUrl(metadataDBURL);
+                ds.setUsername(metadataDBUsername);
+                ds.setPassword(metadataDBPassword);
+                ds.setValidationQuery("SELECT 1");
+                return new JdbcTemplate(ds);
+            }
+            return null;
         }
 
         ShardAssigner createAssigner() {
             String shardAssignerToUse = shardAssigner;
             // Provide a default if not configured
             if(Strings.isNullOrEmpty(shardAssignerToUse)) {
-                shardAssignerToUse = replicationFactor == 1 ? "time" : "minhash";
+                shardAssignerToUse = (replicationFactor == 1 && hasStaticHostsList()) ? "time" : "minhash";
             }
 
             if("time".equals(shardAssignerToUse)) {
                 if (replicationFactor != 1) {
                     throw new IllegalArgumentException("Time shard assigner only supports replication factor = 1 now. " +
                             "'minhash' shard assigner is recommended if higher replication factor is used.");
+                }
+                if (!hasStaticHostsList()) {
+                    throw new IllegalArgumentException("Time shard assigner requires host list to be explicitly listed in now. " +
+                            "'minhash' shard assigner is recommended if host list is not fixed.");
                 }
                 return new TimeBasedShardAssigner();
             } else if ("minhash".equals(shardAssignerToUse)){
@@ -376,34 +453,51 @@ public class ShardMasterDaemon {
             return refreshInterval;
         }
 
-        Duration getStalenessThreshold() {
-            return stalenessThreshold;
-        }
-
-        String getHostsFile() {
-            Preconditions.checkNotNull(hostsFile, "HostsFile config is missing");
-            return hostsFile;
-        }
-
-        String getDbFile() {
-            return dbFile;
-        }
-
         Duration getHostsRefreshInterval() {
             return hostsRefreshInterval;
         }
 
-        double getHostsDropThreshold() {
-            return hostsDropThreshold;
+        public Duration getDeleteInterval() {
+            return deleteInterval;
+        }
+
+        public void setDeleteInterval(long deleteIntervalMillis) {
+            this.deleteInterval = Duration.millis(deleteIntervalMillis);
+        }
+
+        public String getShardsRootPath() {
+            return shardsRootPath;
+        }
+
+        public ZooKeeperConnection getLeaderZkConnection() throws IOException, InterruptedException, KeeperException {
+            if(localMode) {
+                return null;
+            }
+            ZooKeeperConnection zkConnection = new ZooKeeperConnection(this.zkNodes, 30000);
+            zkConnection.connect();
+            zkConnection.createIfNotExists(this.shardMastersZkPath+"-election", new byte[0], CreateMode.PERSISTENT);
+            return zkConnection;
+        }
+
+        public String getLeaderElectionRoot() {
+            return shardMastersZkPath+"-election";
+        }
+
+        public ServerSocket getServerSocket() throws IOException {
+            return serverSocket;
+        }
+
+        public Config setLocalMode(boolean b) {
+            this.localMode = b;
+            return this;
         }
     }
 
-    public static void main(final String[] args) throws InterruptedException, ExecutionException, IOException, KeeperException, SQLException {
+    public static void main(final String[] args) throws InterruptedException, IOException, KeeperException, SQLException {
+        // TODO: fix this to set correct configs
         new ShardMasterDaemon(new Config()
                 .setZkNodes(System.getProperty("imhotep.shardmaster.zookeeper.nodes"))
-                .setDbFile(System.getProperty("imhotep.shardmaster.db.file"))
-                .setHostsFile(System.getProperty("imhotep.shardmaster.hosts.file"))
-                .setServicePort(Integer.parseInt(System.getProperty("imhotep.shardmaster.server.port")))
+                .setServerSocket(new ServerSocket(Integer.parseInt(System.getProperty("imhotep.shardmaster.server.port"))))
         ).run();
     }
 }

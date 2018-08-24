@@ -32,6 +32,7 @@ import com.indeed.flamdex.fieldcache.NativeFlamdexFieldCacher;
 import com.indeed.flamdex.fieldcache.UnsortedIntTermDocIterator;
 import com.indeed.flamdex.reader.FlamdexMetadata;
 import com.indeed.flamdex.utils.FlamdexUtils;
+import com.indeed.flamdex.utils.ShardMetadataUtils;
 import com.indeed.imhotep.RaceCache;
 
 import javax.annotation.Nonnull;
@@ -82,16 +83,31 @@ public class SimpleFlamdexReader extends AbstractFlamdexReader {
         return open(new File(directory).toPath());
     }
 
+    public static SimpleFlamdexReader open(final String directory, int numDocs) throws IOException {
+        return open(new File(directory).toPath(), numDocs);
+    }
+
     public static SimpleFlamdexReader open(@Nonnull final Path directory) throws IOException {
         return open(directory, new Config());
+    }
+    public static SimpleFlamdexReader open(@Nonnull final Path directory, int numDocs) throws IOException {
+        return open(directory, new Config(), numDocs);
     }
 
     public static SimpleFlamdexReader open(final String directory, final Config config) throws IOException {
         return open(new File(directory).toPath(), config);
     }
 
+    public static SimpleFlamdexReader open(final String directory, final Config config, int numDocs) throws IOException {
+        return open(new File(directory).toPath(), config, numDocs);
+    }
+
     public static SimpleFlamdexReader open(@Nonnull final Path directory, final Config config) throws IOException {
         final FlamdexMetadata metadata = FlamdexMetadata.readMetadata(directory);
+        return open(directory, config, metadata.getNumDocs());
+    }
+
+    public static SimpleFlamdexReader open(@Nonnull final Path directory, final Config config, int numDocs) throws IOException {
 
         final List<Path> paths = new ArrayList<>();
         try (final DirectoryStream<Path> dirStream = Files.newDirectoryStream(directory)) {
@@ -100,8 +116,9 @@ public class SimpleFlamdexReader extends AbstractFlamdexReader {
             }
         }
 
-        final Collection<String> intFields = scan(paths, ".intterms");
-        final Collection<String> stringFields = scan(paths, ".strterms");
+        final ShardMetadataUtils.AllFields fields = ShardMetadataUtils.getFieldsFromFlamdexFiles(paths);
+        final Collection<String> intFields = fields.intFields;
+        final Collection<String> stringFields = fields.strFields;
         if (config.isWriteBTreesIfNotExisting()) {
             final Set<String> pathNames = Sets.newHashSet();
             for (Path path : paths) {
@@ -114,7 +131,7 @@ public class SimpleFlamdexReader extends AbstractFlamdexReader {
         final SimpleFlamdexReader result =
                 new SimpleFlamdexReader(
                         directory,
-                        metadata.getNumDocs(),
+                        numDocs,
                         intFields,
                         stringFields,
                         config);
@@ -123,18 +140,6 @@ public class SimpleFlamdexReader extends AbstractFlamdexReader {
             result.buildAndWriteCardinalityCache(true);
         }
         return result;
-    }
-
-    protected static Collection<String> scan(final List<Path> paths, final String ending) throws IOException {
-        final Set<String> fields = Sets.newTreeSet();
-        for (final Path file : paths) {
-            final String name = file.getFileName().toString();
-            if (name.startsWith("fld-") && name.endsWith(ending)) {
-                fields.add(name.substring(4, name.length() - ending.length()));
-            }
-        }
-
-        return fields;
     }
 
     public MapCache getMapCache() {
@@ -389,6 +394,7 @@ public class SimpleFlamdexReader extends AbstractFlamdexReader {
     }
 
     public static final class Config {
+        // TODO: should disable as ImhotepFS is read only
         private boolean writeBTreesIfNotExisting = true;
         // Calculating cardinality is very expensive.
         // If defauld value of this is 'true' then there will huge cpu-load on shards opening.

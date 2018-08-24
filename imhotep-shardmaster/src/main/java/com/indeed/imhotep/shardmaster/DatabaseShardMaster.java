@@ -14,35 +14,75 @@
 
 package com.indeed.imhotep.shardmaster;
 
-import com.google.common.base.Function;
-import com.google.common.collect.FluentIterable;
-import com.indeed.imhotep.client.Host;
-import com.indeed.imhotep.shardmaster.model.ShardAssignmentInfo;
-import com.indeed.imhotep.shardmaster.protobuf.AssignedShard;
+import com.indeed.imhotep.*;
+import com.indeed.imhotep.client.HostsReloader;
+import com.indeed.imhotep.shardmasterrpc.ShardMaster;
+import org.apache.log4j.Logger;
+
+import java.io.IOException;
+import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Supplier;
 
 /**
  * @author kenh
  */
 
 public class DatabaseShardMaster implements ShardMaster {
-    private final ShardAssignmentInfoDao assignmentInfoDao;
+    private final ShardAssigner assigner;
+    private final ShardData shardData;
+    private final HostsReloader reloader;
+    private final ShardRefresher refresher;
+    private final String fileExtension;
 
-    public DatabaseShardMaster(final ShardAssignmentInfoDao assignmentInfoDao) {
-        this.assignmentInfoDao = assignmentInfoDao;
+    public DatabaseShardMaster(final ShardAssigner assigner, final ShardData shardData, final HostsReloader reloader, final ShardRefresher refresher, String fileExtension) {
+        this.assigner = assigner;
+        this.shardData = shardData;
+        this.reloader = reloader;
+        this.refresher = refresher;
+        this.fileExtension = fileExtension;
     }
 
     @Override
-    public Iterable<AssignedShard> getAssignments(final Host node) {
-        return FluentIterable
-                .from(assignmentInfoDao.getAssignments(node))
-                .transform(new Function<ShardAssignmentInfo, AssignedShard>() {
-                    @Override
-                    public AssignedShard apply(final ShardAssignmentInfo shard) {
-                        return AssignedShard.newBuilder()
-                                .setDataset(shard.getDataset())
-                                .setShardPath(shard.getShardPath())
-                                .build();
-                    }
-                });
+    public List<DatasetInfo> getDatasetMetadata() {
+        final List<DatasetInfo> toReturn = new ArrayList<>();
+        final Collection<String> datasets = shardData.getDatasets();
+        for(final String dataset: datasets) {
+            final List<String> strFields = shardData.getFields(dataset, ShardData.FieldType.STRING);
+            final List<String> intFields = shardData.getFields(dataset, ShardData.FieldType.INT);
+            final List<String> conflictFields = shardData.getFields(dataset, ShardData.FieldType.CONFLICT);
+            strFields.addAll(conflictFields);
+            intFields.addAll(conflictFields);
+            toReturn.add(new DatasetInfo(dataset, intFields, strFields));
+        }
+        return toReturn;
+    }
+
+    @Override
+    public List<Shard> getShardsInTime(String dataset, long start, long end) {
+        final Collection<ShardInfo> info = shardData.getShardsInTime(dataset, start, end);
+        final List<Shard> shards = new ArrayList<>();
+        final Iterable<Shard> assignment = assigner.assign(reloader.getHosts(), dataset, info);
+        for(final Shard shardAndHost: assignment) {
+            final Shard shard = new Shard(shardAndHost.shardId, shardAndHost.numDocs, shardAndHost.version, shardAndHost.getServer(), fileExtension);
+            shards.add(shard);
+        }
+        return shards;
+    }
+
+    @Override
+    public Map<String, Collection<ShardInfo>> getShardList() {
+        final Map<String, Collection<ShardInfo>> toReturn = new HashMap<>();
+        final Collection<String> datasets = shardData.getDatasets();
+        for(final String dataset: datasets) {
+            final Collection<ShardInfo> shardsForDataset = shardData.getShardsForDataset(dataset);
+            toReturn.put(dataset, shardsForDataset);
+        }
+        return toReturn;
+    }
+
+    @Override
+    public void refreshFieldsForDataset(String dataset) throws IOException {
+        refresher.refreshFieldsForDatasetInSQL(dataset);
     }
 }

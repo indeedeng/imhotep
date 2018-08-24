@@ -6,11 +6,10 @@ option java_multiple_files = true;
 
 message DatasetInfoMessage {
   optional string dataset = 1;
-  repeated ShardInfoMessage shard_info = 2;
   repeated string int_field = 3;
   repeated string string_field = 4;
+  // No longer used
   repeated string metric = 5;
-  optional uint64 latest_shard_version = 6;
 }
 
 message ShardInfoMessage {
@@ -21,12 +20,22 @@ message ShardInfoMessage {
   optional uint64 version = 8;
 }
 
+message ShardMessage {
+  optional string dataset = 1;
+  required string shard_id = 2;
+  required uint32 num_docs = 3;
+  optional uint64 version = 4;
+  required HostAndPort host = 5;
+  optional string path = 6;
+  optional string extension = 7;
+}
+
 message StatusDumpMessage {
   required uint64 used_memory = 1;
   required uint64 total_memory = 2;
   repeated SessionDumpMessage open_session = 3;
-  repeated ShardDumpMessage loaded_shard = 4;
-  optional uint32 shard_count = 5 [default = 0];
+  repeated ShardDumpMessage deleted_loaded_shard = 4;
+  optional uint32 deleted_shard_count = 5 [default = 0];
 }
 
 message SessionDumpMessage {
@@ -81,13 +90,18 @@ message GroupMultiRemapMessage {
   optional uint32 negative_group = 4 [default = 0];
 }
 
+message ShardNameNumDocsPair {
+    optional int32 num_docs = 1 [default = -1];
+    required string shard_name = 2;
+}
+
 message ImhotepRequest {
   enum RequestType {
     REGROUP = 1;
     GET_FTGS_ITERATOR = 2;
     PUSH_STAT = 3;
     POP_STAT = 4;
-    DELETED___GET_SHARD_LIST = 5; // No longer implemented. Use GET_SHARD_INFO_LIST
+    DELETED___GET_SHARD_LIST = 5; // No longer implemented. Use GET_SHARD_LIST in ShardMaster
     OPEN_SESSION = 6;
     CLOSE_SESSION = 7;
     GET_TOTAL_DOC_FREQ = 8;
@@ -104,7 +118,7 @@ message ImhotepRequest {
     CREATE_DYNAMIC_METRIC = 19;
     UPDATE_DYNAMIC_METRIC = 20;
     RESET_GROUPS = 21;
-    GET_SHARD_INFO_LIST = 22;
+    DELETED___GET_SHARD_INFO_LIST = 22; // No longer implemented. Use GET_SHARD_LIST in ShardMaster
     RANDOM_MULTI_REGROUP = 23;
     MULTISPLIT_REGROUP = 24;
     APPROXIMATE_TOP_TERMS = 25;
@@ -126,8 +140,8 @@ message ImhotepRequest {
     GROUP_QUERY_UPDATE_DYNAMIC_METRIC = 41;
     STREAMING_GET_GROUP_STATS = 42;
     GET_PERFORMANCE_STATS = 43;
-    GET_DATASET_METADATA = 44;
-    GET_SHARD_LIST_FOR_TIME = 45;
+    DELETED___GET_DATASET_METADATA = 44; // No longer implemented. Data comes from ShardMaster
+    DELETED___GET_SHARD_LIST_FOR_TIME = 45; // No longer implemented. Data comes form ShardMaster
     RANDOM_METRIC_REGROUP = 46;
     RANDOM_METRIC_MULTI_REGROUP = 47;
     GET_DISTINCT = 48;
@@ -148,6 +162,7 @@ message ImhotepRequest {
 
   // for openSession()
   optional string dataset = 6;
+  // No longer implemented. Instead, use shards.
   repeated string shard_request = 7;
 
   // for getGroupStats()
@@ -279,6 +294,9 @@ message ImhotepRequest {
 
   // for getFTGSIterator call
   optional bool sortedFTGS = 64 [default = true];
+
+  // used in openSession()
+  repeated ShardNameNumDocsPair shards = 65;
 }
 
 message ImhotepResponse {
@@ -293,7 +311,7 @@ message ImhotepResponse {
   // for openSession()
   optional string session_id = 2;
 
-  // for getShardlistForTime()
+  // no longer implemented
   repeated ShardInfoMessage shard_info = 3;
 
   // for pushStat()/popStat()/getFTGS
@@ -318,10 +336,11 @@ message ImhotepResponse {
   // error stuff
   optional string exception_type = 10;
   optional string exception_message = 11;
-  optional string exception_stack_trace = 14;
 
-  // for new getShardList()
+  // no longer used
   repeated DatasetInfoMessage dataset_info = 12;
+
+  optional string exception_stack_trace = 14;
 
   // for approximateTopTerms()
   repeated TermCountMessage top_terms = 13;
@@ -401,4 +420,47 @@ message PerformanceStatsMessage {
 message StringLongMessage {
   required string Key = 1;
   required int64 Value = 2;
+}
+
+// Used for GET_SHARD_LIST
+message DatasetShardsMessage {
+  required string dataset = 1;
+  repeated ShardInfoMessage shards = 2;
+}
+
+message ShardMasterResponse {
+  enum ResponseCode {
+    OK = 1;
+    ERROR = 2;
+  }
+
+  optional ResponseCode response_code = 1 [default = OK];
+  // in case for ERROR
+  optional string error_message = 2;
+  // for GET_SHARD_LIST_FOR_TIME
+  repeated ShardMessage shards_in_time = 4;
+  // for GET_DATASET_METADATA
+  repeated DatasetInfoMessage metadata = 5;
+  // for GET_SHARD_LIST
+  repeated DatasetShardsMessage all_shards = 6;
+}
+
+message ShardMasterRequest {
+  enum RequestType {
+    DELETED_GET_ASSIGNMENT = 1; // Depricated
+    GET_SHARD_LIST_FOR_TIME = 2;
+    GET_DATASET_METADATA = 3;
+    GET_SHARD_LIST = 4;
+    REFRESH_FIELDS_FOR_DATASET = 5;
+  }
+
+  required RequestType request_type = 1;
+  // No longer used
+  optional HostAndPort node = 2;
+  // for GET_SHARD_LIST_FOR_TIME
+  optional uint64 startTime = 3;
+  optional uint64 endTime = 4;
+  optional string dataset = 5;
+  // for REFRESH_FIELDS_FOR_DATASET
+  optional string dataset_to_refresh = 6;
 }

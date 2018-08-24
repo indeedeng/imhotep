@@ -13,19 +13,14 @@
  */
 package com.indeed.imhotep.service;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.UnmodifiableIterator;
 import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
 import com.indeed.flamdex.query.Query;
-import com.indeed.imhotep.DatasetInfo;
 import com.indeed.imhotep.GroupMultiRemapRule;
 import com.indeed.imhotep.GroupRemapRule;
 import com.indeed.imhotep.ImhotepRemoteSession;
@@ -33,7 +28,6 @@ import com.indeed.imhotep.ImhotepStatusDump;
 import com.indeed.imhotep.Instrumentation;
 import com.indeed.imhotep.Instrumentation.Keys;
 import com.indeed.imhotep.RegroupCondition;
-import com.indeed.imhotep.ShardInfo;
 import com.indeed.imhotep.TermCount;
 import com.indeed.imhotep.api.FTGSParams;
 import com.indeed.imhotep.api.GroupStatsIterator;
@@ -48,17 +42,14 @@ import com.indeed.imhotep.io.Streams;
 import com.indeed.imhotep.marshal.ImhotepDaemonMarshaller;
 import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
 import com.indeed.imhotep.protobuf.GroupRemapMessage;
-import com.indeed.imhotep.protobuf.HostAndPort;
 import com.indeed.imhotep.protobuf.ImhotepRequest;
 import com.indeed.imhotep.protobuf.ImhotepResponse;
 import com.indeed.imhotep.protobuf.IntFieldAndTerms;
 import com.indeed.imhotep.protobuf.QueryMessage;
 import com.indeed.imhotep.protobuf.QueryRemapMessage;
 import com.indeed.imhotep.protobuf.RegroupConditionMessage;
+import com.indeed.imhotep.protobuf.ShardNameNumDocsPair;
 import com.indeed.imhotep.protobuf.StringFieldAndTerms;
-import com.indeed.imhotep.shardmaster.ShardMaster;
-import com.indeed.imhotep.shardmaster.rpc.RequestResponseClient;
-import com.indeed.imhotep.shardmaster.rpc.RequestResponseClientFactory;
 import com.indeed.util.core.Pair;
 import com.indeed.util.core.io.Closeables2;
 import org.apache.log4j.Logger;
@@ -78,6 +69,7 @@ import java.net.Socket;
 import java.net.SocketException;
 import java.net.URISyntaxException;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -86,7 +78,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
 public class ImhotepDaemon implements Instrumentation.Provider {
     private static final Logger log = Logger.getLogger(ImhotepDaemon.class);
@@ -101,8 +93,6 @@ public class ImhotepDaemon implements Instrumentation.Provider {
     private final AtomicLong requestIdCounter = new AtomicLong(0);
 
     private volatile boolean isStarted = false;
-
-    private final ShardUpdateListener shardUpdateListener;
 
     private final @Nullable Integer sessionForwardingPort;
 
@@ -132,37 +122,6 @@ public class ImhotepDaemon implements Instrumentation.Provider {
         }
     }
 
-    private static final class ShardUpdateListener
-        implements ShardUpdateListenerIf {
-
-        private final AtomicReference<ImhotepResponse> datasetMetadataResponse =
-            new AtomicReference<>();
-
-        private final AtomicReference<ImhotepResponse> datasetListResponse =
-            new AtomicReference<>();
-
-        public void onDatasetUpdate(final List<DatasetInfo> datasetList,
-                                    final Source unusedSource) {
-            final ImhotepResponse.Builder shardListBuilder = ImhotepResponse.newBuilder();
-            for (final DatasetInfo dataset : datasetList) {
-                shardListBuilder.addDatasetInfo(dataset.toProto());
-            }
-            final ImhotepResponse shardListReponse = shardListBuilder.build();
-            datasetListResponse.set(shardListReponse);
-
-
-            final ImhotepResponse.Builder metadataBuilder = ImhotepResponse.newBuilder();
-            for (final DatasetInfo dataset : datasetList) {
-                metadataBuilder.addDatasetInfo(dataset.toProtoNoShards());
-            }
-            final ImhotepResponse metadataResponse = metadataBuilder.build();
-            datasetMetadataResponse.set(metadataResponse);
-        }
-
-        public ImhotepResponse getDatasetMetadataResponse() { return datasetMetadataResponse.get();   }
-        public ImhotepResponse getDatasetListResponse() { return datasetListResponse.get(); }
-    }
-
     /* Relays events to our observers. */
     private final class ServiceCoreObserver implements Instrumentation.Observer {
         public void onEvent(final Instrumentation.Event event) {
@@ -177,11 +136,9 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             final String zkPath,
             final String hostname,
             final int port,
-            final ShardUpdateListener shardUpdateListener,
             final @Nullable Integer sessionForwardingPort) {
         this.ss = ss;
         this.service = service;
-        this.shardUpdateListener = shardUpdateListener;
         this.sessionForwardingPort = sessionForwardingPort;
         executor = Executors.newCachedThreadPool(new ThreadFactory() {
             int i = 0;
@@ -193,19 +150,6 @@ public class ImhotepDaemon implements Instrumentation.Provider {
 
         zkWrapper = zkNodes != null ?
             new ServiceZooKeeperWrapper(zkNodes, hostname, port, zkPath) : null;
-    }
-
-    /** Intended for tests that create their own ImhotepDaemons. */
-    @VisibleForTesting
-    public ImhotepDaemon(
-            final ServerSocket ss,
-            final AbstractImhotepServiceCore service,
-            final String zkNodes,
-            final String zkPath,
-            final String hostname,
-            final int port,
-            final @Nullable Integer sessionForwardingPort) {
-        this(ss, service, zkNodes, zkPath, hostname, port, new ShardUpdateListener(), sessionForwardingPort);
     }
 
     public void addObserver(final Instrumentation.Observer observer) {
@@ -304,7 +248,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
         }
 
         private ImhotepResponse openSession(
-                final ImhotepRequest          request,
+                final ImhotepRequest request,
                 final ImhotepResponse.Builder builder)
             throws ImhotepOutOfMemoryException, IOException {
 
@@ -317,7 +261,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                     final OutputStream os = Streams.newBufferedOutputStream(socket.getOutputStream());
                     final InputStream is = Streams.newBufferedInputStream(socket.getInputStream());
 
-                    final List<String> shards = request.getShardRequestList();
+                    final List<ShardNameNumDocsPair> shards = request.getShardsList();
                     log.trace("sending open request to "+host+":"+port+" for shards "+ shards);
 
                     ImhotepProtobufShipping.sendProtobuf(request, os);
@@ -333,10 +277,9 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 final AtomicLong tempFileSizeBytesLeft =
                         request.getTempFileSizeLimit() > 0 ?
                                 new AtomicLong(request.getTempFileSizeLimit()) : null;
-
                 final String sessionId =
                         service.handleOpenSession(request.getDataset(),
-                                request.getShardRequestList(),
+                                request.getShardsList(),
                                 request.getUsername(),
                                 request.getClientName(),
                                 inetAddress.getHostAddress(),
@@ -345,7 +288,9 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                                 request.getOptimizeGroupZeroLookups(),
                                 request.getSessionId(),
                                 tempFileSizeBytesLeft,
-                                request.getSessionTimeout());
+                                request.getSessionTimeout()
+
+                        );
                 NDC.push(sessionId);
                 builder.setSessionId(sessionId);
                 return builder.build();
@@ -555,13 +500,8 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                                                                final ImhotepResponse.Builder builder)
         {
             final InetSocketAddress[] nodes =
-                    Lists.transform(request.getNodesList(),
-                            new Function<HostAndPort, InetSocketAddress>() {
-                                public InetSocketAddress apply(final HostAndPort input) {
-                                    return new InetSocketAddress(input.getHost(),
-                                            input.getPort());
-                                }
-                            }).toArray(new InetSocketAddress[request.getNodesCount()]);
+                    request.getNodesList().stream().map(input -> new InetSocketAddress(input.getHost(),
+                            input.getPort())).collect(Collectors.toList()).toArray(new InetSocketAddress[request.getNodesCount()]);
 
             final GroupStatsIterator groupStats =
                     service.handleMergeDistinctSplit(
@@ -643,13 +583,8 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             throws IOException {
             checkSessionValidity(request);
             final InetSocketAddress[] nodes =
-                Lists.transform(request.getNodesList(),
-                                new Function<HostAndPort, InetSocketAddress>() {
-                                    public InetSocketAddress apply(final HostAndPort input) {
-                                        return new InetSocketAddress(input.getHost(),
-                                                                     input.getPort());
-                                    }
-                                }).toArray(new InetSocketAddress[request.getNodesCount()]);
+                request.getNodesList().stream().map(input -> new InetSocketAddress(input.getHost(),
+                        input.getPort())).collect(Collectors.toList()).toArray(new InetSocketAddress[request.getNodesCount()]);
             final FTGSParams params = getFTGSParams(request);
             service.handleMergeFTGSIteratorSplit(request.getSessionId(),
                                                  params,
@@ -663,13 +598,8 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             throws IOException, ImhotepOutOfMemoryException {
             checkSessionValidity(request);
             final InetSocketAddress[] nodes =
-                Lists.transform(request.getNodesList(),
-                                new Function<HostAndPort, InetSocketAddress>() {
-                                    public InetSocketAddress apply(final HostAndPort input) {
-                                        return new InetSocketAddress(input.getHost(),
-                                                                     input.getPort());
-                                    }
-                                }).toArray(new InetSocketAddress[request.getNodesCount()]);
+                request.getNodesList().stream().map(input -> new InetSocketAddress(input.getHost(),
+                        input.getPort())).collect(Collectors.toList()).toArray(new InetSocketAddress[request.getNodesCount()]);
             service.handleMergeSubsetFTGSIteratorSplit(request.getSessionId(),
                                                        getIntFieldsToTerms(request),
                                                        getStringFieldsToTerms(request),
@@ -702,48 +632,6 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             final int numGroups = service.handleGetNumGroups(request.getSessionId());
             builder.setNumGroups(numGroups);
             return builder.build();
-        }
-
-        private ImhotepResponse getShardInfoList(
-                final ImhotepRequest          request,
-                final ImhotepResponse.Builder builder)
-            throws ImhotepOutOfMemoryException {
-            ImhotepResponse response = shardUpdateListener.getDatasetListResponse();
-            if (response == null) {
-                final List<DatasetInfo> datasets = service.handleGetDatasetList();
-                for (final DatasetInfo dataset : datasets) {
-                    builder.addDatasetInfo(dataset.toProto());
-                }
-                response = builder.build();
-            }
-            return response;
-        }
-
-        private ImhotepResponse getShardlistForTime(
-                final ImhotepRequest          request,
-                final ImhotepResponse.Builder builder)
-                throws ImhotepOutOfMemoryException {
-
-            final List<ShardInfo> shards = service.handleGetShardlistForTime(request.getDataset(), request.getStartUnixtime(), request.getEndUnixtime());
-            for (final ShardInfo shardInfo: shards) {
-                builder.addShardInfo(shardInfo.toProto());
-            }
-            return builder.build();
-        }
-
-        private ImhotepResponse getDatasetMetadata(
-                final ImhotepRequest          request,
-                final ImhotepResponse.Builder builder)
-                throws ImhotepOutOfMemoryException {
-            ImhotepResponse response = shardUpdateListener.getDatasetMetadataResponse();
-            if (response == null) {
-                final List<DatasetInfo> datasets = service.handleGetDatasetList();
-                for (final DatasetInfo dataset : datasets) {
-                    builder.addDatasetInfo(dataset.toProtoNoShards());
-                }
-                response = builder.build();
-            }
-            return response;
         }
 
         private ImhotepResponse getStatusDump(
@@ -1073,15 +961,6 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                             break;
                         case GET_NUM_GROUPS:
                             response = getNumGroups(request, builder);
-                            break;
-                        case GET_SHARD_INFO_LIST:
-                            response = getShardInfoList(request, builder);
-                            break;
-                        case GET_SHARD_LIST_FOR_TIME:
-                            response = getShardlistForTime(request, builder);
-                            break;
-                        case GET_DATASET_METADATA:
-                            response = getDatasetMetadata(request, builder);
                             break;
                         case GET_STATUS_DUMP:
                             response = getStatusDump(request, builder);
@@ -1413,7 +1292,6 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                                           final @Nullable Integer sessionForwardingPort,
                                           @Nullable LocalImhotepServiceConfig localImhotepServiceConfig) throws IOException, URISyntaxException {
         final AbstractImhotepServiceCore localService;
-        final ShardUpdateListener shardUpdateListener = new ShardUpdateListener();
 
         // initialize the imhotepfs if necessary
         RemoteCachingFileSystemProvider.newFileSystem();
@@ -1424,37 +1302,20 @@ public class ImhotepDaemon implements Instrumentation.Provider {
         final String myHostname = InetAddress.getLocalHost().getCanonicalHostName();
         final ServerSocket ss = new ServerSocket(port);
         final Host myHost = new Host(myHostname, ss.getLocalPort());
-        final Supplier<ShardMaster> shardMasterSupplier = getShardMasterSupplier(zkNodes, myHost);
 
         if(localImhotepServiceConfig == null) {
             localImhotepServiceConfig = new LocalImhotepServiceConfig();
         }
 
-        localService = new LocalImhotepServiceCore(shardsDir,
-                                                   tmpDir,
-                                                   memoryCapacityInMB * 1024 * 1024,
-                                                   new GenericFlamdexReaderSource(),
-                                                   new ShardDirIteratorFactory(shardMasterSupplier, myHost),
-                                                   localImhotepServiceConfig,
-                                                   shardUpdateListener);
+        localService = new LocalImhotepServiceCore(tmpDir,
+                memoryCapacityInMB * 1024 * 1024,
+                null,
+                localImhotepServiceConfig,
+                Paths.get(RemoteCachingFileSystemProvider.URI));
         final ImhotepDaemon result =
-            new ImhotepDaemon(ss, localService, zkNodes, zkPath, myHostname, port, shardUpdateListener, sessionForwardingPort);
+                new ImhotepDaemon(ss, localService, zkNodes, zkPath, myHostname, port, sessionForwardingPort);
         localService.addObserver(result.getServiceCoreObserver());
         return result;
-    }
-
-    private static Supplier<ShardMaster> getShardMasterSupplier(String zkNodes, Host myHost) {
-        final String shardMasterHost = System.getProperty("imhotep.shardmaster.host");
-        if(shardMasterHost != null) {
-            // we have an exact host:port combination provided so use that
-            return () -> new RequestResponseClient(
-                    new Host(shardMasterHost.split(":")[0],
-                    Integer.valueOf(shardMasterHost.split(":")[1]))
-            );
-        } else {
-            // Use ZooKeeper to locate ShardMaster
-            return new RequestResponseClientFactory(zkNodes, System.getProperty("imhotep.shardmaster.zookeeper.path"), myHost);
-        }
     }
 
     public ImhotepServiceCore getService() {

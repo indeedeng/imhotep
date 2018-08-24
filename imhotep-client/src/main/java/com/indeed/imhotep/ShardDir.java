@@ -14,8 +14,10 @@
 package com.indeed.imhotep;
 
 import com.google.common.base.Objects;
+import com.sun.istack.NotNull;
 
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -26,8 +28,11 @@ public class ShardDir {
     private final Path indexDir;
     private final String id;
     private final long version;
+    private final String dataset;
+    private org.apache.hadoop.fs.Path hadoopPath;
 
     public ShardDir(final Path path) {
+        this.dataset = path.getParent().toString();
         this.name = path.getFileName().toString();
         this.indexDir = path;
 
@@ -44,6 +49,31 @@ public class ShardDir {
             this.version = 0L;
         }
     }
+
+    public ShardDir(org.apache.hadoop.fs.Path path) {
+        this(cleanPath(path));
+        hadoopPath = path;
+    }
+
+    private static Path cleanPath(org.apache.hadoop.fs.Path path) {
+        final String endName = path.getName();
+        final int endIndex = endName.lastIndexOf(".sqar");
+        if(endIndex>-1) {
+            final String actualEndName = endName.substring(0, endIndex);
+            return Paths.get(path.getParent().getName(), actualEndName);
+        }
+        return Paths.get(path.getParent().getName(), endName);
+    }
+
+    @NotNull
+    public org.apache.hadoop.fs.Path getHadoopPath(){
+        if(hadoopPath == null){
+            throw new UnsupportedOperationException("This shard was not instantiated with a hadoop path.");
+        }
+        return hadoopPath;
+    }
+
+    public String getDataset() {return dataset;}
 
     public String getId() {
         return id;

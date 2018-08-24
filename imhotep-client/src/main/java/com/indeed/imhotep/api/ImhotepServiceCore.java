@@ -21,6 +21,7 @@ import com.indeed.imhotep.QueryRemapRule;
 import com.indeed.imhotep.RegroupCondition;
 import com.indeed.imhotep.ShardInfo;
 import com.indeed.imhotep.TermCount;
+import com.indeed.imhotep.protobuf.ShardNameNumDocsPair;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -63,7 +64,7 @@ public interface ImhotepServiceCore {
     GroupStatsIterator handleGetGroupStats(String sessionId, int stat);
     GroupStatsIterator handleGetDistinct(String sessionId, String field, boolean isIntField);
     GroupStatsIterator handleMergeDistinctSplit(String sessionId, String field, boolean isIntField, InetSocketAddress[] nodes, int splitIndex);
-    List<String> getShardIdsForSession(String sessionId);
+    List<String> getShardsForSession(String sessionId);
     boolean sessionIsValid(String sessionId);
     void handleCloseSession(String sessionId);
     void handleCloseSession(String sessionId, Exception e);
@@ -76,14 +77,11 @@ public interface ImhotepServiceCore {
     int handleGetNumGroups(String sessionId);
     PerformanceStats handleGetPerformanceStats(String sessionId, boolean reset);
     PerformanceStats handleCloseAndGetPerformanceStats(String sessionId);
-
     // open session methods return session id
-    String handleOpenSession(String dataset, List<String> shardRequestList, String username, String clientName, String ipAddress, int clientVersion, int mergeThreadLimit, boolean optimizeGroupZeroLookups, String sessionId, AtomicLong tempFileSizeBytesLeft, long sessionTimeout) throws ImhotepOutOfMemoryException;
+    String handleOpenSession(String dataset, List<ShardNameNumDocsPair> shardRequestList, String username, String clientName, String ipAddress, int clientVersion, int mergeThreadLimit, boolean optimizeGroupZeroLookups, String sessionId, AtomicLong tempFileSizeBytesLeft, long sessionTimeout) throws ImhotepOutOfMemoryException;
 
     // non-session-based methods
-    List<DatasetInfo> handleGetDatasetList();
     ImhotepStatusDump handleGetStatusDump(boolean includeShardList);
-    List<ShardInfo> handleGetShardlistForTime(String dataset, long startUnixtime, long endUnixtime);
 
     void close();
 }

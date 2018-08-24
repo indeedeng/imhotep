@@ -17,17 +17,18 @@ import com.indeed.imhotep.MemoryReservationContext;
 import com.indeed.imhotep.local.MTImhotepLocalMultiSession;
 import com.indeed.util.core.reference.SharedReference;
 
+import java.nio.file.Path;
 import java.util.Map;
 
 /**
  * @author jplaisance
  */
-public interface SessionManager<E> {
+public interface SessionManager {
 
     void addSession(
             String sessionId,
             MTImhotepLocalMultiSession imhotepSession,
-            E sessionState,
+            Map<Path, CachedFlamdexReaderReference> sessionState,
             String username,
             String clientName,
             String ipAddress,

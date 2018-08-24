@@ -14,11 +14,14 @@
 package com.indeed.imhotep.service;
 
 
+import org.joda.time.Duration;
+
 /**
  * @author jsgroth
  *         additional config parameters for LocalImhotepServiceCore with provided defaults
  */
 public final class LocalImhotepServiceConfig {
+    private long flamdexReaderCacheMaxDurationMillis = Duration.standardMinutes(5).getMillis();
     private int updateShardsFrequencySeconds = 120;
     private int heartBeatCheckFrequencySeconds = 60;
     private int syncShardStoreFrequencySeconds = 1200;
@@ -115,5 +118,14 @@ public final class LocalImhotepServiceConfig {
 
     public void setStatsEmitter(final MetricStatsEmitter statsEmitter) {
         this.statsEmitter = statsEmitter;
+    }
+
+    public long getFlamdexReaderCacheMaxDurationMillis() {
+        return flamdexReaderCacheMaxDurationMillis;
+    }
+
+    public LocalImhotepServiceConfig setFlamdexReaderCacheMaxDurationMillis(long flamdexReaderCacheMaxDurationMillis) {
+        this.flamdexReaderCacheMaxDurationMillis = flamdexReaderCacheMaxDurationMillis;
+        return this;
     }
 }

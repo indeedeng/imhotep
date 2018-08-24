@@ -56,7 +56,7 @@ public class RunAutomaton implements Serializable {
 	int[] classmap; // map from char number to class class
 
 	/** 
-	 * Sets alphabet table for optimal run performance. 
+	 * Sets alphabet table for optimal run performance.
 	 */
 	final void setAlphabet() {
 		classmap = new int[Character.MAX_VALUE - Character.MIN_VALUE + 1];
@@ -199,7 +199,7 @@ public class RunAutomaton implements Serializable {
 	 * <code>Automaton</code>. If the given automaton is not deterministic,
 	 * it is determinized first.
 	 * @param a an automaton
-	 * @param tableize if true, a transition table is created which makes the <code>run</code> 
+	 * @param tableize if true, a transition table is created which makes the <code>run</code>
 	 *                 method faster in return of a higher memory usage
 	 */
 	public RunAutomaton(final Automaton a, final boolean tableize) {

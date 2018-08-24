@@ -25,7 +25,7 @@ import java.util.concurrent.TimeoutException;
  * @author jsgroth
  */
 public class ImhotepDaemonRunner {
-    private final Path dir;
+    private final Path rootShardsDir;
     private final Path tempDir;
     private final int port;
     private int actualPort;
@@ -33,22 +33,28 @@ public class ImhotepDaemonRunner {
 
     private ImhotepDaemon currentlyRunning;
 
-    public ImhotepDaemonRunner(final Path dir, final Path tempDir, final int port) throws IOException,
+    public ImhotepDaemonRunner(final Path rootShardsDir, final Path tempDir, final int port) throws IOException,
                                                                                       TimeoutException {
-        this(dir, tempDir, port, new FlamdexReaderSource() {
+        this(rootShardsDir, tempDir, port, new FlamdexReaderSource() {
             @Override
             public FlamdexReader openReader(final Path directory) throws IOException {
                 return new MockFlamdexReader();
             }
+
+            @Override
+            public FlamdexReader openReader(Path directory, int numDocs) throws IOException {
+                return openReader(directory);
+            }
+
         });
     }
 
-    public ImhotepDaemonRunner(final Path dir,
+    public ImhotepDaemonRunner(final Path rootShardsDir,
                                final Path tempDir,
                                final int port,
                                final FlamdexReaderSource flamdexFactory) throws IOException,
                                                                         TimeoutException {
-        this.dir = dir;
+        this.rootShardsDir = rootShardsDir;
         this.tempDir = tempDir;
         this.port = port;
         this.flamdexFactory = flamdexFactory;        
@@ -68,10 +74,11 @@ public class ImhotepDaemonRunner {
         }
         currentlyRunning =
                 new ImhotepDaemon(new ServerSocket(port),
-                                  new LocalImhotepServiceCore(dir, tempDir,
+                                  new LocalImhotepServiceCore(tempDir,
                                                               1024L * 1024 * 1024 * 1024,
                                                               flamdexFactory,
-                                                              new LocalImhotepServiceConfig()),
+                                                              new LocalImhotepServiceConfig(),
+                                          rootShardsDir),
                                   null, null, "localhost", port, null);
         actualPort = currentlyRunning.getPort();
 
