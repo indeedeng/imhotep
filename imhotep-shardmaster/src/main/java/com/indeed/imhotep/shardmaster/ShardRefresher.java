@@ -62,7 +62,7 @@ public class ShardRefresher {
     private final AtomicInteger numDatasetsReadFromFilesystemOnCurrentRefresh = new AtomicInteger();
     private final AtomicInteger numDatasetsCompletedFieldsRefreshOnCurrentRefresh = new AtomicInteger();
     private final AtomicInteger totalDatasetsOnCurrentRefresh = new AtomicInteger();
-    private Queue<Runnable> fieldRefreshQueue = new ArrayDeque<>();
+    private Queue<Runnable> fieldRefreshQueue = new ConcurrentLinkedQueue<>();
 
 
 
@@ -102,6 +102,7 @@ public class ShardRefresher {
                 },
                 0, 1, TimeUnit.MINUTES);
         long time = -System.currentTimeMillis();
+        // Actually run
         innerRun(readFilesystem, readSQL, delete,  writeSQL, shouldRefreshFieldsForDataset);
         time += System.currentTimeMillis();
         LOGGER.info("Finished a refresh in " + new Period(time));
@@ -112,7 +113,7 @@ public class ShardRefresher {
     }
 
     private void innerRun(final boolean readFilesystem, final boolean readSQL, final boolean delete, final boolean writeSQL, final boolean shouldRefreshFieldsForDataset) {
-        if (shouldRefreshFieldsForDataset && writeSQL) {
+        if (shouldRefreshFieldsForDataset && writeSQL && fieldRefreshQueue.size() > 0) {
             performCompleteFieldsRefreshes();
         } else {
             fieldRefreshQueue = new ArrayDeque<>();
@@ -238,7 +239,10 @@ public class ShardRefresher {
     private void scanShardsInFilesystem(final Path datasetPath, final boolean writeToSQL, final Set<String> allExistingPaths) {
         final List<ShardDir> shardDirs = getAllShardsForDatasetInReverseOrder(datasetPath);
         if(allExistingPaths.size()>0) {
-            allExistingPaths.removeAll(shardDirs.stream().map(ShardDir::getIndexDir).map(java.nio.file.Path::toString).collect(Collectors.toList()));
+            for(ShardDir shardDir : shardDirs) {
+                // can't use removeAll() on the KeySetView of ConcurrentHashMap as it's super slow
+                allExistingPaths.remove(shardDir.getIndexDir().toString());
+            }
         }
 
         final List<Pair<ShardDir, Future<FlamdexMetadata>>> pairs = getMetadataFutures(shardDirs.stream().filter(this::isValidAndNew).collect(Collectors.toList()));

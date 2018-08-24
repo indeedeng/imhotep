@@ -81,7 +81,6 @@ public class RequestResponseServer implements Closeable {
                 try {
                     socket.setTcpNoDelay(true); // disable nagle
                     request = ShardMasterMessageUtil.receiveRequest(socket.getInputStream());
-                    LOGGER.info("got request: " + request);
                 } catch (final IOException e) {
                     if(e instanceof InvalidProtocolBufferException) {
                         LOGGER.debug("Error while reading request: " + e.getMessage());
