@@ -34,6 +34,15 @@ import java.util.stream.Collectors;
 public class RequestResponseClient implements ShardMaster {
     private static final Logger LOGGER = Logger.getLogger(RequestResponseClient.class);
     private final Host serverHost;
+    private static String currentHostName;
+    static {
+        try {
+            currentHostName = java.net.InetAddress.getLocalHost().getHostName();
+        }
+        catch (java.net.UnknownHostException ex) {
+            currentHostName = "(unknown)";
+        }
+    }
 
     public RequestResponseClient(final Host serverHost) {
         this.serverHost = serverHost;
@@ -71,6 +80,7 @@ public class RequestResponseClient implements ShardMaster {
     public List<DatasetInfo> getDatasetMetadata() throws IOException{
         final ShardMasterRequest request = ShardMasterRequest.newBuilder()
                 .setRequestType(ShardMasterRequest.RequestType.GET_DATASET_METADATA)
+                .setNode(HostAndPort.newBuilder().setHost(currentHostName).build())
                 .build();
         final List<ShardMasterResponse> shardMasterResponses = sendAndReceive(request);
 
@@ -89,7 +99,9 @@ public class RequestResponseClient implements ShardMaster {
                 .setRequestType(ShardMasterRequest.RequestType.GET_SHARD_LIST_FOR_TIME)
                 .setStartTime(start)
                 .setEndTime(end)
-                .setDataset(dataset).build();
+                .setDataset(dataset)
+                .setNode(HostAndPort.newBuilder().setHost(currentHostName).build())
+                .build();
         final List<Shard> toReturn = new ArrayList<>();
         final List<ShardMasterResponse> shardMasterResponses = sendAndReceive(request);
         for(ShardMasterResponse response: shardMasterResponses){
@@ -107,9 +119,9 @@ public class RequestResponseClient implements ShardMaster {
     public Map<String, Collection<ShardInfo>> getShardList() throws IOException {
         final ShardMasterRequest request = ShardMasterRequest.newBuilder()
                 .setRequestType(ShardMasterRequest.RequestType.GET_SHARD_LIST)
+                .setNode(HostAndPort.newBuilder().setHost(currentHostName).build())
                 .build();
 
-        // TODO: we are not actually passing the path here, so the path is empty. It should be changed to a default.
         final List<DatasetShardsMessage> datasetMessages = sendAndReceive(request).stream()
                 .map(ShardMasterResponse::getAllShardsList)
                 .flatMap(List::stream).collect(Collectors.toList());
@@ -127,6 +139,7 @@ public class RequestResponseClient implements ShardMaster {
     public void refreshFieldsForDataset(String dataset) throws IOException {
         final ShardMasterRequest request = ShardMasterRequest.newBuilder()
                 .setRequestType(ShardMasterRequest.RequestType.REFRESH_FIELDS_FOR_DATASET)
+                .setNode(HostAndPort.newBuilder().setHost(currentHostName).build())
                 .setDatasetToRefresh(dataset).build();
         sendAndReceive(request);
     }
