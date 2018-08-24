@@ -59,6 +59,7 @@ public class ShardMasterRunner {
                 new ShardMasterDaemon(new ShardMasterDaemon.Config()
                         .setShardsRootPath(rootShardsDir.toString())
                         .setServerSocket(socket)
+                        .setInitialRefreshReadFilesystem(true)
                         .setLocalMode(true)
                         .setReadSQL(false)
                         .setWriteSQL(false)

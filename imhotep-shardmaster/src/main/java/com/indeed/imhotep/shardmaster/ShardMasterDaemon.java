@@ -123,7 +123,7 @@ public class ShardMasterDaemon {
                     sqlWriteManager
             );
 
-            refresher.refresh(config.localMode, config.readSQL, ShardFilter.ACCEPT_ALL.equals(config.shardFilter), config.writeSQL, isLeader(leaderElectionRoot, zkConnection));
+            refresher.refresh(config.initialRefreshReadFilesystem, config.readSQL, ShardFilter.ACCEPT_ALL.equals(config.shardFilter), config.writeSQL, isLeader(leaderElectionRoot, zkConnection));
 
             hostReloadTimer.schedule(new TimerTask() {
                 @Override
@@ -138,7 +138,7 @@ public class ShardMasterDaemon {
                     lastDeleteTimeMillis = System.currentTimeMillis();
                 }
                 final boolean leader = isLeader(leaderElectionRoot, zkConnection);
-                refresher.refresh(config.readFilesystem && (leader || config.localMode), config.readSQL, shouldDelete, leader && config.writeSQL, leader);
+                refresher.refresh(config.readFilesystem && leader, config.readSQL, shouldDelete, leader && config.writeSQL, leader);
             }, config.getRefreshInterval().getMillis(), config.getRefreshInterval().getMillis(), TimeUnit.MILLISECONDS);
 
             server = new RequestResponseServer(config.getServerSocket(), new MultiplexingRequestHandler(
@@ -170,8 +170,8 @@ public class ShardMasterDaemon {
     }
 
     public boolean isLeader(final String leaderElectionRoot, final ZooKeeperConnection zkConnection){
-        if(zkConnection == null) {
-            return false;
+        if(config.localMode) {
+            return true;
         }
 
         try {
@@ -235,19 +235,32 @@ public class ShardMasterDaemon {
         private int shardsResponseBatchSize = 1000;
         private int threadPoolSize = 5;
         private int replicationFactor = 2;
-        private Duration refreshInterval = Duration.standardMinutes(5);
+        private Duration refreshInterval = Duration.standardMinutes(1);
         private Duration hostsRefreshInterval = Duration.standardMinutes(1);
         private RequestMetricStatsEmitter statsEmitter = RequestMetricStatsEmitter.NULL_EMITTER;
         private String metadataDBURL;
         private Duration deleteInterval = Duration.standardDays(1);
         private String metadataDBUsername;
         private String metadataDBPassword;
-        private boolean localMode = false;
         private String shardsRootPath = "hdfs:///var/imhotep";
         private ServerSocket serverSocket;
         private boolean readSQL = true;
         private boolean writeSQL = true;
         private boolean readFilesystem = true;
+        private boolean initialRefreshReadFilesystem = false;
+
+        /*
+         * Local mode does:
+         * - prevent the shardmaster from registering in zookeeper (for leader election or as a daemon)
+         * - cause the shardmaster to behave as if it were a leader
+         * - change the forwarded file type from .sqar to unpacked shards
+         * Local mode does not:
+         * - disable reads / writes to SQL
+         * - make the shardmaster read the filesystem if readFilesystem = false
+         * - make the shardmaster read the filesystem on the initial refresh
+         * - prevent RefreshFieldsForDataset calls from being executed by the daemon
+         */
+        private boolean localMode = false;
 
         public Config setReadSQL(boolean readSQL) {
             this.readSQL = readSQL;
@@ -264,8 +277,8 @@ public class ShardMasterDaemon {
             return this;
         }
 
-        public Config setLocalMode(boolean localMode) {
-            this.localMode = localMode;
+        public Config setInitialRefreshReadFilesystem(boolean initialRefreshReadFilesystem) {
+            this.initialRefreshReadFilesystem = initialRefreshReadFilesystem;
             return this;
         }
 
@@ -472,6 +485,11 @@ public class ShardMasterDaemon {
 
         public ServerSocket getServerSocket() throws IOException {
             return serverSocket;
+        }
+
+        public Config setLocalMode(boolean b) {
+            this.localMode = b;
+            return this;
         }
     }
 
