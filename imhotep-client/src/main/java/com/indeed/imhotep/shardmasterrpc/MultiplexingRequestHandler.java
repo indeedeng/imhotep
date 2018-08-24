@@ -42,7 +42,6 @@ public class MultiplexingRequestHandler implements RequestHandler {
 
     @Override
     public Iterable<ShardMasterResponse> handleRequest(final ShardMasterRequest request) {
-        LOGGER.info("Handling " + request.getRequestType() + " request from " + request.getNode().getHost());
         final Stopwatch stopwatch = Stopwatch.createStarted();
         try {
                 try {
