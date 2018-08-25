@@ -13,9 +13,8 @@
  */
  package com.indeed.imhotep.service;
 
-import com.google.common.base.Charsets;
+import com.indeed.imhotep.FTGSBinaryFormat;
 import com.indeed.imhotep.api.FTGSIterator;
-import com.indeed.util.io.VIntUtils;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -32,6 +31,7 @@ public final class FTGSOutputStreamWriter implements Closeable {
     private int currentTermLength;
     private long previousTermInt;
     private long currentTermInt;
+    private boolean closed = false;
 
     private long currentTermDocFreq;
 
@@ -47,7 +47,7 @@ public final class FTGSOutputStreamWriter implements Closeable {
     public void switchField(final String field, final boolean isIntType) throws IOException {
         endField();
         fieldIsIntType = isIntType;
-        startField(fieldIsIntType, field, out);
+        FTGSBinaryFormat.writeFieldStart(fieldIsIntType, field, out);
         fieldWritten = true;
         previousTermLength = 0;
         previousTermInt = -1;
@@ -70,39 +70,34 @@ public final class FTGSOutputStreamWriter implements Closeable {
         if (!termWritten) {
             writeTerm();
         }
-        writeVLong(groupId - previousGroupId, out);
+        FTGSBinaryFormat.writeGroup(groupId, previousGroupId, out);
         previousGroupId = groupId;
     }
 
     private void writeTerm() throws IOException {
         if (fieldIsIntType) {
-            if (previousTermInt == -1 && currentTermInt == previousTermInt) {
-                //still decodes to 0 but allows reader to distinguish between end of field and delta of zero
-                out.write(0x80);
-                out.write(0);
-            } else {
-                writeVLong(currentTermInt - previousTermInt, out);
-            }
+            FTGSBinaryFormat.writeIntTermStart(currentTermInt, previousTermInt, out);
             previousTermInt = currentTermInt;
         } else {
-            final int pLen = prefixLen(previousTermBytes, currentTermBytes, Math.min(previousTermLength, currentTermLength));
-            writeVLong((previousTermLength - pLen) + 1, out);
-            writeVLong(currentTermLength - pLen, out);
-            out.write(currentTermBytes, pLen, currentTermLength - pLen);
+            FTGSBinaryFormat.writeStringTermStart(currentTermBytes, currentTermLength, previousTermBytes, previousTermLength, out);
             previousTermBytes = copyInto(currentTermBytes, currentTermLength, previousTermBytes);
             previousTermLength = currentTermLength;
         }
-        writeSVLong(currentTermDocFreq, out);
+        FTGSBinaryFormat.writeTermDocFreq(currentTermDocFreq, out);
         termWritten = true;
     }
 
     public void addStat(final long stat) throws IOException {
-        writeSVLong(stat, out);
+        FTGSBinaryFormat.writeStat(stat, out);
     }
 
     public void close() throws IOException {
+        if (closed) {
+            return;
+        }
+        closed = true;
         endField();
-        out.write(0);
+        FTGSBinaryFormat.writeFtgsEndTag(out);
         out.flush();
     }
 
@@ -111,15 +106,13 @@ public final class FTGSOutputStreamWriter implements Closeable {
             return;
         }
         endTerm();
-        out.write(0);
-        if (!fieldIsIntType) {
-            out.write(0);
-        }
+        fieldWritten = false;
+        FTGSBinaryFormat.writeFieldEnd(fieldIsIntType, out);
     }
 
     private void endTerm() throws IOException {
         if (termWritten) {
-            out.write(0);
+            FTGSBinaryFormat.writeGroupStatsEnd(out);
         }
         termWritten = false;
         previousGroupId = -1;
@@ -155,25 +148,6 @@ public final class FTGSOutputStreamWriter implements Closeable {
         close();
     }
 
-    private static void writeVLong(final long i, final OutputStream out) throws IOException {
-        VIntUtils.writeVInt64(out, i);
-    }
-
-    private static void writeSVLong(final long i, final OutputStream out) throws IOException {
-        VIntUtils.writeSVInt64(out, i);
-    }
-
-    private static void startField(final boolean isIntType, final String field, final OutputStream out) throws IOException {
-        if (isIntType) {
-            out.write(1);
-        } else {
-            out.write(2);
-        }
-        final byte[] fieldBytes = field.getBytes(Charsets.UTF_8);
-        writeVLong(fieldBytes.length, out);
-        out.write(fieldBytes);
-    }
-
     private static byte[] copyInto(final byte[] src, final int srcLen, byte[] dest) {
         dest = ensureCap(dest, srcLen);
         System.arraycopy(src, 0, dest, 0, srcLen);
@@ -190,12 +164,4 @@ public final class FTGSOutputStreamWriter implements Closeable {
         return new byte[Math.max(b.length*2, len)];
     }
 
-    private static int prefixLen(final byte[] a, final byte[] b, final int max) {
-        for (int i = 0; i < max; i++) {
-            if (a[i] != b[i]) {
-                return i;
-            }
-        }
-        return max;
-    }
 }
