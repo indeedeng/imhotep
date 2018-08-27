@@ -17,6 +17,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
 import com.indeed.imhotep.FTGSBinaryFormat.FieldStat;
 import com.indeed.imhotep.api.FTGSIterator;
+import com.indeed.util.core.Pair;
 import com.indeed.util.core.io.Closeables2;
 import org.apache.log4j.Logger;
 
@@ -122,6 +123,10 @@ public class InputStreamFTGSIterator implements FTGSIterator {
                             final int numStats,
                             final int numGroups) {
         this(in, null, numStats, numGroups);
+    }
+
+    public Pair<InputStream,FieldStat[]> getStreamAndStats() {
+        return Pair.of(in, fieldsStats);
     }
 
     private String fieldName;

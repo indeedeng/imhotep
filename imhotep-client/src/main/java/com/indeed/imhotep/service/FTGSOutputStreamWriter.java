@@ -48,8 +48,7 @@ public final class FTGSOutputStreamWriter implements Closeable {
     private int previousGroupId = -1;
 
     public FTGSOutputStreamWriter(final OutputStream out) {
-        this.out = (out instanceof OutputStreamWithPosition) ?
-                (OutputStreamWithPosition) out : new OutputStreamWithPosition(out);
+        this.out = new OutputStreamWithPosition(out);
     }
 
     public void switchField(final String field, final boolean isIntType) throws IOException {

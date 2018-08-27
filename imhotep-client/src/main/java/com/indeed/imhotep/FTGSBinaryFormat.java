@@ -4,6 +4,7 @@ import com.google.common.base.Charsets;
 import com.indeed.util.io.VIntUtils;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 
 /**
@@ -102,11 +103,40 @@ public class FTGSBinaryFormat {
         VIntUtils.writeSVInt64(stream, i);
     }
 
+    // Some helper methods for reading first term of a field.
+
+    public static long readIntTerm(final InputStream stream, final long prevTerm) throws IOException {
+        final long delta = VIntUtils.readVInt64(stream);
+        return prevTerm + delta;
+    }
+
+    public static long readFirstIntTerm(final InputStream stream) throws IOException {
+        return readIntTerm(stream, -1); // initial value is -1;
+    }
+
+    public static byte[] readFirstStringTerm(final InputStream stream) throws IOException {
+        final int removeLengthPlusOne = VIntUtils.readVInt(stream);
+        if (removeLengthPlusOne != 1) {
+            throw new IllegalStateException();
+        }
+        final int addLength = VIntUtils.readVInt(stream);
+        final byte[] term = new byte[addLength];
+        if (stream.read(term) != addLength) {
+            throw new IllegalStateException();
+        }
+
+        return term;
+    }
+
     // info about one field of binary FTGS stream
     public static class FieldStat {
         public FieldStat(final String fieldName, final boolean isIntField) {
             this.fieldName = fieldName;
             this.isIntField = isIntField;
+        }
+
+        public boolean hasTerms() {
+            return startPosition != endPosition;
         }
 
         public final String fieldName;

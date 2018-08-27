@@ -16,6 +16,7 @@
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.indeed.flamdex.query.Query;
 import com.indeed.imhotep.AbstractImhotepMultiSession;
+import com.indeed.imhotep.FTGSIteratorUtil;
 import com.indeed.imhotep.GroupMultiRemapRule;
 import com.indeed.imhotep.GroupRemapRule;
 import com.indeed.imhotep.ImhotepStatusDump;
@@ -181,7 +182,7 @@ public abstract class AbstractImhotepServiceCore
             try {
                 // TODO: lock cpu, release on socket write by wrapping the socketstream and using a circular buffer,
                 // or use nonblocking IO (NIO2) and only release when blocks
-                FTGSOutputStreamWriter.write(merger, os);
+                FTGSIteratorUtil.writeFtgsIteratorToStream(merger, os);
             } finally {
                 Closeables2.closeQuietly(merger, log);
             }

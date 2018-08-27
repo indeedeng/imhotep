@@ -14,9 +14,12 @@
 
 package com.indeed.imhotep;
 
+import com.google.common.io.ByteStreams;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
 import com.indeed.imhotep.FTGSBinaryFormat.FieldStat;
+import com.indeed.imhotep.StreamUtil.InputStreamWithPosition;
+import com.indeed.imhotep.StreamUtil.OutputStreamWithPosition;
 import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.api.GroupStatsIterator;
 import com.indeed.imhotep.api.ImhotepSession;
@@ -34,6 +37,7 @@ import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -58,7 +62,7 @@ public class FTGSIteratorUtil {
         final FieldStat[] stats;
         final long start = System.currentTimeMillis();
         try (final OutputStream out = new BufferedOutputStream(new FileOutputStream(tmp))) {
-            stats = FTGSOutputStreamWriter.write(iterator, out);
+            stats = writeFtgsIteratorToStream(iterator, out);;
             if (log.isDebugEnabled()) {
                 log.debug("[" + sessionId + "] time to merge splits to file: " +
                         (System.currentTimeMillis() - start) +
@@ -333,5 +337,166 @@ public class FTGSIteratorUtil {
             numGroups = Math.max(numGroups, iterator.getNumGroups());
         }
         return numGroups;
+    }
+
+    public static FieldStat[] writeFtgsIteratorToStream(final FTGSIterator iterator, final OutputStream stream) throws IOException {
+
+        // try write optimized or fall to default stream writer
+
+        FieldStat[] result;
+        result = tryWriteInputStreamIterator(iterator, stream);
+        if (result != null) {
+            return result;
+        }
+
+        result = tryWriteUnsortedInputStreamIterators(iterator, stream);
+        if (result != null) {
+            return result;
+        }
+
+        return FTGSOutputStreamWriter.write(iterator, stream);
+    }
+
+    // check if iterator is InputStreamFTGSIterator
+    // if yes, copy data without decoding-encoding part
+    private static FieldStat[] tryWriteInputStreamIterator(final FTGSIterator iterator, final OutputStream out) throws IOException {
+        if (!(iterator instanceof InputStreamFTGSIterator)) {
+            return null;
+        }
+        final InputStreamFTGSIterator inputIterator = (InputStreamFTGSIterator) iterator;
+        final Pair<InputStream, FieldStat[]> streamAndStats = inputIterator.getStreamAndStats();
+        final FieldStat[] stats = streamAndStats.getSecond();
+        if (stats == null) {
+            return null;
+        }
+
+        final FieldStat lastFieldStat = stats[stats.length-1];
+
+        final long to = lastFieldStat.endPosition;
+
+        // copying data from the very beginning of the stream (including first field header)
+        // till last term of last field.
+        final InputStream allFields = ByteStreams.limit(streamAndStats.getFirst(), to);
+        ByteStreams.copy(allFields, out);
+        // finalize last field and whole ftgs stream.
+        FTGSBinaryFormat.writeFieldEnd(lastFieldStat.isIntField, out);
+        FTGSBinaryFormat.writeFtgsEndTag(out);
+        out.flush();
+
+        return stats;
+    }
+
+    // check if iterator is unsorted disjoint merger of InputStreamFTGSIterator
+    // if yes, copy data with some hack on first/last term in sub-iterators
+    private static FieldStat[] tryWriteUnsortedInputStreamIterators(final FTGSIterator iterator, final OutputStream originalOut) throws IOException {
+        if (!(iterator instanceof UnsortedFTGSIterator)) {
+            return null;
+        }
+
+        // check that all sub-iterators have field stats
+        final FTGSIterator[] subIterators = ((AbstractDisjointFTGSMerger) iterator).getIterators();
+
+        final Pair<InputStreamWithPosition, FieldStat[]>[] streamsAndStats = new Pair[subIterators.length];
+        for (int i = 0; i < subIterators.length; i++) {
+            if (subIterators[i] instanceof InputStreamFTGSIterator) {
+                final Pair<InputStream, FieldStat[]> stats = ((InputStreamFTGSIterator) subIterators[i]).getStreamAndStats();
+                if (stats.getSecond() == null) {
+                    return null;
+                }
+                final InputStreamWithPosition streamWithPosition = new StreamUtil.InputStreamWithPosition(stats.getFirst());
+                streamsAndStats[i] = Pair.of(streamWithPosition, stats.getSecond());
+            } else {
+                return null;
+            }
+        }
+
+        // check that all field names and field types match in all stats.
+        final FieldStat[] firstStat = streamsAndStats[0].getSecond();
+        final int fieldsCount = firstStat.length;
+
+        for (final Pair<?, FieldStat[]> streamAndStats : streamsAndStats) {
+            final FieldStat[] stats = streamAndStats.getSecond();
+            if (stats.length != fieldsCount) {
+                throw new IllegalStateException();
+            }
+
+            for (int i = 0; i < fieldsCount; i++) {
+                if (!firstStat[i].fieldName.equals(stats[i].fieldName)
+                        || (firstStat[i].isIntField != stats[i].isIntField)) {
+                    throw new IllegalStateException();
+                }
+            }
+        }
+
+        // merging field by field and creating merged stats.
+        final StreamUtil.OutputStreamWithPosition out = new OutputStreamWithPosition(originalOut);
+
+        final int iteratorsCount = streamsAndStats.length;
+        final FieldStat[] resultStats = new FieldStat[fieldsCount];
+        for (int fieldIndex = 0; fieldIndex < fieldsCount; fieldIndex++) {
+            final boolean isIntField = firstStat[fieldIndex].isIntField;
+            FTGSBinaryFormat.writeFieldStart(isIntField, firstStat[fieldIndex].fieldName, out);
+
+            // stat for merged field
+            final FieldStat fieldStat = new FieldStat(firstStat[fieldIndex].fieldName, isIntField);
+            fieldStat.startPosition = out.getPosition();
+
+            boolean isFirstIterator = true;
+            long lastIntTerm = 0;
+            byte[] lastStringTerm = new byte[0];
+            for (int iteratorIndex = 0; iteratorIndex < iteratorsCount; iteratorIndex++ ) {
+                final InputStreamWithPosition stream = streamsAndStats[iteratorIndex].getFirst();
+                final FieldStat stat = streamsAndStats[iteratorIndex].getSecond()[fieldIndex];
+                if (!stat.hasTerms()) {
+                    continue;
+                }
+                stream.seekForward(stat.startPosition);
+                if (isFirstIterator) {
+                    // just save first term. data will be copied starting from stat.startPosition
+                    if (isIntField) {
+                        fieldStat.firstIntTerm = stat.firstIntTerm;
+                    } else {
+                        fieldStat.firstStringTerm = stat.firstStringTerm;
+                    }
+                } else {
+                    // not first, hack first term.
+                    if (isIntField) {
+                        final long firstTerm = FTGSBinaryFormat.readFirstIntTerm(stream);
+                        FTGSBinaryFormat.writeIntTermStart(firstTerm, lastIntTerm, out);
+                    } else {
+                        final byte[] firstTerm = FTGSBinaryFormat.readFirstStringTerm(stream);
+                        FTGSBinaryFormat.writeStringTermStart(firstTerm, firstTerm.length, lastStringTerm, lastStringTerm.length, out);
+                    }
+                }
+                // copying data (from first byte of first term if it's a first iterator in this field
+                // of from first data of group-stats if it's not first iterator)
+                final InputStream terms = ByteStreams.limit(stream, stat.endPosition - stream.getPosition());
+                ByteStreams.copy(terms, out);
+                if (stream.getPosition() != stat.endPosition) {
+                    throw new IllegalStateException();
+                }
+                if (isIntField) {
+                    lastIntTerm = stat.lastIntTerm;
+                } else {
+                    lastStringTerm = stat.lastStringTerm;
+                }
+                isFirstIterator = false;
+            }
+            // finalizing merged stream and merged stat
+            if (isIntField) {
+                fieldStat.lastIntTerm = lastIntTerm;
+            } else {
+                fieldStat.lastStringTerm = lastStringTerm;
+            }
+            fieldStat.endPosition = out.getPosition();
+
+            FTGSBinaryFormat.writeFieldEnd(isIntField, out);
+            resultStats[fieldIndex] = fieldStat;
+        }
+        // finalize whole ftgs stream.
+        FTGSBinaryFormat.writeFtgsEndTag(out);
+        out.flush();
+
+        return resultStats;
     }
 }
