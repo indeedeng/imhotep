@@ -14,14 +14,18 @@
  package com.indeed.imhotep.service;
 
 import com.indeed.imhotep.FTGSBinaryFormat;
+import com.indeed.imhotep.FTGSBinaryFormat.FieldStat;
+import com.indeed.imhotep.StreamUtil.OutputStreamWithPosition;
 import com.indeed.imhotep.api.FTGSIterator;
 
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.ArrayList;
+import java.util.List;
 
 public final class FTGSOutputStreamWriter implements Closeable {
-    private final OutputStream out;
+    private final OutputStreamWithPosition out;
 
     private boolean fieldIsIntType;
 
@@ -31,6 +35,9 @@ public final class FTGSOutputStreamWriter implements Closeable {
     private int currentTermLength;
     private long previousTermInt;
     private long currentTermInt;
+    private String currentField;
+    private FieldStat currentStat;
+    private final List<FieldStat> fieldStats = new ArrayList<>();
     private boolean closed = false;
 
     private long currentTermDocFreq;
@@ -41,7 +48,8 @@ public final class FTGSOutputStreamWriter implements Closeable {
     private int previousGroupId = -1;
 
     public FTGSOutputStreamWriter(final OutputStream out) {
-        this.out = out;
+        this.out = (out instanceof OutputStreamWithPosition) ?
+                (OutputStreamWithPosition) out : new OutputStreamWithPosition(out);
     }
 
     public void switchField(final String field, final boolean isIntType) throws IOException {
@@ -51,6 +59,7 @@ public final class FTGSOutputStreamWriter implements Closeable {
         fieldWritten = true;
         previousTermLength = 0;
         previousTermInt = -1;
+        currentField = field;
     }
 
     public void switchBytesTerm(final byte[] termBytes, final int termLength, final long termDocFreq) throws IOException {
@@ -75,6 +84,17 @@ public final class FTGSOutputStreamWriter implements Closeable {
     }
 
     private void writeTerm() throws IOException {
+        if (currentStat == null) {
+            // first term is current field.
+            currentStat = new FieldStat(currentField, fieldIsIntType);
+            currentStat.startPosition = out.getPosition();
+            if (fieldIsIntType) {
+                currentStat.firstIntTerm = currentTermInt;
+            } else {
+                currentStat.firstStringTerm = makeCopy(currentTermBytes, currentTermLength);
+            }
+        }
+
         if (fieldIsIntType) {
             FTGSBinaryFormat.writeIntTermStart(currentTermInt, previousTermInt, out);
             previousTermInt = currentTermInt;
@@ -91,14 +111,14 @@ public final class FTGSOutputStreamWriter implements Closeable {
         FTGSBinaryFormat.writeStat(stat, out);
     }
 
-    public void close() throws IOException {
-        if (closed) {
-            return;
+    public FieldStat[] closeAndGetStats() throws IOException {
+        if (!closed) {
+            closed = true;
+            endField();
+            FTGSBinaryFormat.writeFtgsEndTag(out);
+            out.flush();
         }
-        closed = true;
-        endField();
-        FTGSBinaryFormat.writeFtgsEndTag(out);
-        out.flush();
+        return fieldStats.toArray(new FieldStat[fieldStats.size()]);
     }
 
     private void endField() throws IOException {
@@ -106,6 +126,21 @@ public final class FTGSOutputStreamWriter implements Closeable {
             return;
         }
         endTerm();
+        if (currentStat != null) {
+            if (fieldIsIntType) {
+                currentStat.lastIntTerm = previousTermInt;
+            } else {
+                currentStat.lastStringTerm = makeCopy(previousTermBytes, previousTermLength);
+            }
+        } else {
+            currentStat = new FieldStat(currentField, fieldIsIntType);
+            currentStat.startPosition = out.getPosition();
+        }
+
+        currentStat.endPosition = out.getPosition();
+        fieldStats.add(currentStat);
+        currentStat = null;
+
         fieldWritten = false;
         FTGSBinaryFormat.writeFieldEnd(fieldIsIntType, out);
     }
@@ -118,12 +153,12 @@ public final class FTGSOutputStreamWriter implements Closeable {
         previousGroupId = -1;
     }
 
-    public static void write(final FTGSIterator buffer, final OutputStream out) throws IOException {
+    public static FieldStat[] write(final FTGSIterator buffer, final OutputStream out) throws IOException {
         final FTGSOutputStreamWriter writer = new FTGSOutputStreamWriter(out);
-        writer.write(buffer);
+        return writer.write(buffer);
     }
 
-    public void write(final FTGSIterator buffer) throws IOException {
+    public FieldStat[] write(final FTGSIterator buffer) throws IOException {
         final long[] stats = new long[buffer.getNumStats()];
         while (buffer.nextField()) {
             final boolean fieldIsIntType = buffer.fieldIsIntType();
@@ -145,11 +180,17 @@ public final class FTGSOutputStreamWriter implements Closeable {
                 endTerm();
             }
         }
-        close();
+        return closeAndGetStats();
     }
 
     private static byte[] copyInto(final byte[] src, final int srcLen, byte[] dest) {
         dest = ensureCap(dest, srcLen);
+        System.arraycopy(src, 0, dest, 0, srcLen);
+        return dest;
+    }
+
+    private static byte[] makeCopy(final byte[] src, final int srcLen) {
+        final byte[] dest = new byte[srcLen];
         System.arraycopy(src, 0, dest, 0, srcLen);
         return dest;
     }
@@ -162,6 +203,11 @@ public final class FTGSOutputStreamWriter implements Closeable {
             return b;
         }
         return new byte[Math.max(b.length*2, len)];
+    }
+
+    @Override
+    public void close() throws IOException {
+        closeAndGetStats();
     }
 
 }

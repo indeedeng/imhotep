@@ -16,10 +16,12 @@ package com.indeed.imhotep;
 
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
+import com.indeed.imhotep.FTGSBinaryFormat.FieldStat;
 import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.api.GroupStatsIterator;
 import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.service.FTGSOutputStreamWriter;
+import com.indeed.util.core.Pair;
 import com.indeed.util.core.Throwables2;
 import com.indeed.util.core.io.Closeables2;
 import gnu.trove.map.hash.TIntObjectHashMap;
@@ -48,13 +50,15 @@ public class FTGSIteratorUtil {
     private FTGSIteratorUtil() {
     }
 
-    public static File persistAsFile(final Logger log,
-                                     final String sessionId,
-                                     final FTGSIterator iterator) throws IOException {
+    public static Pair<File, FieldStat[]> persistAsFile(
+            final Logger log,
+            final String sessionId,
+            final FTGSIterator iterator) throws IOException {
         final File tmp = File.createTempFile("ftgs", ".tmp");
+        final FieldStat[] stats;
         final long start = System.currentTimeMillis();
         try (final OutputStream out = new BufferedOutputStream(new FileOutputStream(tmp))) {
-            FTGSOutputStreamWriter.write(iterator, out);
+            stats = FTGSOutputStreamWriter.write(iterator, out);
             if (log.isDebugEnabled()) {
                 log.debug("[" + sessionId + "] time to merge splits to file: " +
                         (System.currentTimeMillis() - start) +
@@ -67,7 +71,7 @@ public class FTGSIteratorUtil {
             Closeables2.closeQuietly(iterator, log);
         }
 
-        return tmp;
+        return Pair.of(tmp, stats);
     }
 
     public static FTGSIterator persist(final Logger log, final FTGSIterator iterator) throws IOException {
@@ -79,11 +83,11 @@ public class FTGSIteratorUtil {
                                    final FTGSIterator iterator) throws IOException {
         final int numStats = iterator.getNumStats();
         final int numGroups = iterator.getNumGroups();
-        final File tmp = persistAsFile(log, sessionId, iterator);
+        final Pair<File, FieldStat[]> tmp = persistAsFile(log, sessionId, iterator);
         try {
             return InputStreamFTGSIterators.create(tmp, numStats, numGroups);
         } finally {
-            tmp.delete();
+            tmp.getFirst().delete();
         }
     }
 

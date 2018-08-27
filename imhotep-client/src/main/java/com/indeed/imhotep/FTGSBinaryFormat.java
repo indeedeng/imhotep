@@ -102,4 +102,25 @@ public class FTGSBinaryFormat {
         VIntUtils.writeSVInt64(stream, i);
     }
 
+    // info about one field of binary FTGS stream
+    public static class FieldStat {
+        public FieldStat(final String fieldName, final boolean isIntField) {
+            this.fieldName = fieldName;
+            this.isIntField = isIntField;
+        }
+
+        public final String fieldName;
+        public final boolean isIntField;
+
+        // First and last terms. Make sense only if startPosition != endPosition
+        public long firstIntTerm;
+        public long lastIntTerm;
+        public byte[] firstStringTerm;
+        public byte[] lastStringTerm;
+
+        // position of first byte of first term.
+        public long startPosition;
+        // position of first byte after last term.
+        public long endPosition;
+    }
 }

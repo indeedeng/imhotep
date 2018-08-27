@@ -13,6 +13,7 @@
  */
  package com.indeed.imhotep;
 
+import com.indeed.imhotep.FTGSBinaryFormat.FieldStat;
 import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.io.MultiFile;
 import com.indeed.imhotep.io.TempFileSizeLimitExceededException;
@@ -42,7 +43,6 @@ public final class FTGSSplitter implements Closeable {
 
     private final int numSplits;
 
-    private final FTGSOutputStreamWriter[] outputs;
     private final OutputStream[] outputStreams;
     private final FTGSIterator[] ftgsIterators;
 
@@ -56,13 +56,8 @@ public final class FTGSSplitter implements Closeable {
                         final AtomicLong tempFileSizeBytesLeft) throws IOException {
         this.iterator = ftgsIterator;
         this.numSplits = numSplits;
-        final int numStats = iterator.getNumStats();
-        final int numGroups = ftgsIterator.getNumGroups();
         this.largePrime = largePrime;
-        outputs = new FTGSOutputStreamWriter[numSplits];
         outputStreams = new OutputStream[numSplits];
-        ftgsIterators = new FTGSIterator[numSplits];
-        final AtomicInteger doneCounter = new AtomicInteger();
         final File file = File.createTempFile("ftgsSplitter", ".tmp");
         try {
             final MultiFile multiFile;
@@ -73,10 +68,8 @@ public final class FTGSSplitter implements Closeable {
             }
             for (int i = 0; i < numSplits; i++) {
                 outputStreams[i] = multiFile.getOutputStream(i);
-                outputs[i] = new FTGSOutputStreamWriter(outputStreams[i]);
-                ftgsIterators[i] = new SplitterFTGSIterator(multiFile.getInputStream(i), numStats, numGroups, doneCounter);
             }
-            run();
+            ftgsIterators = run(multiFile);
         } catch (final Throwable t) {
             try {
                 close();
@@ -98,7 +91,13 @@ public final class FTGSSplitter implements Closeable {
         return ftgsIterators;
     }
 
-    private void run() throws IOException {
+    private FTGSIterator[] run(final MultiFile multiFile) throws IOException {
+        final FTGSOutputStreamWriter[] outputs = new FTGSOutputStreamWriter[numSplits];
+        for (int i = 0; i < numSplits; i++) {
+            outputs[i] = new FTGSOutputStreamWriter(outputStreams[i]);
+        }
+
+        final FTGSIterator[] iterators = new FTGSIterator[numSplits];
         try {
             final long[] statBuf = new long[iterator.getNumStats()];
             while (iterator.nextField()) {
@@ -132,10 +131,14 @@ public final class FTGSSplitter implements Closeable {
                     }
                 }
             }
-            for (final FTGSOutputStreamWriter output : outputs) {
-                output.close();
+            final AtomicInteger doneCounter = new AtomicInteger();
+            for (int i = 0; i < iterators.length; i++) {
+                final FieldStat[] fieldStats = outputs[i].closeAndGetStats();
+                iterators[i] = new SplitterFTGSIterator(multiFile.getInputStream(i), fieldStats, iterator.getNumStats(), iterator.getNumGroups(), doneCounter);
             }
+            return iterators;
         } catch (final Throwable t) {
+            Closeables2.closeAll(log, iterators);
             try {
                 close();
             } finally {
@@ -157,10 +160,8 @@ public final class FTGSSplitter implements Closeable {
     public void close() {
         if (done.compareAndSet(false, true)) {
             final Closeable closeIterators = Closeables2.forArray(log, ftgsIterators);
-            final Closeable closeOutputs = Closeables2.forArray(log, outputs);
             final Closeable closeOutputStreams = Closeables2.forArray(log, outputStreams);
-            Closeables2.closeAll(log, iterator, closeIterators,
-                    closeOutputs, closeOutputStreams);
+            Closeables2.closeAll(log, iterator, closeIterators, closeOutputStreams);
         }
     }
 
@@ -173,10 +174,11 @@ public final class FTGSSplitter implements Closeable {
         private AtomicInteger doneCounter;
 
         SplitterFTGSIterator(final InputStream in,
+                             final FieldStat[] fieldsStats,
                              final int numStats,
                              final int numGroups,
                              final AtomicInteger doneCounter) {
-            super(in, numStats, numGroups);
+            super(in, fieldsStats, numStats, numGroups);
             this.doneCounter = doneCounter;
         }
 

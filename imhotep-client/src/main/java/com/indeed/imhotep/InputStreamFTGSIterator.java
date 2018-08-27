@@ -13,7 +13,9 @@
  */
  package com.indeed.imhotep;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
+import com.indeed.imhotep.FTGSBinaryFormat.FieldStat;
 import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.util.core.io.Closeables2;
 import org.apache.log4j.Logger;
@@ -102,14 +104,24 @@ public class InputStreamFTGSIterator implements FTGSIterator {
     private final InputStream in;
     private final int numStats;
     private final int numGroups;
+    private final FieldStat[] fieldsStats;
 
     public InputStreamFTGSIterator(final InputStream in,
+                                   final FieldStat[] fieldsStats,
                                    final int numStats,
                                    final int numGroups) {
         this.in = in;
+        this.fieldsStats = fieldsStats;
         this.numStats = numStats;
         this.numGroups = numGroups;
         this.statsBuf = new long[numStats];
+    }
+
+    @VisibleForTesting
+    InputStreamFTGSIterator(final InputStream in,
+                            final int numStats,
+                            final int numGroups) {
+        this(in, null, numStats, numGroups);
     }
 
     private String fieldName;

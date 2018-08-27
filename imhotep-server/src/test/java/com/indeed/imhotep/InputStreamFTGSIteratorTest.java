@@ -309,6 +309,7 @@ public class InputStreamFTGSIteratorTest {
     @Test
     public void testFileInputStreamIterators() throws IOException {
         final File tmp = File.createTempFile("ftgs", ".tmp");
+        final FTGSBinaryFormat.FieldStat[] stats;
         try {
             try (final FTGSOutputStreamWriter w = new FTGSOutputStreamWriter(new FileOutputStream(tmp))) {
                 w.switchField("a", true);
@@ -335,9 +336,10 @@ public class InputStreamFTGSIteratorTest {
                 w.switchGroup(1);
                 w.addStat(1);
                 w.addStat(2);
+                stats = w.closeAndGetStats();
             }
 
-            try (final InputStreamFTGSIterator iter = InputStreamFTGSIterators.create(tmp, 2, 2)) {
+            try (final InputStreamFTGSIterator iter = InputStreamFTGSIterators.create(tmp, stats, 2, 2)) {
 
                 expectIntField(iter, "a");
                 expectIntTerm(iter, 1, 5);

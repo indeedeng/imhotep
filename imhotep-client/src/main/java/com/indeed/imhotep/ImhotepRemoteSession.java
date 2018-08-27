@@ -482,7 +482,7 @@ public class ImhotepRemoteSession
                 throw new IllegalStateException("numStats mismatch");
             }
             final int numGroups = responseAndFile.getFirst().getNumGroups();
-            return new InputStreamFTGSIterator(responseAndFile.getSecond(), numStats, numGroups);
+            return new InputStreamFTGSIterator(responseAndFile.getSecond(), null, numStats, numGroups);
         } catch (final IOException e) {
             throw new RuntimeException(e); // TODO
         }
