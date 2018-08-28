@@ -10,15 +10,16 @@ import java.io.OutputStream;
 /**
  * Helper class to store FTGS into stream.
  *
- * FTGS format in stream:
- *      FTGS_in_stream  : (field_stream)* stream_end_tag
- *      field_stream    : field_start (term)* field_end_tag
- *      field_start     : field_type field_name_len field_name
- *      term            : (int_term | string_term) term_freq groupStats
- *      int_term        : delta_with_previous_int_term
+ * FTGS format in stream ({x} means tag is stored with given constant or data coded with given encoding function):
+ *      FTGS_in_stream  : (field_stream)* stream_end_tag{0x00}
+ *      field_stream    : field_start (term)* field_end_tag{0x00 for int fields, 0x00 0x00 for string fields}
+ *      field_start     : field_type{0x01 for int fields, 0x02 for string fields} field_name_len{VLong} field_name{utf-8 bytes}
+ *      term            : (int_term | string_term) term_freq{SVLong} groupStats
+ *      int_term        : delta_with_previous_int_term{VLong, special encoding if delta is 0}
  *      string_term     : delta_with_previous_string_term
- *      groupStats      : (groupStat)* groupStat_end_tag
- *      groupStat       : delta_with_previous_group stat[numStat]
+ *      groupStats      : (groupStat)* groupStat_end_tag{0x00}
+ *      groupStat       : delta_with_previous_group{VLong} stat[numStat]{each stat coded with SVLong}
+ *      delta_with_previous_string_term  : remove_len_plus_one{VLong} add_len{VLong} data{utf-8 bytes}
  */
 
 public class FTGSBinaryFormat {
