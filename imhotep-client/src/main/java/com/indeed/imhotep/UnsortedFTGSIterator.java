@@ -18,13 +18,9 @@ public final class UnsortedFTGSIterator extends AbstractDisjointFTGSMerger {
                 return true;
             }
             numFieldIterators--;
-            swap(0, numFieldIterators);
+            final FTGSIterator tmp = iterators[0];
+            System.arraycopy(iterators, 1, iterators, 0, numFieldIterators);
+            iterators[numFieldIterators] = tmp;
         }
-    }
-
-    private void swap(final int a, final int b) {
-        final FTGSIterator tmp = iterators[a];
-        iterators[a] = iterators[b];
-        iterators[b] = tmp;
     }
 }

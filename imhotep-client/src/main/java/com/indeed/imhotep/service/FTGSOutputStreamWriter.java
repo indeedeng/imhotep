@@ -13,16 +13,19 @@
  */
  package com.indeed.imhotep.service;
 
-import com.google.common.base.Charsets;
+import com.indeed.imhotep.FTGSBinaryFormat;
+import com.indeed.imhotep.FTGSBinaryFormat.FieldStat;
+import com.indeed.imhotep.StreamUtil.OutputStreamWithPosition;
 import com.indeed.imhotep.api.FTGSIterator;
-import com.indeed.util.io.VIntUtils;
 
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.ArrayList;
+import java.util.List;
 
 public final class FTGSOutputStreamWriter implements Closeable {
-    private final OutputStream out;
+    private final OutputStreamWithPosition out;
 
     private boolean fieldIsIntType;
 
@@ -32,6 +35,10 @@ public final class FTGSOutputStreamWriter implements Closeable {
     private int currentTermLength;
     private long previousTermInt;
     private long currentTermInt;
+    private String currentField;
+    private FieldStat currentStat;
+    private final List<FieldStat> fieldStats = new ArrayList<>();
+    private boolean closed = false;
 
     private long currentTermDocFreq;
 
@@ -41,16 +48,17 @@ public final class FTGSOutputStreamWriter implements Closeable {
     private int previousGroupId = -1;
 
     public FTGSOutputStreamWriter(final OutputStream out) {
-        this.out = out;
+        this.out = new OutputStreamWithPosition(out);
     }
 
     public void switchField(final String field, final boolean isIntType) throws IOException {
         endField();
         fieldIsIntType = isIntType;
-        startField(fieldIsIntType, field, out);
+        FTGSBinaryFormat.writeFieldStart(fieldIsIntType, field, out);
         fieldWritten = true;
         previousTermLength = 0;
         previousTermInt = -1;
+        currentField = field;
     }
 
     public void switchBytesTerm(final byte[] termBytes, final int termLength, final long termDocFreq) throws IOException {
@@ -70,40 +78,46 @@ public final class FTGSOutputStreamWriter implements Closeable {
         if (!termWritten) {
             writeTerm();
         }
-        writeVLong(groupId - previousGroupId, out);
+        FTGSBinaryFormat.writeGroup(groupId, previousGroupId, out);
         previousGroupId = groupId;
     }
 
     private void writeTerm() throws IOException {
-        if (fieldIsIntType) {
-            if (previousTermInt == -1 && currentTermInt == previousTermInt) {
-                //still decodes to 0 but allows reader to distinguish between end of field and delta of zero
-                out.write(0x80);
-                out.write(0);
+        if (currentStat == null) {
+            // first term is current field.
+            currentStat = new FieldStat(currentField, fieldIsIntType);
+            currentStat.startPosition = out.getPosition();
+            if (fieldIsIntType) {
+                currentStat.firstIntTerm = currentTermInt;
             } else {
-                writeVLong(currentTermInt - previousTermInt, out);
+                currentStat.firstStringTerm = makeCopy(currentTermBytes, currentTermLength);
             }
+        }
+
+        if (fieldIsIntType) {
+            FTGSBinaryFormat.writeIntTermStart(currentTermInt, previousTermInt, out);
             previousTermInt = currentTermInt;
         } else {
-            final int pLen = prefixLen(previousTermBytes, currentTermBytes, Math.min(previousTermLength, currentTermLength));
-            writeVLong((previousTermLength - pLen) + 1, out);
-            writeVLong(currentTermLength - pLen, out);
-            out.write(currentTermBytes, pLen, currentTermLength - pLen);
+            FTGSBinaryFormat.writeStringTermStart(currentTermBytes, currentTermLength, previousTermBytes, previousTermLength, out);
             previousTermBytes = copyInto(currentTermBytes, currentTermLength, previousTermBytes);
             previousTermLength = currentTermLength;
         }
-        writeSVLong(currentTermDocFreq, out);
+        FTGSBinaryFormat.writeTermDocFreq(currentTermDocFreq, out);
         termWritten = true;
     }
 
     public void addStat(final long stat) throws IOException {
-        writeSVLong(stat, out);
+        FTGSBinaryFormat.writeStat(stat, out);
     }
 
-    public void close() throws IOException {
-        endField();
-        out.write(0);
-        out.flush();
+    public FieldStat[] closeAndGetStats() throws IOException {
+        if (!closed) {
+            closed = true;
+            endField();
+            FTGSBinaryFormat.writeFtgsEndTag(out);
+            out.flush();
+        }
+        return fieldStats.toArray(new FieldStat[fieldStats.size()]);
     }
 
     private void endField() throws IOException {
@@ -111,26 +125,39 @@ public final class FTGSOutputStreamWriter implements Closeable {
             return;
         }
         endTerm();
-        out.write(0);
-        if (!fieldIsIntType) {
-            out.write(0);
+        if (currentStat != null) {
+            if (fieldIsIntType) {
+                currentStat.lastIntTerm = previousTermInt;
+            } else {
+                currentStat.lastStringTerm = makeCopy(previousTermBytes, previousTermLength);
+            }
+        } else {
+            currentStat = new FieldStat(currentField, fieldIsIntType);
+            currentStat.startPosition = out.getPosition();
         }
+
+        currentStat.endPosition = out.getPosition();
+        fieldStats.add(currentStat);
+        currentStat = null;
+
+        fieldWritten = false;
+        FTGSBinaryFormat.writeFieldEnd(fieldIsIntType, out);
     }
 
     private void endTerm() throws IOException {
         if (termWritten) {
-            out.write(0);
+            FTGSBinaryFormat.writeGroupStatsEnd(out);
         }
         termWritten = false;
         previousGroupId = -1;
     }
 
-    public static void write(final FTGSIterator buffer, final OutputStream out) throws IOException {
+    public static FieldStat[] write(final FTGSIterator buffer, final OutputStream out) throws IOException {
         final FTGSOutputStreamWriter writer = new FTGSOutputStreamWriter(out);
-        writer.write(buffer);
+        return writer.write(buffer);
     }
 
-    public void write(final FTGSIterator buffer) throws IOException {
+    public FieldStat[] write(final FTGSIterator buffer) throws IOException {
         final long[] stats = new long[buffer.getNumStats()];
         while (buffer.nextField()) {
             final boolean fieldIsIntType = buffer.fieldIsIntType();
@@ -152,30 +179,17 @@ public final class FTGSOutputStreamWriter implements Closeable {
                 endTerm();
             }
         }
-        close();
-    }
-
-    private static void writeVLong(final long i, final OutputStream out) throws IOException {
-        VIntUtils.writeVInt64(out, i);
-    }
-
-    private static void writeSVLong(final long i, final OutputStream out) throws IOException {
-        VIntUtils.writeSVInt64(out, i);
-    }
-
-    private static void startField(final boolean isIntType, final String field, final OutputStream out) throws IOException {
-        if (isIntType) {
-            out.write(1);
-        } else {
-            out.write(2);
-        }
-        final byte[] fieldBytes = field.getBytes(Charsets.UTF_8);
-        writeVLong(fieldBytes.length, out);
-        out.write(fieldBytes);
+        return closeAndGetStats();
     }
 
     private static byte[] copyInto(final byte[] src, final int srcLen, byte[] dest) {
         dest = ensureCap(dest, srcLen);
+        System.arraycopy(src, 0, dest, 0, srcLen);
+        return dest;
+    }
+
+    private static byte[] makeCopy(final byte[] src, final int srcLen) {
+        final byte[] dest = new byte[srcLen];
         System.arraycopy(src, 0, dest, 0, srcLen);
         return dest;
     }
@@ -190,12 +204,9 @@ public final class FTGSOutputStreamWriter implements Closeable {
         return new byte[Math.max(b.length*2, len)];
     }
 
-    private static int prefixLen(final byte[] a, final byte[] b, final int max) {
-        for (int i = 0; i < max; i++) {
-            if (a[i] != b[i]) {
-                return i;
-            }
-        }
-        return max;
+    @Override
+    public void close() throws IOException {
+        closeAndGetStats();
     }
+
 }
