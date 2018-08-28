@@ -43,6 +43,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 import java.util.PriorityQueue;
 
 /**
@@ -364,12 +365,12 @@ public class FTGSIteratorUtil {
             return null;
         }
         final InputStreamFTGSIterator inputIterator = (InputStreamFTGSIterator) iterator;
-        final Pair<InputStream, FieldStat[]> streamAndStats = inputIterator.getStreamAndStats();
-        final FieldStat[] stats = streamAndStats.getSecond();
-        if (stats == null) {
+        final Pair<InputStream, Optional<FieldStat[]>> streamAndStats = inputIterator.getStreamAndStats();
+        if (!streamAndStats.getSecond().isPresent()) {
             return null;
         }
 
+        final FieldStat[] stats = streamAndStats.getSecond().get();
         final FieldStat lastFieldStat = stats[stats.length-1];
 
         final long to = lastFieldStat.endPosition;
@@ -399,12 +400,12 @@ public class FTGSIteratorUtil {
         final Pair<InputStreamWithPosition, FieldStat[]>[] streamsAndStats = new Pair[subIterators.length];
         for (int i = 0; i < subIterators.length; i++) {
             if (subIterators[i] instanceof InputStreamFTGSIterator) {
-                final Pair<InputStream, FieldStat[]> stats = ((InputStreamFTGSIterator) subIterators[i]).getStreamAndStats();
-                if (stats.getSecond() == null) {
+                final Pair<InputStream, Optional<FieldStat[]>> stats = ((InputStreamFTGSIterator) subIterators[i]).getStreamAndStats();
+                if (!stats.getSecond().isPresent()) {
                     return null;
                 }
                 final InputStreamWithPosition streamWithPosition = new StreamUtil.InputStreamWithPosition(stats.getFirst());
-                streamsAndStats[i] = Pair.of(streamWithPosition, stats.getSecond());
+                streamsAndStats[i] = Pair.of(streamWithPosition, stats.getSecond().get());
             } else {
                 return null;
             }

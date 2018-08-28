@@ -21,11 +21,13 @@ import com.indeed.util.core.Pair;
 import com.indeed.util.core.io.Closeables2;
 import org.apache.log4j.Logger;
 
+import javax.annotation.Nullable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.charset.CharacterCodingException;
 import java.nio.charset.CharsetDecoder;
+import java.util.Optional;
 
 public class InputStreamFTGSIterator implements FTGSIterator {
 
@@ -105,14 +107,14 @@ public class InputStreamFTGSIterator implements FTGSIterator {
     private final InputStream in;
     private final int numStats;
     private final int numGroups;
-    private final FieldStat[] fieldsStats;
+    private final Optional<FieldStat[]> fieldsStats;
 
     public InputStreamFTGSIterator(final InputStream in,
-                                   final FieldStat[] fieldsStats,
+                                   @Nullable final FieldStat[] fieldsStats,
                                    final int numStats,
                                    final int numGroups) {
         this.in = in;
-        this.fieldsStats = fieldsStats;
+        this.fieldsStats = Optional.ofNullable(fieldsStats);
         this.numStats = numStats;
         this.numGroups = numGroups;
         this.statsBuf = new long[numStats];
@@ -125,7 +127,7 @@ public class InputStreamFTGSIterator implements FTGSIterator {
         this(in, null, numStats, numGroups);
     }
 
-    public Pair<InputStream,FieldStat[]> getStreamAndStats() {
+    public Pair<InputStream, Optional<FieldStat[]>> getStreamAndStats() {
         return Pair.of(in, fieldsStats);
     }
 
