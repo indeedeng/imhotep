@@ -10,8 +10,8 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
  */
 
 public class IntervalTree<K extends Comparable<? super K>, V> {
-    private ReadWriteLock lock = new ReentrantReadWriteLock();
-    private Set<V> values = new HashSet<>();
+    private final ReadWriteLock lock = new ReentrantReadWriteLock();
+    private final Set<V> values = new HashSet<>();
 
     public Set<V> getAllValues() {
         try {
@@ -22,10 +22,10 @@ public class IntervalTree<K extends Comparable<? super K>, V> {
         }
     }
 
-    public boolean deleteInterval(K start, K end, V value) {
+    public boolean deleteInterval(final K start, final K end, final V value) {
         try {
             lock.writeLock().lock();
-            Interval toDelete = new Interval(start, end, Collections.singleton(value));
+            final Interval toDelete = new Interval(start, end, Collections.singleton(value));
             if (deleteInterval(root, toDelete, null, false)) {
                 values.remove(value);
                 return true;
@@ -36,14 +36,14 @@ public class IntervalTree<K extends Comparable<? super K>, V> {
         }
     }
 
-    private boolean deleteInterval(Node current, Interval toDelete, Node parent, boolean prevMoveToLeft) {
+    private boolean deleteInterval(final Node current, final Interval toDelete, final Node parent, final boolean prevMoveToLeft) {
         if(current == null) {
             return false;
         }
 
         if(current.interval.compareTo(toDelete) == 0) {
             final boolean toReturn =  current.interval.values.removeAll(toDelete.values);
-            if(current.interval.values.size() == 0) {
+            if(current.interval.values.isEmpty()) {
                 deleteNode(current, parent, prevMoveToLeft);
             }
             return toReturn;
@@ -56,7 +56,7 @@ public class IntervalTree<K extends Comparable<? super K>, V> {
         return deleteInterval(current.right, toDelete, current, false);
     }
 
-    private void deleteNode(final Node toDelete, final Node parent, boolean prevMoveWasLeft) {
+    private void deleteNode(final Node toDelete, final Node parent, final boolean prevMoveWasLeft) {
         if(parent == null) {
             if(toDelete.left == null) {
                 root = toDelete.right;
@@ -158,7 +158,7 @@ public class IntervalTree<K extends Comparable<? super K>, V> {
         final Set<V> values;
         final double priority;
 
-        public Interval(K start, K end, Set<V> value){
+        public Interval(final K start, final K end, final Set<V> value){
             this.start = start;
             this.end = end;
             this.values = value;
@@ -166,9 +166,9 @@ public class IntervalTree<K extends Comparable<? super K>, V> {
         }
 
         @Override
-        public int compareTo(Interval o) {
-            int startCompare = this.start.compareTo(o.start);
-            return startCompare == 0 ? this.end.compareTo(o.end) : startCompare;
+        public int compareTo(final Interval o) {
+            final int startCompare = this.start.compareTo(o.start);
+            return (startCompare == 0) ? this.end.compareTo(o.end) : startCompare;
         }
     }
 
@@ -181,29 +181,29 @@ public class IntervalTree<K extends Comparable<? super K>, V> {
 
     private Node root;
 
-    public void addInterval(K start, K end, V value){
+    public void addInterval(final K start, final K end, final V value){
         try {
             lock.writeLock().lock();
             values.add(value);
             if (root == null) {
                 root = new Node();
-                Set<V> values = new HashSet<>();
+                final Set<V> values = new HashSet<>();
                 values.add(value);
                 root.interval = new Interval(start, end, values);
                 root.largestToTheRight = end;
                 return;
             }
 
-            Set<V> values = new HashSet<>();
+            final Set<V> values = new HashSet<>();
             values.add(value);
-            Interval interval = new Interval(start, end, values);
+            final Interval interval = new Interval(start, end, values);
             addInterval(root, interval, null, false);
         } finally {
             lock.writeLock().unlock();
         }
     }
 
-    public Set<V> getValuesInRange(K start, K end){
+    public Set<V> getValuesInRange(final K start, final K end){
         try {
             lock.readLock().lock();
             if (root == null) {
@@ -215,15 +215,15 @@ public class IntervalTree<K extends Comparable<? super K>, V> {
         }
     }
 
-    private K max(K first, K second, K third){
+    private K max(final K first, final K second, final K third){
         return max(max(first, second), third);
     }
 
-    private K max(K first, K second){
-        return first.compareTo(second) > 0 ? first : second;
+    private K max(final K first, final K second){
+        return (first.compareTo(second) > 0) ? first : second;
     }
 
-    private Set<V> valuesInRange(Node current, K start, K end) {
+    private Set<V> valuesInRange(final Node current, final K start, final K end) {
         if(current == null) {
             return new HashSet<>();
         }
@@ -233,7 +233,7 @@ public class IntervalTree<K extends Comparable<? super K>, V> {
         if (current.largestToTheRight.compareTo(start) < 0){
             return new HashSet<>();
         }
-        Set<V> toReturn = valuesInRange(current.left, start, end);
+        final Set<V> toReturn = valuesInRange(current.left, start, end);
         toReturn.addAll(valuesInRange(current.right, start, end));
         if(shouldTakeThisInterval(current.interval, start, end)) {
             toReturn.addAll(current.interval.values);
@@ -242,26 +242,26 @@ public class IntervalTree<K extends Comparable<? super K>, V> {
     }
 
     // Start is inclusive, end is exclusive
-    private boolean shouldTakeThisInterval(Interval interval, K start, K end) {
-        return interval.start.compareTo(end) < 0 && interval.end.compareTo(start) > 0;
+    private boolean shouldTakeThisInterval(final Interval interval, final K start, final K end) {
+        return (interval.start.compareTo(end) < 0) && (interval.end.compareTo(start) > 0);
     }
 
     @SuppressWarnings("UnnecessaryLocalVariable")
-    private void addInterval(Node current, Interval interval, Node previous, boolean prevMoveWasLeft) {
+    private void addInterval(final Node current, final Interval interval, final Node previous, final boolean prevMoveWasLeft) {
         if (current.interval.compareTo(interval) > 0) {
             if (current.left != null) {
                 addInterval(current.left, interval, current, true);
             } else {
-                Node temp = new Node();
+                final Node temp = new Node();
                 temp.interval = interval;
                 temp.largestToTheRight = interval.end;
                 current.left = temp;
             }
             if(current.left.interval.priority > current.interval.priority) {
-                Node newParent = current.left;
-                Node oldParent = current;
-                Node grandparent = previous;
-                Node newParentRight = newParent.right;
+                final Node newParent = current.left;
+                final Node oldParent = current;
+                final Node grandparent = previous;
+                final Node newParentRight = newParent.right;
                 if(oldParent == root) {
                     root = newParent;
                 } else if (prevMoveWasLeft) {
@@ -278,16 +278,16 @@ public class IntervalTree<K extends Comparable<? super K>, V> {
             if (current.right != null) {
                 addInterval(current.right, interval, current, false);
             } else {
-                Node temp = new Node();
+                final Node temp = new Node();
                 temp.interval = interval;
                 temp.largestToTheRight = interval.end;
                 current.right = temp;
             }
             if(current.right.interval.priority > current.interval.priority) {
-                Node newParent = current.right;
-                Node oldParent = current;
-                Node grandparent = previous;
-                Node newParentLeft = newParent.left;
+                final Node newParent = current.right;
+                final Node oldParent = current;
+                final Node grandparent = previous;
+                final Node newParentLeft = newParent.left;
                 if(oldParent == root){
                     root = newParent;
                 } else if (prevMoveWasLeft) {
@@ -306,8 +306,8 @@ public class IntervalTree<K extends Comparable<? super K>, V> {
         updateLargestToTheRight(current);
     }
 
-    private void updateLargestToTheRight(Node current) {
-        if(current.left == null && current.right == null) {
+    private void updateLargestToTheRight(final Node current) {
+        if((current.left == null) && (current.right == null)) {
             current.largestToTheRight = current.interval.end;
         } else if (current.left == null) {
             current.largestToTheRight = max(current.interval.end, current.right.largestToTheRight);
@@ -322,12 +322,12 @@ public class IntervalTree<K extends Comparable<? super K>, V> {
         return hasEmptyIntervals(root);
     }
 
-    private boolean hasEmptyIntervals(Node current) {
+    private boolean hasEmptyIntervals(final Node current) {
         if(current == null) {
             return false;
         }
 
-        if(current.interval.values.size() == 0) {
+        if(current.interval.values.isEmpty()) {
             return true;
         }
 

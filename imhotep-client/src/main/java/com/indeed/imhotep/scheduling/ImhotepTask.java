@@ -28,7 +28,7 @@ import java.util.concurrent.atomic.AtomicLong;
 public class ImhotepTask implements Comparable<ImhotepTask> {
     final static ThreadLocal<ImhotepTask> THREAD_LOCAL_TASK = new ThreadLocal<>();
 
-    private final static AtomicLong nextTaskId = new AtomicLong(0);
+    private static final AtomicLong nextTaskId = new AtomicLong(0);
     private final long creationTimestamp;
     private final long taskId;
     final String userName;

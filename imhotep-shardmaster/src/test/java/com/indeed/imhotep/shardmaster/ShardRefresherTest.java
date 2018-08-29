@@ -65,7 +65,7 @@ public class ShardRefresherTest {
             properties.setProperty(entry.getKey(), entry.getValue());
         }
 
-        try (FileOutputStream os = new FileOutputStream(target)) {
+        try (final FileOutputStream os = new FileOutputStream(target)) {
             properties.store(os, "");
         }
     }
@@ -86,17 +86,17 @@ public class ShardRefresherTest {
 
     @Before
     public void createMetadataFile() throws IOException {
-        java.nio.file.Path p = Paths.get(fsTestContext.getTempRootDir().toString(), "metadata");
+        final java.nio.file.Path p = Paths.get(fsTestContext.getTempRootDir().toString(), "metadata");
         new File(p.toString()).mkdir();
         FlamdexMetadata.writeMetadata(p, new FlamdexMetadata(0, new ArrayList<>(), new ArrayList<>(), FlamdexFormatVersion.SIMPLE));
 
     }
 
     private void createShard(final File rootDir, final String dataset, final DateTime shardId, final long version) throws IOException{
-        Path path = new Path(rootDir.toString() + "/" + dataset + "/" + ShardTimeUtils.toDailyShardPrefix(shardId) + "." + String.format("%014d", version) + ".sqar/");
+        final Path path = new Path(rootDir.toString() + "/" + dataset + "/" + ShardTimeUtils.toDailyShardPrefix(shardId) + "." + String.format("%014d", version) + ".sqar/");
         new File(path.toString()).mkdir();
-        SquallArchiveWriter writer = new SquallArchiveWriter(path.getFileSystem(new Configuration()), new Path(path.toString()), true);
-        File f = new File(fsTestContext.getTempRootDir()+"/metadata/metadata.txt");
+        final SquallArchiveWriter writer = new SquallArchiveWriter(path.getFileSystem(new Configuration()), new Path(path.toString()), true);
+        final File f = new File(fsTestContext.getTempRootDir()+"/metadata/metadata.txt");
         writer.appendFile(f);
         writer.commit();
     }
@@ -107,7 +107,7 @@ public class ShardRefresherTest {
     }
 
     @Test
-    public void testRefresh() throws ExecutionException, InterruptedException, SQLException, IOException {
+    public void testRefresh() throws SQLException, IOException {
         final int numDataSets = 100;
         final int numShards = 15;
         final DateTime endDate = new DateTime(2018, 1, 1, 0, 0);
@@ -127,10 +127,10 @@ public class ShardRefresherTest {
 
         final Path dataSetsDir = new Path("file:///" + fsTestContext.getLocalStoreDir());
 
-        ZooKeeperConnection fakeZookeeperConnection = new ZooKeeperConnection("", 0);
-        Connection fakeConnection = EasyMock.createNiceMock(Connection.class);
-        PreparedStatement fakeStatement = EasyMock.createNiceMock(PreparedStatement.class);
-        ResultSet fakeResults = EasyMock.createNiceMock(ResultSet.class);
+        final ZooKeeperConnection fakeZookeeperConnection = new ZooKeeperConnection("", 0);
+        final Connection fakeConnection = EasyMock.createNiceMock(Connection.class);
+        final PreparedStatement fakeStatement = EasyMock.createNiceMock(PreparedStatement.class);
+        final ResultSet fakeResults = EasyMock.createNiceMock(ResultSet.class);
 
         EasyMock.makeThreadSafe(fakeResults, true);
         EasyMock.makeThreadSafe(fakeStatement, true);

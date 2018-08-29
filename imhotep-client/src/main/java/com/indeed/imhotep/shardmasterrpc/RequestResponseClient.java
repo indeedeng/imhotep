@@ -23,7 +23,9 @@ import org.apache.log4j.Logger;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.InetAddress;
 import java.net.Socket;
+import java.net.UnknownHostException;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -32,14 +34,13 @@ import java.util.stream.Collectors;
  */
 
 public class RequestResponseClient implements ShardMaster {
-    private static final Logger LOGGER = Logger.getLogger(RequestResponseClient.class);
     private final Host serverHost;
     private static String currentHostName;
     static {
         try {
-            currentHostName = java.net.InetAddress.getLocalHost().getHostName();
+            currentHostName = InetAddress.getLocalHost().getHostName();
         }
-        catch (java.net.UnknownHostException ex) {
+        catch (final UnknownHostException ex) {
             currentHostName = "(unknown)";
         }
     }
@@ -61,9 +62,9 @@ public class RequestResponseClient implements ShardMaster {
     }
 
     private List<ShardMasterResponse> sendAndReceive(final ShardMasterRequest request) throws IOException {
-        try (Socket socket = new Socket(serverHost.getHostname(), serverHost.getPort())) {
+        try (final Socket socket = new Socket(serverHost.getHostname(), serverHost.getPort())) {
             ShardMasterMessageUtil.sendMessage(request, socket.getOutputStream());
-            try (InputStream socketInputStream = socket.getInputStream()) {
+            try (final InputStream socketInputStream = socket.getInputStream()) {
                 final List<ShardMasterResponse> responses = new ArrayList<>();
                 while (true) {
                     try {
@@ -85,8 +86,8 @@ public class RequestResponseClient implements ShardMaster {
         final List<ShardMasterResponse> shardMasterResponses = sendAndReceive(request);
 
         final List<DatasetInfo> toReturn = new ArrayList<>();
-        for(ShardMasterResponse response: shardMasterResponses){
-            for(DatasetInfoMessage metadata: response.getMetadataList()) {
+        for(final ShardMasterResponse response: shardMasterResponses){
+            for(final DatasetInfoMessage metadata: response.getMetadataList()) {
                 toReturn.add(DatasetInfo.fromProto(metadata));
             }
         }
@@ -104,11 +105,11 @@ public class RequestResponseClient implements ShardMaster {
                 .build();
         final List<Shard> toReturn = new ArrayList<>();
         final List<ShardMasterResponse> shardMasterResponses = sendAndReceive(request);
-        for(ShardMasterResponse response: shardMasterResponses){
+        for(final ShardMasterResponse response: shardMasterResponses){
             final List<ShardMessage> shardsInTimeList = response.getShardsInTimeList();
-            for(ShardMessage message: shardsInTimeList) {
-                Host host = new Host(message.getHost().getHost(), message.getHost().getPort());
-                Shard shard = new Shard(message.getShardId(), message.getNumDocs(), message.getVersion(), host, message.getExtension());
+            for(final ShardMessage message: shardsInTimeList) {
+                final Host host = new Host(message.getHost().getHost(), message.getHost().getPort());
+                final Shard shard = new Shard(message.getShardId(), message.getNumDocs(), message.getVersion(), host, message.getExtension());
                 toReturn.add(shard);
             }
         }
@@ -128,7 +129,7 @@ public class RequestResponseClient implements ShardMaster {
 
         final Map<String, Collection<ShardInfo>> toReturn = new HashMap<>();
 
-        for(DatasetShardsMessage message: datasetMessages) {
+        for(final DatasetShardsMessage message: datasetMessages) {
             toReturn.put(message.getDataset(), message.getShardsList().stream().map(ShardInfo::fromProto).collect(Collectors.toList()));
         }
 
@@ -136,7 +137,7 @@ public class RequestResponseClient implements ShardMaster {
     }
 
     @Override
-    public void refreshFieldsForDataset(String dataset) throws IOException {
+    public void refreshFieldsForDataset(final String dataset) throws IOException {
         final ShardMasterRequest request = ShardMasterRequest.newBuilder()
                 .setRequestType(ShardMasterRequest.RequestType.REFRESH_FIELDS_FOR_DATASET)
                 .setNode(HostAndPort.newBuilder().setHost(currentHostName).build())
