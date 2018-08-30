@@ -499,7 +499,7 @@ public class ImhotepClient
                 final Host host = entry.getKey();
                 final List<Shard> shardList = entry.getValue();
 
-                final long numDocs = shardRequestMap.get(host).stream().mapToInt(Shard::getNumDocs).sum();
+                final long numDocs = shardRequestMap.get(host).stream().mapToInt(Shard::getNumDocs).asLongStream().sum();
 
                 futures.add(executor.submit(new Callable<ImhotepRemoteSession>() {
                     @Override
