@@ -57,23 +57,19 @@ public class ShardMasterDaemon {
     private volatile RequestResponseServer server;
     private String leaderId;
     private long lastDeleteTimeMillis;
-    private final Lock startupLock = new ReentrantLock();
+    private final CountDownLatch startupLatch = new CountDownLatch(1);
 
     public ShardMasterDaemon(final Config config) {
         this.config = config;
     }
 
     public void waitForStartup(final long timeout) throws TimeoutException, InterruptedException {
-        Thread.sleep(300);
-        if(!startupLock.tryLock(timeout, TimeUnit.MILLISECONDS)){
+        if(!startupLatch.await(timeout, TimeUnit.MILLISECONDS)){
             throw new TimeoutException("ImhotepDaemon failed to start within " + timeout + " ms");
         }
-
     }
 
     public void run() throws IOException, InterruptedException, KeeperException {
-        startupLock.lock();
-
         lastDeleteTimeMillis = System.currentTimeMillis();
 
         LOGGER.info("Starting daemon...");
@@ -145,7 +141,7 @@ public class ShardMasterDaemon {
                     new DatabaseShardMaster(config.createAssigner(), shardData, hostsReloader, refresher, config.localMode ? "" : ".sqar"),
                     config.shardsResponseBatchSize
             ), config.serviceConcurrency);
-            startupLock.unlock();
+            startupLatch.countDown();
             try (final ZkEndpointPersister endpointPersister = getZKEndpointPersister()) {
                 LOGGER.info("Starting service");
                 server.run();
@@ -157,7 +153,7 @@ public class ShardMasterDaemon {
             LOGGER.error("Error during startup", e);
         }
         finally {
-            startupLock.unlock();
+            startupLatch.countDown();
             hostReloadTimer.cancel();
             datasetReloadExecutor.shutdown();
             executorService.shutdown();
