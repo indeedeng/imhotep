@@ -218,8 +218,8 @@ public class ImhotepClient
     };
 
     private Host computeOverrideHost(final String dataset, final Shard shard) {
-        final int hash = HASH_FUNCTION.get().newHasher().putInt(dataset.hashCode()).putInt(shard.shardId.hashCode()).putLong(shard.version).hash().asInt();
-        return imhotepDaemonsOverride.get(hash % imhotepDaemonsOverride.size());
+        final long hash = Math.abs((long) HASH_FUNCTION.get().newHasher().putInt(dataset.hashCode()).putInt(shard.shardId.hashCode()).putLong(shard.version).hash().asInt());
+        return imhotepDaemonsOverride.get((int) (hash % imhotepDaemonsOverride.size()));
     }
 
     // we are truncating the shard start point as part of removeIntersectingShards so we make a wrapper for the LocatedShardInfo
