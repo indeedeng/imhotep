@@ -185,7 +185,7 @@ public class SimpleFlamdexReader extends AbstractFlamdexReader {
                 final SimpleStringTermIterator stringTermIterator = getStringTermIterator(field);
                 if (!(stringTermIterator instanceof NullStringTermIterator)) {
                     if (unsorted) {
-                        return new UnsortedStringToIntTermIterator(stringTermIterator);
+                        return new UnsortedStringToIntTermIterator.SimpleUnsortedStringToIntTermIterator(stringTermIterator);
                     } else {
                         final Supplier<SimpleStringTermIterator> stringTermIteratorSupplier =
                                 new Supplier<SimpleStringTermIterator>() {
