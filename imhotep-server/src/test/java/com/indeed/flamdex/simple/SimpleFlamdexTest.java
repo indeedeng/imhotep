@@ -268,6 +268,38 @@ public class SimpleFlamdexTest {
             assertEquals(docBuffer[1], 5);
 
             assertTrue(it.nextTerm());
+            assertEquals(it.term(), "(");
+            assertEquals(it.termStringLength(), 1);
+            assertEquals(it.docFreq(), 2);
+            assertEquals(it.fillDocIdBuffer(docBuffer), 2);
+            assertEquals(docBuffer[0], 3);
+            assertEquals(docBuffer[1], 6);
+
+            assertTrue(it.nextTerm());
+            assertEquals(it.term(), ")");
+            assertEquals(it.termStringLength(), 1);
+            assertEquals(it.docFreq(), 2);
+            assertEquals(it.fillDocIdBuffer(docBuffer), 2);
+            assertEquals(docBuffer[0], 4);
+            assertEquals(docBuffer[1], 8);
+
+            assertTrue(it.nextTerm());
+            assertEquals(it.term(), "0");
+            assertEquals(it.termStringLength(), 1);
+            assertEquals(it.docFreq(), 1);
+            assertEquals(it.fillDocIdBuffer(docBuffer), 1);
+            assertEquals(docBuffer[0], 4);
+
+            assertTrue(it.nextTerm());
+            assertEquals(it.term(), "1");
+            assertEquals(it.termStringLength(), 1);
+            assertEquals(it.docFreq(), 3);
+            assertEquals(it.fillDocIdBuffer(docBuffer), 3);
+            assertEquals(docBuffer[0], 1);
+            assertEquals(docBuffer[1], 3);
+            assertEquals(docBuffer[2], 7);
+
+            assertTrue(it.nextTerm());
             assertEquals(it.term(), "a");
             assertEquals(it.termStringLength(), 1);
             assertEquals(it.docFreq(), 2);
@@ -421,6 +453,43 @@ public class SimpleFlamdexTest {
                 assertEquals(0, dis.fillDocIdBuffer(docIdBuf));
 
                 assertTrue(strItr.next());
+                assertEquals("(", strItr.term());
+                assertEquals(2, strItr.docFreq());
+                dis.reset(strItr);
+                assertEquals(2, dis.fillDocIdBuffer(docIdBuf));
+                assertEquals(3, docIdBuf[0]);
+                assertEquals(6, docIdBuf[1]);
+                assertEquals(0, dis.fillDocIdBuffer(docIdBuf));
+
+                assertTrue(strItr.next());
+                assertEquals(")", strItr.term());
+                assertEquals(2, strItr.docFreq());
+                dis.reset(strItr);
+                assertEquals(2, dis.fillDocIdBuffer(docIdBuf));
+                assertEquals(4, docIdBuf[0]);
+                assertEquals(8, docIdBuf[1]);
+                assertEquals(0, dis.fillDocIdBuffer(docIdBuf));
+
+                assertTrue(strItr.next());
+                assertEquals("0", strItr.term());
+                assertEquals(1, strItr.docFreq());
+                dis.reset(strItr);
+                assertEquals(1, dis.fillDocIdBuffer(docIdBuf));
+                assertEquals(4, docIdBuf[0]);
+                assertEquals(0, dis.fillDocIdBuffer(docIdBuf));
+
+                assertTrue(strItr.next());
+                assertEquals("1", strItr.term());
+                assertEquals(3, strItr.docFreq());
+                dis.reset(strItr);
+                assertEquals(2, dis.fillDocIdBuffer(docIdBuf));
+                assertEquals(1, docIdBuf[0]);
+                assertEquals(3, docIdBuf[1]);
+                assertEquals(1, dis.fillDocIdBuffer(docIdBuf));
+                assertEquals(7, docIdBuf[0]);
+                assertEquals(0, dis.fillDocIdBuffer(docIdBuf));
+
+                assertTrue(strItr.next());
                 assertEquals("a", strItr.term());
                 assertEquals(2, strItr.docFreq());
                 dis.reset(strItr);
@@ -501,6 +570,18 @@ public class SimpleFlamdexTest {
         sfw.nextTerm("");
         sfw.nextDoc(2);
         sfw.nextDoc(5);
+        sfw.nextTerm("(");
+        sfw.nextDoc(3);
+        sfw.nextDoc(6);
+        sfw.nextTerm(")");
+        sfw.nextDoc(4);
+        sfw.nextDoc(8);
+        sfw.nextTerm("0");
+        sfw.nextDoc(4);
+        sfw.nextTerm("1");
+        sfw.nextDoc(1);
+        sfw.nextDoc(3);
+        sfw.nextDoc(7);
         sfw.nextTerm("a");
         sfw.nextDoc(4);
         sfw.nextDoc(7);
@@ -561,6 +642,22 @@ public class SimpleFlamdexTest {
                     assertEquals(1, strIter.fillDocIdBuffer(docIds));
                     assertEquals(2, docIds[0]);
                     assertTrue(strIter.nextTerm());
+                    assertEquals("(", strIter.term());
+                    assertEquals(1, strIter.fillDocIdBuffer(docIds));
+                    assertEquals(3, docIds[0]);
+                    assertTrue(strIter.nextTerm());
+                    assertEquals(")", strIter.term());
+                    assertEquals(1, strIter.fillDocIdBuffer(docIds));
+                    assertEquals(4, docIds[0]);
+                    assertTrue(strIter.nextTerm());
+                    assertEquals("0", strIter.term());
+                    assertEquals(1, strIter.fillDocIdBuffer(docIds));
+                    assertEquals(4, docIds[0]);
+                    assertTrue(strIter.nextTerm());
+                    assertEquals("1", strIter.term());
+                    assertEquals(1, strIter.fillDocIdBuffer(docIds));
+                    assertEquals(1, docIds[0]);
+                    assertTrue(strIter.nextTerm());
                     assertEquals("a", strIter.term());
                     assertEquals(1, strIter.fillDocIdBuffer(docIds));
                     assertEquals(4, docIds[0]);
@@ -574,6 +671,22 @@ public class SimpleFlamdexTest {
                     assertEquals(7, docIds[0]);
                     assertFalse(strIter.nextTerm());
                 }
+            }
+        } finally {
+            TestFileUtils.deleteDirTree(dir);
+        }
+    }
+
+    @Test
+    public void testStringFieldLookup() throws IOException, FlamdexOutOfMemoryException {
+        final Path dir = Files.createTempDirectory("flamdex-test");
+        try {
+            writeIndex(dir);
+            try(
+                final SimpleFlamdexReader reader = SimpleFlamdexReader.open(dir, config)) {
+                // Check that string -> int conversion does not fail.
+                final IntValueLookup lookup = reader.getMetric("f2");
+                lookup.close();
             }
         } finally {
             TestFileUtils.deleteDirTree(dir);
