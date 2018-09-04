@@ -706,25 +706,23 @@ public enum NativeFlamdexFieldCacher {
                 return new BitSetIntValueLookup(bitset);
             }
 
-            final int n_docs;
-            final long offset;
-            final long address = iter.getDocListAddress();
-            if (! iter.next()) {
-                return new BitSetIntValueLookup(bitset);
-            }
-            if (iter.term() != 1) {
-                if (! iter.next()) {
-                    /* field must be all 0s */
-                    return new BitSetIntValueLookup(bitset);
+            // IntTermIterator could be converted from StringTermIterator so it's possible to have
+            // several terms with value 0 or 1 (for example both strings "1" and "001" convert to 1).
+            // We iterate through all terms, skipping zeroes and adding ones to bitset.
+            while (iter.next()) {
+                if (iter.term() == 0) {
+                    continue;
                 }
+
                 if (iter.term() != 1) {
-                    throw new UnsupportedOperationException(
-                            "BitSet fields should only have term  " + "values of 1 and 0.");
+                    throw new IllegalStateException("Error in NativeFlamdexFieldCacher. Unexpected term " + iter.term());
                 }
+
+                final int n_docs = iter.docFreq();
+                final long offset = iter.getOffset();
+                final long address = iter.getDocListAddress();
+                nativeCacheBitsetMetricValuesInArray(bitset.getBackingArray(), n_docs, address, offset);
             }
-            n_docs = iter.docFreq();
-            offset = iter.getOffset();
-            nativeCacheBitsetMetricValuesInArray(bitset.getBackingArray(), n_docs, address, offset);
             return new BitSetIntValueLookup(bitset);
         }
 
@@ -976,6 +974,8 @@ public enum NativeFlamdexFieldCacher {
                                                                  long doc_list_address,
                                                                  long offset);
 
+    // Unpacks docIds and sets corresponding bits in a backingArray
+    // Bits that were set before method call remain set.
     private static native void nativeCacheBitsetMetricValuesInArray(long[] backingArray,
                                                                     int n_docs,
                                                                     long doc_list_address,

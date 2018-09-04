@@ -14,6 +14,9 @@
 
 package com.indeed.flamdex.simple;
 
+import com.indeed.flamdex.api.IntTermIterator;
+import com.indeed.flamdex.api.StringTermIterator;
+
 import java.io.IOException;
 import java.nio.file.Path;
 
@@ -21,10 +24,11 @@ import java.nio.file.Path;
  * @author vladimir
  */
 
-public class UnsortedStringToIntTermIterator implements SimpleIntTermIterator  {
-    private final SimpleStringTermIterator stringTermIterator;
+public class UnsortedStringToIntTermIterator<T extends StringTermIterator> implements IntTermIterator {
+    protected final T stringTermIterator;
+    private long currentTerm;
 
-    public UnsortedStringToIntTermIterator(final SimpleStringTermIterator stringTermIterator) {
+    public UnsortedStringToIntTermIterator(final T stringTermIterator) {
         this.stringTermIterator = stringTermIterator;
     }
 
@@ -35,26 +39,20 @@ public class UnsortedStringToIntTermIterator implements SimpleIntTermIterator  {
 
     @Override
     public long term() {
-        try {
-            return Long.parseLong(stringTermIterator.term());
-        } catch(final NumberFormatException ignored) {
-            return 0;
-        }
-    }
-
-    @Override
-    public Path getFilename() {
-        return stringTermIterator.getFilename();
-    }
-
-    @Override
-    public long getOffset() {
-        return stringTermIterator.getOffset();
+        return currentTerm;
     }
 
     @Override
     public boolean next() {
-        return stringTermIterator.next();
+        // searching for next string term that is convertible to long
+        while (stringTermIterator.next()) {
+            try {
+                currentTerm = Long.parseLong(stringTermIterator.term());
+                return true;
+            } catch (final NumberFormatException ignored) {
+            }
+        }
+        return false;
     }
 
     @Override
@@ -67,8 +65,26 @@ public class UnsortedStringToIntTermIterator implements SimpleIntTermIterator  {
         stringTermIterator.close();
     }
 
-    @Override
-    public long getDocListAddress() throws IOException {
-        return stringTermIterator.getDocListAddress();
+    public static class SimpleUnsortedStringToIntTermIterator
+            extends UnsortedStringToIntTermIterator<SimpleStringTermIterator>
+            implements SimpleIntTermIterator {
+
+        SimpleUnsortedStringToIntTermIterator(final SimpleStringTermIterator simpleIterator) {
+            super(simpleIterator);
+        }
+
+        @Deprecated
+        public long getDocListAddress() throws IOException {
+            return stringTermIterator.getDocListAddress();
+        }
+
+        public Path getFilename() {
+            return stringTermIterator.getFilename();
+        }
+
+        public long getOffset() {
+            return stringTermIterator.getOffset();
+        }
     }
+
 }

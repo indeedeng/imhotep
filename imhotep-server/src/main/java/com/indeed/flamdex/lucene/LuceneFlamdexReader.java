@@ -22,6 +22,7 @@ import com.indeed.flamdex.api.FieldsCardinalityMetadata;
 import com.indeed.flamdex.api.IntTermIterator;
 import com.indeed.flamdex.api.StringTermIterator;
 import com.indeed.flamdex.fieldcache.UnsortedIntTermDocIterator;
+import com.indeed.flamdex.simple.UnsortedStringToIntTermIterator;
 import com.indeed.flamdex.utils.FlamdexUtils;
 import com.indeed.imhotep.fs.DirectoryStreamFilters;
 import com.indeed.util.core.io.Closeables2;
@@ -205,7 +206,8 @@ public class LuceneFlamdexReader extends AbstractFlamdexReader {
 
     @Override
     public IntTermIterator getUnsortedIntTermIterator(final String field) {
-        return new LuceneUnsortedIntTermIterator(reader, field);
+        final StringTermIterator stringTermIterator = getStringTermIterator(field);
+        return new UnsortedStringToIntTermIterator<>(stringTermIterator);
     }
 
     @Override
