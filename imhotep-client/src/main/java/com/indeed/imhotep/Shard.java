@@ -15,17 +15,12 @@
 
 import com.google.common.collect.Lists;
 import com.indeed.imhotep.client.Host;
-import com.indeed.imhotep.protobuf.ShardMessage;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.List;
 
 public class Shard extends ShardInfo {
-    public Host server;
-
+    public final Host server;
     private final String extension;
 
     public Shard(String shardId, int numDocs, long version, Host host) {
@@ -38,6 +33,13 @@ public class Shard extends ShardInfo {
         super(shardId, numDocs, version);
         this.server = host;
         this.extension = extension;
+    }
+
+    /** Only used in ShardLoaderUtil.findShards() in pigutil, Imhotep proper should always provide a host. */
+    public Shard(String shardId, int numDocs, long version) {
+        super(shardId, numDocs, version);
+        this.server = null;
+        this.extension = "";
     }
 
     public String getFileName() {
