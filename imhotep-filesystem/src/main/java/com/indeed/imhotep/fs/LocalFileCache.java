@@ -89,7 +89,7 @@ class LocalFileCache {
                             throw new IOException("Failed to place cache file under " + cachePath);
                         }
 
-                        final int fileSize = sizeOnDisk(cachePath);
+                        final long fileSize = sizeOnDisk(cachePath);
 
                         diskSpaceUsage.addAndGet(fileSize);
                         unusedFilesCache.cleanUp();
@@ -124,7 +124,7 @@ class LocalFileCache {
                 public FileVisitResult visitFile(final Path cachePath, final BasicFileAttributes attrs) throws IOException {
                     super.visitFile(cachePath, attrs);
 
-                    final int localCacheSize = sizeOnDisk(cachePath);
+                    final long localCacheSize = sizeOnDisk(cachePath);
                     final RemoteCachingPath path = RemoteCachingPath.resolve(RemoteCachingPath.getRoot(fs), cacheRootDir.relativize(cachePath));
 
                     diskSpaceUsage.addAndGet(localCacheSize);
@@ -270,17 +270,17 @@ class LocalFileCache {
         }
     }
 
-    private int sizeOnDisk(final Path path) throws IOException {
+    private long sizeOnDisk(final Path path) throws IOException {
         final long size = Files.size(path);
         final long sizeOnDisk = (size + diskBlockSize - 1) / diskBlockSize * diskBlockSize;
-        return (int)sizeOnDisk;
+        return sizeOnDisk;
     }
 
     static class FileCacheEntry {
         private final Path cachePath;
-        private final int fileSize;
+        private final long fileSize;
 
-        FileCacheEntry(final Path cachePath, final int fileSize) {
+        FileCacheEntry(final Path cachePath, final long fileSize) {
             this.cachePath = cachePath;
             this.fileSize = fileSize;
         }
