@@ -435,6 +435,22 @@ public class TestImhotepLocalSession {
     }
 
     @Test
+    public void testUnconditionalRegroup() throws ImhotepOutOfMemoryException {
+        final FlamdexReader r = MakeAFlamdex.make();
+        try (ImhotepLocalSession session = new ImhotepJavaLocalSession("testLocalSession", r)) {
+            session.pushStat("docId()");
+            session.metricRegroup(0, 0, session.getNumDocs(), 1);
+            session.pushStat("count()");
+            session.pushStat("+");
+            assertArrayEquals(new long[] {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20}, session.getGroupStats(0));
+            assertEquals(21, session.regroup(new int[] {10, 11, 12}, new int[]{0, 1, 2}, false));
+            assertArrayEquals(new long[] {0,12,14,3,4,5,6,7,8,9,0,0,0,13,14,15,16,17,18,19,20}, session.getGroupStats(0));
+            assertEquals(5, session.regroup(new int[] {2, 6, 7}, new int[]{2, 3, 4}, true));
+            assertArrayEquals(new long[] {0,0,14,6,7}, session.getGroupStats(0));
+        }
+    }
+
+    @Test
     public void testStuff() throws ImhotepOutOfMemoryException {
         final FlamdexReader r = MakeAFlamdex.make();
         try (ImhotepLocalSession session = new ImhotepJavaLocalSession("testLocalSession", r)) {
