@@ -378,6 +378,16 @@ public abstract class AbstractImhotepServiceCore
         return doWithSession(sessionId, (ThrowingFunction<MTImhotepLocalMultiSession, Integer, ImhotepOutOfMemoryException>) session -> session.metricRegroup2D(xStat, xMin, xMax, xIntervalSize, yStat, yMin, yMax, yIntervalSize));
     }
 
+    @Override
+    public int handleRegroup(
+            final String sessionId,
+            final int[] fromGroups,
+            final int[] toGroups,
+            final boolean filterOutNotTargeted) throws ImhotepOutOfMemoryException {
+        return doWithSession(sessionId, (ThrowingFunction<MTImhotepLocalMultiSession, Integer, ImhotepOutOfMemoryException>)
+                session -> session.regroup(fromGroups, toGroups, filterOutNotTargeted));
+    }
+
     public int handleMetricFilter(
             final String sessionId,
             final int stat,

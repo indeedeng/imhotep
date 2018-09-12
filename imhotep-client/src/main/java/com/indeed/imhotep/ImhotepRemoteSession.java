@@ -861,6 +861,34 @@ public class ImhotepRemoteSession
         }
     }
 
+    @Override
+    public int regroup(final int[] fromGroups, final int[] toGroups, final boolean filterOutNotTargeted) throws ImhotepOutOfMemoryException {
+        final ImhotepRequest request = buildGroupRemapRequest(fromGroups, toGroups, filterOutNotTargeted);
+        return sendRegroupRequest(request);
+    }
+
+    public ImhotepRequest buildGroupRemapRequest(final int[] fromGroups, final int[] toGroups, final boolean filterOutNotTargeted) throws ImhotepOutOfMemoryException {
+        return getBuilderForType(ImhotepRequest.RequestType.REMAP_GROUPS)
+                .setSessionId(getSessionId())
+                .addAllFromGroups(Ints.asList(fromGroups))
+                .addAllToGroups(Ints.asList(toGroups))
+                .setFilterOutNotTargeted(filterOutNotTargeted)
+                .build();
+    }
+
+    public int sendRegroupRequest(final ImhotepRequest request) throws ImhotepOutOfMemoryException {
+        final Timer timer = new Timer();
+
+        try {
+            final ImhotepResponse response = sendRequestWithMemoryException(request, host, port, socketTimeout);
+            final int result = response.getNumGroups();
+            timer.complete(request);
+            return result;
+        } catch (final IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     public int metricFilter(
             final int stat,
             final long min,

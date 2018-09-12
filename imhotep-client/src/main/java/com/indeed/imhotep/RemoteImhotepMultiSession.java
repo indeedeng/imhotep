@@ -268,4 +268,12 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
             return null;
         });
     }
+
+    @Override
+    public int regroup(final int[] fromGroups, final int[] toGroups, final boolean filterOutNotTargeted) throws ImhotepOutOfMemoryException {
+        final ImhotepRequest request = sessions[0].buildGroupRemapRequest(fromGroups, toGroups, filterOutNotTargeted);
+        executeMemoryException(integerBuf, session -> session.sendRegroupRequest(request));
+
+        return Collections.max(Arrays.asList(integerBuf));
+    }
 }

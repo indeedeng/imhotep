@@ -146,6 +146,7 @@ message ImhotepRequest {
     RANDOM_METRIC_MULTI_REGROUP = 47;
     GET_DISTINCT = 48;
     MERGE_DISTINCT_SPLIT = 49;
+    REMAP_GROUPS = 50;
     SHUTDOWN = 255;
   }
 
@@ -297,6 +298,11 @@ message ImhotepRequest {
 
   // used in openSession()
   repeated ShardNameNumDocsPair shards = 65;
+
+  // for remapping groups
+  repeated int32 fromGroups = 66 [packed = true];
+  repeated int32 toGroups = 67 [packed = true];
+  optional bool filterOutNotTargeted = 68 [default = true];
 }
 
 message ImhotepResponse {

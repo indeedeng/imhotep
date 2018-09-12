@@ -1406,6 +1406,79 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         return numGroups;
     }
 
+    @Override
+    public int regroup(
+            final int[] fromGroups,
+            final int[] toGroups,
+            final boolean filterOutNotTargeted) throws ImhotepOutOfMemoryException {
+        if ((fromGroups == null) || (toGroups == null) || (fromGroups.length != toGroups.length)) {
+            throw new IllegalStateException();
+        }
+
+        if (isFilteredOut()) {
+            return 0;
+        }
+
+        final int currentMaxGroup = getNumGroups() - 1;
+        // maximum possible group after remapping
+        int newMaxGroup = filterOutNotTargeted ? 0 : currentMaxGroup;
+        for (int i = 0; i < fromGroups.length; i++) {
+            if (fromGroups[i] <= currentMaxGroup) {
+                newMaxGroup = Math.max(newMaxGroup, toGroups[i]);
+            }
+        }
+
+        docIdToGroup =
+                GroupLookupFactory.resize(docIdToGroup,
+                        newMaxGroup,
+                        memory);
+
+        // form remap rules
+        final int[] oldToNewGroup = new int[currentMaxGroup + 1];
+
+        if (!filterOutNotTargeted) {
+            for (int i = 0; i < oldToNewGroup.length; i++) {
+                oldToNewGroup[i] = i;
+            }
+        }
+
+        for (int i = 0; i < fromGroups.length; i++) {
+            if (fromGroups[i] < oldToNewGroup.length) {
+                oldToNewGroup[fromGroups[i]] = toGroups[i];
+            }
+        }
+
+        // check for corner cases: everything is filtered out or nothing changed
+        boolean filteredOut = true;
+        for (final int group : oldToNewGroup) {
+            if (group != 0) {
+                filteredOut = false;
+                break;
+            }
+        }
+
+        boolean hasChanges = false;
+        for (int i = 0; i < oldToNewGroup.length; i++) {
+            if (oldToNewGroup[i] != i) {
+                hasChanges = true;
+                break;
+            }
+        }
+
+        if (filteredOut) {
+            resetGroupsTo(0);
+        } else if (hasChanges) {
+            for (int docId = 0; docId < numDocs; docId++) {
+                final int oldGroup = docIdToGroup.get(docId);
+                final int newGroup = oldToNewGroup[oldGroup];
+                docIdToGroup.set(docId, newGroup);
+            }
+        }
+
+        finalizeRegroup();
+        return docIdToGroup.getNumGroups();
+    }
+
     public synchronized int metricFilter(final int stat, final long min, final long max, final boolean negate)
         throws ImhotepOutOfMemoryException {
         if (stat < 0 || stat >= statLookup.length()) {

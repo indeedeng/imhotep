@@ -13,13 +13,11 @@
  */
  package com.indeed.imhotep.api;
 
-import com.indeed.imhotep.DatasetInfo;
 import com.indeed.imhotep.GroupMultiRemapRule;
 import com.indeed.imhotep.GroupRemapRule;
 import com.indeed.imhotep.ImhotepStatusDump;
 import com.indeed.imhotep.QueryRemapRule;
 import com.indeed.imhotep.RegroupCondition;
-import com.indeed.imhotep.ShardInfo;
 import com.indeed.imhotep.TermCount;
 import com.indeed.imhotep.protobuf.ShardNameNumDocsPair;
 
@@ -50,6 +48,7 @@ public interface ImhotepServiceCore {
     void handleRegexRegroup(String sessionId, String field, String regex, int targetGroup, int negativeGroup, int positiveGroup) throws ImhotepOutOfMemoryException;
     int handleMetricRegroup(String sessionId, int stat, long min, long max, long intervalSize, boolean noGutters) throws ImhotepOutOfMemoryException;
     int handleMetricRegroup2D(String sessionId, int xStat, long xMin, long xMax, long xIntervalSize, int yStat, long yMin, long yMax, long yIntervalSize) throws ImhotepOutOfMemoryException;
+    int handleRegroup(String sessionId, int[] fromGroups, int[] toGroups, boolean filterOutNotTargeted) throws ImhotepOutOfMemoryException;
     int handleMetricFilter(String sessionId, int stat, long min, long max, boolean negate) throws ImhotepOutOfMemoryException;
     List<TermCount> handleApproximateTopTerms(String sessionId, String field, boolean isIntField, int k);
     int handlePushStat(String sessionId, String metric) throws ImhotepOutOfMemoryException;

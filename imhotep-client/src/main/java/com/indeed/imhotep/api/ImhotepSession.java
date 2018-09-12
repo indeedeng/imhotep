@@ -318,6 +318,22 @@ public interface ImhotepSession
     int metricRegroup2D(int xStat, long xMin, long xMax, long xIntervalSize,
                         int yStat, long yMin, long yMax, long yIntervalSize) throws ImhotepOutOfMemoryException;
 
+    /**
+     * Unconditional remapping from one groups to another groups.
+     * All documents with group fromGroups[i] remap to group toGroups[i]
+     *      length of fromGroups and toGroups must be equal
+     *      All values in fromGroups must be unique.
+     *
+     * @param fromGroups target groups
+     * @param toGroups resulting groups
+     * @param filterOutNotTargeted what to do with groups that are not in fromGroups
+     *                             true - remap to zero group
+     *                             false - leave as is.
+     * @return the number of groups after applying the regroup
+     * @throws ImhotepOutOfMemoryException if performing this operation would cause imhotep to run out of memory
+     */
+    int regroup(final int[] fromGroups, final int[] toGroups, final boolean filterOutNotTargeted) throws ImhotepOutOfMemoryException;
+
     int metricFilter(int stat, long min, long max, boolean negate) throws ImhotepOutOfMemoryException;
 
     /**

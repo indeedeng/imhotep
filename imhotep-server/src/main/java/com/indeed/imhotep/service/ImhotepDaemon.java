@@ -464,6 +464,19 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             return builder.build();
         }
 
+        private ImhotepResponse remapGroups(
+                final ImhotepRequest request,
+                final ImhotepResponse.Builder builder)
+                throws ImhotepOutOfMemoryException {
+            final int[] fromGroups = Ints.toArray(request.getFromGroupsList());
+            final int[] toGroups = Ints.toArray(request.getToGroupsList());
+            final int numGroups = service.handleRegroup(request.getSessionId(),
+                    fromGroups,
+                    toGroups,
+                    request.getFilterOutNotTargeted());
+            return builder.setNumGroups(numGroups).build();
+        }
+
         private ImhotepResponse getTotalDocFreq(
                 final ImhotepRequest          request,
                 final ImhotepResponse.Builder builder)
@@ -1016,6 +1029,9 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                             final Pair<ImhotepResponse, GroupStatsIterator> responseAndDistinctSplit = mergeDistinctSplit(request, builder);
                             response = responseAndDistinctSplit.getFirst();
                             groupStats = Preconditions.checkNotNull(responseAndDistinctSplit.getSecond());
+                            break;
+                        case REMAP_GROUPS:
+                            response = remapGroups(request, builder);
                             break;
                         case SHUTDOWN:
                             shutdown(request, is, os);

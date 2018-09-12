@@ -303,6 +303,18 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
     }
 
     @Override
+    public int regroup(final int[] fromGroups, final int[] toGroups, final boolean filterOutNotTargeted) throws ImhotepOutOfMemoryException {
+        executeMemoryException(integerBuf, new ThrowingFunction<ImhotepLocalSession, Integer>() {
+            @Override
+            public Integer apply(final ImhotepLocalSession session) throws ImhotepOutOfMemoryException {
+                return session.regroup(fromGroups, toGroups, filterOutNotTargeted);
+            }
+        });
+
+        return Collections.max(Arrays.asList(integerBuf));
+    }
+
+    @Override
     public void intOrRegroup(final String field, final long[] terms, final int targetGroup, final int negativeGroup, final int positiveGroup) throws ImhotepOutOfMemoryException {
         executeMemoryException(nullBuf, (ThrowingFunction<ImhotepSession, Object>) session -> {
             session.intOrRegroup(field, terms, targetGroup, negativeGroup, positiveGroup);
