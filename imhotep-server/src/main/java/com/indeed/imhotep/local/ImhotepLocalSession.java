@@ -1412,7 +1412,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             final int[] toGroups,
             final boolean filterOutNotTargeted) throws ImhotepOutOfMemoryException {
         if ((fromGroups == null) || (toGroups == null) || (fromGroups.length != toGroups.length)) {
-            throw new IllegalStateException();
+            throw new IllegalArgumentException();
         }
 
         if (isFilteredOut()) {
@@ -1423,15 +1423,10 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         // maximum possible group after remapping
         int newMaxGroup = filterOutNotTargeted ? 0 : currentMaxGroup;
         for (int i = 0; i < fromGroups.length; i++) {
-            if (fromGroups[i] <= currentMaxGroup) {
+            if ((fromGroups[i] > 0) && (fromGroups[i] <= currentMaxGroup)) {
                 newMaxGroup = Math.max(newMaxGroup, toGroups[i]);
             }
         }
-
-        docIdToGroup =
-                GroupLookupFactory.resize(docIdToGroup,
-                        newMaxGroup,
-                        memory);
 
         // form remap rules
         final int[] oldToNewGroup = new int[currentMaxGroup + 1];
@@ -1449,14 +1444,6 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         }
 
         // check for corner cases: everything is filtered out or nothing changed
-        boolean filteredOut = true;
-        for (final int group : oldToNewGroup) {
-            if (group != 0) {
-                filteredOut = false;
-                break;
-            }
-        }
-
         boolean hasChanges = false;
         for (int i = 0; i < oldToNewGroup.length; i++) {
             if (oldToNewGroup[i] != i) {
@@ -1465,14 +1452,34 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             }
         }
 
+        if (!hasChanges) {
+            return docIdToGroup.getNumGroups();
+        }
+
+        boolean filteredOut = true;
+        for (final int group : oldToNewGroup) {
+            if (group != 0) {
+                filteredOut = false;
+                break;
+            }
+        }
+
         if (filteredOut) {
             resetGroupsTo(0);
-        } else if (hasChanges) {
-            for (int docId = 0; docId < numDocs; docId++) {
-                final int oldGroup = docIdToGroup.get(docId);
-                final int newGroup = oldToNewGroup[oldGroup];
-                docIdToGroup.set(docId, newGroup);
-            }
+            finalizeRegroup();
+            return docIdToGroup.getNumGroups();
+        }
+
+        // do a remap
+        docIdToGroup =
+                GroupLookupFactory.resize(docIdToGroup,
+                        newMaxGroup,
+                        memory);
+
+        for (int docId = 0; docId < numDocs; docId++) {
+            final int oldGroup = docIdToGroup.get(docId);
+            final int newGroup = oldToNewGroup[oldGroup];
+            docIdToGroup.set(docId, newGroup);
         }
 
         finalizeRegroup();
