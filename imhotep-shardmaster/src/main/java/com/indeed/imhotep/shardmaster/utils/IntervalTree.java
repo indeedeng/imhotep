@@ -1,4 +1,7 @@
 package com.indeed.imhotep.shardmaster.utils;
+
+import com.google.common.collect.ImmutableSet;
+
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
@@ -13,18 +16,27 @@ public class IntervalTree<K extends Comparable<? super K>, V> {
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
     private final Set<V> values = new HashSet<>();
 
-    public Set<V> getAllValues() {
+    public boolean isEmpty() {
+        lock.readLock().lock();
         try {
-            lock.readLock().lock();
-            return values;
+            return values.isEmpty();
+        } finally {
+            lock.readLock().unlock();
+        }
+    }
+
+    public Set<V> getAllValues() {
+        lock.readLock().lock();
+        try {
+            return ImmutableSet.copyOf(values);
         } finally {
             lock.readLock().unlock();
         }
     }
 
     public boolean deleteInterval(final K start, final K end, final V value) {
+        lock.writeLock().lock();
         try {
-            lock.writeLock().lock();
             final Interval toDelete = new Interval(start, end, Collections.singleton(value));
             if (deleteInterval(root, toDelete, null, false)) {
                 values.remove(value);
@@ -182,8 +194,8 @@ public class IntervalTree<K extends Comparable<? super K>, V> {
     private Node root;
 
     public void addInterval(final K start, final K end, final V value){
+        lock.writeLock().lock();
         try {
-            lock.writeLock().lock();
             values.add(value);
             if (root == null) {
                 root = new Node();
@@ -204,8 +216,8 @@ public class IntervalTree<K extends Comparable<? super K>, V> {
     }
 
     public Set<V> getValuesInRange(final K start, final K end){
+        lock.readLock().lock();
         try {
-            lock.readLock().lock();
             if (root == null) {
                 return new HashSet<>();
             }

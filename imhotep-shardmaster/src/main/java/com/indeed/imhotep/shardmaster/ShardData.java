@@ -160,7 +160,7 @@ public class ShardData {
             final ShardDir temp = new ShardDir(Paths.get(path));
             final Interval interval = ShardTimeUtils.parseInterval(temp.getId());
             tblShards.get(temp.getDataset()).deleteInterval(interval.getStart().getMillis(), interval.getEnd().getMillis(), pathsToShards.get(path));
-            if(tblShards.get(temp.getDataset()).getAllValues().isEmpty()) {
+            if(tblShards.get(temp.getDataset()).isEmpty()) {
                 tblShards.remove(temp.getDataset());
             }
             pathsToShards.remove(path);
@@ -168,7 +168,7 @@ public class ShardData {
     }
 
     public List<String> deleteDatasetsWithoutShards() {
-        final List<String> datasets = tblFields.get().keySet().stream().filter(dataset -> (!tblShards.containsKey(dataset)) || tblShards.get(dataset).getAllValues().isEmpty()).collect(Collectors.toList());
+        final List<String> datasets = tblFields.get().keySet().stream().filter(dataset -> (!tblShards.containsKey(dataset)) || tblShards.get(dataset).isEmpty()).collect(Collectors.toList());
         LOGGER.info("Deleting in memory data for empty datasets: " + Joiner.on(",").join(datasets));
         for(final String dataset: datasets) {
             tblShards.remove(dataset);
