@@ -21,6 +21,7 @@ import com.indeed.imhotep.protobuf.ShardMasterResponse;
 import com.indeed.util.core.io.Closeables2;
 import org.apache.log4j.Logger;
 
+import javax.annotation.WillCloseWhenClosed;
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.ServerSocket;
@@ -40,7 +41,7 @@ public class RequestResponseServer implements Closeable {
     private final ExecutorService requestHandlerExecutor;
     private final ServerSocket serverSocket;
 
-    public RequestResponseServer(final ServerSocket socket, final RequestHandler requestHandler, final int numThreads) throws IOException {
+    public RequestResponseServer(@WillCloseWhenClosed final ServerSocket socket, final RequestHandler requestHandler, final int numThreads) throws IOException {
         this.requestHandler = requestHandler;
         requestHandlerExecutor = ShardMasterExecutors.newBlockingFixedThreadPool(numThreads);
         serverSocket = socket;

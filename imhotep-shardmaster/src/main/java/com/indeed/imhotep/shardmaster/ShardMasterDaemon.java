@@ -189,7 +189,7 @@ public class ShardMasterDaemon {
                 return true;
             }
 
-            if(index == -1) {
+            if(index < 0) {
                 LOGGER.info("Lost my leader path. Resetting my connection to zookeeper.");
                 zkConnection.delete(leaderElectionRoot + leaderId, -1);
                 zkConnection.close();
