@@ -50,7 +50,7 @@ public class MultiplexingRequestHandler implements RequestHandler {
                     statsEmitter.processed(METRIC_PROCESSED, request.getRequestType(), elapsed);
                     LOGGER.info("Finished handling request " + request.getRequestType() + " from " + request.getNode().getHost() + " in " + elapsed +" ms");
                     return result;
-                } catch (IllegalArgumentException e) {
+                } catch (final IllegalArgumentException e) {
                     final Iterable<ShardMasterResponse> result = Collections.singletonList(ShardMasterResponse.newBuilder()
                             .setResponseCode(ShardMasterResponse.ResponseCode.ERROR)
                             .setErrorMessage("Unhandled request type " + request.getRequestType())

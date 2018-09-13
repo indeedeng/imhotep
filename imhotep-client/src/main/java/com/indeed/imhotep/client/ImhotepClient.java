@@ -16,7 +16,6 @@
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.hash.HashFunction;
@@ -34,7 +33,6 @@ import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.shardmasterrpc.RequestResponseClient;
 import com.indeed.imhotep.shardmasterrpc.ShardMaster;
-import org.apache.hadoop.util.StringUtils;
 import org.apache.log4j.Logger;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
@@ -45,7 +43,6 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -221,8 +218,8 @@ public class ImhotepClient
     };
 
     private Host computeOverrideHost(final String dataset, final Shard shard) {
-        final int hash = HASH_FUNCTION.get().newHasher().putInt(dataset.hashCode()).putInt(shard.shardId.hashCode()).putLong(shard.version).hash().asInt();
-        return imhotepDaemonsOverride.get(hash % imhotepDaemonsOverride.size());
+        final long hash = Math.abs((long) HASH_FUNCTION.get().newHasher().putInt(dataset.hashCode()).putInt(shard.shardId.hashCode()).putLong(shard.version).hash().asInt());
+        return imhotepDaemonsOverride.get((int) (hash % imhotepDaemonsOverride.size()));
     }
 
     // we are truncating the shard start point as part of removeIntersectingShards so we make a wrapper for the LocatedShardInfo
@@ -502,7 +499,7 @@ public class ImhotepClient
                 final Host host = entry.getKey();
                 final List<Shard> shardList = entry.getValue();
 
-                final long numDocs = shardRequestMap.get(host).stream().mapToInt(Shard::getNumDocs).sum();
+                final long numDocs = shardRequestMap.get(host).stream().mapToInt(Shard::getNumDocs).asLongStream().sum();
 
                 futures.add(executor.submit(new Callable<ImhotepRemoteSession>() {
                     @Override

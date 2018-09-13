@@ -21,6 +21,7 @@ import com.indeed.imhotep.protobuf.ShardMasterResponse;
 import com.indeed.util.core.io.Closeables2;
 import org.apache.log4j.Logger;
 
+import javax.annotation.WillCloseWhenClosed;
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.ServerSocket;
@@ -28,8 +29,6 @@ import java.net.Socket;
 import java.net.SocketException;
 import java.util.Collections;
 import java.util.concurrent.ExecutorService;
-import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 
 /**
  * @author kenh
@@ -42,7 +41,7 @@ public class RequestResponseServer implements Closeable {
     private final ExecutorService requestHandlerExecutor;
     private final ServerSocket serverSocket;
 
-    public RequestResponseServer(final ServerSocket socket, final RequestHandler requestHandler, final int numThreads) throws IOException {
+    public RequestResponseServer(@WillCloseWhenClosed final ServerSocket socket, final RequestHandler requestHandler, final int numThreads) throws IOException {
         this.requestHandler = requestHandler;
         requestHandlerExecutor = ShardMasterExecutors.newBlockingFixedThreadPool(numThreads);
         serverSocket = socket;
@@ -91,36 +90,33 @@ public class RequestResponseServer implements Closeable {
                     continue;
                 }
 
-                requestHandlerExecutor.submit(new Runnable() {
-                    @Override
-                    public void run() {
+                requestHandlerExecutor.submit(() -> {
+                    try {
+                        Iterable<ShardMasterResponse> responses;
                         try {
-                            Iterable<ShardMasterResponse> responses;
-                            try {
-                                responses = requestHandler.handleRequest(request);
-                            } catch (final Throwable e) {
-                                LOGGER.error("Failed to handle request from " + request.getNode().getHost()
-                                        + ": "+ request, e);
-                                responses = Collections.singletonList(ShardMasterResponse.newBuilder()
-                                        .setResponseCode(ShardMasterResponse.ResponseCode.ERROR)
-                                        .setErrorMessage(Throwables.getStackTraceAsString(e))
-                                        .build());
-                            }
-
-                            try {
-                                for (final ShardMasterResponse response : responses) {
-                                    ShardMasterMessageUtil.sendMessage(response, socket.getOutputStream());
-                                }
-                            } catch (final IOException e) {
-                                LOGGER.error("Error while responding to request from "
-                                        + request.getNode().getHost() + ": " + request, e);
-                            }
-                        } finally {
-                            Closeables2.closeQuietly(socket, LOGGER);
+                            responses = requestHandler.handleRequest(request);
+                        } catch (final Throwable e) {
+                            LOGGER.error("Failed to handle request from " + request.getNode().getHost()
+                                    + ": "+ request, e);
+                            responses = Collections.singletonList(ShardMasterResponse.newBuilder()
+                                    .setResponseCode(ShardMasterResponse.ResponseCode.ERROR)
+                                    .setErrorMessage(Throwables.getStackTraceAsString(e))
+                                    .build());
                         }
+
+                        try {
+                            for (final ShardMasterResponse response : responses) {
+                                ShardMasterMessageUtil.sendMessage(response, socket.getOutputStream());
+                            }
+                        } catch (final IOException e) {
+                            LOGGER.error("Error while responding to request from "
+                                    + request.getNode().getHost() + ": " + request, e);
+                        }
+                    } finally {
+                        Closeables2.closeQuietly(socket, LOGGER);
                     }
                 });
-            } catch (Exception e) {
+            } catch (final Exception e) {
                 LOGGER.error(e.getMessage(), e);
             }
         }

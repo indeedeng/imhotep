@@ -37,7 +37,6 @@ import java.util.stream.StreamSupport;
 class ShardMasterRequestHandler implements RequestHandler {
     private final ShardMaster shardMaster;
     private final int responseBatchSize;
-    private static final Logger LOGGER = Logger.getLogger(ShardMasterRequestHandler.class);
 
     ShardMasterRequestHandler(final ShardMaster shardMaster, final int responseBatchSize) {
         this.shardMaster = shardMaster;
@@ -59,11 +58,11 @@ class ShardMasterRequestHandler implements RequestHandler {
         throw new IllegalArgumentException("request " + request +" does not have a valid type");
     }
 
-    private Iterable<ShardMasterResponse> handleRefreshFieldsForDataet(ShardMasterRequest request) {
+    private Iterable<ShardMasterResponse> handleRefreshFieldsForDataet(final ShardMasterRequest request) {
         try {
             shardMaster.refreshFieldsForDataset(request.getDatasetToRefresh());
             return Collections.singletonList(ShardMasterResponse.newBuilder().setResponseCode(ShardMasterResponse.ResponseCode.OK).build());
-        } catch (IOException e) {
+        } catch (final IOException e) {
             return Collections.singletonList(ShardMasterResponse.newBuilder().setResponseCode(ShardMasterResponse.ResponseCode.ERROR).build());
         }
     }
@@ -82,17 +81,17 @@ class ShardMasterRequestHandler implements RequestHandler {
                 response.addAllShards(message);
             }
             return Collections.singletonList(response.setResponseCode(ShardMasterResponse.ResponseCode.OK).build());
-        } catch (IOException e) {
+        } catch (final IOException e) {
             throw new IllegalStateException("Failed to get all shards", e);
         }
     }
 
-    private Iterable<ShardMasterResponse> handleShardListForTime(ShardMasterRequest request) {
+    private Iterable<ShardMasterResponse> handleShardListForTime(final ShardMasterRequest request) {
         try {
             final Iterable<Shard> shardsInTime = shardMaster.getShardsInTime(request.getDataset(), request.getStartTime(), request.getEndTime());
             final ShardMasterResponse.Builder builder = ShardMasterResponse.newBuilder();
-            for(Shard shard: shardsInTime) {
-                    ShardMessage.Builder message = ShardMessage.newBuilder()
+            for(final Shard shard: shardsInTime) {
+                    final ShardMessage.Builder message = ShardMessage.newBuilder()
                             .setDataset(request.getDataset())
                             .setHost(HostAndPort.newBuilder().setHost(shard.server.hostname).setPort(shard.server.port))
                             .setShardId(shard.shardId)
@@ -102,7 +101,7 @@ class ShardMasterRequestHandler implements RequestHandler {
                     builder.addShardsInTime(message.build());
                 }
             return Collections.singletonList(builder.setResponseCode(ShardMasterResponse.ResponseCode.OK).build());
-        } catch (IOException e) {
+        } catch (final IOException e) {
             throw new IllegalStateException("Failed to get shards in time "+request.getStartTime()+"-"+request.getEndTime()+" for dataset "+request.getDataset(), e);
         }
     }
@@ -116,7 +115,7 @@ class ShardMasterRequestHandler implements RequestHandler {
                             ShardMasterResponse.Builder::addMetadata,
                             (a, b) -> a.addAllMetadata(b.getMetadataList()));
             return Collections.singleton(collect.setResponseCode(ShardMasterResponse.ResponseCode.OK).build());
-        } catch (IOException e) {
+        } catch (final IOException e) {
             throw new IllegalStateException("Failed to get metadata", e);
         }
     }

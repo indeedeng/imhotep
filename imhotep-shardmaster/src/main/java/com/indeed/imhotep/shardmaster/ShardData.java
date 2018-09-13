@@ -30,11 +30,11 @@ import java.util.stream.Stream;
  */
 
 public class ShardData {
-    private static final Logger LOGGER = Logger.getLogger(ShardRefresher.class);
+    private static final Logger LOGGER = Logger.getLogger(ShardData.class);
 
-    final private Map<String, IntervalTree<Long, ShardInfo>> tblShards;
-    final private AtomicReference<Map<String, Map<String, Pair<FieldType, Long>>>> tblFields;
-    final private Map<String, ShardInfo> pathsToShards;
+    private final Map<String, IntervalTree<Long, ShardInfo>> tblShards;
+    private final AtomicReference<Map<String, Map<String, Pair<FieldType, Long>>>> tblFields;
+    private final Map<String, ShardInfo> pathsToShards;
 
     enum FieldType {
         INT, STRING, CONFLICT;
@@ -72,12 +72,12 @@ public class ShardData {
         final Interval interval = ShardTimeUtils.parseInterval(shardDir.getId());
         tblShards.get(dataset).addInterval(interval.getStart().getMillis(), interval.getEnd().getMillis(), info);
 
-        Set<String> stringFields = new HashSet<>(metadata.getStringFields());
-        Set<String> intFields = new HashSet<>(metadata.getIntFields());
+        final Set<String> stringFields = new HashSet<>(metadata.getStringFields());
+        final Set<String> intFields = new HashSet<>(metadata.getIntFields());
 
         Stream.concat(metadata.getIntFields().stream(), metadata.getStringFields().stream())
                 .filter(field -> !tblFields.get().get(dataset).containsKey(field)
-                        || tblFields.get().get(dataset).get(field).getValue() < interval.getStartMillis())
+                        || (tblFields.get().get(dataset).get(field).getValue() < interval.getStartMillis()))
                 .forEach(field -> {
                     if(stringFields.contains(field) && !intFields.contains(field)) {
                         tblFields.get().get(dataset).put(field, new Pair<>(FieldType.STRING, interval.getStartMillis()));
@@ -89,7 +89,7 @@ public class ShardData {
                 });
     }
 
-    public void updateTableShardsRowsFromSQL(final ResultSet rows, boolean shouldDelete, ShardFilter filter) throws SQLException {
+    public void updateTableShardsRowsFromSQL(final ResultSet rows, final boolean shouldDelete, final ShardFilter filter) throws SQLException {
         final Set<String> pathsThatWeMightDelete;
         if(shouldDelete) {
             pathsThatWeMightDelete = getCopyOfAllPaths();
@@ -131,8 +131,8 @@ public class ShardData {
         }
     }
 
-    public void updateTableFieldsRowsFromSQL(final ResultSet rows, ShardFilter filter) throws SQLException {
-        Map<String, Map<String, Pair<FieldType, Long>>> newTblFields = new HashMap<>();
+    public void updateTableFieldsRowsFromSQL(final ResultSet rows, final ShardFilter filter) throws SQLException {
+        final Map<String, Map<String, Pair<FieldType, Long>>> newTblFields = new HashMap<>();
 
         if (rows.first()) {
             do {
@@ -160,7 +160,7 @@ public class ShardData {
             final ShardDir temp = new ShardDir(Paths.get(path));
             final Interval interval = ShardTimeUtils.parseInterval(temp.getId());
             tblShards.get(temp.getDataset()).deleteInterval(interval.getStart().getMillis(), interval.getEnd().getMillis(), pathsToShards.get(path));
-            if(tblShards.get(temp.getDataset()).getAllValues().isEmpty()) {
+            if(tblShards.get(temp.getDataset()).isEmpty()) {
                 tblShards.remove(temp.getDataset());
             }
             pathsToShards.remove(path);
@@ -168,9 +168,9 @@ public class ShardData {
     }
 
     public List<String> deleteDatasetsWithoutShards() {
-        List<String> datasets = tblFields.get().keySet().stream().filter(dataset -> (!tblShards.containsKey(dataset)) || tblShards.get(dataset).getAllValues().size() == 0).collect(Collectors.toList());
+        final List<String> datasets = tblFields.get().keySet().stream().filter(dataset -> (!tblShards.containsKey(dataset)) || tblShards.get(dataset).isEmpty()).collect(Collectors.toList());
         LOGGER.info("Deleting in memory data for empty datasets: " + Joiner.on(",").join(datasets));
-        for(String dataset: datasets) {
+        for(final String dataset: datasets) {
             tblShards.remove(dataset);
             tblFields.get().remove(dataset);
         }
@@ -198,7 +198,7 @@ public class ShardData {
 
     public long getFieldUpdateTime(final String dataset, final String field) {
         final Map<String, Pair<FieldType, Long>> datasetFields = tblFields.get().get(dataset);
-        return datasetFields != null ? datasetFields.get(field).getValue() : 0;
+        return (datasetFields != null) ? datasetFields.get(field).getValue() : 0;
     }
 
     public boolean hasShard(final String path){
@@ -210,7 +210,7 @@ public class ShardData {
     }
 
     public Set<String> getCopyOfAllPaths() {
-        final ConcurrentHashMap.KeySetView<String, Boolean> set = ConcurrentHashMap.newKeySet(pathsToShards.size());
+        final Set<String> set = ConcurrentHashMap.newKeySet(pathsToShards.size());
         set.addAll(pathsToShards.keySet());
         return set;
     }
@@ -228,7 +228,7 @@ public class ShardData {
     }
 
     public Collection<ShardInfo> getShardsInTime(final String dataset, final long start, final long end) {
-        IntervalTree<Long, ShardInfo> shards = tblShards.get(dataset);
+        final IntervalTree<Long, ShardInfo> shards = tblShards.get(dataset);
         if(shards == null) {
             return Collections.emptyList();
         }
