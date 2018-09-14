@@ -13,7 +13,6 @@
  */
 package com.indeed.imhotep.local;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -22,7 +21,6 @@ import com.indeed.flamdex.api.IntValueLookup;
 import com.indeed.flamdex.reader.FlamdexMetadata;
 import com.indeed.flamdex.simple.SimpleFlamdexReader;
 import com.indeed.flamdex.simple.SimpleFlamdexWriter;
-import com.indeed.flamdex.utils.FlamdexUtils;
 import com.indeed.flamdex.utils.ShardMetadataUtils;
 import com.indeed.imhotep.ImhotepMemoryPool;
 import com.indeed.imhotep.MemoryReservationContext;
@@ -322,7 +320,7 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
         /* check for space in memory */
         memoryUse = this.optimizationLog.length();
         if (!this.memory.claimMemory(memoryUse)) {
-            throw new ImhotepOutOfMemoryException();
+            throw newImhotepOutOfMemoryException();
         }
 
         /* pop off all the stats, they will be repushed after the flamdex reset */
@@ -354,7 +352,7 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
                 e.printStackTrace();
             }
         } catch (final ClassNotFoundException | IOException e) {
-            throw new RuntimeException(e);
+            throw newRuntimeException(e);
         } finally {
             /* the log is no longer needed, so remove it */
             this.optimizationLog.delete();

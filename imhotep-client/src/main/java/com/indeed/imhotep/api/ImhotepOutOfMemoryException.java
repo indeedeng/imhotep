@@ -20,7 +20,15 @@ public class ImhotepOutOfMemoryException extends Exception {
     public ImhotepOutOfMemoryException() {
     }
 
+    public ImhotepOutOfMemoryException(final String message) {
+        super(message);
+    }
+
     public ImhotepOutOfMemoryException(final Throwable cause) {
         super(cause);
+    }
+
+    public ImhotepOutOfMemoryException(final String message, final Throwable cause) {
+        super(message, cause);
     }
 }
