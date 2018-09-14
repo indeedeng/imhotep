@@ -116,12 +116,12 @@ public class FlamdexMetadata {
         if(hadoopPath.getName().endsWith(".sqar")) {
             final SquallArchiveReader reader = new SquallArchiveReader(hadoopFilesystem, hadoopPath);
             final List<FileMetadata> fileMetadata = reader.readMetadata();
-            final FileMetadata acutalMetadata = getMetadataFromMetadata(fileMetadata);
-            if (acutalMetadata == null) {
-                return null;
+            final FileMetadata actualMetadata = getMetadataFromMetadata(fileMetadata);
+            if (actualMetadata == null) {
+                throw new IOException("Flamdex shard did not contain valid metadata.txt when reading Squall Archive");
             }
             final ByteArrayOutputStream out = new ByteArrayOutputStream();
-            reader.tryCopyToStream(acutalMetadata, out);
+            reader.tryCopyToStream(actualMetadata, out);
 
             final String metadata = out.toString();
             final FlamdexMetadata flamdexMetadata = loader.loadAs(metadata, FlamdexMetadata.class);
