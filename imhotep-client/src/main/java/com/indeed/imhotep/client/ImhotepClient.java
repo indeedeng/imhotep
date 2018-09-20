@@ -75,7 +75,6 @@ public class ImhotepClient
     private final ScheduledExecutorService reloader;
     private final ImhotepClientMetadataReloader datasetMetadataReloader;
     private final Supplier<ShardMaster> shardMasterSupplier;
-    private final Random random = new Random();
     private List<Host> imhotepDaemonsOverride;
 
     private final Instrumentation.ProviderSupport instrumentation =
@@ -626,14 +625,16 @@ public class ImhotepClient
         return new ArrayList<>(hostsSource.getHosts());
     }
 
-    public void resetFieldsForDataset(String dataset) {
-        hostsSource.getHosts().stream().map(RequestResponseClient::new).forEach(shardMaster -> {
-            try {
-                shardMaster.refreshFieldsForDataset(dataset);
-            } catch (IOException e) {
-                throw Throwables.propagate(e);
-            }
-        });
+    /**
+     * This is a dangerous operation used in special circumstances when field list in the ShardMaster DB
+     * becomes desynchronized from the state of the shards in the file system.
+     */
+    private void resetFieldsForDataset(String dataset) {
+        try {
+            shardMasterSupplier.get().refreshFieldsForDataset(dataset);
+        } catch (IOException e) {
+            throw Throwables.propagate(e);
+        }
     }
 
 
@@ -643,8 +644,7 @@ public class ImhotepClient
             if(hosts.isEmpty()) {
                 throw new RuntimeException("There are no shardmasters");
             }
-            final int index = random.nextInt(hosts.size());
-            return new RequestResponseClient(hosts.get(index));
+            return new RequestResponseClient(hosts);
         };
     }
 

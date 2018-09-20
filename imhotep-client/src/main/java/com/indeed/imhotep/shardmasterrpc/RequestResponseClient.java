@@ -13,11 +13,17 @@
  */
 
 package com.indeed.imhotep.shardmasterrpc;
+
 import com.indeed.imhotep.DatasetInfo;
 import com.indeed.imhotep.Shard;
 import com.indeed.imhotep.ShardInfo;
 import com.indeed.imhotep.client.Host;
-import com.indeed.imhotep.protobuf.*;
+import com.indeed.imhotep.protobuf.DatasetInfoMessage;
+import com.indeed.imhotep.protobuf.DatasetShardsMessage;
+import com.indeed.imhotep.protobuf.HostAndPort;
+import com.indeed.imhotep.protobuf.ShardMasterRequest;
+import com.indeed.imhotep.protobuf.ShardMasterResponse;
+import com.indeed.imhotep.protobuf.ShardMessage;
 import org.apache.log4j.Logger;
 
 import java.io.EOFException;
@@ -26,7 +32,12 @@ import java.io.InputStream;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.net.UnknownHostException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
 import java.util.stream.Collectors;
 
 /**
@@ -34,7 +45,9 @@ import java.util.stream.Collectors;
  */
 
 public class RequestResponseClient implements ShardMaster {
-    private final Host serverHost;
+    private static final Logger log = Logger.getLogger(RequestResponseClient.class);
+    private final Random random = new Random();
+    private final List<Host> serverHosts;
     private static String currentHostName;
     static {
         try {
@@ -45,8 +58,11 @@ public class RequestResponseClient implements ShardMaster {
         }
     }
 
-    public RequestResponseClient(final Host serverHost) {
-        this.serverHost = serverHost;
+    public RequestResponseClient(final List<Host> serverHosts) {
+        if(serverHosts == null || serverHosts.isEmpty()) {
+            throw new IllegalArgumentException("At least one server is required for communicating with ShardMaster");
+        }
+        this.serverHosts = serverHosts;
     }
 
     private ShardMasterResponse receiveResponse(final ShardMasterRequest request, final InputStream is) throws IOException {
@@ -55,13 +71,35 @@ public class RequestResponseClient implements ShardMaster {
             case OK:
                 return response;
             case ERROR:
-                throw new IOException("Received error from " + serverHost + " for request " + request + ": " + response.getErrorMessage());
+                throw new IOException("Received error from " + serverHosts + " for request " + request + ": " + response.getErrorMessage());
             default:
                 throw new IllegalStateException("Received unexpected response code " + response.getResponseCode());
         }
     }
 
-    private List<ShardMasterResponse> sendAndReceive(final ShardMasterRequest request) throws IOException {
+    private List<ShardMasterResponse> sendAndReceiveWithRetries(final ShardMasterRequest request) throws IOException {
+        final int firstServerToTry = random.nextInt(serverHosts.size());
+        IOException lastError = null;
+        for(int i = 0; i < serverHosts.size(); i++) {
+            final Host serverToTry = serverHosts.get((firstServerToTry + i) % serverHosts.size());
+            try {
+                return sendAndReceive(request, serverToTry);
+            } catch (IOException e) {
+                if(i != serverHosts.size() - 1) {
+                    log.info("IO failure with ShardMaster request " + request.getRequestType() +
+                            " to " + serverToTry + ", retrying with another server. Error: " + e.toString());
+                }
+                lastError = e;
+            }
+        }
+        if(lastError == null) {
+            // this should never happen but it makes IntelliJ happy
+            throw new IllegalStateException("At least one server is required for communicating with ShardMaster");
+        }
+        throw lastError;
+    }
+
+    private List<ShardMasterResponse> sendAndReceive(final ShardMasterRequest request, final Host serverHost) throws IOException {
         try (final Socket socket = new Socket(serverHost.getHostname(), serverHost.getPort())) {
             ShardMasterMessageUtil.sendMessage(request, socket.getOutputStream());
             try (final InputStream socketInputStream = socket.getInputStream()) {
@@ -83,7 +121,7 @@ public class RequestResponseClient implements ShardMaster {
                 .setRequestType(ShardMasterRequest.RequestType.GET_DATASET_METADATA)
                 .setNode(HostAndPort.newBuilder().setHost(currentHostName).build())
                 .build();
-        final List<ShardMasterResponse> shardMasterResponses = sendAndReceive(request);
+        final List<ShardMasterResponse> shardMasterResponses = sendAndReceiveWithRetries(request);
 
         final List<DatasetInfo> toReturn = new ArrayList<>();
         for(final ShardMasterResponse response: shardMasterResponses){
@@ -104,7 +142,7 @@ public class RequestResponseClient implements ShardMaster {
                 .setNode(HostAndPort.newBuilder().setHost(currentHostName).build())
                 .build();
         final List<Shard> toReturn = new ArrayList<>();
-        final List<ShardMasterResponse> shardMasterResponses = sendAndReceive(request);
+        final List<ShardMasterResponse> shardMasterResponses = sendAndReceiveWithRetries(request);
         for(final ShardMasterResponse response: shardMasterResponses){
             final List<ShardMessage> shardsInTimeList = response.getShardsInTimeList();
             for(final ShardMessage message: shardsInTimeList) {
@@ -123,7 +161,7 @@ public class RequestResponseClient implements ShardMaster {
                 .setNode(HostAndPort.newBuilder().setHost(currentHostName).build())
                 .build();
 
-        final List<DatasetShardsMessage> datasetMessages = sendAndReceive(request).stream()
+        final List<DatasetShardsMessage> datasetMessages = sendAndReceiveWithRetries(request).stream()
                 .map(ShardMasterResponse::getAllShardsList)
                 .flatMap(List::stream).collect(Collectors.toList());
 
@@ -142,6 +180,10 @@ public class RequestResponseClient implements ShardMaster {
                 .setRequestType(ShardMasterRequest.RequestType.REFRESH_FIELDS_FOR_DATASET)
                 .setNode(HostAndPort.newBuilder().setHost(currentHostName).build())
                 .setDatasetToRefresh(dataset).build();
-        sendAndReceive(request);
+
+        // this request has to go to all the hosts
+        for(Host serverHost : serverHosts) {
+            sendAndReceive(request, serverHost);
+        }
     }
 }
