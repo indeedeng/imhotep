@@ -589,34 +589,6 @@ public class ImhotepClient
         }
     }
 
-    // TODO: The hosts known by ImhotepClient are now SMs instead of IDs. Maybe forward this to a SM?
-    @Deprecated
-    public Map<Host, ImhotepStatusDump> getStatusDumps() {
-        final List<Host> hosts = hostsSource.getHosts();
-
-        final Map<Host, Future<ImhotepStatusDump>> futures = Maps.newHashMap();
-        for (final Host host : hosts) {
-            final Future<ImhotepStatusDump> future = rpcExecutor.submit(new Callable<ImhotepStatusDump>() {
-                @Override
-                public ImhotepStatusDump call() throws IOException {
-                    return ImhotepRemoteSession.getStatusDump(host.hostname, host.port);
-                }
-            });
-            futures.put(host, future);
-        }
-
-        final Map<Host, ImhotepStatusDump> ret = new HashMap<>();
-        for (final Host host : hosts) {
-            try {
-                final ImhotepStatusDump statusDump = futures.get(host).get();
-                ret.put(host, statusDump);
-            } catch (final ExecutionException | InterruptedException e) {
-                log.error("error getting status dump from " + host, e);
-            }
-        }
-        return ret;
-    }
-
     @Override
     public void close() throws IOException {
         rpcExecutor.shutdownNow();
