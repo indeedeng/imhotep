@@ -35,6 +35,7 @@ public abstract class AbstractImhotepSession implements ImhotepSession {
         this.sessionId = sessionId;
     }
 
+    @Override
     public final String getSessionId() {
         return sessionId;
     }
