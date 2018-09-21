@@ -15,11 +15,13 @@
 package com.indeed.imhotep;
 
 import com.google.common.io.ByteStreams;
+import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
 import com.indeed.imhotep.FTGSBinaryFormat.FieldStat;
 import com.indeed.imhotep.StreamUtil.InputStreamWithPosition;
 import com.indeed.imhotep.StreamUtil.OutputStreamWithPosition;
+import com.indeed.imhotep.api.AggregateFTGSIterator;
 import com.indeed.imhotep.api.FTGIterator;
 import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.api.GroupStatsIterator;
@@ -34,8 +36,10 @@ import gnu.trove.procedure.TObjectProcedure;
 import org.apache.commons.lang.mutable.MutableInt;
 import org.apache.log4j.Logger;
 
+import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -80,6 +84,31 @@ public class FTGSIteratorUtil {
         return Pair.of(tmp, stats);
     }
 
+    // TODO: A bit too much code duplication here.
+    public static Pair<File, FieldStat[]> persistAsFile(
+            final Logger log,
+            final String sessionId,
+            final AggregateFTGSIterator iterator) throws IOException {
+        final File tmp = File.createTempFile("ftgs", ".tmp");
+        final FieldStat[] stats;
+        final long start = System.currentTimeMillis();
+        try (final OutputStream out = new BufferedOutputStream(new FileOutputStream(tmp))) {
+            stats = writeFtgsIteratorToStream(iterator, out);
+            if (log.isDebugEnabled()) {
+                log.debug("[" + sessionId + "] time to merge splits to file: " +
+                        (System.currentTimeMillis() - start) +
+                        " ms, file length: " + tmp.length());
+            }
+        } catch (final Throwable t) {
+            tmp.delete();
+            throw Throwables2.propagate(t, IOException.class);
+        } finally {
+            Closeables2.closeQuietly(iterator, log);
+        }
+
+        return Pair.of(tmp, stats);
+    }
+
     public static FTGSIterator persist(final Logger log, final FTGSIterator iterator) throws IOException {
         return persist(log, "noSessionId", iterator);
     }
@@ -97,8 +126,32 @@ public class FTGSIteratorUtil {
         }
     }
 
+    public static AggregateFTGSIterator persist(final Logger log,
+                                   final String sessionId,
+                                   final AggregateFTGSIterator iterator) throws IOException {
+        final int numStats = iterator.getNumStats();
+        final int numGroups = iterator.getNumGroups();
+        final Pair<File, FieldStat[]> tmp = persistAsFile(log, sessionId, iterator);
+        final File file = tmp.getFirst();
+        try {
+            return new InputStreamAggregateFTGSIterator(new BufferedInputStream(new FileInputStream(file)), tmp.getSecond(), numStats, numGroups);
+        } finally {
+            file.delete();
+        }
+    }
+
     public static TopTermsFTGSIterator getTopTermsFTGSIterator(
             final FTGSIterator originalIterator,
+            final long termLimit,
+            final int sortStat) {
+        if ((termLimit <= 0) || (sortStat < 0) || (sortStat >= originalIterator.getNumStats())) {
+            throw new IllegalArgumentException("TopTerms expect positive termLimit and valid sortStat index");
+        }
+        return getTopTermsFTGSIteratorInternal(originalIterator, termLimit, sortStat);
+    }
+
+    public static TopTermsAggregateFTGSIterator getTopTermsFTGSIterator(
+            final AggregateFTGSIterator originalIterator,
             final long termLimit,
             final int sortStat) {
         if ((termLimit <= 0) || (sortStat < 0) || (sortStat >= originalIterator.getNumStats())) {
@@ -124,9 +177,22 @@ public class FTGSIteratorUtil {
         final int numGroups = originalIterator.getNumGroups();
         // We don't care about sorted stuff since we will sort by term afterward
         try (final FTGSIterator iterator = makeUnsortedIfPossible(originalIterator)) {
-            final TopTermsStatsByField<long[]> topTerms = extractTopTermsGeneric(termLimit, iterator, new LongStatExtractor(iterator.getNumStats(), sortStat));
+            TopTermsStatsByField<long[]> topTerms = extractTopTermsGeneric(termLimit, iterator, new LongStatExtractor(iterator.getNumStats(), sortStat));
             return new TopTermsFTGSIterator(topTerms, numStats, numGroups);
         }
+    }
+
+    // Returns top terms iterator.
+    // It's possible to pass termLimit = Long.MAX_VALUE and get sorted iterator as a result
+    private static TopTermsAggregateFTGSIterator getTopTermsFTGSIteratorInternal(
+            final AggregateFTGSIterator iterator,
+            final long termLimit,
+            final int sortStat
+    ) {
+        final int numStats = iterator.getNumStats();
+        final int numGroups = iterator.getNumGroups();
+        final TopTermsStatsByField<double[]> topTerms = FTGSIteratorUtil.extractTopTermsGeneric(termLimit, iterator, new DoubleStatExtractor(iterator.getNumStats(), sortStat));
+        return new TopTermsAggregateFTGSIterator(topTerms, numStats, numGroups);
     }
 
     /**
@@ -202,6 +268,61 @@ public class FTGSIteratorUtil {
             };
         }
     }
+
+    private static class DoubleStatExtractor implements StatExtractor<double[], AggregateFTGSIterator> {
+        private final int sortStat;
+        private final double[] statsBuf;
+
+        private DoubleStatExtractor(int numStats, int sortStat) {
+            this.statsBuf = new double[numStats];
+            this.sortStat = sortStat;
+        }
+
+        @Override
+        public void advance(AggregateFTGSIterator iterator) {
+            iterator.groupStats(statsBuf);
+        }
+
+        @Override
+        public boolean itIsLessThan(AggregateFTGSIterator iterator, TermStat<double[]> termStat) {
+            if (statsBuf[sortStat] > termStat.groupStats[sortStat]) {
+                return true;
+            }
+            if (iterator.fieldIsIntType()) {
+                return iterator.termIntVal() < termStat.intTerm;
+            } else {
+                return iterator.termStringVal().compareTo(termStat.strTerm) < 0;
+            }
+        }
+
+        @Override
+        public TermStat<double[]> extract(AggregateFTGSIterator iterator) {
+            final boolean fieldIsIntType = iterator.fieldIsIntType();
+            final long termIntVal = fieldIsIntType ? iterator.termIntVal() : 0;
+            final String termStringVal = fieldIsIntType ? null : iterator.termStringVal();
+            final long termDocFreq = iterator.termDocFreq();
+            return new TermStat<>(fieldIsIntType, termIntVal, termStringVal, termDocFreq, iterator.group(), statsBuf.clone());
+        }
+
+        @Override
+        public Comparator<TermStat<double[]>> comparator() {
+            return new Comparator<TermStat<double[]>>() {
+                @Override
+                public int compare(final TermStat<double[]> x, final TermStat<double[]> y) {
+                    final int ret = Doubles.compare(x.groupStats[sortStat], y.groupStats[sortStat]);
+                    if (ret == 0) {
+                        if (x.fieldIsIntType) {
+                            return Longs.compare(y.intTerm, x.intTerm);
+                        } else {
+                            return y.strTerm.compareTo(x.strTerm);
+                        }
+                    }
+                    return ret;
+                }
+            };
+        }
+    }
+
     private static <IT extends FTGIterator, S> TopTermsStatsByField<S> extractTopTermsGeneric(
             final long termLimit,
             final IT iterator,
@@ -389,6 +510,19 @@ public class FTGSIteratorUtil {
         return numStats;
     }
 
+    public static int getNumStats(final AggregateFTGSIterator[] iterators) {
+        if (iterators.length == 0) {
+            throw new IllegalArgumentException("Nonempty array of iterators expected.");
+        }
+        final int numStats = iterators[0].getNumStats();
+        for (final AggregateFTGSIterator iterator : iterators) {
+            if (iterator.getNumStats() != numStats) {
+                throw new IllegalArgumentException();
+            }
+        }
+        return numStats;
+    }
+
     public static int getNumGroups(final FTGIterator[] iterators) {
         int numGroups = 0;
         for (final FTGIterator iterator : iterators) {
@@ -412,6 +546,11 @@ public class FTGSIteratorUtil {
             return result;
         }
 
+        return FTGSOutputStreamWriter.write(iterator, stream);
+    }
+
+    public static FieldStat[] writeFtgsIteratorToStream(final AggregateFTGSIterator iterator, final OutputStream stream) throws IOException {
+        // TODO: try write optimized or fall to default stream writer
         return FTGSOutputStreamWriter.write(iterator, stream);
     }
 

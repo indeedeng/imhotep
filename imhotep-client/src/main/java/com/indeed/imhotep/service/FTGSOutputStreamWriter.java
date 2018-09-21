@@ -16,12 +16,14 @@
 import com.indeed.imhotep.FTGSBinaryFormat;
 import com.indeed.imhotep.FTGSBinaryFormat.FieldStat;
 import com.indeed.imhotep.StreamUtil.OutputStreamWithPosition;
+import com.indeed.imhotep.api.AggregateFTGSIterator;
 import com.indeed.imhotep.api.FTGIterator;
 import com.indeed.imhotep.api.FTGSIterator;
 
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -29,6 +31,8 @@ public final class FTGSOutputStreamWriter implements Closeable {
     private final OutputStreamWithPosition out;
 
     private boolean fieldIsIntType;
+
+    private final ByteBuffer doubleByteBuffer = ByteBuffer.wrap(new byte[8]);
 
     private byte[] previousTermBytes = new byte[100];
     private int previousTermLength;
@@ -111,6 +115,11 @@ public final class FTGSOutputStreamWriter implements Closeable {
         FTGSBinaryFormat.writeStat(stat, out);
     }
 
+    public void addStat(final double stat) throws IOException {
+        doubleByteBuffer.putDouble(0, stat);
+        out.write(doubleByteBuffer.array());
+    }
+
     public FieldStat[] closeAndGetStats() throws IOException {
         if (!closed) {
             closed = true;
@@ -158,6 +167,11 @@ public final class FTGSOutputStreamWriter implements Closeable {
         return writer.write(buffer);
     }
 
+    public static FieldStat[] write(final AggregateFTGSIterator buffer, final OutputStream out) throws IOException {
+        final FTGSOutputStreamWriter writer = new FTGSOutputStreamWriter(out);
+        return writer.write(buffer);
+    }
+
     private interface StatsWriter {
         void writeStats() throws IOException;
     }
@@ -188,6 +202,17 @@ public final class FTGSOutputStreamWriter implements Closeable {
         final StatsWriter statsWriter = () -> {
             buffer.groupStats(stats);
             for (final long stat : stats) {
+                this.addStat(stat);
+            }
+        };
+        return write(buffer, statsWriter);
+    }
+
+    public FieldStat[] write(final AggregateFTGSIterator buffer) throws IOException {
+        final double[] stats = new double[buffer.getNumStats()];
+        final StatsWriter statsWriter = () -> {
+            buffer.groupStats(stats);
+            for (final double stat : stats) {
                 this.addStat(stat);
             }
         };
