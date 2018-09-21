@@ -14,16 +14,23 @@
  package com.indeed.imhotep;
 
 import com.google.common.base.Throwables;
+import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
+import com.indeed.imhotep.api.FTGAIterator;
 import com.indeed.imhotep.api.FTGSIterator;
+import com.indeed.imhotep.api.FTGSModifiers;
 import com.indeed.imhotep.api.FTGSParams;
 import com.indeed.imhotep.api.GroupStatsIterator;
 import com.indeed.imhotep.api.HasSessionId;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
+import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.api.PerformanceStats;
 import com.indeed.imhotep.marshal.ImhotepClientMarshaller;
+import com.indeed.imhotep.protobuf.AggregateStat;
 import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
+import com.indeed.imhotep.protobuf.HostAndPort;
 import com.indeed.imhotep.protobuf.ImhotepRequest;
+import com.indeed.imhotep.protobuf.MultiFTGSRequest;
 import com.indeed.util.core.Pair;
 import com.indeed.util.core.io.Closeables2;
 import it.unimi.dsi.fastutil.longs.LongIterators;
@@ -31,10 +38,16 @@ import org.apache.log4j.Logger;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
 
 /**
  * @author jsgroth
@@ -275,5 +288,91 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
         executeMemoryException(integerBuf, session -> session.sendRegroupRequest(request));
 
         return Collections.max(Arrays.asList(integerBuf));
+    }
+
+    public static FTGAIterator multiFtgs(
+            final List<Pair<ImhotepSession, String>> sessionsWithFields,
+            final List<AggregateStat> selects,
+            final List<AggregateStat> filters,
+            final boolean isIntField,
+            final long termLimit,
+            final int sortStat,
+            final boolean sorted
+    ) {
+        final MultiFTGSRequest.Builder builder = MultiFTGSRequest.newBuilder();
+
+        final List<RemoteImhotepMultiSession> remoteSessions = new ArrayList<>();
+        final Set<HostAndPort> allNodes = new HashSet<>();
+
+        for (final Pair<ImhotepSession, String> pair : sessionsWithFields) {
+            final ImhotepSession session = pair.getFirst();
+            if (!(session instanceof RemoteImhotepMultiSession)) {
+                throw new IllegalArgumentException("Can only use RemoteImhotepMultiSession::multiFtgs on RemoteImhotepMultiSession instances.");
+            }
+            final RemoteImhotepMultiSession remoteSession = (RemoteImhotepMultiSession) session;
+            remoteSessions.add(remoteSession);
+            final String fieldName = pair.getSecond();
+            final List<HostAndPort> nodes = Arrays.stream(remoteSession.nodes).map(input ->
+                    HostAndPort.newBuilder()
+                            .setHost(input.getHostName())
+                            .setPort(input.getPort())
+                            .build()
+            ).collect(Collectors.toList());
+            allNodes.addAll(nodes);
+            builder.addSessionInfoBuilder()
+                    .setSessionId(session.getSessionId())
+                    .addAllNodes(nodes)
+                    .setField(fieldName);
+        }
+
+        final List<HostAndPort> allNodesList = Lists.newArrayList(allNodes);
+
+        builder
+                .addAllSelect(selects)
+                .addAllFilter(filters)
+                .setIsIntField(isIntField)
+                .setTermLimit(termLimit)
+                .setSortStat(sortStat)
+                .setSortedFTGS(sorted)
+                .addAllNodes(allNodesList);
+
+        final Pair<Integer, HostAndPort>[] indexedServers = new Pair[allNodesList.size()];
+        for (int i = 0; i < allNodesList.size(); i++) {
+            HostAndPort hostAndPort = allNodesList.get(i);
+            indexedServers[i] = new Pair<>(i, hostAndPort);
+        }
+
+        final MultiFTGSRequest baseRequest = builder.build();
+
+        final FTGAIterator[] subIterators = new FTGAIterator[indexedServers.length];
+
+        final Closer closer = Closer.create();
+        closer.register(Closeables2.forArray(log, subIterators));
+        // TODO: use a different executor maybe?
+        try {
+            remoteSessions.get(0).execute(subIterators, indexedServers, false, pair -> {
+                final int index = pair.getFirst();
+                final HostAndPort hostAndPort = pair.getSecond();
+                // TODO: is setting up new ImhotepRemoteSessions the right thing to do?
+                // TODO: needs to track FTGS bytes
+                // Definitely don't close this session
+                final ImhotepRemoteSession remoteSession = new ImhotepRemoteSession(hostAndPort.getHost(), hostAndPort.getPort(), "multi-session-id", null, ImhotepRemoteSession.DEFAULT_SOCKET_TIMEOUT);
+                final MultiFTGSRequest proto = MultiFTGSRequest.newBuilder(baseRequest).setSplitIndex(index).build();
+                return remoteSession.multiFTGS(proto);
+            });
+        } catch (ExecutionException e) {
+            throw Throwables.propagate(e);
+        }
+
+        final FTGSModifiers modifiers = new FTGSModifiers(termLimit, sortStat, sorted);
+
+        final FTGAIterator interleaver;
+        if (sorted) {
+            interleaver = new SortedFTGAInterleaver(subIterators);
+        } else {
+            interleaver = new UnsortedFTGAIterator(subIterators);
+        }
+
+        return modifiers.wrap(interleaver);
     }
 }

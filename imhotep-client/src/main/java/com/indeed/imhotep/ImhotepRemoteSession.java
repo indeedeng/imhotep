@@ -23,6 +23,7 @@ import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
 import com.indeed.flamdex.query.Query;
 import com.indeed.imhotep.Instrumentation.Keys;
+import com.indeed.imhotep.api.FTGAIterator;
 import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.api.FTGSParams;
 import com.indeed.imhotep.api.GroupStatsIterator;
@@ -41,6 +42,7 @@ import com.indeed.imhotep.protobuf.HostAndPort;
 import com.indeed.imhotep.protobuf.ImhotepRequest;
 import com.indeed.imhotep.protobuf.ImhotepResponse;
 import com.indeed.imhotep.protobuf.IntFieldAndTerms;
+import com.indeed.imhotep.protobuf.MultiFTGSRequest;
 import com.indeed.imhotep.protobuf.QueryMessage;
 import com.indeed.imhotep.protobuf.QueryRemapMessage;
 import com.indeed.imhotep.protobuf.RegroupConditionMessage;
@@ -85,7 +87,7 @@ public class ImhotepRemoteSession
     public static final int DEFAULT_MERGE_THREAD_LIMIT =
         ImhotepRequest.getDefaultInstance().getMergeThreadLimit();
 
-    private static final int DEFAULT_SOCKET_TIMEOUT = (int)TimeUnit.MINUTES.toMillis(30);
+    static final int DEFAULT_SOCKET_TIMEOUT = (int)TimeUnit.MINUTES.toMillis(30);
 
     private static final int CURRENT_CLIENT_VERSION = 2; // id to be incremented as changes to the client are done
 
@@ -318,6 +320,24 @@ public class ImhotepRemoteSession
         final FTGSIterator result = fileBufferedFTGSRequest(request);
         timer.complete(request);
         return result;
+    }
+
+    FTGAIterator multiFTGS(MultiFTGSRequest proto) {
+        final Timer timer = new Timer();
+
+        final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.MERGE_MULTI_FTGS_SPLIT)
+                .setMultiFtgsRequest(proto)
+                .build();
+
+        try {
+            final Pair<ImhotepResponse, InputStream> responseAndFile = sendRequestAndSaveResponseToFile(request, "ftgs");
+            final int numStats = responseAndFile.getFirst().getNumStats();
+            final int numGroups = responseAndFile.getFirst().getNumGroups();
+            timer.complete(request);
+            return new InputStreamFTGAIterator(responseAndFile.getSecond(), null, numStats, numGroups);
+        } catch (final IOException e) {
+            throw new RuntimeException(e); // TODO
+        }
     }
 
     @Override

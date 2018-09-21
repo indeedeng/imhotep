@@ -13,6 +13,7 @@
  */
 package com.indeed.imhotep.local;
 
+import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
@@ -24,14 +25,18 @@ import com.indeed.imhotep.GroupMultiRemapRule;
 import com.indeed.imhotep.GroupStatsDummyIterator;
 import com.indeed.imhotep.ImhotepRemoteSession;
 import com.indeed.imhotep.MemoryReservationContext;
+import com.indeed.imhotep.MultiSessionMerger;
 import com.indeed.imhotep.SortedFTGSInterleaver;
 import com.indeed.imhotep.TermLimitedFTGSIterator;
 import com.indeed.imhotep.UnsortedFTGSIterator;
+import com.indeed.imhotep.api.FTGAIterator;
 import com.indeed.imhotep.api.FTGSIterator;
+import com.indeed.imhotep.api.FTGSModifiers;
 import com.indeed.imhotep.api.FTGSParams;
 import com.indeed.imhotep.api.GroupStatsIterator;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
+import com.indeed.imhotep.metrics.aggregate.MultiFTGSIterator;
 import com.indeed.imhotep.pool.GroupStatsPool;
 import com.indeed.imhotep.scheduling.TaskScheduler;
 import com.indeed.util.core.Either;
@@ -41,6 +46,7 @@ import org.apache.log4j.Logger;
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -48,6 +54,7 @@ import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 
@@ -340,15 +347,20 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
         super.postClose();
     }
 
-    private ImhotepRemoteSession createImhotepRemoteSession(final InetSocketAddress address) {
+    private ImhotepRemoteSession createImhotepRemoteSession(final String sessionId, final InetSocketAddress address) {
+        // TODO: Sharing tempFileSizeBytesLeft across sessions is not right ...
         return new ImhotepRemoteSession(address.getHostName(), address.getPort(),
-                                        getSessionId(), tempFileSizeBytesLeft);
+                                        sessionId, tempFileSizeBytesLeft);
     }
 
     private ImhotepRemoteSession[] getRemoteSessions(final InetSocketAddress[] nodes) {
+        return getRemoteSessions(getSessionId(), nodes);
+    }
+
+    private ImhotepRemoteSession[] getRemoteSessions(final String sessionId, final InetSocketAddress[] nodes) {
         final ImhotepRemoteSession[] remoteSessions = new ImhotepRemoteSession[nodes.length];
         for (int i = 0; i < nodes.length; i++) {
-            remoteSessions[i] = createImhotepRemoteSession(nodes[i]);
+            remoteSessions[i] = createImhotepRemoteSession(sessionId, nodes[i]);
             remoteSessions[i].setNumStats(numStats);
             remoteSessions[i].addObserver(new RelayObserver());
         }
@@ -373,6 +385,78 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
         final ImhotepRemoteSession[] remoteSessions = getRemoteSessions(nodes);
         return mergeFTGSIteratorsForSessions(remoteSessions, 0, -1, true,
                 s -> s.getSubsetFTGSIteratorSplit(intFields, stringFields, splitIndex, nodes.length));
+    }
+
+    // splitIndex and numLocalSplits have NOTHING WHATSOEVER to do with eachother.
+    // splitIndex refers to which NODE this is.
+    // numLocalSplits refers to how many split/merge threads to use.
+    // This is required as a parameter because it MUST MATCH across sessions but number of
+    // cores is NOT guaranteed to be consistent over the runtime of a JVM.
+    public FTGSIterator[] partialMergeFTGSSplit(final String remoteSessionId, final FTGSParams params, final InetSocketAddress[] nodes, final int splitIndex, final int numGlobalSplits, int numLocalSplits) {
+        final FTGSIterator[] iterators = new FTGSIterator[nodes.length];
+        final ImhotepRemoteSession[] remoteSessions = getRemoteSessions(remoteSessionId, nodes);
+
+        final long perSplitTermLimit = params.isTopTerms() ? 0 : params.termLimit;
+
+        if (numGlobalSplits == 1) {
+            // In this case, we know that there is exactly one server involved -- this one! No need to request splits.
+            // TODO: Probably no need to split it for merge threads either
+            iterators[0] = remoteSessions[0].getFTGSIterator(params.intFields, params.stringFields, perSplitTermLimit);
+        } else {
+            checkSplitParams(splitIndex, numGlobalSplits);
+            try {
+                execute(mergeSplitBufferThreads, iterators, remoteSessions, false,
+                        s -> s.getFTGSIteratorSplit(params.intFields, params.stringFields, splitIndex, numGlobalSplits, perSplitTermLimit));
+            } catch (final Throwable t) {
+                Closeables2.closeAll(log, iterators);
+                throw Throwables.propagate(t);
+            }
+        }
+
+        final Closer closer = Closer.create();
+        try {
+            return parallelDisjointSplitAndMerge(closer, iterators, numLocalSplits);
+        } catch (Throwable t) {
+            Closeables2.closeQuietly(closer, log);
+            throw Throwables.propagate(t);
+        }
+    }
+
+    // Element-wise zip the FTGSIterator's into a MultiSessionMerger,
+    // Wrap with a MultiSessionWrapper, optionally wrap with topK or term limits,
+    // and persist to a file. Return all of said files.
+    public FTGAIterator[] zipElementWise(
+            final FTGSModifiers modifiers,
+            final List<FTGSIterator[]> subIteratorLists,
+            final Function<MultiFTGSIterator, FTGAIterator> processor
+    ) {
+        final Closer closer = Closer.create();
+        for (final FTGSIterator[] subIteratorList : subIteratorLists) {
+            closer.register(Closeables2.forArray(log, subIteratorList));
+        }
+        try {
+            Preconditions.checkArgument(subIteratorLists.size() > 0);
+            final int numSplits = subIteratorLists.get(0).length;
+            for (final FTGSIterator[] list : subIteratorLists) {
+                Preconditions.checkArgument(list.length == numSplits);
+            }
+            // 1 list per SPLIT, where the elements are the elements that have the same index
+            final FTGAIterator[] splitEntries = new FTGAIterator[numSplits];
+            for (int i = 0; i < numSplits; i++) {
+                final List<FTGSIterator> indexIterators = new ArrayList<>();
+                for (final FTGSIterator[] list : subIteratorLists) {
+                    indexIterators.add(list[i]);
+                }
+                splitEntries[i] = modifiers.wrap(processor.apply(new MultiSessionMerger(indexIterators, null)));
+            }
+
+            final FTGAIterator[] persisted = new FTGAIterator[numSplits];
+            execute(persisted, splitEntries, true, this::persist);
+            return persisted;
+        } catch (Throwable t) {
+            Closeables2.closeQuietly(closer, log);
+            throw Throwables.propagate(t);
+        }
     }
 
     private <T extends ImhotepSession> FTGSIterator mergeFTGSIteratorsForSessions(
@@ -406,17 +490,7 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
             execute(mergeSplitBufferThreads, persistedMergers, mergers, true, this::persist);
 
             final FTGSIterator interleaver = sorted ? new SortedFTGSInterleaver(persistedMergers) : new UnsortedFTGSIterator(persistedMergers);
-            if (termLimit > 0) {
-                if (sortStat >= 0) {
-                    try(final Closeable ignored = TaskScheduler.CPUScheduler.lockSlot()) {
-                        return FTGSIteratorUtil.getTopTermsFTGSIterator(interleaver, termLimit, sortStat);
-                    }
-                } else {
-                    return new TermLimitedFTGSIterator(interleaver, termLimit);
-                }
-            } else {
-                return interleaver;
-            }
+            return new FTGSModifiers(termLimit, sortStat, sorted).wrap(interleaver);
         } catch (final Throwable t) {
             Closeables2.closeQuietly(closer, log);
             throw Throwables.propagate(t);
@@ -431,9 +505,13 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
      * @throws IOException
      */
     private FTGSIterator[] parallelDisjointSplitAndMerge(final Closer closer, final FTGSIterator[] iterators) {
+        final int numSplits = Math.max(1, Runtime.getRuntime().availableProcessors()/2);
+        return parallelDisjointSplitAndMerge(closer, iterators, numSplits);
+    }
+
+    private FTGSIterator[] parallelDisjointSplitAndMerge(final Closer closer, final FTGSIterator[] iterators, final int numSplits) {
         final FTGSIterator[][] iteratorSplits = new FTGSIterator[iterators.length][];
 
-        final int numSplits = Math.max(1, Runtime.getRuntime().availableProcessors()/2);
         try {
             execute(iteratorSplits, iterators, true, iterator -> FTGSSplitter.doSplit(
                     iterator,
@@ -466,6 +544,10 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
     }
 
     private FTGSIterator persist(final FTGSIterator iterator) throws IOException {
+        return FTGSIteratorUtil.persist(log, getSessionId(), iterator);
+    }
+
+    private FTGAIterator persist(final FTGAIterator iterator) throws IOException {
         return FTGSIteratorUtil.persist(log, getSessionId(), iterator);
     }
 }

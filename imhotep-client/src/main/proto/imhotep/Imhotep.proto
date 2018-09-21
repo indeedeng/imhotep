@@ -147,6 +147,7 @@ message ImhotepRequest {
     GET_DISTINCT = 48;
     MERGE_DISTINCT_SPLIT = 49;
     REMAP_GROUPS = 50;
+    MERGE_MULTI_FTGS_SPLIT = 51;
     SHUTDOWN = 255;
   }
 
@@ -303,6 +304,57 @@ message ImhotepRequest {
   repeated int32 fromGroups = 66 [packed = true];
   repeated int32 toGroups = 67 [packed = true];
   optional bool filterOutNotTargeted = 68 [default = true];
+
+  // for MERGE_MULTI_FTGS_SPLIT
+  optional MultiFTGSRequest multiFtgsRequest = 69;
+}
+
+message AggregateStat {
+  enum StatType {
+    OPERATION = 1;
+    SESSION_STAT = 2;
+    PER_GROUP_VALUE = 3;
+    CONSTANT = 4;
+  }
+
+  required StatType stat_type = 1;
+
+  // For StatType.OPERATION
+  optional string operation = 2;
+
+  // For StatType.SESSION_STAT;
+  optional string session_id = 3;
+  optional int32 stat_index = 4;
+
+  // For StatType.PER_GROUP_VALUE
+  repeated double values = 5 [packed=true];
+
+  // For StatType.CONSTANT
+  optional double value = 6;
+}
+
+message MultiFTGSRequest {
+  message MultiFTGSSession {
+    repeated HostAndPort nodes = 1;
+    optional string session_id = 2;
+    optional string field = 3;
+  }
+
+  repeated MultiFTGSSession sessionInfo = 1;
+  repeated AggregateStat select = 2;
+
+  // Stat value of 0.0f is treated as false.
+  // Stat value of anything else is treated as true.
+  repeated AggregateStat filter = 3;
+
+  optional bool isIntField = 4;
+
+  optional int32 splitIndex = 5;
+  repeated HostAndPort nodes = 6;
+  optional int64 termLimit = 7 [default = 0];
+  optional int32 sortStat = 8 [default = -1];
+  optional bool sortedFTGS = 9 [default = true];
+
 }
 
 message ImhotepResponse {

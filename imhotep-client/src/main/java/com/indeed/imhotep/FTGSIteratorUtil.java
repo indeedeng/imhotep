@@ -164,7 +164,16 @@ public class FTGSIteratorUtil {
     // Consume iterator, sort by terms and return sorted.
     // For testing purposes only!
     // Use this only in tests with small iterators
+    @VisibleForTesting
     public static FTGSIterator sortFTGSIterator(final FTGSIterator originalIterator) {
+        return getTopTermsFTGSIteratorInternal(originalIterator, Long.MAX_VALUE, -1);
+    }
+
+    // Consume iterator, sort by terms and return sorted.
+    // For testing purposes only!
+    // Use this only in tests with small iterators
+    @VisibleForTesting
+    public static FTGAIterator sortFTGSIterator(final FTGAIterator originalIterator) {
         return getTopTermsFTGSIteratorInternal(originalIterator, Long.MAX_VALUE, -1);
     }
 
@@ -319,7 +328,7 @@ public class FTGSIteratorUtil {
             return new Comparator<TermStat<double[]>>() {
                 @Override
                 public int compare(final TermStat<double[]> x, final TermStat<double[]> y) {
-                    final int ret = Doubles.compare(x.groupStats[sortStat], y.groupStats[sortStat]);
+                    final int ret = sortStat < 0 ? 0 : Doubles.compare(x.groupStats[sortStat], y.groupStats[sortStat]);
                     if (ret == 0) {
                         if (x.fieldIsIntType) {
                             return Longs.compare(y.intTerm, x.intTerm);
