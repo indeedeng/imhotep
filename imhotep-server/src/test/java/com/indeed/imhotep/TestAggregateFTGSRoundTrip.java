@@ -32,7 +32,9 @@ public class TestAggregateFTGSRoundTrip {
     public void testRoundTrip() throws IOException {
         final double[] testStats = { -1, 0, 1, 127, 128, 129, -127, -128, -129,
             Float.MIN_VALUE, Float.MAX_VALUE, 1000000000.0, -1000000000.0,
-            Double.MIN_VALUE, Double.MAX_VALUE, -1000000000000.0, 1000000000000.0 };
+            Double.MIN_VALUE, Double.MAX_VALUE, -1000000000000.0, 1000000000000.0,
+            Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY, Double.NaN
+        };
 
         for (final double stat : testStats) {
             final ByteArrayOutputStream baos = new ByteArrayOutputStream();
