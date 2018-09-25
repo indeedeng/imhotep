@@ -17,17 +17,19 @@ package com.indeed.imhotep.shardmaster;
 import com.indeed.imhotep.archive.SquallArchiveWriter;
 import com.indeed.imhotep.client.Host;
 import com.indeed.imhotep.client.ShardTimeUtils;
-import com.indeed.imhotep.dbutil.DbDataFixture;
 import com.indeed.imhotep.fs.RemoteCachingFileSystemTestContext;
-import com.indeed.imhotep.shardmaster.db.shardinfo.Tables;
 import com.indeed.imhotep.shardmasterrpc.ShardMasterExecutors;
 import com.indeed.util.zookeeper.ZooKeeperConnection;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.easymock.EasyMock;
 import org.joda.time.DateTime;
-import org.junit.*;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -37,12 +39,10 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 
 /**
@@ -52,8 +52,6 @@ import java.util.concurrent.ExecutorService;
 public class ShardRefresherTest {
     @Rule
     public final TemporaryFolder tempDir = new TemporaryFolder();
-    @Rule
-    public final DbDataFixture dbDataFixture = new DbDataFixture(Collections.singletonList(Tables.TBLSHARDASSIGNMENTINFO));
     @Rule
     public final RemoteCachingFileSystemTestContext fsTestContext = new RemoteCachingFileSystemTestContext();
 
