@@ -338,8 +338,29 @@ public abstract class AbstractBatchedFTGMerger implements FTGIterator {
         }
     }
 
-    abstract boolean nextBatchedGroup();
+    /**
+     * Reads the next batch of groups into internal state.
+     *
+     * Is expected to mutate this abstract class's termIteratorsRemaining,
+     * termIterators, and termIteratorIndexes values appropriately if we
+     * reach the end of the groups for a particular input iterator
+     */
     abstract void calculateNextGroupBatch();
+
+    /**
+     * Advances to the next already-batched group and returns true
+     * iff such a group was found.
+     * Prepares subclass internal state such that anything that reads groups
+     * or data related to a group will return the data corresponding to the group
+     * that was advanced to.
+     * @return true iff such a group was found
+     */
+    abstract boolean nextBatchedGroup();
+
+    /**
+     * Reset subclass internal state such that no groups are queued,
+     * regardless of whether the groups have been consumed.
+     */
     abstract void resetBatchedGroups();
 
     @Override

@@ -129,11 +129,23 @@ public class FTGSIteratorUtil {
         }
     }
 
+    /**
+     * Used for extracting the top-K sort stat from an iterator in a generic way
+     *
+     * advance will be called with the iterator prior to a call to itIsLessThan or extract,
+     *   but the iterator is still provided with those methods for convenience and avoiding
+     *   redundant work when the term is not going to be kept anyway
+     *
+     * It is expected that itIsLessThan(it, termStat) <=> (extract(it).compareTo(termStat) < 0)
+     *
+     * @param <S> The type of generic stats contained in the TermStat for purposes other than top-K
+     * @param <IT> The iterator type being extracted from
+     */
     private interface StatExtractor<S, IT> {
         void advance(IT it);
-        boolean itIsBetterThan(IT it, TermStat<S> termStat);
+        boolean itIsLessThan(IT it, TermStat<S> termStat);
         TermStat<S> extract(IT it);
-        // Must be consistent with itIsBetterThan
+        // Must be consistent with itIsLessThan as described in docs above
         Comparator<TermStat<S>> comparator();
     }
 
@@ -152,7 +164,7 @@ public class FTGSIteratorUtil {
         }
 
         @Override
-        public boolean itIsBetterThan(FTGSIterator iterator, TermStat<long[]> termStat) {
+        public boolean itIsLessThan(FTGSIterator iterator, TermStat<long[]> termStat) {
             if (statsBuf[sortStat] > termStat.groupStats[sortStat]) {
                 return true;
             }
@@ -215,7 +227,7 @@ public class FTGSIteratorUtil {
                     extractor.advance(iterator);
 
                     if (topTerms.size() >= termLimit) {
-                        if (extractor.itIsBetterThan(iterator, topTerms.peek())) {
+                        if (extractor.itIsLessThan(iterator, topTerms.peek())) {
                             topTerms.poll();
                             topTerms.offer(extractor.extract(iterator));
                         }
