@@ -276,11 +276,13 @@ public class FTGSIteratorUtil {
         }
     }
 
-    private static class DoubleStatExtractor implements StatExtractor<double[], AggregateFTGSIterator> {
+    @VisibleForTesting
+    static class DoubleStatExtractor implements StatExtractor<double[], AggregateFTGSIterator> {
         private final int sortStat;
         private final double[] statsBuf;
 
-        private DoubleStatExtractor(int numStats, int sortStat) {
+        @VisibleForTesting
+        DoubleStatExtractor(int numStats, int sortStat) {
             this.statsBuf = new double[numStats];
             this.sortStat = sortStat;
         }
@@ -291,10 +293,13 @@ public class FTGSIteratorUtil {
         }
 
         @Override
-        public boolean itIsLessThan(AggregateFTGSIterator iterator, TermStat<double[]> termStat) {
+        public boolean itIsBetterThan(AggregateFTGSIterator iterator, TermStat<double[]> termStat) {
             if (statsBuf[sortStat] > termStat.groupStats[sortStat]) {
                 return true;
+            } else if (statsBuf[sortStat] < termStat.groupStats[sortStat]) {
+                return false;
             }
+
             if (iterator.fieldIsIntType()) {
                 return iterator.termIntVal() < termStat.intTerm;
             } else {
