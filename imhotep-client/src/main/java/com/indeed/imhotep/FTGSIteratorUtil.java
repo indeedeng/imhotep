@@ -14,6 +14,7 @@
 
 package com.indeed.imhotep;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.io.ByteStreams;
 import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Ints;
@@ -198,28 +199,31 @@ public class FTGSIteratorUtil {
     /**
      * Used for extracting the top-K sort stat from an iterator in a generic way
      *
-     * advance will be called with the iterator prior to a call to itIsLessThan or extract,
+     * advance will be called with the iterator prior to a call to itIsBetterThan or extract,
      *   but the iterator is still provided with those methods for convenience and avoiding
      *   redundant work when the term is not going to be kept anyway
      *
-     * It is expected that itIsLessThan(it, termStat) <=> (extract(it).compareTo(termStat) < 0)
+     * It is expected that itIsBetterThan(it, termStat) <=> (extract(it).compareTo(termStat) > 0)
      *
      * @param <S> The type of generic stats contained in the TermStat for purposes other than top-K
      * @param <IT> The iterator type being extracted from
      */
-    private interface StatExtractor<S, IT> {
+    @VisibleForTesting
+    interface StatExtractor<S, IT> {
         void advance(IT it);
-        boolean itIsLessThan(IT it, TermStat<S> termStat);
+        boolean itIsBetterThan(IT it, TermStat<S> termStat);
         TermStat<S> extract(IT it);
-        // Must be consistent with itIsLessThan as described in docs above
+        // Must be consistent with itIsBetterThan as described in docs above
         Comparator<TermStat<S>> comparator();
     }
 
-    private static class LongStatExtractor implements StatExtractor<long[], FTGSIterator> {
+    @VisibleForTesting
+    static class LongStatExtractor implements StatExtractor<long[], FTGSIterator> {
         private final int sortStat;
         private final long[] statsBuf;
 
-        private LongStatExtractor(int numStats, int sortStat) {
+        @VisibleForTesting
+        LongStatExtractor(int numStats, int sortStat) {
             this.statsBuf = new long[numStats];
             this.sortStat = sortStat;
         }
@@ -230,10 +234,13 @@ public class FTGSIteratorUtil {
         }
 
         @Override
-        public boolean itIsLessThan(FTGSIterator iterator, TermStat<long[]> termStat) {
+        public boolean itIsBetterThan(FTGSIterator iterator, TermStat<long[]> termStat) {
             if (statsBuf[sortStat] > termStat.groupStats[sortStat]) {
                 return true;
+            } else if (statsBuf[sortStat] < termStat.groupStats[sortStat]) {
+                return false;
             }
+
             if (iterator.fieldIsIntType()) {
                 return iterator.termIntVal() < termStat.intTerm;
             } else {
@@ -348,7 +355,7 @@ public class FTGSIteratorUtil {
                     extractor.advance(iterator);
 
                     if (topTerms.size() >= termLimit) {
-                        if (extractor.itIsLessThan(iterator, topTerms.peek())) {
+                        if (extractor.itIsBetterThan(iterator, topTerms.peek())) {
                             topTerms.poll();
                             topTerms.offer(extractor.extract(iterator));
                         }
