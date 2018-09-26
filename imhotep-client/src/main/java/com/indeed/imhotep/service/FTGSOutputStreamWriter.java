@@ -176,7 +176,7 @@ public final class FTGSOutputStreamWriter implements Closeable {
         void writeStats() throws IOException;
     }
 
-    public FieldStat[] write(final FTGIterator iterator, final StatsWriter statsWriter) throws IOException {
+    private FieldStat[] write(final FTGIterator iterator, final StatsWriter statsWriter) throws IOException {
         while (iterator.nextField()) {
             final boolean fieldIsIntType = iterator.fieldIsIntType();
             switchField(iterator.fieldName(), fieldIsIntType);
