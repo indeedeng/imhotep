@@ -24,6 +24,7 @@ import org.apache.log4j.Logger;
 import javax.annotation.WillCloseWhenClosed;
 import java.io.Closeable;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
@@ -105,9 +106,11 @@ public class RequestResponseServer implements Closeable {
                         }
 
                         try {
+                            final OutputStream socketStream = socket.getOutputStream();
                             for (final ShardMasterResponse response : responses) {
-                                ShardMasterMessageUtil.sendMessage(response, socket.getOutputStream());
+                                ShardMasterMessageUtil.sendMessageNoFlush(response, socketStream);
                             }
+                            socketStream.flush();
                         } catch (final IOException e) {
                             LOGGER.error("Error while responding to request from "
                                     + request.getNode().getHost() + ": " + request, e);
