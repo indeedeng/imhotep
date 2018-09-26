@@ -13,7 +13,6 @@
  */
  package com.indeed.imhotep.service;
 
-import com.google.common.collect.Lists;
 import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.reader.MockFlamdexReader;
 import com.indeed.flamdex.simple.TestSimpleFlamdexDocWriter;
@@ -84,7 +83,7 @@ public class TestLocalImhotepServiceCore {
                 }
             },
                     new LocalImhotepServiceConfig(),
-                    datasetDir);
+                    directory);
 
 
             final String sessionId = service.handleOpenSession("dataset", Collections.singletonList(ShardNameNumDocsPair.newBuilder().setShardName("index20150601").build()), "", "", "", 0, 0, false, "", null, 0);
