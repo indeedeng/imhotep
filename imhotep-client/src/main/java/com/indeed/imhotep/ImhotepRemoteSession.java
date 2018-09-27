@@ -1251,11 +1251,12 @@ public class ImhotepRemoteSession
         final InputStream is = Streams.newBufferedInputStream(socket.getInputStream());
         final OutputStream os = Streams.newBufferedOutputStream(socket.getOutputStream());
         try {
-            ImhotepProtobufShipping.sendProtobuf(initialRequest, os);
+            ImhotepProtobufShipping.sendProtobufNoFlush(initialRequest, os);
             while (rules.hasNext()) {
                 final GroupMultiRemapMessage ruleMessage = rules.next();
-                ImhotepProtobufShipping.sendProtobuf(ruleMessage, os);
+                ImhotepProtobufShipping.sendProtobufNoFlush(ruleMessage, os);
             }
+            os.flush();
             return readResponseWithMemoryException(is, host, port);
         } catch (final IOException e) {
             log.error("[" + getSessionId() + "] error sending exploded multisplit regroup request to " + host + ":" + port, e);

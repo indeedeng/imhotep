@@ -35,18 +35,21 @@ import java.io.OutputStream;
 public final class ImhotepProtobufShipping {
     private ImhotepProtobufShipping() {}
 
-    public static void sendProtobuf(final Message request, final OutputStream os) throws IOException {
+    public static void sendProtobufNoFlush(final Message request, final OutputStream os) throws IOException {
         os.write(Bytes.intToBytes(request.getSerializedSize()));
         request.writeTo(os);
+    }
+
+    public static void sendProtobuf(final Message request, final OutputStream os) throws IOException {
+        sendProtobufNoFlush(request, os);
         os.flush();
     }
 
-    public static void writeGroupStats(final GroupStatsIterator stats, final OutputStream os) throws IOException {
+    public static void writeGroupStatsNoFlush(final GroupStatsIterator stats, final OutputStream os) throws IOException {
         final DataOutputStream stream = new DataOutputStream(os);
         while (stats.hasNext()) {
             stream.writeLong(stats.nextLong());
         }
-        stream.flush();
     }
 
     public static GroupStatsIterator readGroupStatsIterator(final InputStream is, final int len, final boolean exhaust) {
