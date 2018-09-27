@@ -163,6 +163,7 @@ public abstract class AbstractImhotepServiceCore
         log.debug("sending FTGS response");
         ImhotepProtobufShipping.sendProtobufNoFlush(responseBuilder.build(), os);
         writeFTGSIteratorToOutputStream(merger, os);
+        os.flush();
         log.debug("FTGS response sent");
 
         return null;
