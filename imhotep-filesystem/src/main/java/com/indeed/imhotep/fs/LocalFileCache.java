@@ -21,24 +21,32 @@ import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
+
 import com.indeed.imhotep.scheduling.TaskScheduler;
+import com.indeed.util.core.Pair;
+import com.indeed.util.core.threads.NamedThreadFactory;
+
+import com.indeed.imhotep.service.MetricStatsEmitter;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
+import org.apache.commons.io.FileUtils;
 import org.apache.log4j.Logger;
+import org.joda.time.DateTime;
+import org.joda.time.Minutes;
 
 import javax.annotation.Nonnull;
 import java.io.Closeable;
+import java.io.File;
 import java.io.IOException;
-import java.nio.file.DirectoryStream;
-import java.nio.file.FileVisitResult;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.SimpleFileVisitor;
+import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+
+import static java.lang.Math.min;
 
 /**
  * @author kenh
@@ -53,10 +61,23 @@ class LocalFileCache {
     private final Cache<RemoteCachingPath, FileCacheEntry> unusedFilesCache;
     private final LoadingCache<RemoteCachingPath, FileCacheEntry> referencedFilesCache;
     private final Object lock = new Object();
+    private final MetricStatsEmitter statsEmitter;
+    private static final int REPORTING_FREQUENCY_MILLIS = 1000;
 
     LocalFileCache(final RemoteCachingFileSystem fs, final Path cacheRootDir, final long diskSpaceCapacity, final CacheFileLoader cacheFileLoader) throws IOException {
+        this(fs, cacheRootDir, diskSpaceCapacity, MetricStatsEmitter.NULL_EMITTER, cacheFileLoader);
+    }
+
+    LocalFileCache(final RemoteCachingFileSystem fs, final Path cacheRootDir, final long diskSpaceCapacity, final MetricStatsEmitter statsEmitter, final CacheFileLoader cacheFileLoader) throws IOException {
         this.cacheRootDir = cacheRootDir;
         this.diskSpaceCapacity = diskSpaceCapacity;
+        this.statsEmitter = statsEmitter;
+
+        CacheStatsEmitter cacheFileStatsEmitter = new CacheStatsEmitter();
+        final ScheduledExecutorService statsReportingExecutor =
+                                Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("filecacheStatsReporter"));
+        statsReportingExecutor.scheduleAtFixedRate(cacheFileStatsEmitter::setAndReportStats, REPORTING_FREQUENCY_MILLIS, REPORTING_FREQUENCY_MILLIS, TimeUnit.MILLISECONDS);
+
 
         fileUseCounter = new Object2IntOpenHashMap<>();
         fileUseCounter.defaultReturnValue(0);
@@ -83,19 +104,92 @@ class LocalFileCache {
                         }
 
                         final int fileSize = (int) Files.size(cachePath);
+                        final int lastAccessTimeSecondsSinceEpoch = getAccessTimeSecondsEpochFromPath(cachePath);
 
                         diskSpaceUsage.addAndGet(fileSize);
                         unusedFilesCache.cleanUp();
 
                         return new FileCacheEntry(
                                 cachePath,
-                                fileSize
+                                fileSize,
+                                lastAccessTimeSecondsSinceEpoch
                         );
                     }
                 });
 
         initialize(fs);
+
     }
+
+    private class CacheStatsEmitter{
+        private Map<Pair<Integer,String>, Long> sumCacheFileSizeValues = new HashMap<>();
+        private Iterator<Map.Entry<RemoteCachingPath,FileCacheEntry>> unusedCacheFilesIterator;
+        private Iterator<Map.Entry<RemoteCachingPath,FileCacheEntry>> referencedCacheFilesIterator;
+        private DateTime statsStartTime;
+
+        CacheStatsEmitter(){
+            sumCacheFileSizeValues.put(new Pair<>(1,"minute"), 0L);
+            sumCacheFileSizeValues.put(new Pair<>(1*60,"hour"), 0L);
+            sumCacheFileSizeValues.put(new Pair<>(1*60*24,"day"), 0L);
+        }
+
+        public void setStatsStartTime(DateTime statsStartTime) {
+            this.statsStartTime = statsStartTime;
+        }
+
+        public void setCacheFilesIterators() {
+            unusedCacheFilesIterator =  ((UnusedFileCache)unusedFilesCache).entrySetIterator();
+            referencedCacheFilesIterator = referencedFilesCache.asMap().entrySet().iterator();
+        }
+
+        private long getOldestFileAgeSetSumCacheFileSize(){
+
+            setCacheFilesIterators();
+            sumCacheFileSizeValues.replaceAll((k,v) -> 0L);
+            int oldestFileAgeMinutes = Integer.MAX_VALUE;
+            while (unusedCacheFilesIterator.hasNext() || referencedCacheFilesIterator.hasNext()){
+                Map.Entry<RemoteCachingPath, FileCacheEntry> entry;
+                if (unusedCacheFilesIterator.hasNext()) {
+                    entry = unusedCacheFilesIterator.next();
+                } else {
+                    entry = referencedCacheFilesIterator.next();
+                }
+
+                int lastAccessTimeDifferenceMinutes = Minutes.minutesBetween(new DateTime((long)entry.getValue().lastAccessTimeSecondsSinceEpoch*1000),statsStartTime).getMinutes();
+                oldestFileAgeMinutes = min(oldestFileAgeMinutes, lastAccessTimeDifferenceMinutes);
+
+                for (Map.Entry<Pair<Integer,String>,Long> durationEntry : sumCacheFileSizeValues.entrySet()){
+                    if (lastAccessTimeDifferenceMinutes <= durationEntry.getKey().getFirst()){
+                        sumCacheFileSizeValues.put(durationEntry.getKey(),durationEntry.getValue() + entry.getValue().fileSize);
+                    }
+                }
+            }
+
+            return oldestFileAgeMinutes;
+
+        }
+
+        private void reportStats(long oldestFileAgeMinuteDifference){
+            statsEmitter.histogram("filecache.totalcachesize",  getCacheUsage());
+            statsEmitter.histogram("filecache.oldestFileAgeMinutes", oldestFileAgeMinuteDifference);
+
+            for (Map.Entry<Pair<Integer,String>,Long> statsEntry : sumCacheFileSizeValues.entrySet()){
+                statsEmitter.histogram("fileCache.sumFileSizeLast"+ statsEntry.getKey().getSecond() + "AccessKB", (double)statsEntry.getValue()/1000);
+            }
+
+        }
+
+        public void setAndReportStats(){
+            setStatsStartTime(new DateTime(System.currentTimeMillis()));
+            long oldestFileAgeMinuteDifference = getOldestFileAgeSetSumCacheFileSize();
+            reportStats(oldestFileAgeMinuteDifference);
+        }
+
+
+
+    }
+
+
 
     private void evictCacheFile(final FileCacheEntry entry) {
         // we only need to delete the cache if the entry was pushed out
@@ -118,10 +212,11 @@ class LocalFileCache {
                     super.visitFile(cachePath, attrs);
 
                     final long localCacheSize = Files.size(cachePath);
+                    final int lastAccessTimeSecondsSinceEpoch = getAccessTimeSecondsEpochFromPath(cachePath);
                     final RemoteCachingPath path = RemoteCachingPath.resolve(RemoteCachingPath.getRoot(fs), cacheRootDir.relativize(cachePath));
 
                     diskSpaceUsage.addAndGet(localCacheSize);
-                    unusedFilesCache.put(path, new FileCacheEntry(cachePath, (int) localCacheSize));
+                    unusedFilesCache.put(path, new FileCacheEntry(cachePath, (int) localCacheSize, lastAccessTimeSecondsSinceEpoch));
 
                     return FileVisitResult.CONTINUE;
                 }
@@ -159,6 +254,7 @@ class LocalFileCache {
      */
     Path cache(final RemoteCachingPath path) throws ExecutionException, IOException {
         Preconditions.checkArgument(path.isAbsolute(), "Only absolute paths are supported");
+
         if (Files.isDirectory(path)) {
             // directories should not go into the usage book keeping
             final Path cacheDirPath = toCachePath(path);
@@ -189,6 +285,16 @@ class LocalFileCache {
             fileUseCounter.remove(path);
         }
         return count - 1;
+    }
+
+    public static int getAccessTimeSecondsEpochFromPath(Path filePath){
+        try {
+            int AccessTimeSecondsEpoch = (int) Files.readAttributes(filePath, BasicFileAttributes.class).lastAccessTime().to(TimeUnit.SECONDS);
+            return AccessTimeSecondsEpoch;
+        } catch (IOException e) {
+            return Integer.MAX_VALUE;
+        }
+
     }
 
     /**
@@ -254,7 +360,7 @@ class LocalFileCache {
             if (counter == 0) {
                 referencedFilesCache.invalidate(path);
                 try {
-                    unusedFilesCache.put(path, new FileCacheEntry(cachePath, (int) Files.size(cachePath)));
+                    unusedFilesCache.put(path, new FileCacheEntry(cachePath, (int) Files.size(cachePath), getAccessTimeSecondsEpochFromPath(cachePath)));
                 } catch (final IOException e) {
                     LOGGER.warn("Failed to get file size for disposed cache file " + cachePath +
                             ". The file will be assumed to been removed", e);
@@ -266,10 +372,12 @@ class LocalFileCache {
     static class FileCacheEntry {
         private final Path cachePath;
         private final int fileSize;
+        private final int lastAccessTimeSecondsSinceEpoch;
 
-        FileCacheEntry(final Path cachePath, final int fileSize) {
+        FileCacheEntry(final Path cachePath, final int fileSize, final int lastAccessTimeSecondsSinceEpoch) {
             this.cachePath = cachePath;
             this.fileSize = fileSize;
+            this.lastAccessTimeSecondsSinceEpoch = lastAccessTimeSecondsSinceEpoch;
         }
     }
 
@@ -332,6 +440,10 @@ class LocalFileCache {
         @Override
         public synchronized FileCacheEntry getIfPresent(@Nonnull final Object key) {
             return updateOrderMap.get(key);
+        }
+
+        public synchronized Iterator<Map.Entry<RemoteCachingPath,FileCacheEntry>> entrySetIterator(){
+            return updateOrderMap.entrySet().iterator();
         }
     }
 }

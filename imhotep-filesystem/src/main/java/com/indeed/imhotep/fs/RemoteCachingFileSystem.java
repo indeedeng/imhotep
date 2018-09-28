@@ -19,6 +19,7 @@ import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import com.indeed.imhotep.service.MetricStatsEmitter;
 import com.indeed.util.core.io.Closeables2;
 import org.apache.log4j.Logger;
 
@@ -44,6 +45,7 @@ import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.regex.Pattern;
 
+
 /**
  * @author kenh
  */
@@ -53,9 +55,12 @@ class RemoteCachingFileSystem extends FileSystem {
     private final RemoteCachingFileSystemProvider provider;
     private final SqarRemoteFileStore fileStore;
     private final LocalFileCache fileCache;
+    private final MetricStatsEmitter statsEmitter;
 
-    RemoteCachingFileSystem(final RemoteCachingFileSystemProvider provider, final Map<String, ?> configuration) throws IOException {
+    RemoteCachingFileSystem(final RemoteCachingFileSystemProvider provider, final Map<String, ?> configuration, final MetricStatsEmitter statsEmitter) throws IOException {
         this.provider = provider;
+        this.statsEmitter = statsEmitter;
+
         final RemoteFileStore backingFileStore = RemoteFileStoreType.fromName((String) configuration.get("imhotep.fs.store.type"))
                 .getFactory().create(configuration);
         try {
@@ -75,6 +80,7 @@ class RemoteCachingFileSystem extends FileSystem {
                 this,
                 Paths.get(cacheRootUri),
                 Long.parseLong((String) configuration.get("imhotep.fs.cache.size.gb")) * 1024 * 1024 * 1024,
+                statsEmitter,
                 new LocalFileCache.CacheFileLoader() {
                     @Override
                     public void load(final RemoteCachingPath src, final Path dest) throws IOException {
@@ -83,6 +89,7 @@ class RemoteCachingFileSystem extends FileSystem {
                 }
         );
     }
+
 
     Path getCachePath(final RemoteCachingPath path) throws ExecutionException, IOException {
         return fileCache.cache(path);
