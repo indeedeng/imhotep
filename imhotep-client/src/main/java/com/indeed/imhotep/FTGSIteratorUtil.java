@@ -235,10 +235,9 @@ public class FTGSIteratorUtil {
 
         @Override
         public boolean itIsBetterThan(FTGSIterator iterator, TermStat<long[]> termStat) {
-            if (statsBuf[sortStat] > termStat.groupStats[sortStat]) {
-                return true;
-            } else if (statsBuf[sortStat] < termStat.groupStats[sortStat]) {
-                return false;
+            final int statCmp = Long.compare(statsBuf[sortStat], termStat.groupStats[sortStat]);
+            if (statCmp != 0) {
+                return statCmp > 0;
             }
 
             if (iterator.fieldIsIntType()) {
@@ -294,10 +293,9 @@ public class FTGSIteratorUtil {
 
         @Override
         public boolean itIsBetterThan(AggregateFTGSIterator iterator, TermStat<double[]> termStat) {
-            if (statsBuf[sortStat] > termStat.groupStats[sortStat]) {
-                return true;
-            } else if (statsBuf[sortStat] < termStat.groupStats[sortStat]) {
-                return false;
+            final int statCmp = Double.compare(statsBuf[sortStat], termStat.groupStats[sortStat]);
+            if (statCmp != 0) {
+                return statCmp > 0;
             }
 
             if (iterator.fieldIsIntType()) {
