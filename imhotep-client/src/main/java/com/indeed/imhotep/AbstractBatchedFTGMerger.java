@@ -52,6 +52,7 @@ public abstract class AbstractBatchedFTGMerger implements FTGIterator {
     private String fieldName;
     protected boolean fieldIsIntType;
     protected long termIntVal;
+    protected long termDocFreq;
 
     private byte[] currentTermBytes;
     private ByteBuffer byteBuffer;
@@ -137,7 +138,7 @@ public abstract class AbstractBatchedFTGMerger implements FTGIterator {
     }
 
     @Override
-    public final String fieldName() {
+    public String fieldName() {
         return fieldName;
     }
 
@@ -190,6 +191,7 @@ public abstract class AbstractBatchedFTGMerger implements FTGIterator {
         }
 
         int newNumTermIterators = 0;
+        long newTermDocFreq = 0L;
         if (fieldIsIntType) {
             long min = Long.MAX_VALUE;
             for (int i = 0; i < numFieldIterators; ++i) {
@@ -197,11 +199,13 @@ public abstract class AbstractBatchedFTGMerger implements FTGIterator {
                 final long term = itr.termIntVal();
                 if (term < min) {
                     newNumTermIterators = 1;
+                    newTermDocFreq = itr.termDocFreq();
                     termIteratorIndexes[0] = i;
                     min = term;
                 } else if (term == min) {
                     termIteratorIndexes[newNumTermIterators] = i;
                     newNumTermIterators++;
+                    newTermDocFreq += itr.termDocFreq();
                 }
             }
             termIntVal = min;
@@ -215,12 +219,14 @@ public abstract class AbstractBatchedFTGMerger implements FTGIterator {
                 final int c;
                 if (minTermBytes == null || (c = compareBytes(termBytes, termLength, minTermBytes, minTermLength)) < 0) {
                     newNumTermIterators = 1;
+                    newTermDocFreq = itr.termDocFreq();
                     termIteratorIndexes[0] = i;
                     minTermBytes = termBytes;
                     minTermLength = termLength;
                 } else if (c == 0) {
                     termIteratorIndexes[newNumTermIterators] = i;
                     newNumTermIterators++;
+                    newTermDocFreq += itr.termDocFreq();
                 }
             }
             if (currentTermBytes.length < minTermLength) {
@@ -232,6 +238,8 @@ public abstract class AbstractBatchedFTGMerger implements FTGIterator {
             currentTermLength = minTermLength;
             termStringVal = null;
         }
+
+        this.termDocFreq = newTermDocFreq;
 
         for (int i = 0; i < newNumTermIterators; ++i) {
             final int fi = termIteratorIndexes[i];
@@ -312,11 +320,7 @@ public abstract class AbstractBatchedFTGMerger implements FTGIterator {
 
     @Override
     public final long termDocFreq() {
-        long ret = 0L;
-        for (int i = 0; i < termIteratorsRemaining; ++i) {
-            ret += iterators[termIterators[i]].termDocFreq();
-        }
-        return ret;
+        return this.termDocFreq;
     }
 
     @Override
