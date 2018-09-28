@@ -158,7 +158,8 @@ public class ShardMasterDaemon {
             LOGGER.error("Error during startup", e);
         }
         finally {
-            startupLock.unlock();
+            // TODO: Why was this here? It causes IllegalMonitorStateExceptions if the lock is not held.
+            // startupLock.unlock();
             hostReloadTimer.cancel();
             datasetReloadExecutor.shutdown();
             executorService.shutdown();
