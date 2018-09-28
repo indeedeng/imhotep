@@ -49,7 +49,7 @@ public class TestAggregateFTGSRoundTrip {
 
             final ByteArrayInputStream bais = new ByteArrayInputStream(baos.toByteArray());
 
-            try (final InputStreamAggregateFTGSIterator in = new InputStreamAggregateFTGSIterator(bais, 1, 2)) {
+            try (final InputStreamFTGAIterator in = new InputStreamFTGAIterator(bais, 1, 2)) {
                 assertTrue(in.nextField());
                 assertEquals("foo", in.fieldName());
                 assertTrue(in.nextTerm());

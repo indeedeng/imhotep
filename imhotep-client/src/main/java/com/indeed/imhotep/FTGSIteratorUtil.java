@@ -22,7 +22,7 @@ import com.google.common.primitives.Longs;
 import com.indeed.imhotep.FTGSBinaryFormat.FieldStat;
 import com.indeed.imhotep.StreamUtil.InputStreamWithPosition;
 import com.indeed.imhotep.StreamUtil.OutputStreamWithPosition;
-import com.indeed.imhotep.api.AggregateFTGSIterator;
+import com.indeed.imhotep.api.FTGAIterator;
 import com.indeed.imhotep.api.FTGIterator;
 import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.api.GroupStatsIterator;
@@ -89,7 +89,7 @@ public class FTGSIteratorUtil {
     public static Pair<File, FieldStat[]> persistAsFile(
             final Logger log,
             final String sessionId,
-            final AggregateFTGSIterator iterator) throws IOException {
+            final FTGAIterator iterator) throws IOException {
         final File tmp = File.createTempFile("ftgs", ".tmp");
         final FieldStat[] stats;
         final long start = System.currentTimeMillis();
@@ -127,15 +127,15 @@ public class FTGSIteratorUtil {
         }
     }
 
-    public static AggregateFTGSIterator persist(final Logger log,
-                                   final String sessionId,
-                                   final AggregateFTGSIterator iterator) throws IOException {
+    public static FTGAIterator persist(final Logger log,
+                                       final String sessionId,
+                                       final FTGAIterator iterator) throws IOException {
         final int numStats = iterator.getNumStats();
         final int numGroups = iterator.getNumGroups();
         final Pair<File, FieldStat[]> tmp = persistAsFile(log, sessionId, iterator);
         final File file = tmp.getFirst();
         try {
-            return new InputStreamAggregateFTGSIterator(new BufferedInputStream(new FileInputStream(file)), tmp.getSecond(), numStats, numGroups);
+            return new InputStreamFTGAIterator(new BufferedInputStream(new FileInputStream(file)), tmp.getSecond(), numStats, numGroups);
         } finally {
             file.delete();
         }
@@ -151,8 +151,8 @@ public class FTGSIteratorUtil {
         return getTopTermsFTGSIteratorInternal(originalIterator, termLimit, sortStat);
     }
 
-    public static TopTermsAggregateFTGSIterator getTopTermsFTGSIterator(
-            final AggregateFTGSIterator originalIterator,
+    public static TopTermsFTGAIterator getTopTermsFTGSIterator(
+            final FTGAIterator originalIterator,
             final long termLimit,
             final int sortStat) {
         if ((termLimit <= 0) || (sortStat < 0) || (sortStat >= originalIterator.getNumStats())) {
@@ -185,15 +185,15 @@ public class FTGSIteratorUtil {
 
     // Returns top terms iterator.
     // It's possible to pass termLimit = Long.MAX_VALUE and get sorted iterator as a result
-    private static TopTermsAggregateFTGSIterator getTopTermsFTGSIteratorInternal(
-            final AggregateFTGSIterator iterator,
+    private static TopTermsFTGAIterator getTopTermsFTGSIteratorInternal(
+            final FTGAIterator iterator,
             final long termLimit,
             final int sortStat
     ) {
         final int numStats = iterator.getNumStats();
         final int numGroups = iterator.getNumGroups();
         final TopTermsStatsByField<double[]> topTerms = FTGSIteratorUtil.extractTopTermsGeneric(termLimit, iterator, new DoubleStatExtractor(iterator.getNumStats(), sortStat));
-        return new TopTermsAggregateFTGSIterator(topTerms, numStats, numGroups);
+        return new TopTermsFTGAIterator(topTerms, numStats, numGroups);
     }
 
     /**
@@ -276,7 +276,7 @@ public class FTGSIteratorUtil {
     }
 
     @VisibleForTesting
-    static class DoubleStatExtractor implements StatExtractor<double[], AggregateFTGSIterator> {
+    static class DoubleStatExtractor implements StatExtractor<double[], FTGAIterator> {
         private final int sortStat;
         private final double[] statsBuf;
 
@@ -287,12 +287,12 @@ public class FTGSIteratorUtil {
         }
 
         @Override
-        public void advance(AggregateFTGSIterator iterator) {
+        public void advance(FTGAIterator iterator) {
             iterator.groupStats(statsBuf);
         }
 
         @Override
-        public boolean itIsBetterThan(AggregateFTGSIterator iterator, TermStat<double[]> termStat) {
+        public boolean itIsBetterThan(FTGAIterator iterator, TermStat<double[]> termStat) {
             final int statCmp = Double.compare(statsBuf[sortStat], termStat.groupStats[sortStat]);
             if (statCmp != 0) {
                 return statCmp > 0;
@@ -306,7 +306,7 @@ public class FTGSIteratorUtil {
         }
 
         @Override
-        public TermStat<double[]> extract(AggregateFTGSIterator iterator) {
+        public TermStat<double[]> extract(FTGAIterator iterator) {
             final boolean fieldIsIntType = iterator.fieldIsIntType();
             final long termIntVal = fieldIsIntType ? iterator.termIntVal() : 0;
             final String termStringVal = fieldIsIntType ? null : iterator.termStringVal();
@@ -520,12 +520,12 @@ public class FTGSIteratorUtil {
         return numStats;
     }
 
-    public static int getNumStats(final AggregateFTGSIterator[] iterators) {
+    public static int getNumStats(final FTGAIterator[] iterators) {
         if (iterators.length == 0) {
             throw new IllegalArgumentException("Nonempty array of iterators expected.");
         }
         final int numStats = iterators[0].getNumStats();
-        for (final AggregateFTGSIterator iterator : iterators) {
+        for (final FTGAIterator iterator : iterators) {
             if (iterator.getNumStats() != numStats) {
                 throw new IllegalArgumentException();
             }
@@ -559,7 +559,7 @@ public class FTGSIteratorUtil {
         return FTGSOutputStreamWriter.write(iterator, stream);
     }
 
-    public static FieldStat[] writeFtgsIteratorToStream(final AggregateFTGSIterator iterator, final OutputStream stream) throws IOException {
+    public static FieldStat[] writeFtgsIteratorToStream(final FTGAIterator iterator, final OutputStream stream) throws IOException {
         // TODO: try write optimized or fall to default stream writer
         return FTGSOutputStreamWriter.write(iterator, stream);
     }

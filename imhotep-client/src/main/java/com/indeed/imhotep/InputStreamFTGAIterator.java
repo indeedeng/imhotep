@@ -2,7 +2,7 @@ package com.indeed.imhotep;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.indeed.imhotep.FTGSBinaryFormat.FieldStat;
-import com.indeed.imhotep.api.AggregateFTGSIterator;
+import com.indeed.imhotep.api.FTGAIterator;
 
 import javax.annotation.Nullable;
 import java.io.IOException;
@@ -12,12 +12,12 @@ import java.nio.ByteBuffer;
 /**
  * @author jwolfe
  */
-public class InputStreamAggregateFTGSIterator extends AbstractInputStreamFTGSIterator implements AggregateFTGSIterator {
+public class InputStreamFTGAIterator extends AbstractInputStreamFTGSIterator implements FTGAIterator {
     private final int numStats;
     private final byte[] bytesBuf;
     private final ByteBuffer byteBuffer;
 
-    public InputStreamAggregateFTGSIterator(
+    public InputStreamFTGAIterator(
             final InputStream in,
             @Nullable final FieldStat[] fieldsStats,
             final int numStats,
@@ -30,7 +30,7 @@ public class InputStreamAggregateFTGSIterator extends AbstractInputStreamFTGSIte
     }
 
     @VisibleForTesting
-    InputStreamAggregateFTGSIterator(final InputStream in,
+    InputStreamFTGAIterator(final InputStream in,
                             final int numStats,
                             final int numGroups) {
         this(in, null, numStats, numGroups);

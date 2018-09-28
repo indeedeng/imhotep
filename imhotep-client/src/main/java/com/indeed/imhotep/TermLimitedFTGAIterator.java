@@ -14,7 +14,7 @@
 
 package com.indeed.imhotep;
 
-import com.indeed.imhotep.api.AggregateFTGSIterator;
+import com.indeed.imhotep.api.FTGAIterator;
 
 
 /**
@@ -23,12 +23,12 @@ import com.indeed.imhotep.api.AggregateFTGSIterator;
  * @author vladimir
  */
 
-public class TermLimitedAggregateFTGSIterator extends TermLimitedFTGIterator<AggregateFTGSIterator> implements AggregateFTGSIterator {
+public class TermLimitedFTGAIterator extends TermLimitedFTGIterator<FTGAIterator> implements FTGAIterator {
     /**
      * @param wrapped The iterator to use
      * @param termLimit Maximum number of terms that will be allowed to iterate through
      */
-    public TermLimitedAggregateFTGSIterator(final AggregateFTGSIterator wrapped, final long termLimit) {
+    public TermLimitedFTGAIterator(final FTGAIterator wrapped, final long termLimit) {
         super(wrapped, termLimit);
     }
 

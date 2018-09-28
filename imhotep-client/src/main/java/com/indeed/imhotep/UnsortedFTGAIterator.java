@@ -1,12 +1,12 @@
 package com.indeed.imhotep;
 
-import com.indeed.imhotep.api.AggregateFTGSIterator;
+import com.indeed.imhotep.api.FTGAIterator;
 
 // FTGSIterator with not ordered terms.
-public final class UnsortedAggregateFTGSIterator extends UnsortedFTGIterator<AggregateFTGSIterator> implements AggregateFTGSIterator {
+public final class UnsortedFTGAIterator extends UnsortedFTGIterator<FTGAIterator> implements FTGAIterator {
     private final int numStats;
 
-    public UnsortedAggregateFTGSIterator(final AggregateFTGSIterator[] iterators) {
+    public UnsortedFTGAIterator(final FTGAIterator[] iterators) {
         super(iterators);
         numStats = FTGSIteratorUtil.getNumStats(iterators);
     }

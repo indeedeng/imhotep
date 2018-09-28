@@ -16,7 +16,7 @@
 import java.io.Closeable;
 
 // TODO: The fact that this has a "nextField()" method is stupid.
-public interface AggregateFTGSIterator extends FTGIterator, Closeable {
+public interface FTGAIterator extends FTGIterator, Closeable {
     /**
      * @return number of stats
      */

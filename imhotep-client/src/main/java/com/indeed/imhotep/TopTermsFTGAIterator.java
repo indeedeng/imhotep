@@ -14,17 +14,17 @@
 
 package com.indeed.imhotep;
 
-import com.indeed.imhotep.api.AggregateFTGSIterator;
+import com.indeed.imhotep.api.FTGAIterator;
 
 /**
  * @author kenh
  */
-public class TopTermsAggregateFTGSIterator extends TopTermsFTGIterator<double[]> implements AggregateFTGSIterator {
+public class TopTermsFTGAIterator extends TopTermsFTGIterator<double[]> implements FTGAIterator {
     private final int numStats;
 
-    public TopTermsAggregateFTGSIterator(final FTGSIteratorUtil.TopTermsStatsByField<double[]> topTermFTGS,
-                                         final int numStats,
-                                         final int numGroups) {
+    public TopTermsFTGAIterator(final FTGSIteratorUtil.TopTermsStatsByField<double[]> topTermFTGS,
+                                final int numStats,
+                                final int numGroups) {
         super(topTermFTGS, numGroups);
         this.numStats = numStats;
     }

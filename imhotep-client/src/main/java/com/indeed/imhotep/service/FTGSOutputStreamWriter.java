@@ -16,7 +16,7 @@
 import com.indeed.imhotep.FTGSBinaryFormat;
 import com.indeed.imhotep.FTGSBinaryFormat.FieldStat;
 import com.indeed.imhotep.StreamUtil.OutputStreamWithPosition;
-import com.indeed.imhotep.api.AggregateFTGSIterator;
+import com.indeed.imhotep.api.FTGAIterator;
 import com.indeed.imhotep.api.FTGIterator;
 import com.indeed.imhotep.api.FTGSIterator;
 
@@ -167,7 +167,7 @@ public final class FTGSOutputStreamWriter implements Closeable {
         return writer.write(buffer);
     }
 
-    public static FieldStat[] write(final AggregateFTGSIterator buffer, final OutputStream out) throws IOException {
+    public static FieldStat[] write(final FTGAIterator buffer, final OutputStream out) throws IOException {
         final FTGSOutputStreamWriter writer = new FTGSOutputStreamWriter(out);
         return writer.write(buffer);
     }
@@ -208,7 +208,7 @@ public final class FTGSOutputStreamWriter implements Closeable {
         return write(buffer, statsWriter);
     }
 
-    public FieldStat[] write(final AggregateFTGSIterator buffer) throws IOException {
+    public FieldStat[] write(final FTGAIterator buffer) throws IOException {
         final double[] stats = new double[buffer.getNumStats()];
         final StatsWriter statsWriter = () -> {
             buffer.groupStats(stats);

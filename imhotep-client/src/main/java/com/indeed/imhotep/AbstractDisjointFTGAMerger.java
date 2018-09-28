@@ -1,6 +1,6 @@
 package com.indeed.imhotep;
 
-import com.indeed.imhotep.api.AggregateFTGSIterator;
+import com.indeed.imhotep.api.FTGAIterator;
 
 /**
  * Base class for merging AggregateFTGSIterators that have disjoint terms
@@ -8,10 +8,10 @@ import com.indeed.imhotep.api.AggregateFTGSIterator;
  * Each term exists only in one iterator and
  * after nextTerm() call iterators[0] is iterator with current term.
  */
-public abstract class AbstractDisjointAggregateFTGSMerger extends AbstractDisjointFTGMerger<AggregateFTGSIterator> implements AggregateFTGSIterator {
+public abstract class AbstractDisjointFTGAMerger extends AbstractDisjointFTGMerger<FTGAIterator> implements FTGAIterator {
     private final int numStats;
 
-    public AbstractDisjointAggregateFTGSMerger(final AggregateFTGSIterator[] iterators) {
+    public AbstractDisjointFTGAMerger(final FTGAIterator[] iterators) {
         super(iterators);
         numStats = FTGSIteratorUtil.getNumStats(iterators);
     }

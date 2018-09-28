@@ -1,11 +1,11 @@
 package com.indeed.imhotep;
 
-import com.indeed.imhotep.api.AggregateFTGSIterator;
+import com.indeed.imhotep.api.FTGAIterator;
 
-public class SortedAggregateFTGSInterleaver extends SortedFTGInterleaver<AggregateFTGSIterator> implements AggregateFTGSIterator {
+public class SortedFTGAInterleaver extends SortedFTGInterleaver<FTGAIterator> implements FTGAIterator {
     private final int numStats;
 
-    public SortedAggregateFTGSInterleaver(AggregateFTGSIterator[] iterators) {
+    public SortedFTGAInterleaver(FTGAIterator[] iterators) {
         super(iterators);
         numStats = FTGSIteratorUtil.getNumStats(iterators);
     }
