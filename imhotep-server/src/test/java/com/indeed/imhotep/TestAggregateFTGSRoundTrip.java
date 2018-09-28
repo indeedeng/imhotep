@@ -58,7 +58,7 @@ public class TestAggregateFTGSRoundTrip {
                 assertEquals(1, in.group());
                 final double[] buf = new double[1];
                 in.groupStats(buf);
-                assertEquals(stat, buf[0], 0.0);
+                assertEquals((Double)stat, (Double)buf[0]);
             }
         }
     }
