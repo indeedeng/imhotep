@@ -343,7 +343,7 @@ message MultiFTGSRequest {
   repeated MultiFTGSSession sessionInfo = 1;
   repeated AggregateStat select = 2;
 
-  // Stat value of 0.0f is treated as false.
+  // Stat value of 0.0 is treated as false.
   // Stat value of anything else is treated as true.
   repeated AggregateStat filter = 3;
 

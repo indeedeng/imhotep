@@ -34,7 +34,7 @@ public class TestAggregateFTGSRoundTrip {
             Float.MIN_VALUE, Float.MAX_VALUE, 1000000000.0, -1000000000.0,
             Double.MIN_VALUE, Double.MAX_VALUE, -1000000000000.0, 1000000000000.0,
             Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY, Double.NaN,
-            -0.0f
+            -0.0
         };
 
         for (final double stat : testStats) {

@@ -101,7 +101,7 @@ public class FTGSIteratorTestUtils {
         final double[] stats = new double[groupStats.length];
         iter.groupStats(stats);
 
-        Assert.assertArrayEquals(groupStats, stats, 0.0f);
+        Assert.assertArrayEquals(groupStats, stats, 0.0);
     }
 
     public static void expectTermEnd(final FTGIterator iter) {
