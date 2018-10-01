@@ -270,6 +270,10 @@ public class FTGSIteratorUtil {
             return new Comparator<TermStat<long[]>>() {
                 @Override
                 public int compare(final TermStat<long[]> x, final TermStat<long[]> y) {
+                    // Support for `sortStat < 0` is solely for unit test usage.
+                    // It will only be invoked when max # terms == Long.MAX_VALUE, so does
+                    // not need to be supported in itIsBetterThan.
+                    // Feel free to remove it and fix broken unit tests if it measurably better.
                     final int ret = sortStat < 0 ? 0 : Longs.compare(x.groupStats[sortStat], y.groupStats[sortStat]);
                     if (ret == 0) {
                         if (x.fieldIsIntType) {
@@ -328,6 +332,10 @@ public class FTGSIteratorUtil {
             return new Comparator<TermStat<double[]>>() {
                 @Override
                 public int compare(final TermStat<double[]> x, final TermStat<double[]> y) {
+                    // Support for `sortStat < 0` is solely for unit test usage.
+                    // It will only be invoked when max # terms == Long.MAX_VALUE, so does
+                    // not need to be supported in itIsBetterThan.
+                    // Feel free to remove it and fix broken unit tests if it measurably better.
                     final int ret = sortStat < 0 ? 0 : Doubles.compare(x.groupStats[sortStat], y.groupStats[sortStat]);
                     if (ret == 0) {
                         if (x.fieldIsIntType) {
