@@ -24,7 +24,7 @@ import com.indeed.imhotep.api.FTGAIterator;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.client.ImhotepClient;
-import com.indeed.imhotep.protobuf.AggregateStat;
+import com.indeed.imhotep.metrics.aggregate.AggregateStatTree;
 import com.indeed.util.core.Pair;
 import org.joda.time.DateTime;
 import org.junit.After;
@@ -48,6 +48,8 @@ import java.util.function.BiFunction;
 import static com.indeed.imhotep.FTGSIteratorTestUtils.expectEnd;
 import static com.indeed.imhotep.FTGSIteratorTestUtils.expectGroup;
 import static com.indeed.imhotep.FTGSIteratorTestUtils.expectStrTerm;
+import static com.indeed.imhotep.metrics.aggregate.AggregateStatTree.constant;
+import static com.indeed.imhotep.metrics.aggregate.AggregateStatTree.stat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -188,7 +190,7 @@ public class TestMultiFTGS {
 
             session.pushStat("count()");
 
-            final AggregateStat count = stat(session, 0);
+            final AggregateStatTree count = stat(session, 0);
 
             // GROUP BY country SELECT count()
             try (FTGAIterator iterator = multiFtgs(
@@ -217,7 +219,7 @@ public class TestMultiFTGS {
             try (FTGAIterator iterator = multiFtgs(
                     Collections.singletonList(new Pair<>(session, "country")),
                     Lists.newArrayList(count),
-                    Lists.newArrayList(count, constant(2.0), operation(">")),
+                    Lists.newArrayList(count.gt(constant(2.0))),
                     false,
                     0,
                     -1
@@ -238,7 +240,7 @@ public class TestMultiFTGS {
             try (FTGAIterator iterator = multiFtgs(
                     Collections.singletonList(new Pair<>(session, "q")),
                     Lists.newArrayList(count),
-                    Lists.newArrayList(count, constant(2.0), operation(">")),
+                    Lists.newArrayList(count.gt(constant(2.0))),
                     false,
                     0,
                     -1
@@ -257,7 +259,7 @@ public class TestMultiFTGS {
             try (FTGAIterator iterator = multiFtgs(
                     Collections.singletonList(new Pair<>(session, "q")),
                     Lists.newArrayList(count),
-                    Lists.newArrayList(count, constant(100.0), operation(">")),
+                    Lists.newArrayList(count.gt(constant(100.0))),
                     false,
                     0,
                     -1
@@ -273,7 +275,7 @@ public class TestMultiFTGS {
             try (FTGAIterator iterator = multiFtgs(
                     Collections.singletonList(new Pair<>(session, "q")),
                     Lists.newArrayList(count),
-                    Lists.newArrayList(count, constant(2.0), operation(">=")),
+                    Lists.newArrayList(count.gte(constant(2.0))),
                     false,
                     0,
                     -1
@@ -297,14 +299,14 @@ public class TestMultiFTGS {
             session.pushStat("clicks");
             session.pushStat("impressions");
 
-            final AggregateStat clicks = stat(session, 1);
-            final AggregateStat impressions = stat(session, 2);
+            final AggregateStatTree clicks = stat(session, 1);
+            final AggregateStatTree impressions = stat(session, 2);
 
             // GROUP BY q SELECT clicked / impressions
             // Also exercises having stats on the stack that aren't relevant.
             try (FTGAIterator iterator = multiFtgs(
                     Collections.singletonList(new Pair<>(session, "q")),
-                    Lists.newArrayList(clicks, impressions, operation("/")),
+                    Lists.newArrayList(clicks.divide(impressions)),
                     Lists.newArrayList(),
                     false,
                     0,
@@ -337,7 +339,7 @@ public class TestMultiFTGS {
             try (FTGAIterator iterator = multiFtgs(
                     Collections.singletonList(new Pair<>(session, "q")),
                     Lists.newArrayList(count),
-                    Lists.newArrayList(clicks, impressions, operation("/"), constant(0.25), operation(">=")),
+                    Lists.newArrayList(clicks.divide(impressions).gte(constant(0.25))),
                     false,
                     0,
                     -1
@@ -355,13 +357,6 @@ public class TestMultiFTGS {
                 expectEnd(iterator);
             }
         }
-    }
-
-    private AggregateStat constant(double value) {
-        return AggregateStat.newBuilder()
-                .setStatType(AggregateStat.StatType.CONSTANT)
-                .setValue(value)
-                .build();
     }
 
     @Test
@@ -499,8 +494,8 @@ public class TestMultiFTGS {
             session2.pushStat("count()");
 
             final int statIndex = 0;
-            final AggregateStat count1 = stat(session1, statIndex);
-            final AggregateStat count2 = stat(session2, 0);
+            final AggregateStatTree count1 = stat(session1, statIndex);
+            final AggregateStatTree count2 = stat(session2, 0);
 
             // GROUP BY country SELECT dataset1.count(), dataset2.count(), count()
             try (FTGAIterator iterator = multiFtgs(
@@ -508,7 +503,7 @@ public class TestMultiFTGS {
                             new Pair<>(session1, "country"),
                             new Pair<>(session2, "country")
                     ),
-                    Lists.newArrayList(count1, count2, count1, count2, operation("+")),
+                    Lists.newArrayList(count1, count2, count1.plus(count2)),
                     Lists.newArrayList(),
                     false,
                     0,
@@ -537,7 +532,7 @@ public class TestMultiFTGS {
                             new Pair<>(session2, "country")
                     ),
                     Lists.newArrayList(),
-                    Lists.newArrayList(count1, count2, operation(">")),
+                    Lists.newArrayList(count1.gt(count2)),
                     false,
                     0,
                     -1
@@ -671,7 +666,7 @@ public class TestMultiFTGS {
                             new Pair<>(session2, "country")
                     ),
                     Lists.newArrayList(),
-                    Lists.newArrayList(count1, count2, operation("+"), constant(10.0), operation(">")),
+                    Lists.newArrayList(count1.plus(count2).gt(constant(10.0))),
                     false,
                     1,
                     -1
@@ -701,7 +696,7 @@ public class TestMultiFTGS {
                             new Pair<>(session1, "country"),
                             new Pair<>(session2, "country")
                     ),
-                    Lists.newArrayList(count1, count2, operation("+")),
+                    Lists.newArrayList(count1.plus(count2)),
                     Lists.newArrayList(),
                     false,
                     1,
@@ -745,7 +740,7 @@ public class TestMultiFTGS {
                             new Pair<>(session1, "country"),
                             new Pair<>(session2, "country")
                     ),
-                    Lists.newArrayList(count1, count1, count2, operation("-")),
+                    Lists.newArrayList(count1, count1.minus(count2)),
                     Lists.newArrayList(),
                     false,
                     2,
@@ -770,8 +765,8 @@ public class TestMultiFTGS {
                             new Pair<>(session1, "country"),
                             new Pair<>(session2, "country")
                     ),
-                    Lists.newArrayList(count1, count2, operation("+")),
-                    Lists.newArrayList(count1, constant(20), operation("<=")),
+                    Lists.newArrayList(count1.plus(count2)),
+                    Lists.newArrayList(count1.lte(constant(20))),
                     false,
                     1,
                     0
@@ -788,25 +783,10 @@ public class TestMultiFTGS {
         }
     }
 
-    private AggregateStat stat(ImhotepSession session, int statIndex) {
-        return AggregateStat.newBuilder()
-                .setStatType(AggregateStat.StatType.SESSION_STAT)
-                .setSessionId(session.getSessionId())
-                .setStatIndex(statIndex)
-                .build();
-    }
-
-    private AggregateStat operation(String operation) {
-        return AggregateStat.newBuilder()
-                .setStatType(AggregateStat.StatType.OPERATION)
-                .setOperation(operation)
-                .build();
-    }
-
     private FTGAIterator multiFtgs(
             final List<Pair<ImhotepSession, String>> sessionsWithFields,
-            final ArrayList<AggregateStat> selects,
-            final List<AggregateStat> filters,
+            final List<AggregateStatTree> selects,
+            final List<AggregateStatTree> filters,
             final boolean isIntField,
             final long termLimit,
             final int sortStat

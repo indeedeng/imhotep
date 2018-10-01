@@ -26,7 +26,7 @@ import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.api.PerformanceStats;
 import com.indeed.imhotep.marshal.ImhotepClientMarshaller;
-import com.indeed.imhotep.protobuf.AggregateStat;
+import com.indeed.imhotep.metrics.aggregate.AggregateStatTree;
 import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
 import com.indeed.imhotep.protobuf.HostAndPort;
 import com.indeed.imhotep.protobuf.ImhotepRequest;
@@ -292,8 +292,8 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
 
     public static FTGAIterator multiFtgs(
             final List<Pair<ImhotepSession, String>> sessionsWithFields,
-            final List<AggregateStat> selects,
-            final List<AggregateStat> filters,
+            final List<AggregateStatTree> selects,
+            final List<AggregateStatTree> filters,
             final boolean isIntField,
             final long termLimit,
             final int sortStat,
@@ -328,8 +328,8 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
         final List<HostAndPort> allNodesList = Lists.newArrayList(allNodes);
 
         builder
-                .addAllSelect(selects)
-                .addAllFilter(filters)
+                .addAllSelect(AggregateStatTree.allAsList(selects))
+                .addAllFilter(AggregateStatTree.allAsList(filters))
                 .setIsIntField(isIntField)
                 .setTermLimit(termLimit)
                 .setSortStat(sortStat)
