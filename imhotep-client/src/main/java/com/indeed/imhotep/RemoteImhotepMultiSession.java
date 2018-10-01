@@ -360,8 +360,9 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
                 final MultiFTGSRequest proto = MultiFTGSRequest.newBuilder(baseRequest).setSplitIndex(index).build();
                 return remoteSession.multiFTGS(proto);
             });
-        } catch (ExecutionException e) {
-            throw Throwables.propagate(e);
+        } catch (Throwable t) {
+            Closeables2.closeQuietly(closer, log);
+            throw Throwables.propagate(t);
         }
 
         final FTGSModifiers modifiers = new FTGSModifiers(termLimit, sortStat, sorted);
