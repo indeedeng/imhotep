@@ -224,7 +224,7 @@ public abstract class AbstractImhotepServiceCore
         return null;
     }
 
-    private Void sendFTGSIterator(final FTGAIterator iterator, final OutputStream os) throws IOException {
+    private Void sendFTGAIterator(final FTGAIterator iterator, final OutputStream os) throws IOException {
         sendSuccessFTGSResponse(os, iterator.getNumStats(), iterator.getNumGroups());
         return writeFTGAIteratorToOutputStream(iterator, os);
     }
@@ -357,7 +357,7 @@ public abstract class AbstractImhotepServiceCore
             final FTGAIterator interleaver = sorted ? new SortedFTGAInterleaver(streams) : new UnsortedFTGAIterator(streams);
             closer.register(interleaver);
 
-            sendFTGSIterator(modifiers.wrap(interleaver), os);
+            sendFTGAIterator(modifiers.wrap(interleaver), os);
         } catch (Throwable t) {
             Closeables2.closeQuietly(closer, log);
             throw Throwables.propagate(t);

@@ -644,13 +644,16 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             }
 
             final InetSocketAddress[] nodes =
-                    multiFtgsRequest.getNodesList().stream().map(input -> new InetSocketAddress(input.getHost(),
-                            input.getPort())).collect(Collectors.toList()).toArray(new InetSocketAddress[request.getNodesCount()]);
+                    multiFtgsRequest.getNodesList()
+                            .stream()
+                            .map(input -> new InetSocketAddress(input.getHost(), input.getPort()))
+                            .toArray(InetSocketAddress[]::new);
 
             service.handleMergeMultiFTGSSplit(
                     multiFtgsRequest,
                     localSessionId,
-                    os, nodes
+                    os,
+                    nodes
             );
         }
 
