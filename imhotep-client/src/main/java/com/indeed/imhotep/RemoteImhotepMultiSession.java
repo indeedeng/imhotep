@@ -45,7 +45,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
@@ -290,8 +289,25 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
         return Collections.max(Arrays.asList(integerBuf));
     }
 
+    public static class SessionField {
+        private final RemoteImhotepMultiSession session;
+        private final String field;
+
+        /**
+         * TODO: This exception seems a little funky?
+         * @throws IllegalArgumentException if session is not a RemoteImhotepMultiSession
+         */
+        public SessionField(final ImhotepSession session, final String field) {
+            if (!(session instanceof RemoteImhotepMultiSession)) {
+                throw new IllegalArgumentException("Can only use RemoteImhotepMultiSession::multiFtgs on RemoteImhotepMultiSession instances.");
+            }
+            this.session = (RemoteImhotepMultiSession) session;
+            this.field = field;
+        }
+    }
+
     public static FTGAIterator multiFtgs(
-            final List<Pair<ImhotepSession, String>> sessionsWithFields,
+            final List<SessionField> sessionsWithFields,
             final List<AggregateStatTree> selects,
             final List<AggregateStatTree> filters,
             final boolean isIntField,
@@ -304,15 +320,11 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
         final List<RemoteImhotepMultiSession> remoteSessions = new ArrayList<>();
         final Set<HostAndPort> allNodes = new HashSet<>();
 
-        for (final Pair<ImhotepSession, String> pair : sessionsWithFields) {
-            final ImhotepSession session = pair.getFirst();
-            if (!(session instanceof RemoteImhotepMultiSession)) {
-                throw new IllegalArgumentException("Can only use RemoteImhotepMultiSession::multiFtgs on RemoteImhotepMultiSession instances.");
-            }
-            final RemoteImhotepMultiSession remoteSession = (RemoteImhotepMultiSession) session;
-            remoteSessions.add(remoteSession);
-            final String fieldName = pair.getSecond();
-            final List<HostAndPort> nodes = Arrays.stream(remoteSession.nodes).map(input ->
+        for (final SessionField sessionField : sessionsWithFields) {
+            final RemoteImhotepMultiSession session = sessionField.session;
+            remoteSessions.add(session);
+            final String fieldName = sessionField.field;
+            final List<HostAndPort> nodes = Arrays.stream(session.nodes).map(input ->
                     HostAndPort.newBuilder()
                             .setHost(input.getHostName())
                             .setPort(input.getPort())

@@ -7,6 +7,8 @@ import com.indeed.imhotep.metrics.aggregate.MultiFTGSIterator;
 import java.util.List;
 
 /**
+ * TODO: Should this be vectorized to operate on many groups at once?
+ *
  * @author jwolfe
  */
 public class MultiSessionWrapper implements FTGAIterator {
