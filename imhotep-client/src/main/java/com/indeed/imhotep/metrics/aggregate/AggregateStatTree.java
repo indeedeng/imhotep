@@ -8,6 +8,8 @@ import com.indeed.imhotep.protobuf.AggregateStat;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import static com.indeed.imhotep.metrics.aggregate.AggregateStatConstants.*;
+
 /**
  * @author jwolfe
  */
@@ -65,21 +67,21 @@ public class AggregateStatTree {
      * 1 if the current term equals the given term, 0 otherwise.
      */
     public static AggregateStatTree termEquals(String term) {
-        return of(operator("term_equals \"" + term + "\""));
+        return of(operator(TERM_EQUALS_ + "\"" + term + "\""));
     }
 
     /**
      * 1 if the current term equals the given term, 0 otherwise.
      */
     public static AggregateStatTree termEquals(long term) {
-        return of(operator("term_equals " + term));
+        return of(operator(TERM_EQUALS_ + term));
     }
 
     /**
      * 1 if the current term equals the given regex, 0 otherwise.
      */
     public static AggregateStatTree termRegex(String regex) {
-        return of(operator("term_regex \"" + regex + "\""));
+        return of(operator(TERM_REGEX_ + "\"" + regex + "\""));
     }
 
     public List<AggregateStat> asList() {
@@ -94,133 +96,133 @@ public class AggregateStatTree {
      * Absolute value
      */
     public AggregateStatTree abs() {
-        return unOp("abs", this);
+        return unOp(ABS, this);
     }
 
     /**
      * Logarithm (base e)
      */
     public AggregateStatTree log() {
-        return unOp("log", this);
+        return unOp(LOG, this);
     }
 
     /**
      * Boolean NOT
      */
     public AggregateStatTree not() {
-        return unOp("not", this);
+        return unOp(NOT, this);
     }
 
     /**
      * Boolean AND
      */
     public AggregateStatTree and(AggregateStatTree other) {
-        return binOp(this, "and", other);
+        return binOp(this, AND, other);
     }
 
     /**
      * Addition
      */
     public AggregateStatTree plus(AggregateStatTree other) {
-        return binOp(this, "+", other);
+        return binOp(this, PLUS, other);
     }
 
     /**
      * Division. this / other.
      */
     public AggregateStatTree divide(AggregateStatTree other) {
-        return binOp(this, "/", other);
+        return binOp(this, DIVIDE, other);
     }
 
     /**
      * Maximum
      */
     public AggregateStatTree max(AggregateStatTree other) {
-        return binOp(this, "max", other);
+        return binOp(this, MAX, other);
     }
 
     /**
      * Minimum
      */
     public AggregateStatTree min(AggregateStatTree other) {
-        return binOp(this, "min", other);
+        return binOp(this, MIN, other);
     }
 
     /**
      * Modulus
      */
     public AggregateStatTree mod(AggregateStatTree other) {
-        return binOp(this, "%", other);
+        return binOp(this, MODULUS, other);
     }
 
     /**
      * Boolean OR
      */
     public AggregateStatTree or(AggregateStatTree other) {
-        return binOp(this, "or", other);
+        return binOp(this, OR, other);
     }
 
     /**
      * Multiplication
      */
     public AggregateStatTree times(AggregateStatTree other) {
-        return binOp(this, "*", other);
+        return binOp(this, MULTIPLY, other);
     }
 
     /**
      * Power. this^other.
      */
     public AggregateStatTree pow(AggregateStatTree other) {
-        return binOp(this, "^", other);
+        return binOp(this, POWER, other);
     }
 
     /**
      * Subtraction. this - other.
      */
     public AggregateStatTree minus(AggregateStatTree other) {
-        return binOp(this, "-", other);
+        return binOp(this, MINUS, other);
     }
 
     /**
      * this > other
      */
     public AggregateStatTree gt(AggregateStatTree other) {
-        return binOp(this, ">", other);
+        return binOp(this, GT, other);
     }
 
     /**
      * this >= other
      */
     public AggregateStatTree gte(AggregateStatTree other) {
-        return binOp(this, ">=", other);
+        return binOp(this, GTE, other);
     }
 
     /**
      * this < other
      */
     public AggregateStatTree lt(AggregateStatTree other) {
-        return binOp(this, "<", other);
+        return binOp(this, LT, other);
     }
 
     /**
      * this <= other
      */
     public AggregateStatTree lte(AggregateStatTree other) {
-        return binOp(this, "<=", other);
+        return binOp(this, LTE, other);
     }
 
     /**
      * this == other
      */
     public AggregateStatTree eq(AggregateStatTree other) {
-        return binOp(this, "=", other);
+        return binOp(this, EQ, other);
     }
 
     /**
      * this != other
      */
     public AggregateStatTree neq(AggregateStatTree other) {
-        return binOp(this, "!=", other);
+        return binOp(this, NEQ, other);
     }
 
     /**
@@ -265,7 +267,7 @@ public class AggregateStatTree {
         builder.addAll(cond.pushes);
         builder.addAll(trueCase.pushes);
         builder.addAll(falseCase.pushes);
-        builder.add(operator("if_then_else"));
+        builder.add(operator(IF_THEN_ELSE));
         return new AggregateStatTree(builder.build());
     }
 }

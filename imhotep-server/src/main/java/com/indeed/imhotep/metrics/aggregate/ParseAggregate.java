@@ -7,42 +7,40 @@ import java.util.Map;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
+import static com.indeed.imhotep.metrics.aggregate.AggregateStatConstants.*;
+
 /**
  * @author jwolfe
  */
 public class ParseAggregate {
-    public static final String TERM_EQUALS_ = "term_equals ";
-    public static final String TERM_REGEX_ = "term_regex ";
-
     private static final ImmutableMap<String, Function<AggregateStat, AggregateStat>> UNOPS;
     static {
         final ImmutableMap.Builder<String, Function<AggregateStat, AggregateStat>> unopsBuilder = ImmutableMap.builder();
-        unopsBuilder.put("abs", AggregateAbsoluteValue::new);
-        unopsBuilder.put("log", AggregateLog::new);
-        unopsBuilder.put("not", AggregateNot::new);
+        unopsBuilder.put(ABS, AggregateAbsoluteValue::new);
+        unopsBuilder.put(LOG, AggregateLog::new);
+        unopsBuilder.put(NOT, AggregateNot::new);
         UNOPS = unopsBuilder.build();
     }
 
     private static final ImmutableMap<String, BiFunction<AggregateStat, AggregateStat, AggregateStat>> BINOPS;
-
     static {
         final ImmutableMap.Builder<String, BiFunction<AggregateStat, AggregateStat, AggregateStat>> binopsBuilder = ImmutableMap.builder();
-        binopsBuilder.put("and", AggregateAnd::new);
-        binopsBuilder.put("+", AggregateAddition::new);
-        binopsBuilder.put("/", AggregateDivision::new);
-        binopsBuilder.put("max", AggregateMax::new);
-        binopsBuilder.put("min", AggregateMin::new);
-        binopsBuilder.put("%", AggregateModulus::new);
-        binopsBuilder.put("or", AggregateOr::new);
-        binopsBuilder.put("*", AggregateMultiply::new);
-        binopsBuilder.put("^", AggregatePower::new);
-        binopsBuilder.put("-", AggregateSubtract::new);
-        binopsBuilder.put(">", AggregateGreaterThan::new);
-        binopsBuilder.put(">=", AggregateGreaterThanOrEqual::new);
-        binopsBuilder.put("<", AggregateLessThan::new);
-        binopsBuilder.put("<=", AggregateLessThanOrEqual::new);
-        binopsBuilder.put("=", AggregateEqual::new);
-        binopsBuilder.put("!=", AggregateNotEqual::new);
+        binopsBuilder.put(AND, AggregateAnd::new);
+        binopsBuilder.put(PLUS, AggregateAddition::new);
+        binopsBuilder.put(DIVIDE, AggregateDivision::new);
+        binopsBuilder.put(MAX, AggregateMax::new);
+        binopsBuilder.put(MIN, AggregateMin::new);
+        binopsBuilder.put(MODULUS, AggregateModulus::new);
+        binopsBuilder.put(OR, AggregateOr::new);
+        binopsBuilder.put(MULTIPLY, AggregateMultiply::new);
+        binopsBuilder.put(POWER, AggregatePower::new);
+        binopsBuilder.put(MINUS, AggregateSubtract::new);
+        binopsBuilder.put(GT, AggregateGreaterThan::new);
+        binopsBuilder.put(GTE, AggregateGreaterThanOrEqual::new);
+        binopsBuilder.put(LT, AggregateLessThan::new);
+        binopsBuilder.put(LTE, AggregateLessThanOrEqual::new);
+        binopsBuilder.put(EQ, AggregateEqual::new);
+        binopsBuilder.put(NEQ, AggregateNotEqual::new);
         BINOPS = binopsBuilder.build();
     }
 
@@ -84,7 +82,7 @@ public class ParseAggregate {
                     return;
                 }
 
-                if ("if_then_else".equals(operation)) {
+                if (IF_THEN_ELSE.equals(operation)) {
                     final AggregateStat falseCase = stack.pop();
                     final AggregateStat trueCase = stack.pop();
                     final AggregateStat condition = stack.pop();
