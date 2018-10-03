@@ -306,6 +306,17 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
         }
     }
 
+    // There's a bit of trickiness going on here.
+    //
+    // We need to get the same term from all sessions to the same node.
+    // This is accomplished by using a number of splits determined by the union of the set of servers involved in each session.
+    // Every server then requests its 1/N split of the terms.
+    //
+    // Within each node, we need to get the same term from all of the inputs into the same merge thread split.
+    // We do this by using the same number of "local splits" (numLocalSplits parameter here) across all of the different
+    // sessions we're requesting from (1 call to partialMergeFTGSSplit per session).
+    //
+    // Those then get combined by the thing that handles the results of this, index-for-index zipping across all of the datasets.
     public static FTGAIterator multiFtgs(
             final List<SessionField> sessionsWithFields,
             final List<AggregateStatTree> selects,

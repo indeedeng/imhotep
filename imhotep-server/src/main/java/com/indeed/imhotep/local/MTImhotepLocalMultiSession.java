@@ -394,12 +394,19 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
     // cores is NOT guaranteed to be consistent over the runtime of a JVM.
     public FTGSIterator[] partialMergeFTGSSplit(final String remoteSessionId, final FTGSParams params, final InetSocketAddress[] nodes, final int splitIndex, final int numGlobalSplits, int numLocalSplits) {
         final FTGSIterator[] iterators = new FTGSIterator[nodes.length];
+
+        // These exist solely to make remote calls and should never be closed.
+        // Closing them would close the session, and make future operations fail.
+        // This is similar to mergeFTGSSplit.
         final ImhotepRemoteSession[] remoteSessions = getRemoteSessions(remoteSessionId, nodes);
 
         final long perSplitTermLimit = params.isTopTerms() ? 0 : params.termLimit;
 
+        Preconditions.checkState(nodes.length <= numGlobalSplits, "Number of nodes must be <= numGlobalSplits");
+
         if (numGlobalSplits == 1) {
             // In this case, we know that there is exactly one server involved -- this one! No need to request splits.
+            Preconditions.checkState(splitIndex == 0, "Split index must be zero if there's only 1 split!");
             // TODO: Probably no need to split it for merge threads either
             iterators[0] = remoteSessions[0].getFTGSIterator(params.intFields, params.stringFields, perSplitTermLimit);
         } else {
