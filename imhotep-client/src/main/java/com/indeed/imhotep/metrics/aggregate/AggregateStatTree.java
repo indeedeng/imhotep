@@ -79,7 +79,7 @@ public class AggregateStatTree {
      * 1 if the current term equals the given regex, 0 otherwise.
      */
     public static AggregateStatTree termRegex(String regex) {
-        return of(operator("term_regex " + regex));
+        return of(operator("term_regex \"" + regex + "\""));
     }
 
     public List<AggregateStat> asList() {

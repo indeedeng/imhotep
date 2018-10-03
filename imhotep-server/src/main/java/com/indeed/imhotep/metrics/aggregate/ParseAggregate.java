@@ -65,7 +65,7 @@ public class ParseAggregate {
                 if (operation.startsWith(TERM_EQUALS_)) {
                     final AggregateStat termEqualsStat;
                     if (operation.charAt(TERM_EQUALS_.length()) == '"') {
-                        Preconditions.checkArgument(operation.charAt(operation.length() - 2) == '"');
+                        Preconditions.checkArgument(operation.charAt(operation.length() - 1) == '"');
                         final String termValue = operation.substring(TERM_EQUALS_.length() + 1, operation.length() - 1);
                         termEqualsStat = new AggregateStringTermEquals(termValue);
                     } else {
@@ -78,7 +78,7 @@ public class ParseAggregate {
 
                 if (operation.startsWith(TERM_REGEX_)) {
                     Preconditions.checkArgument(operation.charAt(TERM_REGEX_.length()) == '"');
-                    Preconditions.checkArgument(operation.charAt(operation.length() - 2) == '"');
+                    Preconditions.checkArgument(operation.charAt(operation.length() - 1) == '"');
                     final String regex = operation.substring(TERM_REGEX_.length() + 1, operation.length() - 1);
                     stack.push(new AggregateStringTermRegex(regex));
                     return;

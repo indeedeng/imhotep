@@ -349,7 +349,7 @@ public abstract class AbstractImhotepServiceCore
                 sessionSplitIterators.add(sessionIterators);
             }
 
-            final FTGAIterator[] streams = doWithSession(sessionInfoList.get(0).getSessionId(), (Function<MTImhotepLocalMultiSession, FTGAIterator[]>) session -> {
+            final FTGAIterator[] streams = doWithSession(validLocalSessionId, (Function<MTImhotepLocalMultiSession, FTGAIterator[]>) session -> {
                 return session.zipElementWise(modifiers, sessionSplitIterators, x -> new MultiSessionWrapper(x, filters.toList(), selects.toList()));
             });
             closer.register(Closeables2.forArray(log, streams));
