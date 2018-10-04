@@ -218,8 +218,17 @@ public abstract class AbstractImhotepServiceCore
     }
 
     private Void sendFTGAIterator(final FTGAIterator iterator, final OutputStream os) throws IOException {
-        sendSuccessFTGSResponse(os, iterator.getNumStats(), iterator.getNumGroups());
-        return writeFTGAIteratorToOutputStream(iterator, os);
+        final ImhotepResponse.Builder responseBuilder =
+                ImhotepResponse.newBuilder()
+                        .setNumStats(iterator.getNumStats())
+                        .setNumGroups(iterator.getNumGroups());
+        log.debug("sending FTGA response");
+        ImhotepProtobufShipping.sendProtobufNoFlush(responseBuilder.build(), os);
+        writeFTGAIteratorToOutputStream(iterator, os);
+        os.flush();
+        log.debug("FTGA response sent");
+
+        return null;
     }
 
     private Void writeFTGAIteratorToOutputStream(final FTGAIterator iterator, final OutputStream os) throws IOException {
