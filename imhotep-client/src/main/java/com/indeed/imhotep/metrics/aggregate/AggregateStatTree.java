@@ -184,28 +184,28 @@ public class AggregateStatTree {
     }
 
     /**
-     * this > other
+     * this &gt; other
      */
     public AggregateStatTree gt(AggregateStatTree other) {
         return binOp(this, GT, other);
     }
 
     /**
-     * this >= other
+     * this &gt;= other
      */
     public AggregateStatTree gte(AggregateStatTree other) {
         return binOp(this, GTE, other);
     }
 
     /**
-     * this < other
+     * this &lt; other
      */
     public AggregateStatTree lt(AggregateStatTree other) {
         return binOp(this, LT, other);
     }
 
     /**
-     * this <= other
+     * this &lt;= other
      */
     public AggregateStatTree lte(AggregateStatTree other) {
         return binOp(this, LTE, other);
