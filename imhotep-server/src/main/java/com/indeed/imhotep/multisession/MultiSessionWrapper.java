@@ -7,6 +7,10 @@ import com.indeed.imhotep.metrics.aggregate.MultiFTGSIterator;
 import java.util.List;
 
 /**
+ * Combines 1 or more FTGSIterators into an FTGAIterator,
+ * ensuring that all of the given filters pass, and computing
+ * the passed in selects.
+ *
  * TODO: Should this be vectorized to operate on many groups at once?
  *
  * @author jwolfe

@@ -94,7 +94,7 @@ public class FTGSIteratorUtil {
         final FieldStat[] stats;
         final long start = System.currentTimeMillis();
         try (final OutputStream out = new BufferedOutputStream(new FileOutputStream(tmp))) {
-            stats = writeFtgsIteratorToStream(iterator, out);
+            stats = writeFtgaIteratorToStream(iterator, out);
             if (log.isDebugEnabled()) {
                 log.debug("[" + sessionId + "] time to merge splits to file: " +
                         (System.currentTimeMillis() - start) +
@@ -559,7 +559,6 @@ public class FTGSIteratorUtil {
     }
 
     public static FieldStat[] writeFtgsIteratorToStream(final FTGSIterator iterator, final OutputStream stream) throws IOException {
-
         // try write optimized or fall to default stream writer
 
         FieldStat[] result;
@@ -576,18 +575,30 @@ public class FTGSIteratorUtil {
         return FTGSOutputStreamWriter.write(iterator, stream);
     }
 
-    public static FieldStat[] writeFtgsIteratorToStream(final FTGAIterator iterator, final OutputStream stream) throws IOException {
-        // TODO: try write optimized or fall to default stream writer
+    public static FieldStat[] writeFtgaIteratorToStream(final FTGAIterator iterator, final OutputStream stream) throws IOException {
+        // try write optimized or fall to default stream writer
+
+        FieldStat[] result;
+        result = tryWriteInputStreamIterator(iterator, stream);
+        if (result != null) {
+            return result;
+        }
+
+        result = tryWriteUnsortedInputStreamIterators(iterator, stream);
+        if (result != null) {
+            return result;
+        }
+
         return FTGSOutputStreamWriter.write(iterator, stream);
     }
 
     // check if iterator is InputStreamFTGSIterator
     // if yes, copy data without decoding-encoding part
-    private static FieldStat[] tryWriteInputStreamIterator(final FTGSIterator iterator, final OutputStream out) throws IOException {
-        if (!(iterator instanceof InputStreamFTGSIterator)) {
+    private static FieldStat[] tryWriteInputStreamIterator(final FTGIterator iterator, final OutputStream out) throws IOException {
+        if (!(iterator instanceof AbstractInputStreamFTGSIterator)) {
             return null;
         }
-        final InputStreamFTGSIterator inputIterator = (InputStreamFTGSIterator) iterator;
+        final AbstractInputStreamFTGSIterator inputIterator = (AbstractInputStreamFTGSIterator) iterator;
         final Pair<InputStream, Optional<FieldStat[]>> streamAndStats = inputIterator.getStreamAndStats();
         if (!streamAndStats.getSecond().isPresent()) {
             return null;
@@ -612,13 +623,13 @@ public class FTGSIteratorUtil {
 
     // check if iterator is unsorted disjoint merger of InputStreamFTGSIterator
     // if yes, copy data with some hack on first/last term in sub-iterators
-    private static FieldStat[] tryWriteUnsortedInputStreamIterators(final FTGSIterator iterator, final OutputStream originalOut) throws IOException {
-        if (!(iterator instanceof UnsortedFTGSIterator)) {
+    private static FieldStat[] tryWriteUnsortedInputStreamIterators(final FTGIterator iterator, final OutputStream originalOut) throws IOException {
+        if (!(iterator instanceof UnsortedFTGIterator)) {
             return null;
         }
 
         // check that all sub-iterators have field stats
-        final FTGSIterator[] subIterators = ((UnsortedFTGSIterator) iterator).getIterators();
+        final FTGIterator[] subIterators = ((UnsortedFTGIterator<?>) iterator).getIterators();
 
         final Pair<InputStreamWithPosition, FieldStat[]>[] streamsAndStats = new Pair[subIterators.length];
         for (int i = 0; i < subIterators.length; i++) {

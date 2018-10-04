@@ -41,9 +41,11 @@ import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
@@ -294,7 +296,9 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
         private final String field;
 
         /**
-         * TODO: This exception seems a little funky?
+         * This constructor has sharp edges.
+         * It takes an ImhotepSession for ease of use because ImhotepClient doesn't return a concrete type
+         *
          * @throws IllegalArgumentException if session is not a RemoteImhotepMultiSession
          */
         public SessionField(final ImhotepSession session, final String field) {
@@ -371,15 +375,36 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
 
         final Closer closer = Closer.create();
         closer.register(Closeables2.forArray(log, subIterators));
-        // TODO: use a different executor maybe?
         try {
+            // This gives a conservative choice for when we have multiple sessions
+            // with separate tempFileSizeBytesLeft, and also will behave correctly
+            // once we fix it so that multiple sessions from the same IQL2 query
+            // share a single AtomicLong.
+            final AtomicLong tempFileSizeBytesLeft = sessionsWithFields
+                    .stream()
+                    .map(x -> x.session.tempFileSizeBytesLeft)
+                    .filter(Objects::nonNull)
+                    .min(Comparator.comparingLong(AtomicLong::get))
+                    .orElse(null);
+
+            // This will not affect semantics on the other side but allows
+            // properly tracing and logging things in useful ways.
+            final String concatenatedSessionIds = sessionsWithFields
+                    .stream()
+                    .map(x -> x.session.getSessionId())
+                    .distinct()
+                    .sorted()
+                    .collect(Collectors.joining(","));
+
+            // Arbitrarily use the executor for the first session.
+            // Still allows a human to understand and avoids making global state executors
+            // or passing in an executor.
             remoteSessions.get(0).execute(subIterators, indexedServers, false, pair -> {
                 final int index = pair.getFirst();
                 final HostAndPort hostAndPort = pair.getSecond();
-                // TODO: is setting up new ImhotepRemoteSessions the right thing to do?
-                // TODO: needs to track FTGS bytes
                 // Definitely don't close this session
-                final ImhotepRemoteSession remoteSession = new ImhotepRemoteSession(hostAndPort.getHost(), hostAndPort.getPort(), "multi-session-id", null, ImhotepRemoteSession.DEFAULT_SOCKET_TIMEOUT);
+                //noinspection resource
+                final ImhotepRemoteSession remoteSession = new ImhotepRemoteSession(hostAndPort.getHost(), hostAndPort.getPort(), concatenatedSessionIds, tempFileSizeBytesLeft, ImhotepRemoteSession.DEFAULT_SOCKET_TIMEOUT);
                 final MultiFTGSRequest proto = MultiFTGSRequest.newBuilder(baseRequest).setSplitIndex(index).build();
                 return remoteSession.multiFTGS(proto);
             });
@@ -392,8 +417,10 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
 
         final FTGAIterator interleaver;
         if (sorted) {
+            //noinspection resource
             interleaver = new SortedFTGAInterleaver(subIterators);
         } else {
+            //noinspection resource
             interleaver = new UnsortedFTGAIterator(subIterators);
         }
 

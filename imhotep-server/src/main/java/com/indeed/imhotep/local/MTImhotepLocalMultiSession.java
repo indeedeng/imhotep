@@ -348,9 +348,7 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
     }
 
     private ImhotepRemoteSession createImhotepRemoteSession(final String sessionId, final InetSocketAddress address) {
-        // TODO: Sharing tempFileSizeBytesLeft across sessions is not right ...
-        return new ImhotepRemoteSession(address.getHostName(), address.getPort(),
-                                        sessionId, tempFileSizeBytesLeft);
+        return new ImhotepRemoteSession(address.getHostName(), address.getPort(), sessionId, tempFileSizeBytesLeft);
     }
 
     private ImhotepRemoteSession[] getRemoteSessions(final InetSocketAddress[] nodes) {
@@ -407,7 +405,6 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
         if (numGlobalSplits == 1) {
             // In this case, we know that there is exactly one server involved -- this one! No need to request splits.
             Preconditions.checkState(splitIndex == 0, "Split index must be zero if there's only 1 split!");
-            // TODO: Probably no need to split it for merge threads either
             iterators[0] = remoteSessions[0].getFTGSIterator(params.intFields, params.stringFields, perSplitTermLimit);
         } else {
             checkSplitParams(splitIndex, numGlobalSplits);

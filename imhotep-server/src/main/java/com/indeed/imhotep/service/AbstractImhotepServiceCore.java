@@ -81,6 +81,7 @@ public abstract class AbstractImhotepServiceCore
     private static final Logger log = Logger.getLogger(AbstractImhotepServiceCore.class);
 
     private final ExecutorService ftgsExecutor;
+    private final ExecutorService multiFtgsExecutor;
 
     protected abstract SessionManager getSessionManager();
 
@@ -118,6 +119,7 @@ public abstract class AbstractImhotepServiceCore
 
     protected AbstractImhotepServiceCore() {
         ftgsExecutor = Executors.newCachedThreadPool(new ThreadFactoryBuilder().setDaemon(true).setNameFormat("LocalImhotepServiceCore-FTGSWorker-%d").build());
+        multiFtgsExecutor = Executors.newCachedThreadPool(new ThreadFactoryBuilder().setDaemon(true).setNameFormat("LocalImhotepServiceCore-MultiFTGSWorker-%d").build());
     }
 
     public void addObserver(final Instrumentation.Observer observer) {
@@ -234,7 +236,7 @@ public abstract class AbstractImhotepServiceCore
             try {
                 // TODO: lock cpu, release on socket write by wrapping the socketstream and using a circular buffer,
                 // or use nonblocking IO (NIO2) and only release when blocks
-                FTGSIteratorUtil.writeFtgsIteratorToStream(iterator, os);
+                FTGSIteratorUtil.writeFtgaIteratorToStream(iterator, os);
             } finally {
                 Closeables2.closeQuietly(iterator, log);
             }
@@ -331,22 +333,38 @@ public abstract class AbstractImhotepServiceCore
         final FTGSModifiers modifiers = new FTGSModifiers(request.getTermLimit(), request.getSortStat(), request.getSortedFTGS());
 
         try {
-            // TODO: These should probably happen in parallel
+            final List<Future<FTGSIterator[]>> splitRemoteIteratorFutures = new ArrayList<>();
+
             for (final MultiFTGSRequest.MultiFTGSSession sessionInfo : sessionInfoList) {
-                final InetSocketAddress[] sessionNodes = sessionInfo.getNodesList().stream().map(input -> new InetSocketAddress(input.getHost(),
-                        input.getPort())).collect(Collectors.toList()).toArray(new InetSocketAddress[sessionInfo.getNodesCount()]);
-                final String localSessionChoice = sessionIsValid(sessionInfo.getSessionId()) ? sessionInfo.getSessionId() : validLocalSessionId;
-                final FTGSIterator[] sessionIterators = doWithSession(localSessionChoice, (ThrowingFunction<MTImhotepLocalMultiSession, FTGSIterator[], IOException>) session -> {
-                    final String[] intFields = isIntField ? new String[]{sessionInfo.getField()} : new String[0];
-                    final String[] stringFields = isIntField ? new String[0] : new String[]{sessionInfo.getField()};
-                    final FTGSParams ftgsParams = new FTGSParams(intFields, stringFields, 0, -1, sorted);
-                    return session.partialMergeFTGSSplit(sessionInfo.getSessionId(), ftgsParams, sessionNodes, splitIndex, nodes.length, numLocalSplits);
+                // This executor is fine because no real intensive work happens in these threads.
+                final Future<FTGSIterator[]> future = multiFtgsExecutor.submit(new Callable<FTGSIterator[]>() {
+                    @Override
+                    public FTGSIterator[] call() throws Exception {
+                        final InetSocketAddress[] sessionNodes = sessionInfo.getNodesList().stream().map(input -> new InetSocketAddress(input.getHost(),
+                                input.getPort())).collect(Collectors.toList()).toArray(new InetSocketAddress[sessionInfo.getNodesCount()]);
+                        final String localSessionChoice = sessionIsValid(sessionInfo.getSessionId()) ? sessionInfo.getSessionId() : validLocalSessionId;
+                        final FTGSIterator[] sessionIterators = doWithSession(localSessionChoice, (ThrowingFunction<MTImhotepLocalMultiSession, FTGSIterator[], IOException>) session -> {
+                            final String[] intFields = isIntField ? new String[]{sessionInfo.getField()} : new String[0];
+                            final String[] stringFields = isIntField ? new String[0] : new String[]{sessionInfo.getField()};
+                            final FTGSParams ftgsParams = new FTGSParams(intFields, stringFields, 0, -1, sorted);
+                            return session.partialMergeFTGSSplit(sessionInfo.getSessionId(), ftgsParams, sessionNodes, splitIndex, nodes.length, numLocalSplits);
+                        });
+                        closer.register(Closeables2.forArray(log, sessionIterators));
+                        if (numLocalSplits != sessionIterators.length) {
+                            throw new IllegalStateException("Did not create the expected number of splits!");
+                        }
+                        return sessionIterators;
+                    }
                 });
-                closer.register(Closeables2.forArray(log, sessionIterators));
-                if (numLocalSplits != sessionIterators.length) {
-                    throw new IllegalStateException("Did not create the expected number of splits!");
+                splitRemoteIteratorFutures.add(future);
+            }
+
+            for (final Future<FTGSIterator[]> future : splitRemoteIteratorFutures) {
+                try {
+                    sessionSplitIterators.add(future.get());
+                } catch (InterruptedException | ExecutionException e) {
+                    throw new RuntimeException("Error in retrieving and splitting remote FTGSes", e);
                 }
-                sessionSplitIterators.add(sessionIterators);
             }
 
             final FTGAIterator[] streams = doWithSession(validLocalSessionId, (Function<MTImhotepLocalMultiSession, FTGAIterator[]>) session -> {
@@ -641,5 +659,6 @@ public abstract class AbstractImhotepServiceCore
     @Override
     public void close() {
         ftgsExecutor.shutdownNow();
+        multiFtgsExecutor.shutdownNow();
     }
 }
