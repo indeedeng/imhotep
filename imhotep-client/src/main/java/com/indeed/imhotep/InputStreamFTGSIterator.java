@@ -22,7 +22,7 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.io.InputStream;
 
-public class InputStreamFTGSIterator extends AbstractInputStreamFTGSIterator implements FTGSIterator {
+public class InputStreamFTGSIterator extends AbstractInputStreamFTGXIterator implements FTGSIterator {
 
     private static final Logger log = Logger.getLogger(InputStreamFTGSIterator.class);
 

@@ -28,9 +28,13 @@ import java.nio.charset.CharacterCodingException;
 import java.nio.charset.CharsetDecoder;
 import java.util.Optional;
 
-public abstract class AbstractInputStreamFTGSIterator implements FTGIterator {
+/**
+ * Named FTGXIterator because it bakes in the concept of stats,
+ * but it is generic over what the specific kinds of stats are.
+ */
+public abstract class AbstractInputStreamFTGXIterator implements FTGIterator {
 
-    private static final Logger log = Logger.getLogger(AbstractInputStreamFTGSIterator.class);
+    private static final Logger log = Logger.getLogger(AbstractInputStreamFTGXIterator.class);
 
     private final byte[] buffer = new byte[8192];
     private int bufferPtr = 0;
@@ -107,7 +111,7 @@ public abstract class AbstractInputStreamFTGSIterator implements FTGIterator {
     private final int numGroups;
     private final Optional<FieldStat[]> fieldsStats;
 
-    public AbstractInputStreamFTGSIterator(final InputStream in,
+    public AbstractInputStreamFTGXIterator(final InputStream in,
                                            @Nullable final FieldStat[] fieldsStats,
                                            final int numGroups) {
         this.in = in;

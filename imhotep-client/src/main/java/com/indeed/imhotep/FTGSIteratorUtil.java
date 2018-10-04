@@ -595,10 +595,10 @@ public class FTGSIteratorUtil {
     // check if iterator is InputStreamFTGSIterator
     // if yes, copy data without decoding-encoding part
     private static FieldStat[] tryWriteInputStreamIterator(final FTGIterator iterator, final OutputStream out) throws IOException {
-        if (!(iterator instanceof AbstractInputStreamFTGSIterator)) {
+        if (!(iterator instanceof AbstractInputStreamFTGXIterator)) {
             return null;
         }
-        final AbstractInputStreamFTGSIterator inputIterator = (AbstractInputStreamFTGSIterator) iterator;
+        final AbstractInputStreamFTGXIterator inputIterator = (AbstractInputStreamFTGXIterator) iterator;
         final Pair<InputStream, Optional<FieldStat[]>> streamAndStats = inputIterator.getStreamAndStats();
         if (!streamAndStats.getSecond().isPresent()) {
             return null;

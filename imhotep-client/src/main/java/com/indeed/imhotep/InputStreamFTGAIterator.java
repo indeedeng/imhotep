@@ -12,7 +12,7 @@ import java.nio.ByteBuffer;
 /**
  * @author jwolfe
  */
-public class InputStreamFTGAIterator extends AbstractInputStreamFTGSIterator implements FTGAIterator {
+public class InputStreamFTGAIterator extends AbstractInputStreamFTGXIterator implements FTGAIterator {
     private final int numStats;
     private final byte[] bytesBuf;
     private final ByteBuffer byteBuffer;
