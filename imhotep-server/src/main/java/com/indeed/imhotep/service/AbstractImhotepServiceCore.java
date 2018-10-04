@@ -37,6 +37,7 @@ import com.indeed.imhotep.api.GroupStatsIterator;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepServiceCore;
 import com.indeed.imhotep.api.PerformanceStats;
+import com.indeed.imhotep.io.ImhotepProtobufShipping;
 import com.indeed.imhotep.local.MTImhotepLocalMultiSession;
 import com.indeed.imhotep.metrics.aggregate.AggregateStatStack;
 import com.indeed.imhotep.metrics.aggregate.ParseAggregate;
@@ -163,24 +164,6 @@ public abstract class AbstractImhotepServiceCore
         });
     }
 
-    /**
-     * Writes a success FTGS imhotep response protobuf to the provided stream.
-     * Note: We can't send this until we know that the operation like GetFTGSIterator has succeeded
-     * so it has to be sent here and not from ImhotepDaemon.
-     * @param os output stream to write the successful response protobuf to.
-     * @param numStats stats count in FTGS iterator
-     * @param numGroups group count or greater value
-     */
-    private void sendSuccessFTGSResponse(final OutputStream os,
-                                         final int numStats,
-                                         final int numGroups) throws IOException {
-        final ImhotepResponse.Builder responseBuilder =
-                ImhotepResponse.newBuilder()
-                        .setNumStats(numStats)
-                        .setNumGroups(numGroups);
-        ImhotepDaemon.sendResponse(responseBuilder.build(), os);
-    }
-
     @Override
     public void handleGetSubsetFTGSIterator(final String sessionId, final Map<String, long[]> intFields, final Map<String, String[]> stringFields, final OutputStream os) throws IOException {
         doWithSession(sessionId, (ThrowingFunction<MTImhotepLocalMultiSession, Void, IOException>) session -> {
@@ -190,11 +173,20 @@ public abstract class AbstractImhotepServiceCore
     }
 
     private Void sendFTGSIterator(final FTGSIterator merger, final OutputStream os) throws IOException {
-        sendSuccessFTGSResponse(os, merger.getNumStats(), merger.getNumGroups());
-        return writeFTGSIteratorToOutputStream(merger, os);
+        final ImhotepResponse.Builder responseBuilder =
+                ImhotepResponse.newBuilder()
+                        .setNumStats(merger.getNumStats())
+                        .setNumGroups(merger.getNumGroups());
+        log.debug("sending FTGS response");
+        ImhotepProtobufShipping.sendProtobufNoFlush(responseBuilder.build(), os);
+        writeFTGSIteratorToOutputStream(merger, os);
+        os.flush();
+        log.debug("FTGS response sent");
+
+        return null;
     }
 
-    private Void writeFTGSIteratorToOutputStream(final FTGSIterator merger, final OutputStream os) throws IOException {
+    private void writeFTGSIteratorToOutputStream(final FTGSIterator merger, final OutputStream os) throws IOException {
         final Future<?> future = ftgsExecutor.submit((Callable<Void>) () -> {
             try {
                 // TODO: lock cpu, release on socket write by wrapping the socketstream and using a circular buffer,
@@ -223,7 +215,6 @@ public abstract class AbstractImhotepServiceCore
         } catch (final InterruptedException e) {
             throw new RuntimeException(e);
         }
-        return null;
     }
 
     private Void sendFTGAIterator(final FTGAIterator iterator, final OutputStream os) throws IOException {

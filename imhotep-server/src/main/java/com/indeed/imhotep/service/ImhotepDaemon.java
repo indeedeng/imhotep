@@ -198,16 +198,25 @@ public class ImhotepDaemon implements Instrumentation.Provider {
         }
     }
 
-    static void sendResponse(final ImhotepResponse response, final OutputStream os) throws IOException {
+    private static void sendResponse(final ImhotepResponse response, final OutputStream os) throws IOException {
         log.debug("sending response");
         ImhotepProtobufShipping.sendProtobuf(response, os);
         log.debug("response sent");
     }
 
-    private static void sendGroupStat(final GroupStatsIterator groupStats, final OutputStream os) throws IOException {
-        log.debug("sending group stats");
-        ImhotepProtobufShipping.writeGroupStats(groupStats, os);
-        log.debug("group stats sent");
+    private static void sendResponseAndGroupStats(
+            final ImhotepResponse response,
+            @Nullable final GroupStatsIterator groupStats,
+            final OutputStream os) throws IOException {
+        log.debug("sending response");
+        ImhotepProtobufShipping.sendProtobufNoFlush(response, os);
+        if (groupStats != null) {
+            log.debug("sending group stats");
+            ImhotepProtobufShipping.writeGroupStatsNoFlush(groupStats, os);
+            log.debug("group stats sent");
+        }
+        os.flush();
+        log.debug("response sent");
     }
 
     private class DaemonWorker implements Runnable {
@@ -1082,10 +1091,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                                                                request.getRequestType());
                     }
                     if (response != null) {
-                        sendResponse(response, os);
-                        if( groupStats != null ) {
-                            sendGroupStat(groupStats, os);
-                        }
+                        sendResponseAndGroupStats(response, groupStats, os);
                     }
                 } catch (final ImhotepOutOfMemoryException e) {
                     expireSession(request, e);
@@ -1372,7 +1378,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 memoryCapacityInMB * 1024 * 1024,
                 null,
                 localImhotepServiceConfig,
-                Paths.get(RemoteCachingFileSystemProvider.URI));
+                shardsDir);
         final ImhotepDaemon result =
                 new ImhotepDaemon(ss, localService, zkNodes, zkPath, myHostname, port, sessionForwardingPort);
         localService.addObserver(result.getServiceCoreObserver());

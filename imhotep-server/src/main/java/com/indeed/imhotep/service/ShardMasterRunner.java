@@ -14,6 +14,7 @@
 package com.indeed.imhotep.service;
 
 import com.google.common.base.Throwables;
+import com.google.common.collect.Lists;
 import com.indeed.imhotep.client.Host;
 import com.indeed.imhotep.shardmaster.ShardMasterDaemon;
 import com.indeed.imhotep.shardmasterrpc.RequestResponseClient;
@@ -86,6 +87,6 @@ public class ShardMasterRunner {
     public static ShardMaster getFunctioningShardMaster(final Path rootShardsDir, final List<Host> staticHostsList) throws IOException, TimeoutException, InterruptedException {
         ShardMasterRunner runner = new ShardMasterRunner(rootShardsDir, 0, staticHostsList);
         runner.start();
-        return new RequestResponseClient(new Host("localhost", runner.getActualPort()));
+        return new RequestResponseClient(Lists.newArrayList(new Host("localhost", runner.getActualPort())));
     }
 }

@@ -524,7 +524,7 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
                     tempFileSizeBytesLeft
             ));
         } catch (final ExecutionException e) {
-            throw new RuntimeException(e);
+            throw newRuntimeException(e);
         } finally {
             for (final FTGSIterator[] splits : iteratorSplits) {
                 if (splits != null) {

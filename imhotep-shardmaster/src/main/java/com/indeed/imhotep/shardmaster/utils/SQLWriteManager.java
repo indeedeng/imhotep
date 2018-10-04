@@ -21,7 +21,7 @@ public class SQLWriteManager implements Runnable{
         sqlStatementQueue = new ConcurrentLinkedQueue<>();
     }
 
-    public void addStatementToQueue(@Nonnull Runnable runnable) {
+    public void addStatementToQueue(@Nonnull final Runnable runnable) {
         sqlStatementQueue.add(runnable);
     }
 
@@ -32,10 +32,10 @@ public class SQLWriteManager implements Runnable{
                 sqlStatementQueue.remove();
                 failedAttempts = 0;
             }
-        } catch (DuplicateKeyException e) {
+        } catch (final DuplicateKeyException e) {
             // We can ignore requests that produce Duplicate entry exceptions
             sqlStatementQueue.remove();
-        } catch (DataAccessException e) {
+        } catch (final DataAccessException e) {
             LOGGER.error("Could not execute SQL statement. This is try number: " + ++failedAttempts, e);
         }
     }

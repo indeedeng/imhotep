@@ -18,7 +18,6 @@ import com.google.common.base.Charsets;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
 import com.indeed.imhotep.Shard;
-import com.indeed.imhotep.ShardDir;
 import com.indeed.imhotep.ShardInfo;
 import com.indeed.imhotep.client.Host;
 import com.indeed.imhotep.client.ShardTimeUtils;
@@ -63,7 +62,7 @@ class TimeBasedShardAssigner implements ShardAssigner {
     @Override
     public Iterable<Shard> assign(final List<Host> hosts, final String dataset, final Iterable<ShardInfo> shards) {
         final List<Host> upHosts = hosts.stream().filter(Objects::nonNull).collect(Collectors.toList());
-        int initialServerNumberForDataset = (int)(Math.abs((long)HASH_FUNCTION.get().hashString(dataset, Charsets.UTF_8).asInt()) % hosts.size());
+        final int initialServerNumberForDataset = (int)(Math.abs((long)HASH_FUNCTION.get().hashString(dataset, Charsets.UTF_8).asInt()) % hosts.size());
 
         return StreamSupport.stream(shards.spliterator(), false).map(shard -> {
             final String shardId = shard.shardId;
@@ -84,7 +83,7 @@ class TimeBasedShardAssigner implements ShardAssigner {
         }).collect(Collectors.toList());
     }
 
-    private long getShardIndexForShardSize(String shardId) {
+    private long getShardIndexForShardSize(final String shardId) {
         final Interval shardTimeRange = ShardTimeUtils.parseInterval(shardId);
         return getShardIndexForShardSize(shardTimeRange);
     }
@@ -93,7 +92,7 @@ class TimeBasedShardAssigner implements ShardAssigner {
      * We assign each shard an index while leaving space for missing shards with the same duration.
      * Shards aligned to months and years are special-cased because their duration in milliseconds is not consistent.
      */
-    private long getShardIndexForShardSize(Interval shardTimeRange) {
+    private long getShardIndexForShardSize(final Interval shardTimeRange) {
         final DateTime start = shardTimeRange.getStart();
         final DateTime end = shardTimeRange.getEnd();
         if(start.equals(end)) {
@@ -102,16 +101,16 @@ class TimeBasedShardAssigner implements ShardAssigner {
         if(dateIsMonthAligned(start) && dateIsMonthAligned(end)) {
             if(dateIsYearAligned(start) && dateIsYearAligned(end)) {
                 // shard is year aligned
-                long startYearIndex = start.getYear();
-                long endYearIndex = end.getYear();
-                long shardDuration = Math.max(endYearIndex - startYearIndex, 1);
+                final long startYearIndex = start.getYear();
+                final long endYearIndex = end.getYear();
+                final long shardDuration = Math.max(endYearIndex - startYearIndex, 1);
                 return startYearIndex / shardDuration;
             }
 
             // shard is month aligned
-            long startMonthIndex = start.getYear() * 12 + start.getMonthOfYear();
-            long endMonthIndex = end.getYear() * 12 + end.getMonthOfYear();
-            long shardDuration = Math.max(endMonthIndex - startMonthIndex, 1);
+            final long startMonthIndex = (start.getYear() * 12) + start.getMonthOfYear();
+            final long endMonthIndex = (end.getYear() * 12) + end.getMonthOfYear();
+            final long shardDuration = Math.max(endMonthIndex - startMonthIndex, 1);
             return startMonthIndex / shardDuration;
         }
 
@@ -130,15 +129,15 @@ class TimeBasedShardAssigner implements ShardAssigner {
     /**
      * Returns true if dateTime is at midnight on the first of the month in UTC-6
      */
-    private boolean dateIsMonthAligned(DateTime dateTime) {
-        return dateTime.getDayOfMonth() == 1 && dateTime.getMillisOfDay() == 0;
+    private boolean dateIsMonthAligned(final DateTime dateTime) {
+        return (dateTime.getDayOfMonth() == 1) && (dateTime.getMillisOfDay() == 0);
     }
 
     /**
      * Returns true if dateTime is at new year in UTC-6.
      * dateTime must be month aligned.
      */
-    private boolean dateIsYearAligned(DateTime dateTime) {
+    private boolean dateIsYearAligned(final DateTime dateTime) {
         return dateTime.getMonthOfYear() == 1;
     }
 }

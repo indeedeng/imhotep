@@ -85,7 +85,7 @@ public abstract class AbstractImhotepSession implements ImhotepSession {
     @Override
     public int regroupWithProtos(final GroupMultiRemapMessage[] rawRuleMessages,
                           final boolean errorOnCollisions) throws ImhotepOutOfMemoryException {
-        throw new UnsupportedOperationException("Local imhotep sessions don't use protobufs, only remote sessions do");
+        throw newUnsupportedOperationException("Local imhotep sessions don't use protobufs, only remote sessions do");
     }
 
     @Override
@@ -114,5 +114,49 @@ public abstract class AbstractImhotepSession implements ImhotepSession {
         if (numSplits < 2) {
             throw new IllegalArgumentException("At least 2 splits expected");
         }
+    }
+
+    protected UnsupportedOperationException newUnsupportedOperationException(final String message) {
+        return new UnsupportedOperationException(createMessageWithSessionId(message));
+    }
+
+    protected IllegalArgumentException newIllegalArgumentException(final String message) {
+        return new IllegalArgumentException(createMessageWithSessionId(message));
+    }
+
+    protected IllegalStateException newIllegalStateException(final String s) {
+        return new IllegalStateException(createMessageWithSessionId(s));
+    }
+
+    protected IllegalArgumentException newIllegalArgumentException(final String message, final Throwable cause) {
+        return new IllegalArgumentException(createMessageWithSessionId(message), cause);
+    }
+
+    protected RuntimeException newRuntimeException(final Throwable cause) {
+        return new RuntimeException(createMessageWithSessionId(cause.toString()), cause);
+    }
+
+    protected RuntimeException newRuntimeException(final String message) {
+        return new RuntimeException(createMessageWithSessionId(message));
+    }
+
+    protected RuntimeException newRuntimeException(final String message, final Throwable cause) {
+        return new RuntimeException(createMessageWithSessionId(message), cause);
+    }
+
+    protected ImhotepOutOfMemoryException newImhotepOutOfMemoryException() {
+        return new ImhotepOutOfMemoryException(createMessageWithSessionId("Not enough memory"));
+    }
+
+    protected ImhotepOutOfMemoryException newImhotepOutOfMemoryException(final Throwable cause) {
+        return new ImhotepOutOfMemoryException(createMessageWithSessionId(cause.toString()), cause);
+    }
+
+    private String createMessageWithSessionId(final String message) {
+        return createMessageWithSessionId(message, sessionId);
+    }
+
+    protected static String createMessageWithSessionId(final String message, final String sessionId) {
+        return "[" + sessionId + "] " + message;
     }
 }
