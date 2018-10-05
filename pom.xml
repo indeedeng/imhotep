@@ -66,7 +66,7 @@
         <maven.compiler.source>1.8</maven.compiler.source>
 
         <joda-time.version>2.0</joda-time.version>
-        <h2database.version>1.4.191</h2database.version>
+        <h2database.version>1.4.197</h2database.version>
         <hikari-cp.version>2.4.6</hikari-cp.version>
         <jooq.version>3.6.4</jooq.version>
         <fastutil.version>6.2.2</fastutil.version>

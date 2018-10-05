@@ -18,6 +18,7 @@ import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
 import com.indeed.imhotep.archive.FileMetadata;
 import com.indeed.imhotep.archive.compression.SquallArchiveCompressor;
+import com.indeed.imhotep.fs.RemoteFileListing;
 import com.indeed.imhotep.fs.RemoteFileMetadata;
 import com.indeed.imhotep.fs.db.metadata.Tables;
 import com.indeed.imhotep.fs.db.metadata.tables.Tblfilemetadata;
@@ -25,10 +26,12 @@ import com.indeed.imhotep.fs.db.metadata.tables.records.TblfilemetadataRecord;
 import com.zaxxer.hikari.HikariDataSource;
 import org.apache.commons.io.FilenameUtils;
 import org.jooq.BatchBindStep;
+import org.jooq.Cursor;
 import org.jooq.DSLContext;
 import org.jooq.SelectConditionStep;
 import org.jooq.impl.DSL;
 
+import java.io.IOException;
 import java.nio.file.Path;
 
 /**
@@ -87,7 +90,7 @@ public class FileMetadataDao implements SqarMetaDataDao {
         }
     }
 
-    private static RemoteFileMetadata toRemoteFileMetadata(final TblfilemetadataRecord fetchedRecord) {
+    public static RemoteFileMetadata toRemoteFileMetadata(final TblfilemetadataRecord fetchedRecord) {
         if (fetchedRecord.getIsFile()) {
             final FileMetadata fileMetadata = new FileMetadata(
                     fetchedRecord.getFilePath(),
@@ -104,6 +107,16 @@ public class FileMetadataDao implements SqarMetaDataDao {
                     FilenameUtils.normalizeNoEndSeparator(fetchedRecord.getFilePath())
             );
         }
+    }
+
+    public Cursor<TblfilemetadataRecord> getAllRecords() {
+        final DSLContext dslContext = dslContextContainer.getDSLContext();
+        return dslContext.selectFrom(TABLE).orderBy(TABLE.SHARD_NAME).fetchLazy();
+    }
+
+    public int getNumberOfRecords() {
+        final DSLContext dslContext = dslContextContainer.getDSLContext();
+        return (Integer)dslContext.selectCount().from(TABLE).fetch().getValue(0, "count");
     }
 
     @Override
@@ -147,7 +160,7 @@ public class FileMetadataDao implements SqarMetaDataDao {
     }
 
     @Override
-    public Iterable<RemoteFileMetadata> listDirectory(final Path shardPath, final String dirname) {
+    public Iterable<RemoteFileListing> listDirectory(final Path shardPath, final String dirname) {
         final String normalizedDirNameWithSep = toNormalizedDirNameWithSep(dirname);
 
         final DSLContext dslContext = dslContextContainer.getDSLContext();
@@ -162,11 +175,17 @@ public class FileMetadataDao implements SqarMetaDataDao {
         }
 
         return FluentIterable.from(query.fetchLazy())
-                .transform(new Function<TblfilemetadataRecord, RemoteFileMetadata>() {
+                .transform(new Function<TblfilemetadataRecord, RemoteFileListing>() {
                     @Override
-                    public RemoteFileMetadata apply(final TblfilemetadataRecord fetchRecord) {
-                        return toRemoteFileMetadata(fetchRecord);
+                    public RemoteFileListing apply(final TblfilemetadataRecord fetchRecord) {
+                        RemoteFileMetadata metadata = toRemoteFileMetadata(fetchRecord);
+                        return metadata.isFile() ? new RemoteFileListing(metadata.getFileMetadata()) : new RemoteFileListing(metadata.getFilename());
                     }
                 });
+    }
+
+    @Override
+    public void close() throws IOException {
+
     }
 }

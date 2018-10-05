@@ -137,6 +137,12 @@
         </dependency>
 
         <dependency>
+            <groupId>com.indeed</groupId>
+            <artifactId>lsmtree-core</artifactId>
+            <version>${indeed-lsmtree.version}</version>
+        </dependency>
+
+        <dependency>
             <groupId>log4j</groupId>
             <artifactId>log4j</artifactId>
         </dependency>
@@ -195,6 +201,7 @@
 
     <properties>
         <aws-java-sdk.version>1.7.11</aws-java-sdk.version>
+        <indeed-lsmtree.version>1.0.7</indeed-lsmtree.version>
     </properties>
 
 </project>
