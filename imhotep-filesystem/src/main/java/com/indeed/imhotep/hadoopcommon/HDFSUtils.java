@@ -21,11 +21,15 @@ import java.util.concurrent.TimeUnit;
 public class HDFSUtils {
     private static final String HDFS_SOCKET_TIMEOUT = String.valueOf(TimeUnit.SECONDS.toMillis(10));
     private static final String HDFS_SOCKET_TIMEOUT_RETRIES = "1";
+    private static final String HDFS_HEDGED_READ_THREADS = "20";
+    private static final String HDFS_HEDGED_READ_THRESHOLD_MILLIS = String.valueOf(TimeUnit.SECONDS.toMillis(1));
 
     public static Configuration getOurHDFSConfiguration() {
         final Configuration hdfsConfiguration = new Configuration();
         hdfsConfiguration.set("dfs.client.socket-timeout", HDFS_SOCKET_TIMEOUT);
         hdfsConfiguration.set("dfs.client.failover.connection.retries.on.timeouts", HDFS_SOCKET_TIMEOUT_RETRIES);
+        hdfsConfiguration.set("dfs.client.hedged.read.threadpool.size", HDFS_HEDGED_READ_THREADS);
+        hdfsConfiguration.set("dfs.client.hedged.read.threshold.millis", HDFS_HEDGED_READ_THRESHOLD_MILLIS);
         return hdfsConfiguration;
     }
 }
