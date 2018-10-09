@@ -77,22 +77,24 @@ public class RequestResponseServer implements Closeable {
                     throw e;
                 }
 
-                final ShardMasterRequest request;
-                try {
-                    socket.setTcpNoDelay(true); // disable nagle
-                    request = ShardMasterMessageUtil.receiveRequest(socket.getInputStream());
-                } catch (final IOException e) {
-                    if(e instanceof InvalidProtocolBufferException) {
-                        LOGGER.debug("Error while reading request: " + e.getMessage());
-                    } else {
-                        LOGGER.error("Error while reading request", e);
-                    }
-                    Closeables2.closeQuietly(socket, LOGGER);
-                    continue;
-                }
+                socket.setTcpNoDelay(true); // disable nagle
+                socket.setSoTimeout(60000);
 
                 requestHandlerExecutor.submit(() -> {
+                    final ShardMasterRequest request;
                     try {
+                        try {
+                            request = ShardMasterMessageUtil.receiveRequest(socket.getInputStream());
+                        } catch (final IOException e) {
+                            if(e instanceof InvalidProtocolBufferException) {
+                                LOGGER.debug("Error while reading request: " + e.getMessage());
+                            } else {
+                                LOGGER.error("Error while reading request", e);
+                            }
+                            Closeables2.closeQuietly(socket, LOGGER);
+                            return;
+                        }
+
                         Iterable<ShardMasterResponse> responses;
                         try {
                             responses = requestHandler.handleRequest(request);
