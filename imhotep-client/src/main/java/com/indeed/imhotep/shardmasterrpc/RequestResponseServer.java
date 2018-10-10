@@ -91,7 +91,6 @@ public class RequestResponseServer implements Closeable {
                             } else {
                                 LOGGER.error("Error while reading request", e);
                             }
-                            Closeables2.closeQuietly(socket, LOGGER);
                             return;
                         }
 
