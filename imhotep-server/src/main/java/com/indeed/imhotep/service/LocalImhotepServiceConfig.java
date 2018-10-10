@@ -16,6 +16,8 @@ package com.indeed.imhotep.service;
 
 import org.joda.time.Duration;
 
+import javax.annotation.Nullable;
+
 /**
  * @author jsgroth
  *         additional config parameters for LocalImhotepServiceCore with provided defaults
@@ -29,6 +31,8 @@ public final class LocalImhotepServiceConfig {
     private int remoteFSIOSchedulerHistoryLengthSeconds = 60;
     private int maxSessionsTotal = Integer.MAX_VALUE;
     private int maxSessionsPerUser = Integer.MAX_VALUE;
+    @Nullable
+    private String advertisedHostName = null;
     private MetricStatsEmitter statsEmitter = MetricStatsEmitter.NULL_EMITTER;
 
 
@@ -109,4 +113,15 @@ public final class LocalImhotepServiceConfig {
         this.flamdexReaderCacheMaxDurationMillis = flamdexReaderCacheMaxDurationMillis;
         return this;
     }
+
+    @Nullable
+    public String getAdvertisedHostName() {
+        return advertisedHostName;
+    }
+
+    public LocalImhotepServiceConfig setAdvertisedHostName(final String advertisedHostName) {
+        this.advertisedHostName = advertisedHostName;
+        return this;
+    }
+
 }

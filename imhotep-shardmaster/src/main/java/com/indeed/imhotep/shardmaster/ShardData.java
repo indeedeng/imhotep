@@ -99,7 +99,9 @@ public class ShardData {
         if (rows.first()) {
             do {
                 final String strPath = rows.getString("path");
-                pathsThatWeMightDelete.remove(strPath);
+                if (shouldDelete) {
+                    pathsThatWeMightDelete.remove(strPath);
+                }
                 
                 if(pathsToShards.containsKey(strPath)) {
                     continue;
@@ -132,7 +134,7 @@ public class ShardData {
     }
 
     public void updateTableFieldsRowsFromSQL(final ResultSet rows, final ShardFilter filter) throws SQLException {
-        final Map<String, Map<String, Pair<FieldType, Long>>> newTblFields = new HashMap<>();
+        final Map<String, Map<String, Pair<FieldType, Long>>> newTblFields = new ConcurrentHashMap<>();
 
         if (rows.first()) {
             do {

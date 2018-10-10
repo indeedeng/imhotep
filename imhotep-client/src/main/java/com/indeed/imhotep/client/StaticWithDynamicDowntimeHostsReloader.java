@@ -21,7 +21,9 @@ import org.apache.log4j.Logger;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Uses a static list of hosts in a consistent order but nulls out those that are down
@@ -62,7 +64,7 @@ public class StaticWithDynamicDowntimeHostsReloader extends DataLoadingRunnable 
                     downHosts++;
                 }
             }
-            hosts = newHostsWithDowntime;
+            hosts = newHostsWithDowntime.stream().filter(Objects::nonNull).collect(Collectors.toList());
             if(downHosts > 0) {
                 log.warn(downHosts + " hosts are down out of " + allHosts.size() + ". " + upHosts.size() +
                         " returned by the dynamic hosts reloader");

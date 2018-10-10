@@ -32,7 +32,7 @@ public class ShardDir {
     private org.apache.hadoop.fs.Path hadoopPath;
 
     public ShardDir(final Path path) {
-        this.dataset = path.getParent().toString();
+        this.dataset = path.getParent().getFileName().toString();
         this.name = path.getFileName().toString();
         this.indexDir = path;
 

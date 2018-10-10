@@ -56,7 +56,7 @@ public class MultiplexingRequestHandler implements RequestHandler {
                             .setErrorMessage("Unhandled request type " + request.getRequestType())
                             .build());
                     statsEmitter.processed(METRIC_ERROR, request.getRequestType(), stopwatch.elapsed(TimeUnit.MILLISECONDS));
-                    LOGGER.warn("Not handling unknown request " + request.getRequestType() + " from " + request.getNode().getHost());
+                    LOGGER.warn("Not handling unknown request " + request.getRequestType() + " from " + request.getNode().getHost(), e);
                     return result;
                 }
         } catch (final Throwable e) {

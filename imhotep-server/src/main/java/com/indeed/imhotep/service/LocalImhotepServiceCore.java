@@ -109,17 +109,7 @@ public class LocalImhotepServiceCore
         if(flamdexReaderFactory != null) {
             factory = flamdexReaderFactory;
         } else {
-            factory = new FlamdexReaderSource() {
-                @Override
-                public FlamdexReader openReader(Path directory) throws IOException {
-                    return SimpleFlamdexReader.open(directory);
-                }
-
-                @Override
-                public FlamdexReader openReader(Path directory, int numDocs) throws IOException {
-                    return SimpleFlamdexReader.open(directory, numDocs);
-                }
-            };
+            factory = new GenericFlamdexReaderSource();
         }
         this.flamderReaderFactory = new ConcurrentFlamdexReaderFactory(memory, factory);
 

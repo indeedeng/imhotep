@@ -31,10 +31,10 @@ public class ImhotepDaemonRunner {
     private int actualPort;
     private final FlamdexReaderSource flamdexFactory;
 
+    private LocalImhotepServiceConfig config = new LocalImhotepServiceConfig();
     private ImhotepDaemon currentlyRunning;
 
-    public ImhotepDaemonRunner(final Path rootShardsDir, final Path tempDir, final int port) throws IOException,
-                                                                                      TimeoutException {
+    public ImhotepDaemonRunner(final Path rootShardsDir, final Path tempDir, final int port) {
         this(rootShardsDir, tempDir, port, new FlamdexReaderSource() {
             @Override
             public FlamdexReader openReader(final Path directory) throws IOException {
@@ -49,15 +49,19 @@ public class ImhotepDaemonRunner {
         });
     }
 
-    public ImhotepDaemonRunner(final Path rootShardsDir,
-                               final Path tempDir,
-                               final int port,
-                               final FlamdexReaderSource flamdexFactory) throws IOException,
-                                                                        TimeoutException {
+    public ImhotepDaemonRunner(
+            final Path rootShardsDir,
+            final Path tempDir,
+            final int port,
+            final FlamdexReaderSource flamdexFactory) {
         this.rootShardsDir = rootShardsDir;
         this.tempDir = tempDir;
         this.port = port;
         this.flamdexFactory = flamdexFactory;        
+    }
+
+    public void setConfig(final LocalImhotepServiceConfig config) {
+        this.config = config;
     }
 
     public int getPort() {
@@ -77,7 +81,7 @@ public class ImhotepDaemonRunner {
                                   new LocalImhotepServiceCore(tempDir,
                                                               1024L * 1024 * 1024 * 1024,
                                                               flamdexFactory,
-                                                              new LocalImhotepServiceConfig(),
+                                          config,
                                           rootShardsDir),
                                   null, null, "localhost", port, null);
         actualPort = currentlyRunning.getPort();
