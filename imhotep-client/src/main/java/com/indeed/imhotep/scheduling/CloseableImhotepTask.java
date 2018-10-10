@@ -14,13 +14,10 @@
 
 package com.indeed.imhotep.scheduling;
 
-import java.io.Closeable;
-import java.io.IOException;
-
 /**
  * ImhotepTask wrapper to be used with try-with-resources
  */
-class CloseableImhotepTask implements Closeable {
+class CloseableImhotepTask implements SilentCloseable {
 
     private final ImhotepTask task;
     private final TaskScheduler taskScheduler;
@@ -33,7 +30,7 @@ class CloseableImhotepTask implements Closeable {
     }
 
     @Override
-    public void close() throws IOException {
+    public void close() {
         if(locked) {
             locked = false;
             taskScheduler.stopped(task);

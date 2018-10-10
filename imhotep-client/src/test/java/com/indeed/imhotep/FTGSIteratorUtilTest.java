@@ -14,12 +14,15 @@
 
 package com.indeed.imhotep;
 
+import com.google.common.base.Objects;
+import com.google.common.collect.Lists;
 import com.indeed.imhotep.FTGSBinaryFormat.FieldStat;
 import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.service.FTGSOutputStreamWriter;
 import com.indeed.util.core.Pair;
 import org.apache.log4j.Logger;
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -28,6 +31,11 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.List;
+import java.util.function.BiPredicate;
 
 import static com.indeed.imhotep.FTGSIteratorTestUtils.expectEnd;
 import static com.indeed.imhotep.FTGSIteratorTestUtils.expectFieldEnd;
@@ -677,4 +685,54 @@ public class FTGSIteratorUtilTest {
             expectEnd(iter);
         }
    }
+
+   private static <S> boolean termStatEqual(FTGSIteratorUtil.TermStat<S> s1, FTGSIteratorUtil.TermStat<S> s2, BiPredicate<S, S> statsEqual) {
+       if (s1 == s2) return true;
+       if (s2 == null || s1.getClass() != s2.getClass()) return false;
+       return s1.fieldIsIntType == s2.fieldIsIntType &&
+               s1.intTerm == s2.intTerm &&
+               s1.termDocFreq == s2.termDocFreq &&
+               s1.group == s2.group &&
+               Objects.equal(s1.strTerm, s2.strTerm) &&
+               statsEqual.test(s1.groupStats, s2.groupStats);
+   }
+
+    @Test
+    public void testStatExtractors() {
+        final FTGSIteratorUtil.LongStatExtractor longStatExtractor = new FTGSIteratorUtil.LongStatExtractor(1, 0);
+        final Comparator<FTGSIteratorUtil.TermStat<long[]>> comparator = longStatExtractor.comparator();
+
+        final FTGSIterator iter = FTGSIteratorTestUtils.frozen("a", 1, 1234, 1, new long[]{0});
+        longStatExtractor.advance(iter);
+
+        Assert.assertTrue(termStatEqual(
+                longStatExtractor.extract(iter),
+                new FTGSIteratorUtil.TermStat<>(true, 1L, null, 1234L, 1, new long[]{0}),
+                Arrays::equals
+        ));
+
+        final List<FTGSIteratorUtil.TermStat<long[]>> termsWorseThan = Lists.newArrayList(
+                new FTGSIteratorUtil.TermStat<>(true, 2, "", -1L, 1, new long[]{0}),
+                new FTGSIteratorUtil.TermStat<>(true, 1, "", -1L, 1, new long[]{-1L}),
+                new FTGSIteratorUtil.TermStat<>(true, 1, "", -1L, 1, new long[]{Long.MIN_VALUE})
+        );
+
+        for (final FTGSIteratorUtil.TermStat<long[]> termStat : termsWorseThan) {
+            Assert.assertTrue(longStatExtractor.itIsBetterThan(iter, termStat));
+            Assert.assertTrue(comparator.compare(longStatExtractor.extract(iter), termStat) > 0);
+        }
+
+        final ArrayList<FTGSIteratorUtil.TermStat<long[]>> termsBetterThan = Lists.newArrayList(
+                new FTGSIteratorUtil.TermStat<>(true, 1, "", -1L, 1, new long[]{1}),
+                new FTGSIteratorUtil.TermStat<>(true, 1, "", -1L, 1, new long[]{100}),
+                new FTGSIteratorUtil.TermStat<>(true, -1, "", -1L, 1, new long[]{1}),
+                new FTGSIteratorUtil.TermStat<>(true, 5, "", -1L, 1, new long[]{Long.MAX_VALUE}),
+                new FTGSIteratorUtil.TermStat<>(true, 1, "", -1L, 1, new long[]{0})
+        );
+
+        for (final FTGSIteratorUtil.TermStat<long[]> termStat : termsBetterThan) {
+            Assert.assertFalse(longStatExtractor.itIsBetterThan(iter, termStat));
+            Assert.assertTrue(comparator.compare(longStatExtractor.extract(iter), termStat) <= 0);
+        }
+    }
 }

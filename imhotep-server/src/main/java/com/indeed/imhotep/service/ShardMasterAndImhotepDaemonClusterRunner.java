@@ -38,6 +38,7 @@ import java.util.stream.Collectors;
 
 public class ShardMasterAndImhotepDaemonClusterRunner {
     final List<ImhotepDaemonRunner> daemonRunners = new ArrayList<>();
+    final List<ShardMasterRunner> shardMasterRunners = new ArrayList<>();
     final File shardsDir;
     final File tempRootDir;
     final ImhotepShardCreator shardCreator;
@@ -90,12 +91,16 @@ public class ShardMasterAndImhotepDaemonClusterRunner {
 
     public ImhotepClient createClient() throws InterruptedException, TimeoutException, IOException {
         ShardMasterRunner smRunner = new ShardMasterRunner(shardsDir.toPath(), 0, getDaemonHosts());
+        shardMasterRunners.add(smRunner);
         smRunner.start();
         return new ImhotepClient(Collections.singletonList(new Host("localhost", smRunner.getActualPort())));
     }
 
     public void stop() throws IOException {
         for (final ImhotepDaemonRunner runner : daemonRunners) {
+            runner.stop();
+        }
+        for (final ShardMasterRunner runner : shardMasterRunners) {
             runner.stop();
         }
     }

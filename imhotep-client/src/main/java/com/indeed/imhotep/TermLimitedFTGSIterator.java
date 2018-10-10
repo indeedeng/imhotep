@@ -23,20 +23,13 @@ import com.indeed.imhotep.api.FTGSIterator;
  * @author vladimir
  */
 
-public class TermLimitedFTGSIterator implements FTGSIterator {
-    private final FTGSIterator wrapped;
-    private final long termLimit;
-    private long termsIterated = 0;
-    private boolean firstTermGroupConsumed = false;
-    private long termDocFreq = 0;
-
+public class TermLimitedFTGSIterator extends TermLimitedFTGIterator<FTGSIterator> implements FTGSIterator {
     /**
      * @param wrapped The iterator to use
      * @param termLimit Maximum number of terms that will be allowed to iterate through
      */
     public TermLimitedFTGSIterator(final FTGSIterator wrapped, final long termLimit) {
-        this.wrapped = wrapped;
-        this.termLimit = termLimit > 0 ? termLimit : Long.MAX_VALUE;
+        super(wrapped, termLimit);
     }
 
     @Override
@@ -45,87 +38,7 @@ public class TermLimitedFTGSIterator implements FTGSIterator {
     }
 
     @Override
-    public int getNumGroups() {
-        return wrapped.getNumGroups();
-    }
-
-    @Override
-    public boolean nextField() {
-        return wrapped.nextField();
-    }
-
-    @Override
-    public String fieldName() {
-        return wrapped.fieldName();
-    }
-
-    @Override
-    public boolean fieldIsIntType() {
-        return wrapped.fieldIsIntType();
-    }
-
-    @Override
-    public boolean nextTerm() {
-        if (termsIterated >= termLimit) {
-            return false;
-        }
-        final boolean hasNext = wrapped.nextTerm();
-        if (hasNext) {
-            termDocFreq = wrapped.termDocFreq();
-            firstTermGroupConsumed = nextGroup();
-            if(firstTermGroupConsumed) {
-                termsIterated++;
-            }
-        }
-        return hasNext;
-    }
-
-    @Override
-    public long termDocFreq() {
-        return termDocFreq;
-    }
-
-    @Override
-    public long termIntVal() {
-        return wrapped.termIntVal();
-    }
-
-    @Override
-    public String termStringVal() {
-        return wrapped.termStringVal();
-    }
-
-    @Override
-    public byte[] termStringBytes() {
-        return wrapped.termStringBytes();
-    }
-
-    @Override
-    public int termStringLength() {
-        return wrapped.termStringLength();
-    }
-
-    @Override
-    public boolean nextGroup() {
-        if(firstTermGroupConsumed) {
-            firstTermGroupConsumed = false;
-            return true;
-        }
-        return wrapped.nextGroup();
-    }
-
-    @Override
-    public int group() {
-        return wrapped.group();
-    }
-
-    @Override
     public void groupStats(final long[] stats) {
         wrapped.groupStats(stats);
-    }
-
-    @Override
-    public void close() {
-        wrapped.close();
     }
 }

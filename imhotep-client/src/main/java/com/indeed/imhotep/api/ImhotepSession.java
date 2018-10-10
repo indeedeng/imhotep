@@ -32,6 +32,8 @@ import java.util.Map;
 public interface ImhotepSession
     extends Closeable, Instrumentation.Provider {
 
+    String getSessionId();
+
     /**
      * get the sum of the docFreq of all terms in all of the given fields
      * @param intFields int fields to iterate over

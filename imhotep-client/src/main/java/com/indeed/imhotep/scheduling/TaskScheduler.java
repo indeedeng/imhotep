@@ -117,7 +117,7 @@ public class TaskScheduler {
      * Must be used inside try-with-resources.
      */
     @Nonnull
-    public Closeable lockSlot() {
+    public SilentCloseable lockSlot() {
         final ImhotepTask task = ImhotepTask.THREAD_LOCAL_TASK.get();
         if(task != null) {
             return new CloseableImhotepTask(task, this);
