@@ -53,11 +53,11 @@ import java.util.concurrent.TimeUnit;
 /**
  *  LSM tree backed cache of SQAR metadata
  *  For efficiency of both directory listing and single file detailed metadata operations
- *  we store the complete shard files listing as a separate LSM tree entry (key ending with '/')
+ *  we store the complete shard files listing as a separate LSM tree entry (key ending with '~')
  *  and complete metadata for each file in separate LSM tree entries.
  *  This way both getFileMetadata() and listDirectory() operations require only 1 LSM tree lookup.
  *
- * key: (shardPath/filePath)
+ * key: (shardPath|filePath)
  * value: (Value objects containing either a list of short file listings or a single detailed file entry)
  */
 class SqarMetaDataLSMStore implements SqarMetaDataDao, Closeable {
@@ -71,9 +71,10 @@ class SqarMetaDataLSMStore implements SqarMetaDataDao, Closeable {
     private static final StringSerializer     strSerializer     = new StringSerializer();
     private static final ValueSerializer      valueSerializer   = new ValueSerializer();
 
-    private static final String DELIMITER = "/";
+    private static final String PATH_DELIMITER = "/";
+    private static final String SHARD_PATH_AND_FILE_PATH_DELIMITER = "|";
     // used to distinguish between the listing entry and the single root directory entry
-    private static final String LISTING_KEY_SUFFIX = "/";
+    private static final String LISTING_KEY_SUFFIX = "~";
 
     private final Store<String, Value> store;
     private final Duration expirationDuration;
@@ -190,7 +191,7 @@ class SqarMetaDataLSMStore implements SqarMetaDataDao, Closeable {
                     fileMetadata.getArchiveFilename(),
                     remoteFileMetadata.getCompressedSize());
             final Value fileEntryValue = new Value(cachingTimestamp, fileEntry);
-            final String fileEntryKey = normalizedShardPath.resolve(filePath).toString();
+            final String fileEntryKey = normalizedShardPath.toString() + SHARD_PATH_AND_FILE_PATH_DELIMITER + filePath;
             try {
                 this.put(fileEntryKey, fileEntryValue);
             } catch (IOException e) {
@@ -207,17 +208,17 @@ class SqarMetaDataLSMStore implements SqarMetaDataDao, Closeable {
     }
 
     private static String toNormalizedDirName(final String dirName) {
-        if ((dirName.length() > DELIMITER.length()) && dirName.endsWith(DELIMITER)) {
-            return dirName.substring(0, dirName.length() - DELIMITER.length());
+        if ((dirName.length() > PATH_DELIMITER.length()) && dirName.endsWith(PATH_DELIMITER)) {
+            return dirName.substring(0, dirName.length() - PATH_DELIMITER.length());
         }
         return dirName;
     }
 
     private static String toNormalizedDirNameWithSep(final String dirName) {
-        if (dirName.isEmpty() || dirName.endsWith(DELIMITER)) {
+        if (dirName.isEmpty() || dirName.endsWith(PATH_DELIMITER)) {
             return dirName;
         }
-        return dirName + DELIMITER;
+        return dirName + PATH_DELIMITER;
     }
 
     @Override
@@ -233,7 +234,7 @@ class SqarMetaDataLSMStore implements SqarMetaDataDao, Closeable {
             for(final SqarFileListing sqarFileListing: value.dirListing) {
                 if(sqarFileListing.filePath.startsWith(normalizedDirNameWithSep) &&
                         !(sqarFileListing.filePath.length() > normalizedDirNameWithSep.length() &&
-                                sqarFileListing.filePath.substring(normalizedDirNameWithSep.length() + 1).contains(DELIMITER)) &&
+                                sqarFileListing.filePath.substring(normalizedDirNameWithSep.length() + 1).contains(PATH_DELIMITER)) &&
                         (!normalizedDirNameWithSep.isEmpty() || !sqarFileListing.filePath.isEmpty() )) {
                     result.add(toRemoteFileListing(sqarFileListing));
                 }
@@ -247,7 +248,7 @@ class SqarMetaDataLSMStore implements SqarMetaDataDao, Closeable {
     @Nullable
     @Override
     public RemoteFileMetadata getFileMetadata(Path shardPath, String filename) {
-        final String key = shardPath.normalize().resolve(filename).toString();
+        final String key = shardPath.normalize().toString() + SHARD_PATH_AND_FILE_PATH_DELIMITER + filename;
         try {
             final Value value = store.get(key);
             if (value == null || value.isListing) {

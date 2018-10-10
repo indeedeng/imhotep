@@ -135,16 +135,16 @@ public class FileMetadataDaoTest {
 
         Assert.assertEquals(
                 Arrays.asList(
-                        dirmeta_d,
-                        dirmeta_def
+                        dirmeta_d.toListing(),
+                        dirmeta_def.toListing()
                 ),
                 Lists.newArrayList(fileMetadataDao.listDirectory(Paths.get("a/b/c"), "")));
 
         Assert.assertEquals(
                 Arrays.asList(
-                        dirmeta_dd,
-                        filemeta_de1,
-                        filemeta_de2
+                        dirmeta_dd.toListing(),
+                        filemeta_de1.toListing(),
+                        filemeta_de2.toListing()
                 ),
                 Lists.newArrayList(fileMetadataDao.listDirectory(Paths.get("a/b/c"), "d")));
 
@@ -157,8 +157,8 @@ public class FileMetadataDaoTest {
 
         Assert.assertEquals(
                 Arrays.asList(
-                        filemeta_dde1,
-                        filemeta_dde2
+                        filemeta_dde1.toListing(),
+                        filemeta_dde2.toListing()
                 ),
                 Lists.newArrayList(fileMetadataDao.listDirectory(Paths.get("a/b/c"), "d/d")));
 
@@ -243,9 +243,9 @@ public class FileMetadataDaoTest {
 
         Assert.assertEquals(
                 Arrays.asList(
-                        dirmeta_dd,
-                        filemeta_de1,
-                        filemeta_de2
+                        dirmeta_dd.toListing(),
+                        filemeta_de1.toListing(),
+                        filemeta_de2.toListing()
                 ),
                 Lists.newArrayList(fileMetadataDao.listDirectory(Paths.get("a/b/c"), "d")));
 
@@ -284,10 +284,10 @@ public class FileMetadataDaoTest {
 
         Assert.assertEquals(
                 Arrays.asList(
-                        dirmeta_dd,
-                        filemeta_de1,
-                        filemeta_de2_2,
-                        filemeta_de3
+                        dirmeta_dd.toListing(),
+                        filemeta_de1.toListing(),
+                        filemeta_de2_2.toListing(),
+                        filemeta_de3.toListing()
                 ),
                 Lists.newArrayList(fileMetadataDao.listDirectory(Paths.get("a/b/c"), "d")));
     }
@@ -334,13 +334,13 @@ public class FileMetadataDaoTest {
 
         Assert.assertEquals(
                 Collections.singletonList(
-                        filemeta_1ab
+                        filemeta_1ab.toListing()
                 ), Lists.newArrayList(fileMetadataDao.listDirectory(Paths.get("1"), "a")));
 
         Assert.assertEquals(
                 Arrays.asList(
-                        filemeta_2ab,
-                        filemeta_2ac
+                        filemeta_2ab.toListing(),
+                        filemeta_2ac.toListing()
                 ), Lists.newArrayList(fileMetadataDao.listDirectory(Paths.get("2"), "a")));
     }
 }
