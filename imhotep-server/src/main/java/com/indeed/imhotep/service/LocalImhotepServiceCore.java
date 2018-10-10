@@ -24,7 +24,6 @@ import com.indeed.imhotep.ImhotepMemoryPool;
 import com.indeed.imhotep.ImhotepStatusDump;
 import com.indeed.imhotep.MemoryReservationContext;
 import com.indeed.imhotep.MemoryReserver;
-import com.indeed.imhotep.ShardDir;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.local.ImhotepJavaLocalSession;
 import com.indeed.imhotep.local.ImhotepLocalSession;
@@ -44,7 +43,6 @@ import java.io.IOException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -111,7 +109,7 @@ public class LocalImhotepServiceCore
         } else {
             factory = new GenericFlamdexReaderSource();
         }
-        this.flamderReaderFactory = new ConcurrentFlamdexReaderFactory(memory, factory);
+        this.flamderReaderFactory = new ConcurrentFlamdexReaderFactory(memory, factory, config.getDynamicShardLocator());
 
         if(config.getCpuSlots() > 0) {
             TaskScheduler.CPUScheduler = new TaskScheduler(config.getCpuSlots(),
@@ -307,11 +305,10 @@ public class LocalImhotepServiceCore
                                                                                                        String userName,
                                                                                                        String clientName) {
         final List<ConcurrentFlamdexReaderFactory.CreateRequest> readerRequests = Lists.newArrayList();
-        for (ShardNameNumDocsPair aShardRequestList : shardRequestList) {
-            final ShardDir shardDir = new ShardDir(Paths.get(dataset, aShardRequestList.getShardName()));
+        for (final ShardNameNumDocsPair aShardRequestList : shardRequestList) {
+            final String shardName = aShardRequestList.getShardName();
             final int numDocs = aShardRequestList.getNumDocs();
-            final Path path = rootDir.resolve(shardDir.getIndexDir().toString());
-            readerRequests.add(new ConcurrentFlamdexReaderFactory.CreateRequest(path, numDocs, userName, clientName));
+            readerRequests.add(new ConcurrentFlamdexReaderFactory.CreateRequest(rootDir, dataset, shardName, numDocs, userName, clientName));
         }
         return readerRequests;
     }

@@ -34,6 +34,7 @@ public final class LocalImhotepServiceConfig {
     @Nullable
     private String advertisedHostName = null;
     private MetricStatsEmitter statsEmitter = MetricStatsEmitter.NULL_EMITTER;
+    private DynamicShardLocator dynamicShardLocator = DynamicShardLocator.NOTHING;
 
 
     public int getHeartBeatCheckFrequencySeconds() {
@@ -124,4 +125,12 @@ public final class LocalImhotepServiceConfig {
         return this;
     }
 
+    public DynamicShardLocator getDynamicShardLocator() {
+        return dynamicShardLocator;
+    }
+
+    public LocalImhotepServiceConfig setDynamicShardLocator(final DynamicShardLocator dynamicShardLocator) {
+        this.dynamicShardLocator = dynamicShardLocator;
+        return this;
+    }
 }

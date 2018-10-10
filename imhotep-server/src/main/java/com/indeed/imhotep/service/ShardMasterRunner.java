@@ -20,6 +20,8 @@ import com.indeed.imhotep.shardmaster.ShardMasterDaemon;
 import com.indeed.imhotep.shardmasterrpc.RequestResponseClient;
 import com.indeed.imhotep.shardmasterrpc.ShardMaster;
 import org.apache.commons.lang.StringUtils;
+
+import javax.annotation.Nullable;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.nio.file.Path;
@@ -34,6 +36,9 @@ public class ShardMasterRunner {
     private final ServerSocket socket;
     private final List<Host> staticHostsList;
 
+    @Nullable
+    private ShardMaster dynamicShardMaster = null;
+    @Nullable
     private ShardMasterDaemon currentlyRunning;
 
     public ShardMasterRunner(final Path rootShardsDir,
@@ -49,6 +54,10 @@ public class ShardMasterRunner {
         return socket.getLocalPort();
     }
 
+    public void setDynamicShardMaster(final ShardMaster dynamicShardMaster) {
+        this.dynamicShardMaster = dynamicShardMaster;
+    }
+
     public void start() throws IOException, TimeoutException, InterruptedException {
         if (currentlyRunning != null) {
             currentlyRunning.shutdown();
@@ -56,16 +65,20 @@ public class ShardMasterRunner {
 
         final String hostsString = StringUtils.join(staticHostsList, ",");
 
+        final ShardMasterDaemon.Config config = new ShardMasterDaemon.Config()
+                .setShardsRootPath(rootShardsDir.toString())
+                .setServerSocket(socket)
+                .setInitialRefreshReadFilesystem(true)
+                .setReplicationFactor(1)
+                .setLocalMode(true)
+                .setReadSQL(false)
+                .setWriteSQL(false)
+                .setHostsListStatic(hostsString);
+        if (dynamicShardMaster != null) {
+            config.setDynamicShardMaster(dynamicShardMaster);
+        }
         currentlyRunning =
-                new ShardMasterDaemon(new ShardMasterDaemon.Config()
-                        .setShardsRootPath(rootShardsDir.toString())
-                        .setServerSocket(socket)
-                        .setInitialRefreshReadFilesystem(true)
-                        .setReplicationFactor(1)
-                        .setLocalMode(true)
-                        .setReadSQL(false)
-                        .setWriteSQL(false)
-                        .setHostsListStatic(hostsString));
+                new ShardMasterDaemon(config);
 
         new Thread(() -> {
             try {
