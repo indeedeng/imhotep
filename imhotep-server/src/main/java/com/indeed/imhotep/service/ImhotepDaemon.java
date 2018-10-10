@@ -45,6 +45,7 @@ import com.indeed.imhotep.protobuf.GroupRemapMessage;
 import com.indeed.imhotep.protobuf.ImhotepRequest;
 import com.indeed.imhotep.protobuf.ImhotepResponse;
 import com.indeed.imhotep.protobuf.IntFieldAndTerms;
+import com.indeed.imhotep.protobuf.MultiFTGSRequest;
 import com.indeed.imhotep.protobuf.QueryMessage;
 import com.indeed.imhotep.protobuf.QueryRemapMessage;
 import com.indeed.imhotep.protobuf.RegroupConditionMessage;
@@ -70,9 +71,11 @@ import java.net.SocketException;
 import java.net.URISyntaxException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
@@ -628,6 +631,41 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                                                        os, nodes, request.getSplitIndex());
         }
 
+        private void mergeMultiFTGSSplit(
+                final ImhotepRequest request,
+                final ImhotepResponse.Builder builder,
+                final OutputStream os
+        ) throws IOException {
+            final MultiFTGSRequest multiFtgsRequest = request.getMultiFtgsRequest();
+            final List<MultiFTGSRequest.MultiFTGSSession> sessionInfos = multiFtgsRequest.getSessionInfoList();
+            final Set<String> sessionIds = new HashSet<>();
+            String localSessionId = null;
+            for (final MultiFTGSRequest.MultiFTGSSession sessionInfo : sessionInfos) {
+                final String sessionId = sessionInfo.getSessionId();
+                sessionIds.add(sessionId);
+                if (service.sessionIsValid(sessionId)) {
+                    localSessionId = sessionId;
+                }
+            }
+
+            if (localSessionId == null) {
+                throw new IllegalArgumentException("MultiFTGS request had no valid sessions on this server. Sessions requested are: " + sessionIds);
+            }
+
+            final InetSocketAddress[] nodes =
+                    multiFtgsRequest.getNodesList()
+                            .stream()
+                            .map(input -> new InetSocketAddress(input.getHost(), input.getPort()))
+                            .toArray(InetSocketAddress[]::new);
+
+            service.handleMergeMultiFTGSSplit(
+                    multiFtgsRequest,
+                    localSessionId,
+                    os,
+                    nodes
+            );
+        }
+
         private ImhotepResponse pushStat(
                 final ImhotepRequest          request,
                 final ImhotepResponse.Builder builder)
@@ -975,6 +1013,9 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                         case MERGE_SUBSET_FTGS_SPLIT:
                             mergeSubsetFTGSSplit(request, builder, os);
                             break;
+                        case MERGE_MULTI_FTGS_SPLIT:
+                            mergeMultiFTGSSplit(request, builder, os);
+                            break;
                         case PUSH_STAT:
                             response = pushStat(request, builder);
                             break;
@@ -1104,9 +1145,13 @@ public class ImhotepDaemon implements Instrumentation.Provider {
         }
 
         private void checkSessionValidity(final ImhotepRequest protoRequest) {
-            if (!service.sessionIsValid(protoRequest.getSessionId())) {
+            checkSessionValidity(protoRequest.getSessionId());
+        }
+
+        private void checkSessionValidity(String sessionId) {
+            if (!service.sessionIsValid(sessionId)) {
                 throw new IllegalArgumentException("invalid session: " +
-                                                   protoRequest.getSessionId());
+                        sessionId);
             }
         }
 

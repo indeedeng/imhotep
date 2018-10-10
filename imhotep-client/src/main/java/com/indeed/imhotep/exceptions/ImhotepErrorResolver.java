@@ -65,6 +65,10 @@ public class ImhotepErrorResolver {
             return new QueryCancelledException("The query was cancelled during execution", e);
         }
 
+        if (error.contains("Error encountered writing to text/event-stream output")) {
+            return new QueryCancelledException("The query was cancelled during execution", e);
+        }
+
         if (error.contains(NonNumericFieldException.class.getSimpleName())) {
             return new NonNumericFieldException("Query failed trying to iterate over integers in a string field which " +
                     "contained non-numeric string terms. Likely cause is inconsistent type (string/int) for the same " +

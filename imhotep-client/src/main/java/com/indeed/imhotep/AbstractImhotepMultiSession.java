@@ -20,6 +20,7 @@ import com.indeed.flamdex.query.Term;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.api.PerformanceStats;
+import com.indeed.imhotep.exceptions.QueryCancelledException;
 import com.indeed.imhotep.scheduling.ImhotepTask;
 import com.indeed.imhotep.scheduling.SchedulerType;
 import com.indeed.imhotep.scheduling.TaskScheduler;
@@ -36,6 +37,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.io.Closeable;
 import java.io.IOException;
+import java.nio.channels.ClosedByInterruptException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -45,6 +47,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -722,7 +725,9 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
             executeSessions(ret, true, function);
         } catch (final ExecutionException e) {
             final Throwable cause = e.getCause();
-            if (cause instanceof ImhotepOutOfMemoryException) {
+            if (closed && cause instanceof ClosedByInterruptException) {
+                throw newQueryCancelledException(cause);
+            } else if (cause instanceof ImhotepOutOfMemoryException) {
                 throw newImhotepOutOfMemoryException(cause);
             } else {
                 throw newRuntimeException(cause);
@@ -734,26 +739,30 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
                                         final T[] ret, final E[] things, final boolean lockCPU,
                                         final ThrowingFunction<? super E, ? extends T> function)
         throws ExecutionException {
+        Throwable t = null;
+
         final List<Future<T>> futures = new ArrayList<>(things.length);
-        for (final E thing : things) {
-            futures.add(es.submit(() -> {
-                ImhotepTask.setup(AbstractImhotepMultiSession.this);
-                try {
-                    if(lockCPU) {
-                        try (final Closeable ignored = TaskScheduler.CPUScheduler.lockSlot()) {
+        try {
+            for (final E thing : things) {
+                futures.add(es.submit(() -> {
+                    ImhotepTask.setup(AbstractImhotepMultiSession.this);
+                    try {
+                        if (lockCPU) {
+                            try (final Closeable ignored = TaskScheduler.CPUScheduler.lockSlot()) {
+                                return function.apply(thing);
+                            }
+                        } else {
                             return function.apply(thing);
                         }
-                    }else {
-                        return function.apply(thing);
+                    } finally {
+                        ImhotepTask.clear();
                     }
-                } finally {
-                    ImhotepTask.clear();
-                }
 
-            }));
+                }));
+            }
+        } catch (final RejectedExecutionException e) {
+            t = new QueryCancelledException("The query was cancelled during execution", e);
         }
-
-        Throwable t = null;
 
         for (int i = 0; i < futures.size(); ++i) {
             try {

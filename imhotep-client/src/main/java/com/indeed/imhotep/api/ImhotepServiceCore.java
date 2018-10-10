@@ -19,6 +19,7 @@ import com.indeed.imhotep.ImhotepStatusDump;
 import com.indeed.imhotep.QueryRemapRule;
 import com.indeed.imhotep.RegroupCondition;
 import com.indeed.imhotep.TermCount;
+import com.indeed.imhotep.protobuf.MultiFTGSRequest;
 import com.indeed.imhotep.protobuf.ShardNameNumDocsPair;
 
 import java.io.IOException;
@@ -59,6 +60,7 @@ public interface ImhotepServiceCore {
     void handleGetSubsetFTGSIteratorSplit(String sessionId, Map<String, long[]> intFields, Map<String, String[]> stringFields, OutputStream os, int splitIndex, int numSplits) throws IOException;
     void handleMergeFTGSIteratorSplit(String sessionId, FTGSParams params, OutputStream os, InetSocketAddress[] nodes, int splitIndex) throws IOException;
     void handleMergeSubsetFTGSIteratorSplit(String sessionId, Map<String, long[]> intFields, Map<String, String[]> stringFields, OutputStream os, InetSocketAddress[] nodes, int splitIndex) throws IOException;
+    void handleMergeMultiFTGSSplit(MultiFTGSRequest request, String localSessionId, OutputStream os, InetSocketAddress[] nodes) throws IOException;
     long handleGetTotalDocFreq(String sessionId, String[] intFields, String[] stringFields);
     GroupStatsIterator handleGetGroupStats(String sessionId, int stat);
     GroupStatsIterator handleGetDistinct(String sessionId, String field, boolean isIntField);

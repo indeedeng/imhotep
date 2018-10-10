@@ -61,6 +61,7 @@ public class ShardMasterRunner {
                         .setShardsRootPath(rootShardsDir.toString())
                         .setServerSocket(socket)
                         .setInitialRefreshReadFilesystem(true)
+                        .setReplicationFactor(1)
                         .setLocalMode(true)
                         .setReadSQL(false)
                         .setWriteSQL(false)

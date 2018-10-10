@@ -14,16 +14,23 @@
  package com.indeed.imhotep;
 
 import com.google.common.base.Throwables;
+import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
+import com.indeed.imhotep.api.FTGAIterator;
 import com.indeed.imhotep.api.FTGSIterator;
+import com.indeed.imhotep.api.FTGSModifiers;
 import com.indeed.imhotep.api.FTGSParams;
 import com.indeed.imhotep.api.GroupStatsIterator;
 import com.indeed.imhotep.api.HasSessionId;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
+import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.api.PerformanceStats;
 import com.indeed.imhotep.marshal.ImhotepClientMarshaller;
+import com.indeed.imhotep.metrics.aggregate.AggregateStatTree;
 import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
+import com.indeed.imhotep.protobuf.HostAndPort;
 import com.indeed.imhotep.protobuf.ImhotepRequest;
+import com.indeed.imhotep.protobuf.MultiFTGSRequest;
 import com.indeed.util.core.Pair;
 import com.indeed.util.core.io.Closeables2;
 import it.unimi.dsi.fastutil.longs.LongIterators;
@@ -31,10 +38,17 @@ import org.apache.log4j.Logger;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
 
 /**
  * @author jsgroth
@@ -275,5 +289,141 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
         executeMemoryException(integerBuf, session -> session.sendRegroupRequest(request));
 
         return Collections.max(Arrays.asList(integerBuf));
+    }
+
+    public static class SessionField {
+        private final RemoteImhotepMultiSession session;
+        private final String field;
+
+        /**
+         * This constructor has sharp edges.
+         * It takes an ImhotepSession for ease of use because ImhotepClient doesn't return a concrete type
+         *
+         * @throws IllegalArgumentException if session is not a RemoteImhotepMultiSession
+         */
+        public SessionField(final ImhotepSession session, final String field) {
+            if (!(session instanceof RemoteImhotepMultiSession)) {
+                throw new IllegalArgumentException("Can only use RemoteImhotepMultiSession::multiFtgs on RemoteImhotepMultiSession instances.");
+            }
+            this.session = (RemoteImhotepMultiSession) session;
+            this.field = field;
+        }
+    }
+
+    // There's a bit of trickiness going on here.
+    //
+    // We need to get the same term from all sessions to the same node.
+    // This is accomplished by using a number of splits determined by the union of the set of servers involved in each session.
+    // Every server then requests its 1/N split of the terms.
+    //
+    // Within each node, we need to get the same term from all of the inputs into the same merge thread split.
+    // We do this by using the same number of "local splits" (numLocalSplits parameter here) across all of the different
+    // sessions we're requesting from (1 call to partialMergeFTGSSplit per session).
+    //
+    // Those then get combined by the thing that handles the results of this, index-for-index zipping across all of the datasets.
+    public static FTGAIterator multiFtgs(
+            final List<SessionField> sessionsWithFields,
+            final List<AggregateStatTree> selects,
+            final List<AggregateStatTree> filters,
+            final boolean isIntField,
+            final long termLimit,
+            final int sortStat,
+            final boolean sorted
+    ) {
+        final MultiFTGSRequest.Builder builder = MultiFTGSRequest.newBuilder();
+
+        final List<RemoteImhotepMultiSession> remoteSessions = new ArrayList<>();
+        final Set<HostAndPort> allNodes = new HashSet<>();
+
+        for (final SessionField sessionField : sessionsWithFields) {
+            final RemoteImhotepMultiSession session = sessionField.session;
+            remoteSessions.add(session);
+            final String fieldName = sessionField.field;
+            final List<HostAndPort> nodes = Arrays.stream(session.nodes).map(input ->
+                    HostAndPort.newBuilder()
+                            .setHost(input.getHostName())
+                            .setPort(input.getPort())
+                            .build()
+            ).collect(Collectors.toList());
+            allNodes.addAll(nodes);
+            builder.addSessionInfoBuilder()
+                    .setSessionId(session.getSessionId())
+                    .addAllNodes(nodes)
+                    .setField(fieldName);
+        }
+
+        final List<HostAndPort> allNodesList = Lists.newArrayList(allNodes);
+
+        builder
+                .addAllSelect(AggregateStatTree.allAsList(selects))
+                .addAllFilter(AggregateStatTree.allAsList(filters))
+                .setIsIntField(isIntField)
+                .setTermLimit(termLimit)
+                .setSortStat(sortStat)
+                .setSortedFTGS(sorted)
+                .addAllNodes(allNodesList);
+
+        final Pair<Integer, HostAndPort>[] indexedServers = new Pair[allNodesList.size()];
+        for (int i = 0; i < allNodesList.size(); i++) {
+            HostAndPort hostAndPort = allNodesList.get(i);
+            indexedServers[i] = new Pair<>(i, hostAndPort);
+        }
+
+        final MultiFTGSRequest baseRequest = builder.build();
+
+        final FTGAIterator[] subIterators = new FTGAIterator[indexedServers.length];
+
+        final Closer closer = Closer.create();
+        closer.register(Closeables2.forArray(log, subIterators));
+        try {
+            // This gives a conservative choice for when we have multiple sessions
+            // with separate tempFileSizeBytesLeft, and also will behave correctly
+            // once we fix it so that multiple sessions from the same IQL2 query
+            // share a single AtomicLong.
+            final AtomicLong tempFileSizeBytesLeft = sessionsWithFields
+                    .stream()
+                    .map(x -> x.session.tempFileSizeBytesLeft)
+                    .filter(Objects::nonNull)
+                    .min(Comparator.comparingLong(AtomicLong::get))
+                    .orElse(null);
+
+            // This will not affect semantics on the other side but allows
+            // properly tracing and logging things in useful ways.
+            final String concatenatedSessionIds = sessionsWithFields
+                    .stream()
+                    .map(x -> x.session.getSessionId())
+                    .distinct()
+                    .sorted()
+                    .collect(Collectors.joining(","));
+
+            // Arbitrarily use the executor for the first session.
+            // Still allows a human to understand and avoids making global state executors
+            // or passing in an executor.
+            remoteSessions.get(0).execute(subIterators, indexedServers, false, pair -> {
+                final int index = pair.getFirst();
+                final HostAndPort hostAndPort = pair.getSecond();
+                // Definitely don't close this session
+                //noinspection resource
+                final ImhotepRemoteSession remoteSession = new ImhotepRemoteSession(hostAndPort.getHost(), hostAndPort.getPort(), concatenatedSessionIds, tempFileSizeBytesLeft, ImhotepRemoteSession.DEFAULT_SOCKET_TIMEOUT);
+                final MultiFTGSRequest proto = MultiFTGSRequest.newBuilder(baseRequest).setSplitIndex(index).build();
+                return remoteSession.multiFTGS(proto);
+            });
+        } catch (Throwable t) {
+            Closeables2.closeQuietly(closer, log);
+            throw Throwables.propagate(t);
+        }
+
+        final FTGSModifiers modifiers = new FTGSModifiers(termLimit, sortStat, sorted);
+
+        final FTGAIterator interleaver;
+        if (sorted) {
+            //noinspection resource
+            interleaver = new SortedFTGAInterleaver(subIterators);
+        } else {
+            //noinspection resource
+            interleaver = new UnsortedFTGAIterator(subIterators);
+        }
+
+        return modifiers.wrap(interleaver);
     }
 }

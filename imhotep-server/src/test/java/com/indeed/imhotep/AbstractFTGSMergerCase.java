@@ -135,6 +135,7 @@ public abstract class AbstractFTGSMergerCase {
             assertTrue(input.fieldIsIntType());
             assertTrue(input.nextTerm());
             assertEquals(0, input.termIntVal());
+            assertEquals(n, input.termDocFreq());
             assertTrue(input.nextGroup());
             assertEquals(0, input.group());
             input.groupStats(stats);
@@ -154,6 +155,7 @@ public abstract class AbstractFTGSMergerCase {
             assertFalse(input.nextGroup());
             assertTrue(input.nextTerm());
             assertEquals(1, input.termIntVal());
+            assertEquals(2 * n, input.termDocFreq());
             assertTrue(input.nextGroup());
             assertEquals(3, input.group());
             input.groupStats(stats);
@@ -162,6 +164,7 @@ public abstract class AbstractFTGSMergerCase {
             assertFalse(input.nextGroup());
             assertTrue(input.nextTerm());
             assertEquals(3, input.termIntVal());
+            assertEquals(3 * n, input.termDocFreq());
             assertTrue(input.nextGroup());
             assertEquals(5, input.group());
             input.groupStats(stats);
@@ -174,6 +177,7 @@ public abstract class AbstractFTGSMergerCase {
             assertFalse(input.fieldIsIntType());
             assertTrue(input.nextTerm());
             assertEquals("foobar", input.termStringVal());
+            assertEquals(5 * n, input.termDocFreq());
             assertTrue(input.nextGroup());
             assertEquals(0, input.group());
             input.groupStats(stats);
@@ -187,6 +191,7 @@ public abstract class AbstractFTGSMergerCase {
             assertFalse(input.nextGroup());
             assertTrue(input.nextTerm());
             assertEquals("foobar2", input.termStringVal());
+            assertEquals(6 * n, input.termDocFreq());
             assertTrue(input.nextGroup());
             assertEquals(100, input.group());
             input.groupStats(stats);
@@ -200,6 +205,7 @@ public abstract class AbstractFTGSMergerCase {
             assertFalse(input.nextGroup());
             assertTrue(input.nextTerm());
             assertEquals("foobaz", input.termStringVal());
+            assertEquals(7 * n, input.termDocFreq());
             assertTrue(input.nextGroup());
             assertEquals(100, input.group());
             input.groupStats(stats);
@@ -257,7 +263,7 @@ public abstract class AbstractFTGSMergerCase {
     private static void writeStream(final ByteArrayOutputStream out) throws IOException {
         try (final FTGSOutputStreamWriter writer = new FTGSOutputStreamWriter(out)) {
             writer.switchField("abc", true);
-            writer.switchIntTerm(0, 0);
+            writer.switchIntTerm(0, 1);
             writer.switchGroup(0);
             writer.addStat(12345);
             writer.addStat(0);
@@ -267,31 +273,31 @@ public abstract class AbstractFTGSMergerCase {
             writer.switchGroup(4);
             writer.addStat(4);
             writer.addStat(5);
-            writer.switchIntTerm(1, 0);
+            writer.switchIntTerm(1, 2);
             writer.switchGroup(3);
             writer.addStat(6);
             writer.addStat(123456789012345L);
-            writer.switchIntTerm(3, 0);
+            writer.switchIntTerm(3, 3);
             writer.switchGroup(5);
             writer.addStat(3);
             writer.addStat(4);
-            writer.switchIntTerm(100, 0); // this term shouldn't really get written
+            writer.switchIntTerm(100, 4); // this term shouldn't really get written
             writer.switchField("xyz", false);
-            writer.switchBytesTerm("foobar".getBytes(), "foobar".getBytes().length, 0);
+            writer.switchBytesTerm("foobar".getBytes(), "foobar".getBytes().length, 5);
             writer.switchGroup(0);
             writer.addStat(999);
             writer.addStat(1000);
             writer.switchGroup(3);
             writer.addStat(1001);
             writer.addStat(1002);
-            writer.switchBytesTerm("foobar2".getBytes(), "foobar2".getBytes().length, 0);
+            writer.switchBytesTerm("foobar2".getBytes(), "foobar2".getBytes().length, 6);
             writer.switchGroup(100);
             writer.addStat(999);
             writer.addStat(997);
             writer.switchGroup(300);
             writer.addStat(995);
             writer.addStat(993);
-            writer.switchBytesTerm("foobaz".getBytes(), "foobaz".getBytes().length, 0);
+            writer.switchBytesTerm("foobaz".getBytes(), "foobaz".getBytes().length, 7);
             writer.switchGroup(100);
             writer.addStat(999);
             writer.addStat(997);

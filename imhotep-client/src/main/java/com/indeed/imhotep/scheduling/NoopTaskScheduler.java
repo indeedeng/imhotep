@@ -15,7 +15,7 @@ class NoopTaskScheduler extends TaskScheduler {
 
     @Nullable
     @Override
-    public synchronized Closeable lockSlot() {
+    public synchronized SilentCloseable lockSlot() {
         return null;
     }
 

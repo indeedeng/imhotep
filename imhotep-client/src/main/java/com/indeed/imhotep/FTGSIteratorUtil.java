@@ -14,12 +14,16 @@
 
 package com.indeed.imhotep;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.io.ByteStreams;
+import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
 import com.indeed.imhotep.FTGSBinaryFormat.FieldStat;
 import com.indeed.imhotep.StreamUtil.InputStreamWithPosition;
 import com.indeed.imhotep.StreamUtil.OutputStreamWithPosition;
+import com.indeed.imhotep.api.FTGAIterator;
+import com.indeed.imhotep.api.FTGIterator;
 import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.api.GroupStatsIterator;
 import com.indeed.imhotep.api.ImhotepSession;
@@ -33,8 +37,10 @@ import gnu.trove.procedure.TObjectProcedure;
 import org.apache.commons.lang.mutable.MutableInt;
 import org.apache.log4j.Logger;
 
+import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -79,6 +85,31 @@ public class FTGSIteratorUtil {
         return Pair.of(tmp, stats);
     }
 
+    // TODO: A bit too much code duplication here.
+    public static Pair<File, FieldStat[]> persistAsFile(
+            final Logger log,
+            final String sessionId,
+            final FTGAIterator iterator) throws IOException {
+        final File tmp = File.createTempFile("ftgs", ".tmp");
+        final FieldStat[] stats;
+        final long start = System.currentTimeMillis();
+        try (final OutputStream out = new BufferedOutputStream(new FileOutputStream(tmp))) {
+            stats = writeFtgaIteratorToStream(iterator, out);
+            if (log.isDebugEnabled()) {
+                log.debug("[" + sessionId + "] time to merge splits to file: " +
+                        (System.currentTimeMillis() - start) +
+                        " ms, file length: " + tmp.length());
+            }
+        } catch (final Throwable t) {
+            tmp.delete();
+            throw Throwables2.propagate(t, IOException.class);
+        } finally {
+            Closeables2.closeQuietly(iterator, log);
+        }
+
+        return Pair.of(tmp, stats);
+    }
+
     public static FTGSIterator persist(final Logger log, final FTGSIterator iterator) throws IOException {
         return persist(log, "noSessionId", iterator);
     }
@@ -96,8 +127,32 @@ public class FTGSIteratorUtil {
         }
     }
 
+    public static FTGAIterator persist(final Logger log,
+                                       final String sessionId,
+                                       final FTGAIterator iterator) throws IOException {
+        final int numStats = iterator.getNumStats();
+        final int numGroups = iterator.getNumGroups();
+        final Pair<File, FieldStat[]> tmp = persistAsFile(log, sessionId, iterator);
+        final File file = tmp.getFirst();
+        try {
+            return new InputStreamFTGAIterator(new BufferedInputStream(new FileInputStream(file)), tmp.getSecond(), numStats, numGroups);
+        } finally {
+            file.delete();
+        }
+    }
+
     public static TopTermsFTGSIterator getTopTermsFTGSIterator(
             final FTGSIterator originalIterator,
+            final long termLimit,
+            final int sortStat) {
+        if ((termLimit <= 0) || (sortStat < 0) || (sortStat >= originalIterator.getNumStats())) {
+            throw new IllegalArgumentException("TopTerms expect positive termLimit and valid sortStat index");
+        }
+        return getTopTermsFTGSIteratorInternal(originalIterator, termLimit, sortStat);
+    }
+
+    public static TopTermsFTGAIterator getTopTermsFTGSIterator(
+            final FTGAIterator originalIterator,
             final long termLimit,
             final int sortStat) {
         if ((termLimit <= 0) || (sortStat < 0) || (sortStat >= originalIterator.getNumStats())) {
@@ -109,7 +164,16 @@ public class FTGSIteratorUtil {
     // Consume iterator, sort by terms and return sorted.
     // For testing purposes only!
     // Use this only in tests with small iterators
+    @VisibleForTesting
     public static FTGSIterator sortFTGSIterator(final FTGSIterator originalIterator) {
+        return getTopTermsFTGSIteratorInternal(originalIterator, Long.MAX_VALUE, -1);
+    }
+
+    // Consume iterator, sort by terms and return sorted.
+    // For testing purposes only!
+    // Use this only in tests with small iterators
+    @VisibleForTesting
+    public static FTGAIterator sortFTGSIterator(final FTGAIterator originalIterator) {
         return getTopTermsFTGSIteratorInternal(originalIterator, Long.MAX_VALUE, -1);
     }
 
@@ -119,95 +183,251 @@ public class FTGSIteratorUtil {
             final FTGSIterator originalIterator,
             final long termLimit,
             final int sortStat) {
+        final int numStats = originalIterator.getNumStats();
+        final int numGroups = originalIterator.getNumGroups();
         // We don't care about sorted stuff since we will sort by term afterward
         try (final FTGSIterator iterator = makeUnsortedIfPossible(originalIterator)) {
-            final int numStats = iterator.getNumStats();
-            final int numGroups = iterator.getNumGroups();
-            final long[] statBuf = new long[numStats];
-            final TopTermsStatsByField topTermsFTGS = new TopTermsStatsByField();
-
-            while (iterator.nextField()) {
-                final String fieldName = iterator.fieldName();
-                final boolean fieldIsIntType = iterator.fieldIsIntType();
-
-                final TIntObjectHashMap<PriorityQueue<TermStat>> topTermsByGroup = new TIntObjectHashMap<>();
-
-                while (iterator.nextTerm()) {
-                    final long termIntVal = fieldIsIntType ? iterator.termIntVal() : 0;
-                    final String termStringVal = fieldIsIntType ? null : iterator.termStringVal();
-                    final long termDocFreq = iterator.termDocFreq();
-
-                    while (iterator.nextGroup()) {
-                        PriorityQueue<TermStat> topTerms = topTermsByGroup.get(iterator.group());
-                        if (topTerms == null) {
-                            topTerms = new PriorityQueue<>(10, TermStat.TOP_STAT_COMPARATOR);
-                            topTermsByGroup.put(iterator.group(), topTerms);
-                        }
-
-                        iterator.groupStats(statBuf);
-
-                        if (topTerms.size() >= termLimit) {
-                            final long stat = statBuf[sortStat];
-                            final TermStat termStat = new TermStat(fieldIsIntType, termIntVal, termStringVal, termDocFreq, iterator.group(), stat, statBuf.clone());
-                            if (TermStat.TOP_STAT_COMPARATOR.compare(termStat, topTerms.peek()) > 0) {
-                                topTerms.poll();
-                                topTerms.offer(termStat);
-                            }
-                        } else {
-                            final long stat = (sortStat >= 0) ? statBuf[sortStat] : 0;
-                            final TermStat termStat = new TermStat(fieldIsIntType, termIntVal, termStringVal, termDocFreq, iterator.group(), stat, statBuf.clone());
-                            topTerms.offer(termStat);
-                        }
-                    }
-                }
-
-                final MutableInt termsAndGroups = new MutableInt(0);
-                topTermsByGroup.forEachValue(new TObjectProcedure<PriorityQueue<TermStat>>() {
-                    @Override
-                    public boolean execute(final PriorityQueue<TermStat> topTerms) {
-                        termsAndGroups.add(topTerms.size());
-                        return true;
-                    }
-                });
-
-                final TermStat[] topTermsArray = new TermStat[termsAndGroups.intValue()];
-
-                topTermsByGroup.forEachEntry(new TIntObjectProcedure<PriorityQueue<TermStat>>() {
-                    private int i = 0;
-
-                    @Override
-                    public boolean execute(final int group, final PriorityQueue<TermStat> topTerms) {
-                        for (final TermStat term : topTerms) {
-                            topTermsArray[i++] = term;
-                        }
-                        return true;
-                    }
-                });
-
-                Arrays.sort(topTermsArray, new TermStat.TermGroupComparator());
-                topTermsFTGS.addField(fieldName, fieldIsIntType, topTermsArray);
-            }
-
-            return new TopTermsFTGSIterator(topTermsFTGS, numStats, numGroups);
+            TopTermsStatsByField<long[]> topTerms = extractTopTermsGeneric(termLimit, iterator, new LongStatExtractor(iterator.getNumStats(), sortStat));
+            return new TopTermsFTGSIterator(topTerms, numStats, numGroups);
         }
     }
 
-    static class TermStat {
+    // Returns top terms iterator.
+    // It's possible to pass termLimit = Long.MAX_VALUE and get sorted iterator as a result
+    private static TopTermsFTGAIterator getTopTermsFTGSIteratorInternal(
+            final FTGAIterator iterator,
+            final long termLimit,
+            final int sortStat
+    ) {
+        final int numStats = iterator.getNumStats();
+        final int numGroups = iterator.getNumGroups();
+        final TopTermsStatsByField<double[]> topTerms = FTGSIteratorUtil.extractTopTermsGeneric(termLimit, iterator, new DoubleStatExtractor(iterator.getNumStats(), sortStat));
+        return new TopTermsFTGAIterator(topTerms, numStats, numGroups);
+    }
+
+    /**
+     * Used for extracting the top-K sort stat from an iterator in a generic way
+     *
+     * advance will be called with the iterator prior to a call to itIsBetterThan or extract,
+     *   but the iterator is still provided with those methods for convenience and avoiding
+     *   redundant work when the term is not going to be kept anyway
+     *
+     * It is expected that itIsBetterThan(it, termStat) <=> (extract(it).compareTo(termStat) > 0)
+     *
+     * @param <S> The type of generic stats contained in the TermStat for purposes other than top-K
+     * @param <IT> The iterator type being extracted from
+     */
+    @VisibleForTesting
+    interface StatExtractor<S, IT> {
+        void advance(IT it);
+        boolean itIsBetterThan(IT it, TermStat<S> termStat);
+        TermStat<S> extract(IT it);
+        // Must be consistent with itIsBetterThan as described in docs above
+        Comparator<TermStat<S>> comparator();
+    }
+
+    @VisibleForTesting
+    static class LongStatExtractor implements StatExtractor<long[], FTGSIterator> {
+        private final int sortStat;
+        private final long[] statsBuf;
+
+        @VisibleForTesting
+        LongStatExtractor(int numStats, int sortStat) {
+            this.statsBuf = new long[numStats];
+            this.sortStat = sortStat;
+        }
+
+        @Override
+        public void advance(FTGSIterator iterator) {
+            iterator.groupStats(statsBuf);
+        }
+
+        @Override
+        public boolean itIsBetterThan(FTGSIterator iterator, TermStat<long[]> termStat) {
+            final int statCmp = Long.compare(statsBuf[sortStat], termStat.groupStats[sortStat]);
+            if (statCmp != 0) {
+                return statCmp > 0;
+            }
+
+            if (iterator.fieldIsIntType()) {
+                return iterator.termIntVal() < termStat.intTerm;
+            } else {
+                return iterator.termStringVal().compareTo(termStat.strTerm) < 0;
+            }
+        }
+
+        @Override
+        public TermStat<long[]> extract(FTGSIterator iterator) {
+            final boolean fieldIsIntType = iterator.fieldIsIntType();
+            final long termIntVal = fieldIsIntType ? iterator.termIntVal() : 0;
+            final String termStringVal = fieldIsIntType ? null : iterator.termStringVal();
+            final long termDocFreq = iterator.termDocFreq();
+            return new TermStat<>(fieldIsIntType, termIntVal, termStringVal, termDocFreq, iterator.group(), statsBuf.clone());
+        }
+
+        @Override
+        public Comparator<TermStat<long[]>> comparator() {
+            return new Comparator<TermStat<long[]>>() {
+                @Override
+                public int compare(final TermStat<long[]> x, final TermStat<long[]> y) {
+                    // Support for `sortStat < 0` is solely for unit test usage.
+                    // It will only be invoked when max # terms == Long.MAX_VALUE, so does
+                    // not need to be supported in itIsBetterThan.
+                    // Feel free to remove it and fix broken unit tests if it measurably better.
+                    final int ret = sortStat < 0 ? 0 : Longs.compare(x.groupStats[sortStat], y.groupStats[sortStat]);
+                    if (ret == 0) {
+                        if (x.fieldIsIntType) {
+                            return Longs.compare(y.intTerm, x.intTerm);
+                        } else {
+                            return y.strTerm.compareTo(x.strTerm);
+                        }
+                    }
+                    return ret;
+                }
+            };
+        }
+    }
+
+    @VisibleForTesting
+    static class DoubleStatExtractor implements StatExtractor<double[], FTGAIterator> {
+        private final int sortStat;
+        private final double[] statsBuf;
+
+        @VisibleForTesting
+        DoubleStatExtractor(int numStats, int sortStat) {
+            this.statsBuf = new double[numStats];
+            this.sortStat = sortStat;
+        }
+
+        @Override
+        public void advance(FTGAIterator iterator) {
+            iterator.groupStats(statsBuf);
+        }
+
+        @Override
+        public boolean itIsBetterThan(FTGAIterator iterator, TermStat<double[]> termStat) {
+            final int statCmp = Double.compare(statsBuf[sortStat], termStat.groupStats[sortStat]);
+            if (statCmp != 0) {
+                return statCmp > 0;
+            }
+
+            if (iterator.fieldIsIntType()) {
+                return iterator.termIntVal() < termStat.intTerm;
+            } else {
+                return iterator.termStringVal().compareTo(termStat.strTerm) < 0;
+            }
+        }
+
+        @Override
+        public TermStat<double[]> extract(FTGAIterator iterator) {
+            final boolean fieldIsIntType = iterator.fieldIsIntType();
+            final long termIntVal = fieldIsIntType ? iterator.termIntVal() : 0;
+            final String termStringVal = fieldIsIntType ? null : iterator.termStringVal();
+            final long termDocFreq = iterator.termDocFreq();
+            return new TermStat<>(fieldIsIntType, termIntVal, termStringVal, termDocFreq, iterator.group(), statsBuf.clone());
+        }
+
+        @Override
+        public Comparator<TermStat<double[]>> comparator() {
+            return new Comparator<TermStat<double[]>>() {
+                @Override
+                public int compare(final TermStat<double[]> x, final TermStat<double[]> y) {
+                    // Support for `sortStat < 0` is solely for unit test usage.
+                    // It will only be invoked when max # terms == Long.MAX_VALUE, so does
+                    // not need to be supported in itIsBetterThan.
+                    // Feel free to remove it and fix broken unit tests if it measurably better.
+                    final int ret = sortStat < 0 ? 0 : Doubles.compare(x.groupStats[sortStat], y.groupStats[sortStat]);
+                    if (ret == 0) {
+                        if (x.fieldIsIntType) {
+                            return Longs.compare(y.intTerm, x.intTerm);
+                        } else {
+                            return y.strTerm.compareTo(x.strTerm);
+                        }
+                    }
+                    return ret;
+                }
+            };
+        }
+    }
+
+    private static <IT extends FTGIterator, S> TopTermsStatsByField<S> extractTopTermsGeneric(
+            final long termLimit,
+            final IT iterator,
+            final StatExtractor<S, IT> extractor
+    ) {
+        final TopTermsStatsByField<S> topTermsFTGS = new TopTermsStatsByField<>();
+        final Comparator<TermStat<S>> comparator = extractor.comparator();
+
+        while (iterator.nextField()) {
+            final String fieldName = iterator.fieldName();
+            final boolean fieldIsIntType = iterator.fieldIsIntType();
+
+            final TIntObjectHashMap<PriorityQueue<TermStat<S>>> topTermsByGroup = new TIntObjectHashMap<>();
+
+            while (iterator.nextTerm()) {
+                while (iterator.nextGroup()) {
+                    PriorityQueue<TermStat<S>> topTerms = topTermsByGroup.get(iterator.group());
+                    if (topTerms == null) {
+                        topTerms = new PriorityQueue<>(10, comparator);
+                        topTermsByGroup.put(iterator.group(), topTerms);
+                    }
+
+                    extractor.advance(iterator);
+
+                    if (topTerms.size() >= termLimit) {
+                        if (extractor.itIsBetterThan(iterator, topTerms.peek())) {
+                            topTerms.poll();
+                            topTerms.offer(extractor.extract(iterator));
+                        }
+                    } else {
+                        topTerms.offer(extractor.extract(iterator));
+                    }
+                }
+            }
+
+            final MutableInt termsAndGroups = new MutableInt(0);
+            topTermsByGroup.forEachValue(new TObjectProcedure<PriorityQueue<TermStat<S>>>() {
+                @Override
+                public boolean execute(final PriorityQueue<TermStat<S>> topTerms) {
+                    termsAndGroups.add(topTerms.size());
+                    return true;
+                }
+            });
+
+            final TermStat<S>[] topTermsArray = new TermStat[termsAndGroups.intValue()];
+
+            topTermsByGroup.forEachEntry(new TIntObjectProcedure<PriorityQueue<TermStat<S>>>() {
+                private int i = 0;
+
+                @Override
+                public boolean execute(final int group, final PriorityQueue<TermStat<S>> topTerms) {
+                    for (final TermStat<S> term : topTerms) {
+                        topTermsArray[i++] = term;
+                    }
+                    return true;
+                }
+            });
+            Arrays.sort(topTermsArray, new TermStat.TermGroupComparator());
+            topTermsFTGS.addField(fieldName, fieldIsIntType, topTermsArray);
+        }
+
+        return topTermsFTGS;
+    }
+
+    static class TermStat<S> {
         final boolean fieldIsIntType;
         final long intTerm;
         final String strTerm;
         final long termDocFreq;
         final int group;
-        final long stat;
-        final long[] groupStats;
+        final S groupStats;
 
-        TermStat(final boolean fieldIsIntType, final long intTerm, final String strTerm, final long termDocFreq, final int group, final long stat, final long[] groupStats) {
+        TermStat(final boolean fieldIsIntType, final long intTerm, final String strTerm, final long termDocFreq, final int group, final S groupStats) {
             this.fieldIsIntType = fieldIsIntType;
             this.intTerm = intTerm;
             this.strTerm = strTerm;
             this.termDocFreq = termDocFreq;
             this.group = group;
-            this.stat = stat;
             this.groupStats = groupStats;
         }
 
@@ -232,50 +452,35 @@ public class FTGSIteratorUtil {
                 return Ints.compare(x.group, y.group);
             }
         }
-
-        private static final Comparator<TermStat> TOP_STAT_COMPARATOR = new Comparator<TermStat>() {
-            @Override
-            public int compare(final TermStat x, final TermStat y) {
-                final int ret = Longs.compare(x.stat, y.stat);
-                if (ret == 0) {
-                    if (x.fieldIsIntType) {
-                        return Longs.compare(y.intTerm, x.intTerm);
-                    } else {
-                        return y.strTerm.compareTo(x.strTerm);
-                    }
-                }
-                return ret;
-            }
-        };
     }
 
-    static class TopTermsStatsByField {
-        static class FieldAndTermStats {
+    static class TopTermsStatsByField<S> {
+        static class FieldAndTermStats<S> {
             final String field;
             final boolean isIntType;
-            final TermStat[] termStats;
+            final TermStat<S>[] termStats;
 
-            FieldAndTermStats(final String field, final boolean isIntType, final TermStat[] termStats) {
+            FieldAndTermStats(final String field, final boolean isIntType, final TermStat<S>[] termStats) {
                 this.field = field;
                 this.isIntType = isIntType;
                 this.termStats = termStats;
             }
         }
 
-        private final List<FieldAndTermStats> fieldTermStatsList = new ArrayList<>();
+        private final List<FieldAndTermStats<S>> fieldTermStatsList = new ArrayList<>();
 
-        void addField(final String field, final boolean isIntType, final TermStat[] terms) {
-            fieldTermStatsList.add(new FieldAndTermStats(field, isIntType, terms));
+        void addField(final String field, final boolean isIntType, final TermStat<S>[] terms) {
+            fieldTermStatsList.add(new FieldAndTermStats<>(field, isIntType, terms));
         }
 
-        List<FieldAndTermStats> getEntries() {
+        List<FieldAndTermStats<S>> getEntries() {
             return fieldTermStatsList;
         }
     }
 
     public static FTGSIterator makeUnsortedIfPossible(final FTGSIterator iterator) {
         if (iterator instanceof SortedFTGSInterleaver) {
-            final FTGSIterator[] iterators = ((AbstractDisjointFTGSMerger) iterator).getIterators();
+            final FTGSIterator[] iterators = ((SortedFTGSInterleaver) iterator).getIterators();
             return new UnsortedFTGSIterator(iterators);
         }
         return iterator;
@@ -332,16 +537,45 @@ public class FTGSIteratorUtil {
         return numStats;
     }
 
-    public static int getNumGroups(final FTGSIterator[] iterators) {
+    public static int getNumStats(final FTGAIterator[] iterators) {
+        if (iterators.length == 0) {
+            throw new IllegalArgumentException("Nonempty array of iterators expected.");
+        }
+        final int numStats = iterators[0].getNumStats();
+        for (final FTGAIterator iterator : iterators) {
+            if (iterator.getNumStats() != numStats) {
+                throw new IllegalArgumentException();
+            }
+        }
+        return numStats;
+    }
+
+    public static int getNumGroups(final FTGIterator[] iterators) {
         int numGroups = 0;
-        for (final FTGSIterator iterator : iterators) {
+        for (final FTGIterator iterator : iterators) {
             numGroups = Math.max(numGroups, iterator.getNumGroups());
         }
         return numGroups;
     }
 
     public static FieldStat[] writeFtgsIteratorToStream(final FTGSIterator iterator, final OutputStream stream) throws IOException {
+        // try write optimized or fall to default stream writer
 
+        FieldStat[] result;
+        result = tryWriteInputStreamIterator(iterator, stream);
+        if (result != null) {
+            return result;
+        }
+
+        result = tryWriteUnsortedInputStreamIterators(iterator, stream);
+        if (result != null) {
+            return result;
+        }
+
+        return FTGSOutputStreamWriter.write(iterator, stream);
+    }
+
+    public static FieldStat[] writeFtgaIteratorToStream(final FTGAIterator iterator, final OutputStream stream) throws IOException {
         // try write optimized or fall to default stream writer
 
         FieldStat[] result;
@@ -360,11 +594,11 @@ public class FTGSIteratorUtil {
 
     // check if iterator is InputStreamFTGSIterator
     // if yes, copy data without decoding-encoding part
-    private static FieldStat[] tryWriteInputStreamIterator(final FTGSIterator iterator, final OutputStream out) throws IOException {
-        if (!(iterator instanceof InputStreamFTGSIterator)) {
+    private static FieldStat[] tryWriteInputStreamIterator(final FTGIterator iterator, final OutputStream out) throws IOException {
+        if (!(iterator instanceof AbstractInputStreamFTGXIterator)) {
             return null;
         }
-        final InputStreamFTGSIterator inputIterator = (InputStreamFTGSIterator) iterator;
+        final AbstractInputStreamFTGXIterator inputIterator = (AbstractInputStreamFTGXIterator) iterator;
         final Pair<InputStream, Optional<FieldStat[]>> streamAndStats = inputIterator.getStreamAndStats();
         if (!streamAndStats.getSecond().isPresent()) {
             return null;
@@ -389,13 +623,13 @@ public class FTGSIteratorUtil {
 
     // check if iterator is unsorted disjoint merger of InputStreamFTGSIterator
     // if yes, copy data with some hack on first/last term in sub-iterators
-    private static FieldStat[] tryWriteUnsortedInputStreamIterators(final FTGSIterator iterator, final OutputStream originalOut) throws IOException {
-        if (!(iterator instanceof UnsortedFTGSIterator)) {
+    private static FieldStat[] tryWriteUnsortedInputStreamIterators(final FTGIterator iterator, final OutputStream originalOut) throws IOException {
+        if (!(iterator instanceof UnsortedFTGIterator)) {
             return null;
         }
 
         // check that all sub-iterators have field stats
-        final FTGSIterator[] subIterators = ((AbstractDisjointFTGSMerger) iterator).getIterators();
+        final FTGIterator[] subIterators = ((UnsortedFTGIterator<?>) iterator).getIterators();
 
         final Pair<InputStreamWithPosition, FieldStat[]>[] streamsAndStats = new Pair[subIterators.length];
         for (int i = 0; i < subIterators.length; i++) {

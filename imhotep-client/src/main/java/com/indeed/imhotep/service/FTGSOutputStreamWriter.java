@@ -16,11 +16,14 @@
 import com.indeed.imhotep.FTGSBinaryFormat;
 import com.indeed.imhotep.FTGSBinaryFormat.FieldStat;
 import com.indeed.imhotep.StreamUtil.OutputStreamWithPosition;
+import com.indeed.imhotep.api.FTGAIterator;
+import com.indeed.imhotep.api.FTGIterator;
 import com.indeed.imhotep.api.FTGSIterator;
 
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -28,6 +31,8 @@ public final class FTGSOutputStreamWriter implements Closeable {
     private final OutputStreamWithPosition out;
 
     private boolean fieldIsIntType;
+
+    private final ByteBuffer doubleByteBuffer = ByteBuffer.wrap(new byte[8]);
 
     private byte[] previousTermBytes = new byte[100];
     private int previousTermLength;
@@ -110,6 +115,11 @@ public final class FTGSOutputStreamWriter implements Closeable {
         FTGSBinaryFormat.writeStat(stat, out);
     }
 
+    public void addStat(final double stat) throws IOException {
+        doubleByteBuffer.putDouble(0, stat);
+        out.write(doubleByteBuffer.array());
+    }
+
     public FieldStat[] closeAndGetStats() throws IOException {
         if (!closed) {
             closed = true;
@@ -157,29 +167,56 @@ public final class FTGSOutputStreamWriter implements Closeable {
         return writer.write(buffer);
     }
 
-    public FieldStat[] write(final FTGSIterator buffer) throws IOException {
-        final long[] stats = new long[buffer.getNumStats()];
-        while (buffer.nextField()) {
-            final boolean fieldIsIntType = buffer.fieldIsIntType();
-            switchField(buffer.fieldName(), fieldIsIntType);
-            while (buffer.nextTerm()) {
+    public static FieldStat[] write(final FTGAIterator buffer, final OutputStream out) throws IOException {
+        final FTGSOutputStreamWriter writer = new FTGSOutputStreamWriter(out);
+        return writer.write(buffer);
+    }
+
+    private interface StatsWriter {
+        void writeStats() throws IOException;
+    }
+
+    private FieldStat[] write(final FTGIterator iterator, final StatsWriter statsWriter) throws IOException {
+        while (iterator.nextField()) {
+            final boolean fieldIsIntType = iterator.fieldIsIntType();
+            switchField(iterator.fieldName(), fieldIsIntType);
+            while (iterator.nextTerm()) {
                 if (fieldIsIntType) {
-                    switchIntTerm(buffer.termIntVal(), buffer.termDocFreq());
+                    switchIntTerm(iterator.termIntVal(), iterator.termDocFreq());
                 } else {
                     // termStringBytes() returns a reference so this copies the bytes instead of hanging on to it
-                    switchBytesTerm(buffer.termStringBytes(), buffer.termStringLength(), buffer.termDocFreq());
+                    switchBytesTerm(iterator.termStringBytes(), iterator.termStringLength(), iterator.termDocFreq());
                 }
-                while (buffer.nextGroup()){
-                    switchGroup(buffer.group());
-                    buffer.groupStats(stats);
-                    for (final long stat : stats) {
-                        addStat(stat);
-                    }
+                while (iterator.nextGroup()){
+                    switchGroup(iterator.group());
+                    statsWriter.writeStats();
                 }
                 endTerm();
             }
         }
         return closeAndGetStats();
+    }
+
+    public FieldStat[] write(final FTGSIterator buffer) throws IOException {
+        final long[] stats = new long[buffer.getNumStats()];
+        final StatsWriter statsWriter = () -> {
+            buffer.groupStats(stats);
+            for (final long stat : stats) {
+                this.addStat(stat);
+            }
+        };
+        return write(buffer, statsWriter);
+    }
+
+    public FieldStat[] write(final FTGAIterator buffer) throws IOException {
+        final double[] stats = new double[buffer.getNumStats()];
+        final StatsWriter statsWriter = () -> {
+            buffer.groupStats(stats);
+            for (final double stat : stats) {
+                this.addStat(stat);
+            }
+        };
+        return write(buffer, statsWriter);
     }
 
     private static byte[] copyInto(final byte[] src, final int srcLen, byte[] dest) {

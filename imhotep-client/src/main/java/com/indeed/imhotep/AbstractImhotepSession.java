@@ -17,8 +17,10 @@ import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.api.FTGSParams;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
+import com.indeed.imhotep.exceptions.QueryCancelledException;
 import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
 
+import java.nio.channels.ClosedByInterruptException;
 import java.util.Iterator;
 
 /**
@@ -35,6 +37,7 @@ public abstract class AbstractImhotepSession implements ImhotepSession {
         this.sessionId = sessionId;
     }
 
+    @Override
     public final String getSessionId() {
         return sessionId;
     }
@@ -131,8 +134,16 @@ public abstract class AbstractImhotepSession implements ImhotepSession {
         return new IllegalArgumentException(createMessageWithSessionId(message), cause);
     }
 
+    protected QueryCancelledException newQueryCancelledException(final Throwable cause) {
+        return new QueryCancelledException(createMessageWithSessionId(cause.toString()), cause);
+    }
+
     protected RuntimeException newRuntimeException(final Throwable cause) {
-        return new RuntimeException(createMessageWithSessionId(cause.toString()), cause);
+        if (cause instanceof ClosedByInterruptException) {
+            return newQueryCancelledException(cause);
+        } else {
+            return new RuntimeException(createMessageWithSessionId(cause.toString()), cause);
+        }
     }
 
     protected RuntimeException newRuntimeException(final String message) {
