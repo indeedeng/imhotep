@@ -52,9 +52,13 @@ import java.util.concurrent.TimeUnit;
 
 /**
  *  LSM tree backed cache of SQAR metadata
+ *  For efficiency of both directory listing and single file detailed metadata operations
+ *  we store the complete shard files listing as a separate LSM tree entry (key ending with '/')
+ *  and complete metadata for each file in separate LSM tree entries.
+ *  This way both getFileMetadata() and listDirectory() operations require only 1 LSM tree lookup.
  *
- * key: (file path)
- * value: ()
+ * key: (shardPath/filePath)
+ * value: (Value objects containing either a list of short file listings or a single detailed file entry)
  */
 class SqarMetaDataLSMStore implements SqarMetaDataDao, Closeable {
     private static final Logger log = Logger.getLogger(SqarMetaDataLSMStore.class);
@@ -63,10 +67,13 @@ class SqarMetaDataLSMStore implements SqarMetaDataDao, Closeable {
     private static final BooleanSerializer    booleanSerializer = new BooleanSerializer();
     private static final LongSerializer       longSerializer    = new LongSerializer();
     private static final SqarFileEntrySerializer sqarFileEntrySerializer = new SqarFileEntrySerializer();
+    private static final SqarFileListingSerializer sqarFileListingSerializer = new SqarFileListingSerializer();
     private static final StringSerializer     strSerializer     = new StringSerializer();
     private static final ValueSerializer      valueSerializer   = new ValueSerializer();
 
     private static final String DELIMITER = "/";
+    // used to distinguish between the listing entry and the single root directory entry
+    private static final String LISTING_KEY_SUFFIX = "/";
 
     private final Store<String, Value> store;
     private final Duration expirationDuration;
@@ -164,24 +171,36 @@ class SqarMetaDataLSMStore implements SqarMetaDataDao, Closeable {
     @Override
     public void cacheMetadata(Path shardPath, Iterable<RemoteFileMetadata> metadataList) {
         final int cachingTimestamp = (int)(System.currentTimeMillis() / 1000); // seconds since epoch
-        final List<SqarFileEntry> sqarFiles = new ArrayList<>();
-        final String key = shardPath.normalize().toString();
+        final List<SqarFileListing> sqarFilesListing = new ArrayList<>();
+        final Path normalizedShardPath = shardPath.normalize();
+        final String key = normalizedShardPath.toString();
         for (final RemoteFileMetadata remoteFileMetadata : metadataList) {
             final FileMetadata fileMetadata = remoteFileMetadata.getFileMetadata();
-            sqarFiles.add(new SqarFileEntry(
-                    remoteFileMetadata.isFile() ? fileMetadata.getFilename() : toNormalizedDirName(fileMetadata.getFilename()),
-                    fileMetadata.getSize(),
+            final String filePath = remoteFileMetadata.isFile() ? fileMetadata.getFilename() : toNormalizedDirName(fileMetadata.getFilename());
+            sqarFilesListing.add(new SqarFileListing(filePath, remoteFileMetadata.isFile(), fileMetadata.getSize()));
+
+            final SqarFileEntry fileEntry = new SqarFileEntry(
+                    filePath,
                     remoteFileMetadata.isFile(),
+                    fileMetadata.getSize(),
                     fileMetadata.getTimestamp(),
                     fileMetadata.getChecksum(),
                     fileMetadata.getStartOffset(),
                     fileMetadata.getCompressor().getKey(),
                     fileMetadata.getArchiveFilename(),
-                    remoteFileMetadata.getCompressedSize()));
+                    remoteFileMetadata.getCompressedSize());
+            final Value fileEntryValue = new Value(cachingTimestamp, fileEntry);
+            final String fileEntryKey = normalizedShardPath.resolve(filePath).toString();
+            try {
+                this.put(fileEntryKey, fileEntryValue);
+            } catch (IOException e) {
+                Throwables.propagate(e);
+            }
         }
-        final Value value = new Value(cachingTimestamp, sqarFiles);
+        final Value listingValue = new Value(cachingTimestamp, sqarFilesListing);
+        final String listingKey = key + LISTING_KEY_SUFFIX;
         try {
-            this.put(key, value);
+            this.put(listingKey , listingValue);
         } catch (IOException e) {
             Throwables.propagate(e);
         }
@@ -204,19 +223,19 @@ class SqarMetaDataLSMStore implements SqarMetaDataDao, Closeable {
     @Override
     public Iterable<RemoteFileListing> listDirectory(Path shardPath, String dirname) {
         final String normalizedDirNameWithSep = toNormalizedDirNameWithSep(dirname);
-        final String key = shardPath.normalize().toString();
+        final String key = shardPath.normalize().toString() + LISTING_KEY_SUFFIX;
         try {
             final Value value = store.get(key);
             if (value == null) {
                 return null;
             }
             final List<RemoteFileListing> result = new ArrayList<>();
-            for(final SqarFileEntry sqarFileEntry: value.files) {
-                if(sqarFileEntry.filePath.startsWith(normalizedDirNameWithSep) &&
-                        !(sqarFileEntry.filePath.length() > normalizedDirNameWithSep.length() &&
-                                sqarFileEntry.filePath.substring(normalizedDirNameWithSep.length() + 1).contains(DELIMITER)) &&
-                        (!normalizedDirNameWithSep.isEmpty() || !sqarFileEntry.filePath.isEmpty() )) {
-                    result.add(toRemoteFileListing(sqarFileEntry));
+            for(final SqarFileListing sqarFileListing: value.dirListing) {
+                if(sqarFileListing.filePath.startsWith(normalizedDirNameWithSep) &&
+                        !(sqarFileListing.filePath.length() > normalizedDirNameWithSep.length() &&
+                                sqarFileListing.filePath.substring(normalizedDirNameWithSep.length() + 1).contains(DELIMITER)) &&
+                        (!normalizedDirNameWithSep.isEmpty() || !sqarFileListing.filePath.isEmpty() )) {
+                    result.add(toRemoteFileListing(sqarFileListing));
                 }
             }
             return result;
@@ -228,24 +247,19 @@ class SqarMetaDataLSMStore implements SqarMetaDataDao, Closeable {
     @Nullable
     @Override
     public RemoteFileMetadata getFileMetadata(Path shardPath, String filename) {
-        final String key = shardPath.normalize().toString();
+        final String key = shardPath.normalize().resolve(filename).toString();
         try {
             final Value value = store.get(key);
-            if (value == null) {
+            if (value == null || value.isListing) {
                 return null;
             }
-            for(final SqarFileEntry sqarFileEntry: value.files) {
-                if(sqarFileEntry.filePath.equals(filename)) {
-                    return toRemoteFileMetadata(sqarFileEntry);
-                }
-            }
-            return null;
+            return toRemoteFileMetadata(value.sqarFileEntry);
         } catch (IOException e) {
             throw Throwables.propagate(e);
         }
     }
 
-    private static RemoteFileListing toRemoteFileListing(final SqarFileEntry fetchedRecord) {
+    private static RemoteFileListing toRemoteFileListing(final SqarFileListing fetchedRecord) {
         if (fetchedRecord.isFile) {
             return new RemoteFileListing(fetchedRecord.filePath, true, fetchedRecord.size);
         } else {
@@ -276,7 +290,7 @@ class SqarMetaDataLSMStore implements SqarMetaDataDao, Closeable {
 
     @Override
     public boolean hasShard(Path shardPath) {
-        final String key = shardPath.normalize().toString();
+        final String key = shardPath.normalize().toString() + LISTING_KEY_SUFFIX;
         try {
             return store.containsKey(key);
         } catch (IOException e) {
@@ -290,6 +304,7 @@ class SqarMetaDataLSMStore implements SqarMetaDataDao, Closeable {
     @VisibleForTesting
     void trim() {
         try {
+            long deletedCount = 0;
             final int oldestTimestampToKeep = (int) (System.currentTimeMillis() - expirationDuration.toMillis());
             final Iterator<Store.Entry<String, Value>> storeIterator = iterator();
             while(storeIterator.hasNext()) {
@@ -297,23 +312,24 @@ class SqarMetaDataLSMStore implements SqarMetaDataDao, Closeable {
                 if(entry.getValue().cachingTimestamp < oldestTimestampToKeep) {
                     // TODO: verify that deletion during iteration is OK
                     delete(entry.getKey());
+                    deletedCount++;
                 }
             }
+            log.info("Deleted " + deletedCount + " expired entries from the SQAR metadata cache");
         } catch (Exception e) {
             log.warn("Failed to clear old entries from the LSM tree metadata cache", e);
         }
     }
 
-    // TODO: separate values for dir listings and metadata about specifc files
     static final class SqarFileListing {
         final String filePath;
-        final long size;
         final boolean isFile;
+        final long size;
 
-        public SqarFileListing(String filePath, long size, boolean isFile) {
+        SqarFileListing(String filePath, boolean isFile, long size) {
             this.filePath = filePath;
-            this.size = size;
             this.isFile = isFile;
+            this.size = size;
         }
     }
 
@@ -328,11 +344,13 @@ class SqarMetaDataLSMStore implements SqarMetaDataDao, Closeable {
         final String archiveName;
         final long packedSize;
 
-        public SqarFileEntry(String filePath, long size, boolean isFile) {
-            this(filePath, size, isFile, 0, "", 0, "", "", 0);
+        /** Constructor for a directory entry */
+        SqarFileEntry(String dirPath) {
+            this(dirPath, false, -1, 0, "", 0, "", "", 0);
         }
 
-        public SqarFileEntry(String filePath, long size, boolean isFile, long timestamp, String checksum, long archiveOffset, String compressorType, String archiveName, long packedSize) {
+        /** Constructor for a file entry */
+        SqarFileEntry(String filePath, boolean isFile, long size, long timestamp, String checksum, long archiveOffset, String compressorType, String archiveName, long packedSize) {
             this.filePath = filePath;
             this.size = size;
             this.timestamp = timestamp;
@@ -345,67 +363,117 @@ class SqarMetaDataLSMStore implements SqarMetaDataDao, Closeable {
         }
     }
 
-    public static final class Value {
+    /**
+     * Contains either a list of short file listings or a single detailed file entry
+     */
+    private static final class Value {
         private final int cachingTimestamp; // seconds since epoch
-        private final List<SqarFileEntry> files;
+        private final boolean isListing;
+        private final SqarFileEntry sqarFileEntry;  // only if isListing == false
+        private final List<SqarFileListing> dirListing;    // only if isListing == true
 
-        Value(int cachingTimestamp, List<SqarFileEntry> files) {
+        Value(int cachingTimestamp, List<SqarFileListing> files) {
             this.cachingTimestamp = cachingTimestamp;
-            this.files = files;
+            this.dirListing = files;
+            this.sqarFileEntry = null;
+            this.isListing = true;
+        }
+
+        Value(int cachingTimestamp, SqarFileEntry sqarFileEntry) {
+            this.cachingTimestamp = cachingTimestamp;
+            this.sqarFileEntry = sqarFileEntry;
+            this.dirListing = null;
+            this.isListing = false;
+        }
+    }
+
+    private static final class SqarFileListingSerializer implements Serializer<SqarFileListing> {
+        public void write(final SqarFileListing value, final DataOutput out) throws IOException {
+            strSerializer.write(Strings.nullToEmpty(value.filePath), out);
+            booleanSerializer.write(value.isFile, out);
+            if (value.isFile) {
+                longSerializer.write(value.size, out);
+            }
+        }
+
+        public SqarFileListing read(final DataInput in) throws IOException {
+            final String filePath = strSerializer.read(in);
+            final boolean isFile = booleanSerializer.read(in);
+            final long size;
+            if (isFile) {
+                size = longSerializer.read(in);
+            } else {
+                size = -1;
+            }
+            return new SqarFileListing(filePath, isFile, size);
         }
     }
 
     private static final class SqarFileEntrySerializer implements Serializer<SqarFileEntry> {
-
         public void write(final SqarFileEntry value, final DataOutput out) throws IOException {
             strSerializer.write(Strings.nullToEmpty(value.filePath), out);
-            longSerializer.write(value.size, out);
-            longSerializer.write(value.timestamp, out);
-            strSerializer.write(Strings.nullToEmpty(value.checksum), out); // TODO: is nullToEmpty ok?
-            longSerializer.write(value.archiveOffset, out);
-            strSerializer.write(Strings.nullToEmpty(value.compressorType), out);
-            strSerializer.write(Strings.nullToEmpty(value.archiveName), out);
             booleanSerializer.write(value.isFile, out);
-            longSerializer.write(value.packedSize, out);
+            if (value.isFile) {
+                longSerializer.write(value.size, out);
+                longSerializer.write(value.timestamp, out);
+                strSerializer.write(Strings.nullToEmpty(value.checksum), out); // TODO: is nullToEmpty ok?
+                longSerializer.write(value.archiveOffset, out);
+                strSerializer.write(Strings.nullToEmpty(value.compressorType), out);
+                strSerializer.write(Strings.nullToEmpty(value.archiveName), out);
+                longSerializer.write(value.packedSize, out);
+            }
         }
 
         public SqarFileEntry read(final DataInput in) throws IOException {
             final String filePath = strSerializer.read(in);
+            final boolean isFile = booleanSerializer.read(in);
+            if (!isFile) {
+                return new SqarFileEntry(filePath);
+            }
             final long size = longSerializer.read(in);
             final long timestamp = longSerializer.read(in);
             final String checksum = strSerializer.read(in);
             final long archiveOffset = longSerializer.read(in);
             final String compressorType = strSerializer.read(in);
             final String archiveName = strSerializer.read(in);
-            final boolean isFile = booleanSerializer.read(in);
             final long packedFile = longSerializer.read(in);
 
-            return new SqarFileEntry(filePath, size, isFile, timestamp, checksum, archiveOffset, compressorType, archiveName, packedFile);
+            return new SqarFileEntry(filePath, isFile, size, timestamp, checksum, archiveOffset, compressorType, archiveName, packedFile);
         }
     }
 
-    private static final class ValueSerializer
-        implements Serializer<Value> {
+    private static final class ValueSerializer implements Serializer<Value> {
 
         public void write(final Value value, final DataOutput out)
             throws IOException {
             intSerializer.write(value.cachingTimestamp, out);
-            intSerializer.write(value.files.size(), out);
-            for (final SqarFileEntry field: value.files) {
-                sqarFileEntrySerializer.write(field, out);
+            booleanSerializer.write(value.isListing, out);
+            if (value.isListing) {
+                intSerializer.write(value.dirListing.size(), out);
+                for (final SqarFileListing fileListing: value.dirListing) {
+                    sqarFileListingSerializer.write(fileListing, out);
+                }
+            } else {
+                sqarFileEntrySerializer.write(value.sqarFileEntry, out);
             }
         }
 
         public Value read(final DataInput in)
             throws IOException {
             final int cachingTimestamp = intSerializer.read(in);
-            final int numValues = intSerializer.read(in);
-            final List<SqarFileEntry> result = new ObjectArrayList<>(numValues);
-            for (int count = 0; count < numValues; ++count) {
-                final SqarFileEntry field = sqarFileEntrySerializer.read(in);
-                result.add(field);
+            final boolean isListing = booleanSerializer.read(in);
+            if (isListing) {
+                final int numValues = intSerializer.read(in);
+                final List<SqarFileListing> result = new ObjectArrayList<>(numValues);
+                for (int count = 0; count < numValues; ++count) {
+                    final SqarFileListing fileListing = sqarFileListingSerializer.read(in);
+                    result.add(fileListing);
+                }
+                return new Value(cachingTimestamp, result);
+            } else {
+                final SqarFileEntry fileEntry = sqarFileEntrySerializer.read(in);
+                return new Value(cachingTimestamp, fileEntry);
             }
-            return new Value(cachingTimestamp, result);
         }
     }
 }
