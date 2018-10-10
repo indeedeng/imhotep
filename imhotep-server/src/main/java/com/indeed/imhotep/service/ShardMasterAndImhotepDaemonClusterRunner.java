@@ -62,6 +62,10 @@ public class ShardMasterAndImhotepDaemonClusterRunner {
         createShard(dataset, ShardTimeUtils.toHourlyShardPrefix(dateTime) + SHARD_VERSION_FORMAT.print(DateTime.now()), flamdexReader);
     }
 
+    public void createShardUnversioned(final String dataset, final String shardId, final FlamdexReader flamdexReader) throws IOException {
+        createShard(dataset, shardId + SHARD_VERSION_FORMAT.print(DateTime.now()), flamdexReader);
+    }
+
     private void createShard(final String dataset, final String shardId, final FlamdexReader memoryFlamdex) throws IOException {
         shardCreator.create(shardsDir, dataset, shardId, memoryFlamdex);
     }

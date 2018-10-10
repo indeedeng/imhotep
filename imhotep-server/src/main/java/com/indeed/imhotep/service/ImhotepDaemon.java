@@ -1333,7 +1333,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 memoryCapacityInMB * 1024 * 1024,
                 null,
                 localImhotepServiceConfig,
-                Paths.get(RemoteCachingFileSystemProvider.URI));
+                shardsDir);
         final ImhotepDaemon result =
                 new ImhotepDaemon(ss, localService, zkNodes, zkPath, myHostname, port, sessionForwardingPort);
         localService.addObserver(result.getServiceCoreObserver());
