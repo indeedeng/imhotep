@@ -180,7 +180,7 @@ public class SimpleFlamdexReader extends AbstractFlamdexReader {
         final Path docsPath = directory.resolve(SimpleIntFieldWriter.getDocsFilename(field));
 
         try {
-            if (Files.notExists(termsPath) || Files.size(termsPath) == 0L) {
+            if (Files.notExists(termsPath)) {
                 // try to read it as a String field and convert to ints
                 final SimpleStringTermIterator stringTermIterator = getStringTermIterator(field);
                 if (!(stringTermIterator instanceof NullStringTermIterator)) {
