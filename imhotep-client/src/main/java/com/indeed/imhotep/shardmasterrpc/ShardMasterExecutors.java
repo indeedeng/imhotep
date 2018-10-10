@@ -29,7 +29,7 @@ public class ShardMasterExecutors {
 
     public static ExecutorService newBlockingFixedThreadPool(final int nThreads) {
         return new ThreadPoolExecutor(nThreads, nThreads,
-                0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>(),
+                0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>(),
                 new ThreadPoolExecutor.CallerRunsPolicy());
     }
 }

@@ -104,7 +104,7 @@ public class LocalFileCacheTest {
         final Path cacheBasePath = testContext.getCacheDir().toPath();
 
         final RandomCacheFileLoader cacheFileLoader = new RandomCacheFileLoader(fileSize);
-        final LocalFileCache localFileCache = new LocalFileCache(fs, cacheBasePath, maxCapacity, cacheFileLoader);
+        final LocalFileCache localFileCache = new LocalFileCache(fs, cacheBasePath, maxCapacity, 1, cacheFileLoader);
 
         Assert.assertEquals(0, getCacheUsage(cacheBasePath));
         Assert.assertEquals(getCacheUsage(cacheBasePath), localFileCache.getCacheUsage());
@@ -134,7 +134,7 @@ public class LocalFileCacheTest {
         final Path cacheBasePath = testContext.getCacheDir().toPath();
 
         final RandomCacheFileLoader cacheFileLoader = new RandomCacheFileLoader(fileSize);
-        final LocalFileCache localFileCache = new LocalFileCache(fs, cacheBasePath, maxCapacity, cacheFileLoader);
+        final LocalFileCache localFileCache = new LocalFileCache(fs, cacheBasePath, maxCapacity, 1, cacheFileLoader);
 
         Assert.assertEquals(0, getCacheUsage(cacheBasePath));
 
@@ -187,7 +187,7 @@ public class LocalFileCacheTest {
         final Path cacheBasePath = testContext.getCacheDir().toPath();
 
         final RandomCacheFileLoader cacheFileLoader = new RandomCacheFileLoader(fileSize);
-        final LocalFileCache localFileCache = new LocalFileCache(fs, cacheBasePath, maxCapacity, cacheFileLoader);
+        final LocalFileCache localFileCache = new LocalFileCache(fs, cacheBasePath, maxCapacity, 1, cacheFileLoader);
 
         Assert.assertEquals(0, getCacheUsage(cacheBasePath));
         Assert.assertEquals(getCacheUsage(cacheBasePath), localFileCache.getCacheUsage());
@@ -253,7 +253,7 @@ public class LocalFileCacheTest {
         final Path cacheBasePath = testContext.getCacheDir().toPath();
 
         final RandomCacheFileLoader cacheFileLoader = new RandomCacheFileLoader(fileSize);
-        final LocalFileCache localFileCache = new LocalFileCache(fs, cacheBasePath, maxCapacity, cacheFileLoader);
+        final LocalFileCache localFileCache = new LocalFileCache(fs, cacheBasePath, maxCapacity, 1, cacheFileLoader);
 
         Assert.assertEquals(0, getCacheUsage(cacheBasePath));
         Assert.assertEquals(getCacheUsage(cacheBasePath), localFileCache.getCacheUsage());
@@ -354,7 +354,7 @@ public class LocalFileCacheTest {
         final Path cacheBasePath = testContext.getCacheDir().toPath();
 
         {
-            final LocalFileCache localFileCache = new LocalFileCache(fs, cacheBasePath, maxCapacity, new RandomCacheFileLoader(fileSize));
+            final LocalFileCache localFileCache = new LocalFileCache(fs, cacheBasePath, maxCapacity, 1, new RandomCacheFileLoader(fileSize));
 
             Assert.assertEquals(0, getCacheUsage(cacheBasePath));
             Assert.assertEquals(getCacheUsage(cacheBasePath), localFileCache.getCacheUsage());
@@ -388,7 +388,7 @@ public class LocalFileCacheTest {
 
         {
             // reinitialize the cache
-            final LocalFileCache localFileCache = new LocalFileCache(fs, cacheBasePath, maxCapacity, new RandomCacheFileLoader(fileSize));
+            final LocalFileCache localFileCache = new LocalFileCache(fs, cacheBasePath, maxCapacity, 1, new RandomCacheFileLoader(fileSize));
 
             // all files from previous opened/closed files should be treated as closed
             // so the cache usage should be below the threshold

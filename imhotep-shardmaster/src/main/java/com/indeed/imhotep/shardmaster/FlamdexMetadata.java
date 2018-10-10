@@ -15,12 +15,10 @@ package com.indeed.imhotep.shardmaster;
 
 import com.google.common.base.Charsets;
 import com.indeed.flamdex.utils.ShardMetadataUtils;
-import com.indeed.imhotep.archive.ArchiveUtils;
 import com.indeed.imhotep.archive.FileMetadata;
 import com.indeed.imhotep.archive.SquallArchiveReader;
 import org.apache.commons.io.IOUtils;
 import org.apache.hadoop.fs.FSDataInputStream;
-import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.LocatedFileStatus;
 import org.apache.hadoop.fs.RemoteIterator;
@@ -30,8 +28,6 @@ import org.yaml.snakeyaml.constructor.CustomClassLoaderConstructor;
 import org.yaml.snakeyaml.nodes.Tag;
 
 import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -112,7 +108,7 @@ public class FlamdexMetadata {
         return flamdexFormatVersion;
     }
 
-    public static FlamdexMetadata readMetadata(FileSystem hadoopFilesystem, org.apache.hadoop.fs.Path hadoopPath) throws IOException {
+    public static FlamdexMetadata readMetadata(final FileSystem hadoopFilesystem, final org.apache.hadoop.fs.Path hadoopPath) throws IOException {
         // Pass the class loader to the constructor, to avoid getting a "class FlamdexMetadata not found exception".
         // The exception happens because, on the workers, the YAML parser does not know how to create an instance of
         // FlamdexMetadata because of version mismatch caused by the presence of many jars.
@@ -120,12 +116,12 @@ public class FlamdexMetadata {
         if(hadoopPath.getName().endsWith(".sqar")) {
             final SquallArchiveReader reader = new SquallArchiveReader(hadoopFilesystem, hadoopPath);
             final List<FileMetadata> fileMetadata = reader.readMetadata();
-            FileMetadata acutalMetadata = getMetadataFromMetadata(fileMetadata);
-            if (acutalMetadata == null) {
-                return null;
+            final FileMetadata actualMetadata = getMetadataFromMetadata(fileMetadata);
+            if (actualMetadata == null) {
+                throw new IOException("Flamdex shard did not contain valid metadata.txt when reading Squall Archive");
             }
-            ByteArrayOutputStream out = new ByteArrayOutputStream();
-            reader.tryCopyToStream(acutalMetadata, out);
+            final ByteArrayOutputStream out = new ByteArrayOutputStream();
+            reader.tryCopyToStream(actualMetadata, out);
 
             final String metadata = out.toString();
             final FlamdexMetadata flamdexMetadata = loader.loadAs(metadata, FlamdexMetadata.class);
@@ -133,8 +129,8 @@ public class FlamdexMetadata {
             setIntAndStringFields(flamdexMetadata, files);
             return flamdexMetadata;
         } else {
-            org.apache.hadoop.fs.Path metadataFile = hadoopFilesystem.resolvePath(new org.apache.hadoop.fs.Path(hadoopPath + "/metadata.txt"));
-            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            final org.apache.hadoop.fs.Path metadataFile = hadoopFilesystem.resolvePath(new org.apache.hadoop.fs.Path(hadoopPath + "/metadata.txt"));
+            final ByteArrayOutputStream out = new ByteArrayOutputStream();
             final FSDataInputStream input = hadoopFilesystem.open(metadataFile);
             IOUtils.copy(input, out);
             final String metadataContent = out.toString();
@@ -150,15 +146,15 @@ public class FlamdexMetadata {
         }
     }
 
-    private static void setIntAndStringFields(FlamdexMetadata flamdexMetadata, List<Path> files) throws IOException {
+    private static void setIntAndStringFields(final FlamdexMetadata flamdexMetadata, final List<Path> files) throws IOException {
         final ShardMetadataUtils.AllFields actualFields = ShardMetadataUtils.getFieldsFromFlamdexFiles(files);
         flamdexMetadata.setIntFields(actualFields.intFields);
         flamdexMetadata.setStringFields(actualFields.strFields);
     }
 
-    private static FileMetadata getMetadataFromMetadata(List<FileMetadata> fileMetadata) {
-        for(FileMetadata data: fileMetadata){
-            if(data.getFilename().equals("metadata.txt")){
+    private static FileMetadata getMetadataFromMetadata(final List<FileMetadata> fileMetadata) {
+        for(final FileMetadata data: fileMetadata){
+            if("metadata.txt".equals(data.getFilename())){
                 return data;
             }
         }

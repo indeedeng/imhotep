@@ -34,9 +34,13 @@ class ShardMasterMessageUtil {
     private ShardMasterMessageUtil() {
     }
 
-    static void sendMessage(final Message message, final OutputStream os) throws IOException {
+    static void sendMessageNoFlush(final Message message, final OutputStream os) throws IOException {
         os.write(Ints.toByteArray(message.getSerializedSize()));
         message.writeTo(os);
+    }
+
+    static void sendMessage(final Message message, final OutputStream os) throws IOException {
+        sendMessageNoFlush(message, os);
         os.flush();
     }
 

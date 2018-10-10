@@ -18,7 +18,7 @@ package com.indeed.imhotep.io;
  */
 
 public class TempFileSizeLimitExceededException extends RuntimeException {
-    static final String MESSAGE = "The request tried to write more data to disk than allowed by the TempFileSizeLimit parameter";
+    public static final String MESSAGE = "The request tried to write more data to disk than allowed by the TempFileSizeLimit parameter";
 
     public TempFileSizeLimitExceededException() {
         super(MESSAGE);
@@ -26,5 +26,9 @@ public class TempFileSizeLimitExceededException extends RuntimeException {
 
     public TempFileSizeLimitExceededException(final Throwable cause) {
         super(MESSAGE, cause);
+    }
+
+    public TempFileSizeLimitExceededException(final String message, final Throwable cause) {
+        super(message, cause);
     }
 }

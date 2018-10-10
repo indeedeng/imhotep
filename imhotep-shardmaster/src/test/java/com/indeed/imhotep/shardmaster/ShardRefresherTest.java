@@ -17,17 +17,19 @@ package com.indeed.imhotep.shardmaster;
 import com.indeed.imhotep.archive.SquallArchiveWriter;
 import com.indeed.imhotep.client.Host;
 import com.indeed.imhotep.client.ShardTimeUtils;
-import com.indeed.imhotep.dbutil.DbDataFixture;
 import com.indeed.imhotep.fs.RemoteCachingFileSystemTestContext;
-import com.indeed.imhotep.shardmaster.db.shardinfo.Tables;
 import com.indeed.imhotep.shardmasterrpc.ShardMasterExecutors;
 import com.indeed.util.zookeeper.ZooKeeperConnection;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.easymock.EasyMock;
 import org.joda.time.DateTime;
-import org.junit.*;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -37,12 +39,10 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 
 /**
@@ -52,8 +52,6 @@ import java.util.concurrent.ExecutorService;
 public class ShardRefresherTest {
     @Rule
     public final TemporaryFolder tempDir = new TemporaryFolder();
-    @Rule
-    public final DbDataFixture dbDataFixture = new DbDataFixture(Collections.singletonList(Tables.TBLSHARDASSIGNMENTINFO));
     @Rule
     public final RemoteCachingFileSystemTestContext fsTestContext = new RemoteCachingFileSystemTestContext();
 
@@ -65,7 +63,7 @@ public class ShardRefresherTest {
             properties.setProperty(entry.getKey(), entry.getValue());
         }
 
-        try (FileOutputStream os = new FileOutputStream(target)) {
+        try (final FileOutputStream os = new FileOutputStream(target)) {
             properties.store(os, "");
         }
     }
@@ -86,17 +84,17 @@ public class ShardRefresherTest {
 
     @Before
     public void createMetadataFile() throws IOException {
-        java.nio.file.Path p = Paths.get(fsTestContext.getTempRootDir().toString(), "metadata");
+        final java.nio.file.Path p = Paths.get(fsTestContext.getTempRootDir().toString(), "metadata");
         new File(p.toString()).mkdir();
         FlamdexMetadata.writeMetadata(p, new FlamdexMetadata(0, new ArrayList<>(), new ArrayList<>(), FlamdexFormatVersion.SIMPLE));
 
     }
 
     private void createShard(final File rootDir, final String dataset, final DateTime shardId, final long version) throws IOException{
-        Path path = new Path(rootDir.toString() + "/" + dataset + "/" + ShardTimeUtils.toDailyShardPrefix(shardId) + "." + String.format("%014d", version) + ".sqar/");
+        final Path path = new Path(rootDir.toString() + "/" + dataset + "/" + ShardTimeUtils.toDailyShardPrefix(shardId) + "." + String.format("%014d", version) + ".sqar/");
         new File(path.toString()).mkdir();
-        SquallArchiveWriter writer = new SquallArchiveWriter(path.getFileSystem(new Configuration()), new Path(path.toString()), true);
-        File f = new File(fsTestContext.getTempRootDir()+"/metadata/metadata.txt");
+        final SquallArchiveWriter writer = new SquallArchiveWriter(path.getFileSystem(new Configuration()), new Path(path.toString()), true);
+        final File f = new File(fsTestContext.getTempRootDir()+"/metadata/metadata.txt");
         writer.appendFile(f);
         writer.commit();
     }
@@ -107,7 +105,7 @@ public class ShardRefresherTest {
     }
 
     @Test
-    public void testRefresh() throws ExecutionException, InterruptedException, SQLException, IOException {
+    public void testRefresh() throws SQLException, IOException {
         final int numDataSets = 100;
         final int numShards = 15;
         final DateTime endDate = new DateTime(2018, 1, 1, 0, 0);
@@ -127,10 +125,10 @@ public class ShardRefresherTest {
 
         final Path dataSetsDir = new Path("file:///" + fsTestContext.getLocalStoreDir());
 
-        ZooKeeperConnection fakeZookeeperConnection = new ZooKeeperConnection("", 0);
-        Connection fakeConnection = EasyMock.createNiceMock(Connection.class);
-        PreparedStatement fakeStatement = EasyMock.createNiceMock(PreparedStatement.class);
-        ResultSet fakeResults = EasyMock.createNiceMock(ResultSet.class);
+        final ZooKeeperConnection fakeZookeeperConnection = new ZooKeeperConnection("", 0);
+        final Connection fakeConnection = EasyMock.createNiceMock(Connection.class);
+        final PreparedStatement fakeStatement = EasyMock.createNiceMock(PreparedStatement.class);
+        final ResultSet fakeResults = EasyMock.createNiceMock(ResultSet.class);
 
         EasyMock.makeThreadSafe(fakeResults, true);
         EasyMock.makeThreadSafe(fakeStatement, true);

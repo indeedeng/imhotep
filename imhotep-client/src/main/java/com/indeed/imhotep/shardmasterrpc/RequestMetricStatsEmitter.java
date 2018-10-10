@@ -21,11 +21,8 @@ import com.indeed.imhotep.protobuf.ShardMasterRequest;
  * interface to allow metrics reporting
  */
 public interface RequestMetricStatsEmitter {
-    void processed(String metricKey, ShardMasterRequest.RequestType requestType, long millis);
+    void processed(final String metricKey, final ShardMasterRequest.RequestType requestType, final long millis);
 
-    RequestMetricStatsEmitter NULL_EMITTER = new RequestMetricStatsEmitter() {
-        @Override
-        public void processed(final String metricKey, final ShardMasterRequest.RequestType requestType, final long millis) {
-        }
+    RequestMetricStatsEmitter NULL_EMITTER = (metricKey, requestType, millis) -> {
     };
 }

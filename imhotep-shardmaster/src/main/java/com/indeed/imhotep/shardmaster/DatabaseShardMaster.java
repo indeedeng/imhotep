@@ -17,12 +17,9 @@ package com.indeed.imhotep.shardmaster;
 import com.indeed.imhotep.*;
 import com.indeed.imhotep.client.HostsReloader;
 import com.indeed.imhotep.shardmasterrpc.ShardMaster;
-import org.apache.log4j.Logger;
 
 import java.io.IOException;
 import java.util.*;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Supplier;
 
 /**
  * @author kenh
@@ -35,7 +32,7 @@ public class DatabaseShardMaster implements ShardMaster {
     private final ShardRefresher refresher;
     private final String fileExtension;
 
-    public DatabaseShardMaster(final ShardAssigner assigner, final ShardData shardData, final HostsReloader reloader, final ShardRefresher refresher, String fileExtension) {
+    public DatabaseShardMaster(final ShardAssigner assigner, final ShardData shardData, final HostsReloader reloader, final ShardRefresher refresher, final String fileExtension) {
         this.assigner = assigner;
         this.shardData = shardData;
         this.reloader = reloader;
@@ -59,7 +56,7 @@ public class DatabaseShardMaster implements ShardMaster {
     }
 
     @Override
-    public List<Shard> getShardsInTime(String dataset, long start, long end) {
+    public List<Shard> getShardsInTime(final String dataset, final long start, final long end) {
         final Collection<ShardInfo> info = shardData.getShardsInTime(dataset, start, end);
         final List<Shard> shards = new ArrayList<>();
         final Iterable<Shard> assignment = assigner.assign(reloader.getHosts(), dataset, info);
@@ -82,7 +79,7 @@ public class DatabaseShardMaster implements ShardMaster {
     }
 
     @Override
-    public void refreshFieldsForDataset(String dataset) throws IOException {
+    public void refreshFieldsForDataset(final String dataset) throws IOException {
         refresher.refreshFieldsForDatasetInSQL(dataset);
     }
 }

@@ -22,9 +22,7 @@ import org.joda.time.Duration;
  */
 public final class LocalImhotepServiceConfig {
     private long flamdexReaderCacheMaxDurationMillis = Duration.standardMinutes(5).getMillis();
-    private int updateShardsFrequencySeconds = 120;
     private int heartBeatCheckFrequencySeconds = 60;
-    private int syncShardStoreFrequencySeconds = 1200;
     private int cpuSlots = 0; // 0 = disabled
     private int cpuSchedulerHistoryLengthSeconds = 60;
     private int remoteFSIOSlots = 0;  // 0 = disabled
@@ -33,30 +31,13 @@ public final class LocalImhotepServiceConfig {
     private int maxSessionsPerUser = Integer.MAX_VALUE;
     private MetricStatsEmitter statsEmitter = MetricStatsEmitter.NULL_EMITTER;
 
-    public int getUpdateShardsFrequencySeconds() {
-        return updateShardsFrequencySeconds;
-    }
 
     public int getHeartBeatCheckFrequencySeconds() {
         return heartBeatCheckFrequencySeconds;
     }
 
-    public int getSyncShardStoreFrequencySeconds() {
-        return syncShardStoreFrequencySeconds;
-    }
-
-    public LocalImhotepServiceConfig setUpdateShardsFrequencySeconds(final int updateShardsFrequencySeconds) {
-        this.updateShardsFrequencySeconds = updateShardsFrequencySeconds;
-        return this;
-    }
-
     public LocalImhotepServiceConfig setHeartBeatCheckFrequencySeconds(final int heartBeatCheckFrequencySeconds) {
         this.heartBeatCheckFrequencySeconds = heartBeatCheckFrequencySeconds;
-        return this;
-    }
-
-    public LocalImhotepServiceConfig setSyncShardStoreFrequencySeconds(final int syncShardStoreFrequencySeconds) {
-        this.syncShardStoreFrequencySeconds = syncShardStoreFrequencySeconds;
         return this;
     }
 

@@ -36,6 +36,8 @@ public final class ShardTimeUtils {
             DateTimeFormat.forPattern("yyyyMMdd").withZone(ZONE);
     private static final DateTimeFormatter yyyymmddhh =
             DateTimeFormat.forPattern("yyyyMMdd.HH").withZone(ZONE);
+    private static final DateTimeFormatter yyyymmddhhmmss =
+            DateTimeFormat.forPattern("yyyyMMddHHmmss").withZone(ZONE);
 
     public static DateTime parseStart(final String shardId) {
         if (shardId.startsWith(DYNAMIC_SHARD_PREFIX)) {
@@ -61,6 +63,10 @@ public final class ShardTimeUtils {
 
     public static String toTimeRangeShardPrefix(final DateTime start, final DateTime end) {
         return SHARD_PREFIX + start.toString(yyyymmddhh) + "-" + end.toString(yyyymmddhh);
+    }
+
+    public static String versionizeShardId(final String shardId) {
+        return shardId + "." + DateTime.now().toString(yyyymmddhhmmss);
     }
 
     public static Interval parseInterval(final String shardId) {

@@ -41,7 +41,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -143,11 +142,11 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
         this.userName = userName;
         this.clientName = clientName;
         if (sessions == null || sessions.length == 0) {
-            throw new IllegalArgumentException("at least one session is required");
+            throw newIllegalArgumentException("at least one session is required");
         }
         for (final AbstractImhotepSession session : sessions) {
             if (!sessionId.equals(session.getSessionId())) {
-                throw new IllegalArgumentException("SessionId mismatch in multi session sub-sessions");
+                throw newIllegalArgumentException("SessionId mismatch in multi session sub-sessions");
             }
         }
 
@@ -515,11 +514,11 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
         });
     }
 
-    private static int validateNumStats(final Integer[] numStatBuf) {
+    private int validateNumStats(final Integer[] numStatBuf) {
         final int newNumStats = numStatBuf[0];
         for (int i = 1; i < numStatBuf.length; ++i) {
             if (numStatBuf[i] != newNumStats) {
-                throw new RuntimeException("bug, one session did not return the same number of stats as the others");
+                throw newRuntimeException("bug, one session did not return the same number of stats as the others");
             }
         }
         return newNumStats;
@@ -724,9 +723,9 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
         } catch (final ExecutionException e) {
             final Throwable cause = e.getCause();
             if (cause instanceof ImhotepOutOfMemoryException) {
-                throw new ImhotepOutOfMemoryException(cause);
+                throw newImhotepOutOfMemoryException(cause);
             } else {
-                throw new RuntimeException(cause);
+                throw newRuntimeException(cause);
             }
         }
     }
