@@ -14,12 +14,19 @@
 
 package com.indeed.imhotep.shardmaster;
 
-import com.indeed.imhotep.*;
+import com.google.common.collect.ImmutableList;
+import com.indeed.imhotep.DatasetInfo;
+import com.indeed.imhotep.Shard;
+import com.indeed.imhotep.ShardInfo;
 import com.indeed.imhotep.client.HostsReloader;
 import com.indeed.imhotep.shardmasterrpc.ShardMaster;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * @author kenh
@@ -30,14 +37,12 @@ public class DatabaseShardMaster implements ShardMaster {
     private final ShardData shardData;
     private final HostsReloader reloader;
     private final ShardRefresher refresher;
-    private final String fileExtension;
 
-    public DatabaseShardMaster(final ShardAssigner assigner, final ShardData shardData, final HostsReloader reloader, final ShardRefresher refresher, final String fileExtension) {
+    public DatabaseShardMaster(final ShardAssigner assigner, final ShardData shardData, final HostsReloader reloader, final ShardRefresher refresher) {
         this.assigner = assigner;
         this.shardData = shardData;
         this.reloader = reloader;
         this.refresher = refresher;
-        this.fileExtension = fileExtension;
     }
 
     @Override
@@ -58,13 +63,8 @@ public class DatabaseShardMaster implements ShardMaster {
     @Override
     public List<Shard> getShardsInTime(final String dataset, final long start, final long end) {
         final Collection<ShardInfo> info = shardData.getShardsInTime(dataset, start, end);
-        final List<Shard> shards = new ArrayList<>();
         final Iterable<Shard> assignment = assigner.assign(reloader.getHosts(), dataset, info);
-        for(final Shard shardAndHost: assignment) {
-            final Shard shard = new Shard(shardAndHost.shardId, shardAndHost.numDocs, shardAndHost.version, shardAndHost.getServer(), fileExtension);
-            shards.add(shard);
-        }
-        return shards;
+        return ImmutableList.copyOf(assignment);
     }
 
     @Override

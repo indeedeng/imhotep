@@ -1,4 +1,5 @@
 package com.indeed.imhotep.shardmaster;
+
 import com.google.common.base.Joiner;
 import com.indeed.imhotep.ShardDir;
 import com.indeed.imhotep.ShardInfo;
@@ -15,7 +16,6 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -60,7 +60,7 @@ public class ShardData {
     }
 
     public void addShardFromFilesystem(final ShardDir shardDir, final FlamdexMetadata metadata) {
-        final ShardInfo info = new ShardInfo(shardDir.getId(), metadata.getNumDocs(), shardDir.getVersion());
+        final ShardInfo info = new ShardInfo(shardDir.getName(), shardDir.getId(), metadata.getNumDocs(), shardDir.getVersion());
         final String dataset = shardDir.getDataset();
 
         pathsToShards.put(shardDir.getIndexDir().toString(), info);
@@ -111,12 +111,12 @@ public class ShardData {
                 final Path path = Paths.get(strPath);
                 final ShardDir shardDir = new ShardDir(path);
                 final String dataset = shardDir.getDataset();
-                final String shardname = shardDir.getId();
-                if(!filter.accept(dataset, shardname)) {
+                final String shardId = shardDir.getId();
+                if(!filter.accept(dataset, shardId)) {
                     continue;
                 }
-                final ShardInfo shard = new ShardInfo(shardname, numDocs, shardDir.getVersion());
-                final Interval interval = ShardTimeUtils.parseInterval(shardname);
+                final ShardInfo shard = new ShardInfo(shardDir.getName(), shardId, numDocs, shardDir.getVersion());
+                final Interval interval = ShardTimeUtils.parseInterval(shardId);
 
                 pathsToShards.put(strPath, shard);
 

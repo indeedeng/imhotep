@@ -17,14 +17,12 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
 import com.google.common.primitives.Longs;
 import com.indeed.imhotep.DatasetInfo;
 import com.indeed.imhotep.DynamicIndexSubshardDirnameUtil;
 import com.indeed.imhotep.ImhotepRemoteSession;
-import com.indeed.imhotep.ImhotepStatusDump;
 import com.indeed.imhotep.Instrumentation;
 import com.indeed.imhotep.RemoteImhotepMultiSession;
 import com.indeed.imhotep.Shard;
@@ -49,7 +47,6 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
 import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.Callable;
@@ -203,7 +200,7 @@ public class ImhotepClient
             if(imhotepDaemonsOverride == null) {
                 return shardsInTime;
             }
-            return shardsInTime.stream().map(shard -> new Shard(shard.shardId, shard.numDocs, shard.version, computeOverrideHost(dataset, shard), shard.getExtension())).collect(Collectors.toList());
+            return shardsInTime.stream().map(shard -> shard.withHost(computeOverrideHost(dataset, shard))).collect(Collectors.toList());
         } catch (IOException e) {
             throw Throwables.propagate(e);
         }

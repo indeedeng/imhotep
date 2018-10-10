@@ -75,11 +75,7 @@ class TimeBasedShardAssigner implements ShardAssigner {
                 return MinHashShardAssigner.assign(upHosts, dataset, Collections.singletonList(shard), 1).iterator().next();
             }
 
-            return new Shard(
-                    shard.shardId,
-                    shard.numDocs,
-                    shard.version,
-                    assignedServer);
+            return new Shard(shard, assignedServer);
         }).collect(Collectors.toList());
     }
 
