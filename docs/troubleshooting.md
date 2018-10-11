@@ -133,8 +133,6 @@ Avoid distinct() when possible for heavy queries. The optimization of streaming 
 
 Although the output of DISTINCT(field) is a single number, all the values for that field must be streamed from Imhotep to IQL. This creates a great deal of data when run over larger time ranges for fields with many unique terms.
 
-This also applies to IQL2 functions `SUM_OVER()`, `AVG_OVER()` and `DISTINCT_WINDOW()`.
-
 ### Don't click "Run" mutiple times
 When you create your query and click "Run", the request for the data is sent to Imhotep/IQL. Clicking "Run" multiple times or refreshing the page sends additional requests to the servers. Doing this with queries that are too heavy to complete successfully, for example because they exceed a limit, causes especially negative behavior: the queries do not get cached, rerun many times, and fail each time while consuming resources.
 
