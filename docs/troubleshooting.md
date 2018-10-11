@@ -103,11 +103,10 @@ Don’t use distinct() as a metric with a large amount of data if you are using 
 The number of rows IQL can return on non-streaming queries depends on the heap size allocated to IQL.
 
 ## Performance Considerations for IQL Usage
-Please remember that IQL is a Shared Company Resource. Expensive queries increase latency for all the other users and at times of high demand can cause the query queue to balloon making the system temporarily unusable.
 
 ### Query smaller time ranges
 First test your query on a tiny time range and then ramp up to the required range if performance is sufficient. 
-E.g. `FROM jobsearch 1h today ...` is a better way to test than `FROM jobsearch 180d today ...`.
+E.g. `FROM example 1h today ...` is a better way to test than `FROM example 180d today ...`.
 
 If you have created a Superset or Aquarium Dashboard, consider the time range. Do you really need to see 90d today worth of data, or is 2w today sufficient?
 
@@ -116,27 +115,27 @@ When saving/bookmarking a query consider the time range being used. When you com
 ### Limit your use of RegEx
 Using a regular expression (regex) allows for more flexible filtering, but be aware that these queries are more costly than if you filtered on the exact terms using `field IN (terms)`.
 
-There may be alternative fields that can be used to avoid the regex. E.g. tokenized field q instead of qnorm or a single URL segment instead of the full path.
+There may be alternative fields that can be used to avoid the regex. E.g. tokenized field m instead of myTerm or a single URL segment instead of the full path.
 
 Frequently using regex to filter on a field may indicate a need for indexing more specialized views of that data in the index builder.
 
-Try to combine multiple regex filters on the same field into a single regex. E.g. `ref!=~"(msn|ifa_|goog61).*"` instead of `ref!=~"msn.*" ref!=~"ifa_.*" ref!=~"goog61.*"`
+Try to combine multiple regex filters on the same field into a single regex. E.g. `ref!=~"(apple|ifa_|orange123).*"` instead of `ref!=~"apple.*" ref!=~"ifa_.*" ref!=~"orange123.*"`
 
-RegEx filtering becomes particularly expensive when used on fields with a large number of distinct terms (e.g. qnorm), when terms are long (e.g. URLs) and when querying long time periods containing a large number of shards.
+RegEx filtering becomes particularly expensive when used on fields with a large number of distinct terms (e.g. myTerm), when terms are long (e.g. URLs) and when querying long time periods containing a large number of shards.
 
 ### Don't try to un-invert an index / be smart about grouping
 IQL indices are stored inverted which makes it unfeasible to see the original documents as rows. Many users are used to tabular data and will try to un-invert an index by grouping by every available field. This is **not** recommended as it's very inefficient. If you need access to complete rows of data you should consider alternative data sources such as MySQL, HBase and LogRepo.
 
 If you think a grouping may result in a huge number of groups, you can get the actual number of expected groups by running a **DISTINCT** query: 
 
-`FROM jobsearch 1h today SELECT DISTINCT(ctkrcvd)` returns the number of groups you would get by running `FROM jobsearch 1h today GROUP BY ctkrcvd`
+`FROM example 1h today SELECT DISTINCT(stringField)` returns the number of groups you would get by running `FROM example 1h today GROUP BY stringField`
 
-Try to put the largest grouping as the last grouping. This allows the result of the last largest grouping to be streamed instead of all stored in memory. E.g., since there are dozens of  countries but millions of unique queries, prefer **`GROUP BY country, q`** to **`GROUP BY q, country`** or **~~`GROUP BY q[500000], country[50]`~~**.
+Try to put the largest grouping as the last grouping. This allows the result of the last largest grouping to be streamed instead of all stored in memory. E.g., since there are dozens of somethings but millions of unique queries, prefer **`GROUP BY something, q`** to **`GROUP BY q, something`** or **~~`GROUP BY q[500000], something[50]`~~**.
 
 ### Avoid distinct() when possible
-Avoid distinct() when possible for heavy queries. The optimization of streaming the data in the last group by grouping doesn't work if you have any distinct() elements in SELECT. So `FROM jobsearch 1h today select DISTINCT(ctkrcvd)` is fine but `FROM jobsearch 4w today GROUP BY q SELECT DISTINCT(ctkrcvd)` is bad.
+Avoid distinct() when possible for heavy queries. The optimization of streaming the data in the last group by grouping doesn't work if you have any distinct() elements in SELECT. So `FROM example 1h today select DISTINCT(stringField)` is fine but `FROM example 4w today GROUP BY q SELECT DISTINCT(stringField)` is bad.
 
-Although the output of DISTINCT(field) is a single number, all the values for that field have to be streamed from Imhotep to IQL, which can get really large over larger time ranges for fields with a lot of unique terms (e.g. ctk/ctkrcvd, accountid, q)
+Although the output of DISTINCT(field) is a single number, all the values for that field have to be streamed from Imhotep to IQL, which can get really large over larger time ranges for fields with a lot of unique terms (e.g. myStringField, myExample, etc.)
 
 This also applies to IQL2 functions `SUM_OVER()`, `AVG_OVER()` and `DISTINCT_WINDOW()`.
 
@@ -144,15 +143,3 @@ This also applies to IQL2 functions `SUM_OVER()`, `AVG_OVER()` and `DISTINCT_WIN
 After creating your query and hitting "Run", the request for the data has already been sent to Imhotep/IQL. Many times users will lose their patience and start clicking "Run" again and again, or refresh the page with the same effect. This will cause additional requests to the servers. It is especially bad if the query is too heavy and can't complete successfully (e.g. due to exceeding a limit). In that case it can't get cached and will rerun many times with the same failure result every time but use a lot of resources in the process.
 
 Re-running the same query will just put it further in your personal query queue so you'll have to wait for results even longer!
-
-### Set up your cron jobs during low IQL Usage
-Automated queries should be run outside the busy times of interactive usage when hundreds of people need to be able to get their results as fast as possible.
-
-The best time of the week for cronjobs is between Friday 11pm and Sunday 6pm UTC-6 (reference chart)
-
-For cronjobs that must run daily the best time is between 4am and 7am UTC-6 with less optimal time being 9pm to 4am UTC-6 (reference chart)
-
-### Perform tests during non-office hours (don't try to break IQL on purpose)
-If you are trying to test the limits of what you can do in IQL for a particular project, ishbook or what not, please consult with the experts first. Don't try running an extravagant query just to "see what happens"
-
-You can find us on Slack in #iql
