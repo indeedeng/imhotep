@@ -134,13 +134,16 @@ class LocalFileCache {
 
     private class CacheStatsEmitter{
 
-        private long getSumFileSizeReferenceCache() {
+        private long setSumCacheFilesSize() {
             synchronized (lock) {
                 final Iterator<FileCacheEntry> iterator = referencedFilesCache.asMap().values().iterator();
                 long sumFileSizesReferenceCache = 0L;
                 while(iterator.hasNext()) {
                     sumFileSizesReferenceCache += iterator.next().fileSize;
                 }
+
+                unusedFilesCache.setSumCacheFileSizeStats(); // sets SumCacheFileSize.stats
+
                 return sumFileSizesReferenceCache;
             }
         }
@@ -158,9 +161,9 @@ class LocalFileCache {
 
         public void reportSumCacheFileSize() {
             SumCacheFileSize.stats.reset();
-            unusedFilesCache.getSumCacheFileSizeStats();
-            long sumCacheFileReferenceCache = getSumFileSizeReferenceCache(); //we consider Referenced file to have accessTime = System.currentTime
+            long sumCacheFileReferenceCache = setSumCacheFilesSize();
 
+            //we consider Referenced file to have accessTime = System.currentTime
             statsEmitter.gauge("sum.cache.file.size.minute", SumCacheFileSize.stats.sumCacheFileSizeMinute + sumCacheFileReferenceCache);
             statsEmitter.gauge("sum.cache.file.size.hour", SumCacheFileSize.stats.sumCacheFileSizeHour + sumCacheFileReferenceCache);
             statsEmitter.gauge("sum.cache.file.size.day", SumCacheFileSize.stats.sumCacheFileSizeDay + sumCacheFileReferenceCache);
@@ -438,7 +441,7 @@ class LocalFileCache {
             return entry.lastAccessTimeSecondsSinceEpoch;
         }
 
-        public synchronized void getSumCacheFileSizeStats() {
+        public synchronized void setSumCacheFileSizeStats() {
 
             final Iterator<FileCacheEntry> iterator = updateOrderMap.values().iterator();
             final int presentTimeMinutes = (int)TimeUnit.MILLISECONDS.toMinutes(System.currentTimeMillis());
