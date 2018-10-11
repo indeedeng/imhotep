@@ -105,35 +105,37 @@ The number of rows IQL can return on non-streaming queries depends on the heap s
 ## Performance Considerations for IQL Usage
 
 ### Query smaller time ranges
-Test your query on a small time range first. Ramp up to the required range if performance is sufficient. 
-For example, `FROM example 1h today ...` is preferable to `FROM example 180d today ...`.
+First test your query on a tiny time range and then ramp up to the required range if performance is sufficient. 
+E.g. `FROM example 1h today ...` is a better way to test than `FROM example 180d today ...`.
 
-When saving/bookmarking a query consider the time range being used. Queries auto-run when revisited, requiring you to wait for completion before adjusting the time range.
+When saving/bookmarking a query consider the time range being used. When you come back to that query it will auto-run, and you will need to wait for it to complete to adjust the time range.
 
-### Limit your use of regex
-Using a regular expression (regex) allows for more flexible filtering, but is more costly than filtering on the exact terms using `field IN (terms)`.
+### Limit your use of RegEx
+Using a regular expression (regex) allows for more flexible filtering, but be aware that these queries are more costly than if you filtered on the exact terms using `field IN (terms)`.
 
-If possible, use alternative fields rather than regex. For example, tokenized field m instead of myTerm or a single URL segment instead of the full path.
+There may be alternative fields that can be used to avoid the regex. E.g. tokenized field m instead of myTerm or a single URL segment instead of the full path.
 
-Frequently using regex to filter on a field can indicate a need for indexing more specialized views of that data in the index builder.
+Frequently using regex to filter on a field may indicate a need for indexing more specialized views of that data in the index builder.
 
-Try to combine multiple regex filters on the same field into a single regex. For example, use `ref!=~"(apple|ifa_|orange123).*"` instead of `ref!=~"apple.*" ref!=~"ifa_.*" ref!=~"orange123.*"`
+Try to combine multiple regex filters on the same field into a single regex. E.g. `ref!=~"(apple|ifa_|orange123).*"` instead of `ref!=~"apple.*" ref!=~"ifa_.*" ref!=~"orange123.*"`
 
 RegEx filtering becomes particularly expensive when used on fields with a large number of distinct terms (e.g. myTerm), when terms are long (e.g. URLs) and when querying long time periods containing a large number of shards.
 
 ### Don't try to un-invert an index / be smart about grouping
-IQL indices are stored inverted, making it unfeasible to see the original documents as rows. Many users who are used to tabular data attempt to un-invert an index by grouping by every available field. This is inefficient and not recommended. If you need access to complete rows of data, consider alternative data sources such as MySQL and HBase.
+IQL indices are stored inverted which makes it unfeasible to see the original documents as rows. Many users are used to tabular data and will try to un-invert an index by grouping by every available field. This is **not** recommended as it's very inefficient. If you need access to complete rows of data you should consider alternative data sources such as MySQL and HBase.
 
-If you think a grouping may result in a large number of groups, use the **DISTINCT** query to get the actual number of expected groups. For example, `FROM example 1h today SELECT DISTINCT(stringField)` returns the number of groups you would get by running `FROM example 1h today GROUP BY stringField`
+If you think a grouping may result in a huge number of groups, you can get the actual number of expected groups by running a **DISTINCT** query: 
 
-Try to put the largest grouping as the last grouping. This allows the result of the last largest grouping to be streamed instead of all stored in memory. For example, since there are dozens of somethings but millions of unique queries, prefer **`GROUP BY something, q`** to **`GROUP BY q, something`** or **~~`GROUP BY q[500000], something[50]`~~**.
+`FROM example 1h today SELECT DISTINCT(stringField)` returns the number of groups you would get by running `FROM example 1h today GROUP BY stringField`
+
+Try to put the largest grouping as the last grouping. This allows the result of the last largest grouping to be streamed instead of all stored in memory. E.g., since there are dozens of somethings but millions of unique queries, prefer **`GROUP BY something, q`** to **`GROUP BY q, something`** or **~~`GROUP BY q[500000], something[50]`~~**.
 
 ### Avoid distinct() when possible
-Avoid distinct() when possible for heavy queries. The optimization of streaming the data in the last group by grouping doesn't work if you have any distinct() elements in SELECT. For example, `FROM example 1h today select DISTINCT(stringField)` is acceptable but `FROM example 4w today GROUP BY q SELECT DISTINCT(stringField)` is not preferred.
+Avoid distinct() when possible for heavy queries. The optimization of streaming the data in the last group by grouping doesn't work if you have any distinct() elements in SELECT. So `FROM example 1h today select DISTINCT(stringField)` is fine but `FROM example 4w today GROUP BY q SELECT DISTINCT(stringField)` is bad.
 
-Although the output of DISTINCT(field) is a single number, all the values for that field must be streamed from Imhotep to IQL. This creates a great deal of data when run over larger time ranges for fields with many unique terms.
+Although the output of DISTINCT(field) is a single number, all the values for that field have to be streamed from Imhotep to IQL, which can get really large over larger time ranges for fields with a lot of unique terms.
 
 ### Don't click "Run" mutiple times
-When you create your query and click "Run", the request for the data is sent to Imhotep/IQL. Clicking "Run" multiple times or refreshing the page sends additional requests to the servers. Doing this with queries that are too heavy to complete successfully, for example because they exceed a limit, causes especially negative behavior: the queries do not get cached, rerun many times, and fail each time while consuming resources.
+After creating your query and hitting "Run", the request for the data has already been sent to Imhotep/IQL. Many times users will lose their patience and start clicking "Run" again and again, or refresh the page with the same effect. This will cause additional requests to the servers. It is especially bad if the query is too heavy and can't complete successfully (e.g. due to exceeding a limit). In that case it can't get cached and will rerun many times with the same failure result every time but use a lot of resources in the process.
 
-Re-running queries can cause you additional lost time.
+Re-running the same query will just put it further in your personal query queue so you'll have to wait for results even longer!
