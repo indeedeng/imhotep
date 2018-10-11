@@ -108,8 +108,6 @@ The number of rows IQL can return on non-streaming queries depends on the heap s
 First test your query on a tiny time range and then ramp up to the required range if performance is sufficient. 
 E.g. `FROM example 1h today ...` is a better way to test than `FROM example 180d today ...`.
 
-If you have created a Superset or Aquarium Dashboard, consider the time range. Do you really need to see 90d today worth of data, or is 2w today sufficient?
-
 When saving/bookmarking a query consider the time range being used. When you come back to that query it will auto-run, and you will need to wait for it to complete to adjust the time range.
 
 ### Limit your use of RegEx
@@ -124,7 +122,7 @@ Try to combine multiple regex filters on the same field into a single regex. E.g
 RegEx filtering becomes particularly expensive when used on fields with a large number of distinct terms (e.g. myTerm), when terms are long (e.g. URLs) and when querying long time periods containing a large number of shards.
 
 ### Don't try to un-invert an index / be smart about grouping
-IQL indices are stored inverted which makes it unfeasible to see the original documents as rows. Many users are used to tabular data and will try to un-invert an index by grouping by every available field. This is **not** recommended as it's very inefficient. If you need access to complete rows of data you should consider alternative data sources such as MySQL, HBase and LogRepo.
+IQL indices are stored inverted which makes it unfeasible to see the original documents as rows. Many users are used to tabular data and will try to un-invert an index by grouping by every available field. This is **not** recommended as it's very inefficient. If you need access to complete rows of data you should consider alternative data sources such as MySQL and HBase.
 
 If you think a grouping may result in a huge number of groups, you can get the actual number of expected groups by running a **DISTINCT** query: 
 
@@ -135,7 +133,7 @@ Try to put the largest grouping as the last grouping. This allows the result of 
 ### Avoid distinct() when possible
 Avoid distinct() when possible for heavy queries. The optimization of streaming the data in the last group by grouping doesn't work if you have any distinct() elements in SELECT. So `FROM example 1h today select DISTINCT(stringField)` is fine but `FROM example 4w today GROUP BY q SELECT DISTINCT(stringField)` is bad.
 
-Although the output of DISTINCT(field) is a single number, all the values for that field have to be streamed from Imhotep to IQL, which can get really large over larger time ranges for fields with a lot of unique terms (e.g. myStringField, myExample, etc.)
+Although the output of DISTINCT(field) is a single number, all the values for that field have to be streamed from Imhotep to IQL, which can get really large over larger time ranges for fields with a lot of unique terms.
 
 This also applies to IQL2 functions `SUM_OVER()`, `AVG_OVER()` and `DISTINCT_WINDOW()`.
 
