@@ -55,11 +55,9 @@ class RemoteCachingFileSystem extends FileSystem {
     private final RemoteCachingFileSystemProvider provider;
     private final SqarRemoteFileStore fileStore;
     private final LocalFileCache fileCache;
-    private final MetricStatsEmitter statsEmitter;
 
     RemoteCachingFileSystem(final RemoteCachingFileSystemProvider provider, final Map<String, ?> configuration, final MetricStatsEmitter statsEmitter) throws IOException {
         this.provider = provider;
-        this.statsEmitter = statsEmitter;
 
         final RemoteFileStore backingFileStore = RemoteFileStoreType.fromName((String) configuration.get("imhotep.fs.store.type"))
                 .getFactory().create(configuration);
