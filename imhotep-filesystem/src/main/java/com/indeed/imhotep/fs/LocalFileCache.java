@@ -449,6 +449,10 @@ class LocalFileCache {
                 }
                 final int timeDifferenceMinutes = presentTimeMinutes - (int) (entry.lastAccessTimeSecondsSinceEpoch/60);
 
+                if (timeDifferenceMinutes > 60*24){
+                    break;
+                }
+
                 if (timeDifferenceMinutes <= 1) {
                     SumCacheFileSize.stats.sumCacheFileSizeMinute += entry.fileSize;
                 }
