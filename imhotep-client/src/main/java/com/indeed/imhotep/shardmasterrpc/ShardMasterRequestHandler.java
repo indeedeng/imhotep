@@ -89,10 +89,7 @@ class ShardMasterRequestHandler implements RequestHandler {
             final Iterable<Shard> shardsInTime = shardMaster.getShardsInTime(request.getDataset(), request.getStartTime(), request.getEndTime());
             final ShardMasterResponse.Builder builder = ShardMasterResponse.newBuilder();
             for (final Shard shard : shardsInTime) {
-                final ShardMessage.Builder message = shard.addToShardMessage(
-                        ShardMessage.newBuilder().setDataset(request.getDataset())
-                );
-                builder.addShardsInTime(message.build());
+                shard.addToShardMessage(builder.addShardsInTimeBuilder().setDataset(request.getDataset()));
             }
             return Collections.singletonList(builder.setResponseCode(ShardMasterResponse.ResponseCode.OK).build());
         } catch (final IOException e) {

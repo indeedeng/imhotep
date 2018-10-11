@@ -33,6 +33,7 @@ public class ShardInfo implements Comparable<ShardInfo> {
     public final int numDocs;
     public final long version;
 
+    @Nullable
     private DateTimeRange range;    // lazily computed
 
     public ShardInfo(final String shardId, final int numDocs, final long version) {
@@ -131,7 +132,12 @@ public class ShardInfo implements Comparable<ShardInfo> {
 
     @Override
     public String toString() {
-        return shardId;
+        return "ShardInfo{" +
+                "fileName='" + (fileName == null ? "null" : fileName) + '\'' +
+                ", shardId='" + shardId + '\'' +
+                ", numDocs=" + numDocs +
+                ", version=" + version +
+                '}';
     }
 
     public static DateTimeRange parseDateTime(final String shardId) {

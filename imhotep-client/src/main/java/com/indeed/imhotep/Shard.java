@@ -59,27 +59,6 @@ public class Shard extends ShardInfo {
         return server;
     }
 
-    /** Note that servers are not used in comparisons */
-    @Override
-    public int compareTo(@Nonnull final ShardInfo o) {
-        return super.compareTo(o);
-    }
-
-    @Override
-    public boolean equals(final Object o) {
-        return super.equals(o);
-    }
-
-    @Override
-    public int hashCode() {
-        return super.hashCode();
-    }
-
-    @Override
-    public String toString() {
-        return super.toString();
-    }
-
     public static List<String> keepShardIds(final List<Shard> shards) {
         final List<String> result = Lists.newArrayListWithCapacity(shards.size());
         for(final Shard shard : shards) {
@@ -112,5 +91,26 @@ public class Shard extends ShardInfo {
             builder.setPath(fileName);
         }
         return builder;
+    }
+
+    /** Note that servers are not used in comparisons */
+    @Override
+    public int compareTo(@Nonnull final ShardInfo o) {
+        return super.compareTo(o);
+    }
+
+    @Override
+    public boolean equals(final Object o) {
+        return super.equals(o);
+    }
+
+    @Override
+    public int hashCode() {
+        return super.hashCode();
+    }
+
+    @Override
+    public String toString() {
+        return super.toString();
     }
 }
