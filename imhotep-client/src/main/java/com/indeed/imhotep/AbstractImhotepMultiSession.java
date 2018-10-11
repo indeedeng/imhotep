@@ -739,7 +739,6 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
                                         final T[] ret, final E[] things, final boolean lockCPU,
                                         final ThrowingFunction<? super E, ? extends T> function)
         throws ExecutionException {
-        Throwable t = null;
 
         final List<Future<T>> futures = new ArrayList<>(things.length);
         try {
@@ -761,9 +760,11 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
                 }));
             }
         } catch (final RejectedExecutionException e) {
-            t = new QueryCancelledException("The query was cancelled during execution", e);
+            safeClose();
+            throw new QueryCancelledException("The query was cancelled during execution", e);
         }
 
+        Throwable t = null;
         for (int i = 0; i < futures.size(); ++i) {
             try {
                 final Future<T> future = futures.get(i);
