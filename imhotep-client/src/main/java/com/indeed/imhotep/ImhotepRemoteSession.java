@@ -30,6 +30,8 @@ import com.indeed.imhotep.api.GroupStatsIterator;
 import com.indeed.imhotep.api.HasSessionId;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.PerformanceStats;
+import com.indeed.imhotep.exceptions.GenericImhotepKnownException;
+import com.indeed.imhotep.exceptions.ImhotepKnownException;
 import com.indeed.imhotep.io.ImhotepProtobufShipping;
 import com.indeed.imhotep.io.LimitedBufferedOutputStream;
 import com.indeed.imhotep.io.Streams;
@@ -240,8 +242,11 @@ public class ImhotepRemoteSession
                             "OutOfMemory error when creating session",
                             (sessionId == null) ? "" : sessionId));
                 }
+                if (response.getResponseCode() == ImhotepResponse.ResponseCode.KNOWN_ERROR) {
+                    throw buildImhotepKnownExceptionFromResponse(response, host, port, sessionId);
+                }
                 if (response.getResponseCode() == ImhotepResponse.ResponseCode.OTHER_ERROR) {
-                    throw buildExceptionFromResponse(response, host, port, sessionId);
+                    throw buildIOExceptionFromResponse(response, host, port, sessionId);
                 }
                 if (sessionId == null) {
                     sessionId = response.getSessionId();
@@ -1310,8 +1315,11 @@ public class ImhotepRemoteSession
         try {
             ImhotepProtobufShipping.sendProtobuf(request, os);
             final ImhotepResponse response = ImhotepProtobufShipping.readResponse(is);
+            if (response.getResponseCode() == ImhotepResponse.ResponseCode.KNOWN_ERROR) {
+                throw buildImhotepKnownExceptionFromResponse(response, host, port, sessionId);
+            }
             if (response.getResponseCode() == ImhotepResponse.ResponseCode.OTHER_ERROR) {
-                throw buildExceptionFromResponse(response, host, port, sessionId);
+                throw buildIOExceptionFromResponse(response, host, port, sessionId);
             }
             return response;
         } catch (final SocketTimeoutException e) {
@@ -1332,8 +1340,10 @@ public class ImhotepRemoteSession
             final int port) throws IOException, ImhotepOutOfMemoryException {
         try {
             final ImhotepResponse response = ImhotepProtobufShipping.readResponse(is);
-            if (response.getResponseCode() == ImhotepResponse.ResponseCode.OTHER_ERROR) {
-                throw buildExceptionFromResponse(response, host, port, getSessionId());
+            if (response.getResponseCode() == ImhotepResponse.ResponseCode.KNOWN_ERROR) {
+                throw buildImhotepKnownExceptionFromResponse(response, host, port, getSessionId());
+            } else if (response.getResponseCode() == ImhotepResponse.ResponseCode.OTHER_ERROR) {
+                throw buildIOExceptionFromResponse(response, host, port, getSessionId());
             } else if (response.getResponseCode() == ImhotepResponse.ResponseCode.OUT_OF_MEMORY) {
                 throw newImhotepOutOfMemoryException();
             } else {
@@ -1344,11 +1354,25 @@ public class ImhotepRemoteSession
         }
     }
 
-    private static IOException buildExceptionFromResponse(
+    private static IOException buildIOExceptionFromResponse(
             final ImhotepResponse response,
             final String host,
             final int port,
             @Nullable final String sessionId) {
+        final String msg = buildExceptionMessage(response, host, port, sessionId);
+        return new IOException(msg);
+    }
+
+    private static ImhotepKnownException buildImhotepKnownExceptionFromResponse(
+            final ImhotepResponse response,
+            final String host,
+            final int port,
+            @Nullable final String sessionId) {
+        final String msg = buildExceptionMessage(response, host, port, sessionId);
+        return new GenericImhotepKnownException(msg);
+    }
+
+    private static String buildExceptionMessage(final ImhotepResponse response, final String host, final int port, @Nullable final String sessionId) {
         final StringBuilder msg = new StringBuilder();
         msg.append("imhotep daemon ").append(host).append(":").append(port)
                 .append(" returned error: ")
@@ -1356,7 +1380,7 @@ public class ImhotepRemoteSession
         if (sessionId != null) {
             msg.append(" sessionId :").append(sessionId);
         }
-        return new IOException(msg.toString());
+        return msg.toString();
     }
 
     private static IOException buildExceptionAfterSocketTimeout(
