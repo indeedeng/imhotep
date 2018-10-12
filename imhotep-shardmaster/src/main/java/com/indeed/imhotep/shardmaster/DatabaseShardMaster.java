@@ -63,8 +63,7 @@ public class DatabaseShardMaster implements ShardMaster {
     @Override
     public List<Shard> getShardsInTime(final String dataset, final long start, final long end) {
         final Collection<ShardInfo> info = shardData.getShardsInTime(dataset, start, end);
-        final Iterable<Shard> assignment = assigner.assign(reloader.getHosts(), dataset, info);
-        return ImmutableList.copyOf(assignment);
+        return ImmutableList.copyOf(assigner.assign(reloader.getHosts(), dataset, info));
     }
 
     @Override

@@ -18,8 +18,6 @@ import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.indeed.flamdex.api.FlamdexReader;
-import com.indeed.flamdex.simple.SimpleFlamdexReader;
 import com.indeed.imhotep.ImhotepMemoryPool;
 import com.indeed.imhotep.ImhotepStatusDump;
 import com.indeed.imhotep.MemoryReservationContext;
@@ -109,7 +107,13 @@ public class LocalImhotepServiceCore
         } else {
             factory = new GenericFlamdexReaderSource();
         }
-        this.flamderReaderFactory = new ConcurrentFlamdexReaderFactory(memory, factory, config.getDynamicShardLocator());
+        final ShardLocator shardLocator;
+        if (config.getDynamicShardLocator() == null) {
+            shardLocator = ShardLocator.pathShardLocator(rootDir);
+        } else {
+            shardLocator = ShardLocator.combine(config.getDynamicShardLocator(), ShardLocator.pathShardLocator(rootDir));
+        }
+        this.flamderReaderFactory = new ConcurrentFlamdexReaderFactory(memory, factory, shardLocator);
 
         if(config.getCpuSlots() > 0) {
             TaskScheduler.CPUScheduler = new TaskScheduler(config.getCpuSlots(),
@@ -308,7 +312,7 @@ public class LocalImhotepServiceCore
         for (final ShardNameNumDocsPair aShardRequestList : shardRequestList) {
             final String shardName = aShardRequestList.getShardName();
             final int numDocs = aShardRequestList.getNumDocs();
-            readerRequests.add(new ConcurrentFlamdexReaderFactory.CreateRequest(rootDir, dataset, shardName, numDocs, userName, clientName));
+            readerRequests.add(new ConcurrentFlamdexReaderFactory.CreateRequest(dataset, shardName, numDocs, userName, clientName));
         }
         return readerRequests;
     }

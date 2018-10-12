@@ -43,6 +43,7 @@ import org.apache.zookeeper.ZooDefs;
 import org.joda.time.Duration;
 import org.springframework.jdbc.core.JdbcTemplate;
 
+import javax.annotation.Nullable;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.ServerSocket;
@@ -258,6 +259,7 @@ public class ShardMasterDaemon {
         private boolean writeSQL = true;
         private boolean readFilesystem = true;
         private boolean initialRefreshReadFilesystem = false;
+        @Nullable
         private ShardMaster dynamicShardMaster = null;
 
         /*
@@ -503,7 +505,7 @@ public class ShardMasterDaemon {
             return this;
         }
 
-        public Config setDynamicShardMaster(final ShardMaster dynamicShardMaster) {
+        public Config setDynamicShardMaster(@Nullable final ShardMaster dynamicShardMaster) {
             this.dynamicShardMaster = dynamicShardMaster;
             return this;
         }

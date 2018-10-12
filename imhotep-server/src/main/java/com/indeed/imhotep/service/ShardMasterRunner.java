@@ -54,7 +54,7 @@ public class ShardMasterRunner {
         return socket.getLocalPort();
     }
 
-    public void setDynamicShardMaster(final ShardMaster dynamicShardMaster) {
+    public void setDynamicShardMaster(@Nullable final ShardMaster dynamicShardMaster) {
         this.dynamicShardMaster = dynamicShardMaster;
     }
 
@@ -73,12 +73,9 @@ public class ShardMasterRunner {
                 .setLocalMode(true)
                 .setReadSQL(false)
                 .setWriteSQL(false)
-                .setHostsListStatic(hostsString);
-        if (dynamicShardMaster != null) {
-            config.setDynamicShardMaster(dynamicShardMaster);
-        }
-        currentlyRunning =
-                new ShardMasterDaemon(config);
+                .setHostsListStatic(hostsString)
+                .setDynamicShardMaster(dynamicShardMaster);
+        currentlyRunning = new ShardMasterDaemon(config);
 
         new Thread(() -> {
             try {

@@ -99,9 +99,7 @@ public class ShardData {
         if (rows.first()) {
             do {
                 final String strPath = rows.getString("path");
-                if (shouldDelete) {
-                    pathsThatWeMightDelete.remove(strPath);
-                }
+                pathsThatWeMightDelete.remove(strPath);
                 
                 if(pathsToShards.containsKey(strPath)) {
                     continue;
