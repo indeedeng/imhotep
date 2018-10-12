@@ -13,6 +13,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 public class CombiningShardMaster implements ShardMaster {
     private final List<ShardMaster> shardMasters;
@@ -45,13 +46,17 @@ public class CombiningShardMaster implements ShardMaster {
 
     @Override
     public Map<String, Collection<ShardInfo>> getShardList() throws IOException {
-        final Map<String, Collection<ShardInfo>> combinedResult = new HashMap<>();
+        final Map<String, Iterable<ShardInfo>> combinedResultBuilder = new HashMap<>();
         for (final ShardMaster shardMaster : shardMasters) {
             for (final Map.Entry<String, Collection<ShardInfo>> entry : shardMaster.getShardList().entrySet()) {
-                combinedResult.merge(entry.getKey(), entry.getValue(), (lhs, rhs) -> ImmutableList.copyOf(Iterables.concat(lhs, rhs)));
+                combinedResultBuilder.compute(
+                        entry.getKey(),
+                        (ignored, value) -> (value == null) ? entry.getValue() : Iterables.concat(value, entry.getValue())
+                );
             }
         }
-        return combinedResult;
+        return combinedResultBuilder.entrySet().stream()
+                .collect(Collectors.toMap(Map.Entry::getKey, entry -> ImmutableList.copyOf(entry.getValue())));
     }
 
     @Override
