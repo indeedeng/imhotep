@@ -83,7 +83,7 @@ public class TestLocalImhotepServiceCoreSharedResource {
                 new LocalImhotepServiceCore(optDirectory, 1024L * 1024 * 1024,
                                         factory,
                                         new LocalImhotepServiceConfig(),
-                        datasetDir);
+                        tempDir);
         final String sessionId = service.handleOpenSession("dataset", Collections.singletonList(ShardNameNumDocsPair.newBuilder().setShardName(shardName).build()), "", "", "", 0, 0, false, "", null, 0);
         try {
             service.handlePushStat(sessionId, "if1");
@@ -134,7 +134,7 @@ public class TestLocalImhotepServiceCoreSharedResource {
                                             Long.MAX_VALUE,
                                             factory,
                                             new LocalImhotepServiceConfig().setFlamdexReaderCacheMaxDurationMillis(1),
-                                            datasetDir);
+                                            tempDir);
         try {
             final String sessionId = service.handleOpenSession("dataset", Collections.singletonList(ShardNameNumDocsPair.newBuilder().setShardName(shardName).build()), "", "", "", 0, 0, false, "", null, 0);
             sessionOpened.set(true);
