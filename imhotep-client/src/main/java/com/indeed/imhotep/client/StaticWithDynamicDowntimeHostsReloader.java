@@ -21,9 +21,7 @@ import org.apache.log4j.Logger;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 /**
  * Uses a static list of hosts in a consistent order but nulls out those that are down
