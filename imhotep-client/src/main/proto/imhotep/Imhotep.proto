@@ -362,7 +362,6 @@ message ImhotepResponse {
     OK = 1;
     OUT_OF_MEMORY = 2;
     OTHER_ERROR = 3;
-    KNOWN_ERROR = 4;
   }
 
   optional ResponseCode response_code = 1 [default = OK];
