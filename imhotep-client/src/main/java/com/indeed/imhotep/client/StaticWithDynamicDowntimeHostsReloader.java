@@ -64,7 +64,7 @@ public class StaticWithDynamicDowntimeHostsReloader extends DataLoadingRunnable 
                     downHosts++;
                 }
             }
-            hosts = newHostsWithDowntime.stream().filter(Objects::nonNull).collect(Collectors.toList());
+            hosts = newHostsWithDowntime;
             if(downHosts > 0) {
                 log.warn(downHosts + " hosts are down out of " + allHosts.size() + ". " + upHosts.size() +
                         " returned by the dynamic hosts reloader");
