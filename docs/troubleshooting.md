@@ -119,7 +119,7 @@ Frequently using regex to filter on a field can indicate a need for indexing mor
 
 Try to combine multiple regex filters on the same field into a single regex. For example, use `ref!=~"(apple|ifa_|orange123).*"` instead of `ref!=~"apple.*" ref!=~"ifa_.*" ref!=~"orange123.*"`
 
-RegEx filtering becomes particularly expensive in the following situations: 
+Regex filtering becomes particularly expensive in the following situations: 
 * when used on fields with a large number of distinct terms, such as myTerm
 * when terms are long, such as URLs
 * when querying long time periods containing a large number of shards
@@ -127,16 +127,16 @@ RegEx filtering becomes particularly expensive in the following situations:
 ### Don't try to un-invert an index / be smart about grouping
 IQL indices are stored inverted, making it unfeasible to see the original documents as rows. Many users who are used to tabular data attempt to un-invert an index by grouping by every available field. This is inefficient and not recommended. If you need access to complete rows of data, consider alternative data sources such as MySQL and HBase.
 
-If you think a grouping may result in a large number of groups, use the **DISTINCT** query to get the actual number of expected groups. For example, `FROM example 1h today SELECT DISTINCT(stringField)` returns the number of groups you would get by running `FROM example 1h today GROUP BY stringField`
+If you think a grouping may result in a large number of groups, use the **distinct()** query to get the actual number of expected groups. For example, `FROM example 1h today SELECT distinct(stringField)` returns the number of groups you would get by running `FROM example 1h today GROUP BY stringField`
 
 Try to put the largest grouping as the last grouping. This allows the result of the last largest grouping to be streamed instead of all stored in memory. For example, since there are dozens of somethings but millions of unique queries, prefer **`GROUP BY something, q`** to **`GROUP BY q, something`** or **`GROUP BY q[500000], something[50]`**.
 
 ### Avoid distinct() when possible
-Avoid distinct() when possible for heavy queries. The optimization of streaming the data in the last group by grouping doesn't work if you have any distinct() elements in SELECT. For example, `FROM example 1h today select DISTINCT(stringField)` is acceptable but `FROM example 4w today GROUP BY q SELECT DISTINCT(stringField)` is not preferred.
+Avoid distinct() when possible for heavy queries. The optimization of streaming the data in the last group by grouping doesn't work if you have any distinct() elements in SELECT. For example, `FROM example 1h today select distinct(stringField)` is acceptable but `FROM example 4w today GROUP BY q SELECT distinct(stringField)` is not preferred.
 
-Although the output of DISTINCT(field) is a single number, all the values for that field must be streamed from Imhotep to IQL. This creates a great deal of data when run over larger time ranges for fields with many unique terms.
+Although the output of distinct(field) is a single number, all the values for that field must be streamed from Imhotep to IQL. This creates a great deal of data when run over larger time ranges for fields with many unique terms.
 
-### Don't click "Run" mutiple times
-When you create your query and click "Run", the request for the data is sent to Imhotep/IQL. Clicking "Run" multiple times or refreshing the page sends additional requests to the servers. Doing this with queries that are too heavy to complete successfully, for example because they exceed a limit, causes especially negative behavior: the queries do not get cached, rerun many times, and fail each time while consuming resources.
+### Don't click Run mutiple times
+When you create your query and click **Run**, the request for the data is sent to Imhotep/IQL. Clicking **Run** multiple times or refreshing the page sends additional requests to the servers. Doing this with queries that are too heavy to complete successfully, for example because they exceed a limit, causes especially negative behavior: the queries do not get cached, rerun many times, and fail each time while consuming resources.
 
 Re-running queries can cause you additional lost time.
