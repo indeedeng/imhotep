@@ -341,6 +341,14 @@ public class ImhotepRemoteSession
         }
     }
 
+    GroupStatsIterator aggregateDistinct(MultiFTGSRequest proto) {
+        final Timer timer = new Timer();
+        final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.MERGE_MULTI_DISTINCT_SPLIT)
+                .setMultiFtgsRequest(proto)
+                .build();
+        return sendGroupStatsIteratorRequest(request, timer);
+    }
+
     @Override
     public FTGSIterator getSubsetFTGSIterator(final Map<String, long[]> intFields, final Map<String, String[]> stringFields) {
         final Timer timer = new Timer();

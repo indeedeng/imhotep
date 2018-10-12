@@ -68,7 +68,6 @@ public class TestMultiFTGS {
     @Parameters
     public static List<Object[]> parameters() {
         final List<Object[]> result = new ArrayList<>();
-        result.add(new Object[] { true, 2 });
         for (final boolean sorted : new boolean[]{true, false}) {
             for (final int numServers : new int[]{1, 2}) {
                 result.add(new Object[] { sorted, numServers });
@@ -494,8 +493,7 @@ public class TestMultiFTGS {
             session1.pushStat("count()");
             session2.pushStat("count()");
 
-            final int statIndex = 0;
-            final AggregateStatTree count1 = stat(session1, statIndex);
+            final AggregateStatTree count1 = stat(session1, 0);
             final AggregateStatTree count2 = stat(session2, 0);
 
             // GROUP BY country SELECT dataset1.count(), dataset2.count(), count()

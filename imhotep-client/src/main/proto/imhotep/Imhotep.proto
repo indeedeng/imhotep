@@ -148,6 +148,7 @@ message ImhotepRequest {
     MERGE_DISTINCT_SPLIT = 49;
     REMAP_GROUPS = 50;
     MERGE_MULTI_FTGS_SPLIT = 51;
+    MERGE_MULTI_DISTINCT_SPLIT = 52;
     SHUTDOWN = 255;
   }
 
@@ -355,6 +356,15 @@ message MultiFTGSRequest {
   optional int32 sortStat = 8 [default = -1];
   optional bool sortedFTGS = 9 [default = true];
 
+}
+
+message MultiDistinctRequest {
+  repeated MultiFTGSRequest.MultiFTGSSession sessionInfo = 1;
+  // One entry per unique HAVING you're interested in counting
+  repeated AggregateStat filters = 2;
+  optional bool isIntField = 3;
+  optional int32 splitIndex = 4;
+  repeated HostAndPort nodes = 5;
 }
 
 message ImhotepResponse {

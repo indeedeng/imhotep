@@ -54,6 +54,16 @@ public class AggregateStatTree {
     }
 
     /**
+     * A constant (boolean) value
+     */
+    public static AggregateStatTree constant(boolean value) {
+        return of(AggregateStat.newBuilder()
+                .setStatType(AggregateStat.StatType.CONSTANT)
+                .setValue(value ? 1.0 : 0.0)
+                .build());
+    }
+
+    /**
      * A per-group constant value
      */
     public static AggregateStatTree perGroupConstant(double[] values) {
