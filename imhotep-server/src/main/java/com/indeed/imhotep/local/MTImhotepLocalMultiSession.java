@@ -449,13 +449,14 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
             }
             // 1 list per SPLIT, where the elements are the elements that have the same index
             final FTGAIterator[] splitEntries = new FTGAIterator[numSplits];
-            closer.register(Closeables2.forArray(log, splitEntries));
             for (int i = 0; i < numSplits; i++) {
                 final List<FTGSIterator> indexIterators = new ArrayList<>();
                 for (final FTGSIterator[] list : subIteratorLists) {
                     indexIterators.add(list[i]);
                 }
-                splitEntries[i] = modifiers.wrap(processor.apply(new MultiSessionMerger(indexIterators, null)));
+                final MultiSessionMerger sessionMerger = closer.register(new MultiSessionMerger(indexIterators, null));
+                final FTGAIterator processed = closer.register(processor.apply(sessionMerger));
+                splitEntries[i] = closer.register(modifiers.wrap(processed));
             }
             final FTGAIterator[] persisted = new FTGAIterator[numSplits];
             execute(persisted, splitEntries, true, this::persist);
@@ -475,6 +476,7 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
             final List<AggregateStat> filters
     ) {
         final Closer closer = Closer.create();
+        final Closer closeOnFailCloser = Closer.create();
         try {
             for (final FTGSIterator[] subIteratorList : subIteratorLists) {
                 closer.register(Closeables2.forArray(log, subIteratorList));
@@ -486,19 +488,20 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
             }
             // 1 list per SPLIT, where the elements are the elements that have the same index
             final MultiFTGSIterator[] splitEntries = new MultiFTGSIterator[numSplits];
-            closer.register(Closeables2.forArray(log, splitEntries));
             for (int i = 0; i < numSplits; i++) {
                 final List<FTGSIterator> indexIterators = new ArrayList<>();
                 for (final FTGSIterator[] list : subIteratorLists) {
                     indexIterators.add(list[i]);
                 }
-                splitEntries[i] = new MultiSessionMerger(indexIterators, null);
+                splitEntries[i] = closer.register(new MultiSessionMerger(indexIterators, null));
             }
 
             final GroupStatsIterator[] threadCounts = new GroupStatsIterator[numSplits];
+            closeOnFailCloser.register(Closeables2.forArray(log, threadCounts));
             execute(threadCounts, splitEntries, true, x -> calculateMultiDistinct(x, filters));
             return new GroupStatsIteratorCombiner(threadCounts);
         } catch (ExecutionException e) {
+            Closeables2.closeQuietly(closeOnFailCloser, log);
             throw Throwables.propagate(e);
         } finally {
             Closeables2.closeQuietly(closer, log);

@@ -337,10 +337,9 @@ public abstract class AbstractImhotepServiceCore
             });
             closer.register(Closeables2.forArray(log, streams));
 
-            final FTGAIterator interleaver = sorted ? new SortedFTGAInterleaver(streams) : new UnsortedFTGAIterator(streams);
-            closer.register(interleaver);
+            final FTGAIterator interleaver = closer.register(sorted ? new SortedFTGAInterleaver(streams) : new UnsortedFTGAIterator(streams));
 
-            sendFTGAIterator(modifiers.wrap(interleaver), os);
+            sendFTGAIterator(closer.register(modifiers.wrap(interleaver)), os);
         } catch (Throwable t) {
             Closeables2.closeQuietly(closer, log);
             throw Throwables.propagate(t);
@@ -370,7 +369,9 @@ public abstract class AbstractImhotepServiceCore
                         final FTGSParams ftgsParams = new FTGSParams(intFields, stringFields, 0, -1, true);
                         return session.partialMergeFTGSSplit(sessionInfo.getSessionId(), ftgsParams, sessionNodes, splitIndex, nodes.length, numLocalSplits);
                     });
-                    closer.register(Closeables2.forArray(log, sessionIterators));
+                    synchronized (closer) {
+                        closer.register(Closeables2.forArray(log, sessionIterators));
+                    }
                     if (numLocalSplits != sessionIterators.length) {
                         throw new IllegalStateException("Did not create the expected number of splits!");
                     }
@@ -406,15 +407,17 @@ public abstract class AbstractImhotepServiceCore
             ParseAggregate.parse(sessionStatsInfos, filters, filter);
         }
 
-        final Closer closer = Closer.create();
-
+        final Closer closeOnFailCloser = Closer.create();
         try {
-            final List<FTGSIterator[]> sessionSplitIterators = getMultiSessionSplitIterators(closer, validLocalSessionId, nodes, sessionInfoList, isIntField, splitIndex);
+            final List<FTGSIterator[]> sessionSplitIterators = getMultiSessionSplitIterators(closeOnFailCloser, validLocalSessionId, nodes, sessionInfoList, isIntField, splitIndex);
+            for (final FTGSIterator[] sessionSplitIterator : sessionSplitIterators) {
+                closeOnFailCloser.register(Closeables2.forArray(log, sessionSplitIterator));
+            }
             return doWithSession(validLocalSessionId, (Function<MTImhotepLocalMultiSession, GroupStatsIterator>) session -> {
                 return session.mergeMultiDistinct(sessionSplitIterators, filters.toList());
             });
         } catch (Throwable t) {
-            Closeables2.closeQuietly(closer, log);
+            Closeables2.closeQuietly(closeOnFailCloser, log);
             throw Throwables.propagate(t);
         }
 

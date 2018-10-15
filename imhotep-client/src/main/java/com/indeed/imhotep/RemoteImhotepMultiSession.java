@@ -327,10 +327,10 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
         final Pair<Integer, HostAndPort>[] indexedServers = multiFtgsIndexedServers(builder);
         final MultiFTGSRequest baseRequest = builder.build();
 
-        final Closer closer = Closer.create();
+        final Closer closeOnFailCloser = Closer.create();
         try {
             final GroupStatsIterator[] subCounts = new GroupStatsIterator[indexedServers.length];
-            closer.register(Closeables2.forArray(log, subCounts));
+            closeOnFailCloser.register(Closeables2.forArray(log, subCounts));
 
             final AtomicLong tempFileSizeBytesLeft = getTempFileSizeBytesLeft(sessionsWithFields);
             final String concatenatedSessionIds = getConcatenatedSessionIds(sessionsWithFields);
@@ -350,7 +350,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
 
             return new GroupStatsIteratorCombiner(subCounts);
         } catch (Throwable t) {
-            Closeables2.closeQuietly(closer, log);
+            Closeables2.closeQuietly(closeOnFailCloser, log);
             throw Throwables.propagate(t);
         }
     }
