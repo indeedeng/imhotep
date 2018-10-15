@@ -334,13 +334,20 @@ class LocalFileCache {
         synchronized (lock) {
             final int counter = decFileUsageRef(path);
             if (counter == 0) {
-                referencedFilesCache.invalidate(path);
                 try {
-                    referencedFilesCacheSize.addAndGet(-sizeOnDisk(cachePath));
-                    unusedFilesCache.put(path, new FileCacheEntry(cachePath, sizeOnDisk(cachePath), (int)(System.currentTimeMillis()/1000)));
-                } catch (final IOException e) {
-                    LOGGER.warn("Failed to get file size for disposed cache file " + cachePath +
-                            ". The file will be assumed to been removed", e);
+                    long referencedFileSize = referencedFilesCache.get(path).fileSize;
+                    referencedFilesCache.invalidate(path);
+                    referencedFilesCacheSize.addAndGet(-referencedFileSize);
+                    unusedFilesCache.put(path, new FileCacheEntry(cachePath, referencedFileSize, (int) (System.currentTimeMillis() / 1000)));
+                } catch (final ExecutionException e) {
+                    LOGGER.warn("File with path " + cachePath + "to be disposed not present in referencedFilesCache ", e);
+                    try {
+                        unusedFilesCache.put(path, new FileCacheEntry(cachePath, sizeOnDisk(path), (int) (System.currentTimeMillis() / 1000)));
+                    } catch ( final IOException ex){
+                        LOGGER.warn("Failed to get file size for disposed cache file " + cachePath +
+                                ". The file will be assumed to been removed", ex);
+                    }
+
                 }
             }
         }
@@ -455,7 +462,7 @@ class LocalFileCache {
                 final int timeDifferenceSeconds = secondsSinceEpoch - entry.lastAccessEpochTimeSeconds;
 
                 if (timeDifferenceSeconds > 60*60*24){
-                    break;
+                    continue;
                 }
 
                 if (timeDifferenceSeconds <= 60) {
