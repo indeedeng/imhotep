@@ -51,7 +51,7 @@ public interface ShardLocator {
                 return ComparisonChain.start()
                         .compare(lhsDir.getVersion(), rhsDir.getVersion())
                         .compare(lhsDir.getName(), rhsDir.getName())
-                        .compare(lhs, rhs)
+                        .compare(lhs, rhs, Comparator.comparing(Path::toString))
                         .result();
             }
 
