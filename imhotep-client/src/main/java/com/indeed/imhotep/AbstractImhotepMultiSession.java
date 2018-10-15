@@ -176,6 +176,10 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
         termCountListBuf = new List[sessions.length];
     }
 
+    public boolean isClosed() {
+        return closed;
+    }
+
     public void addObserver(final Instrumentation.Observer observer) {
         instrumentation.addObserver(observer);
     }
