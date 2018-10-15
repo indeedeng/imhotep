@@ -43,19 +43,12 @@ public interface ShardLocator {
     Optional<Path> locateShard(final String dataset, final String shardName);
 
     static class CombinedShardLocator implements ShardLocator {
-        private static final Comparator<Path> SHARD_VERSION_COMPARATOR = new Comparator<Path>() {
-            @Override
-            public int compare(final Path lhs, final Path rhs) {
-                final ShardDir lhsDir = new ShardDir(lhs);
-                final ShardDir rhsDir = new ShardDir(rhs);
-                return ComparisonChain.start()
-                        .compare(lhsDir.getVersion(), rhsDir.getVersion())
-                        .compare(lhsDir.getName(), rhsDir.getName())
-                        .compare(lhs, rhs, Comparator.comparing(Path::toString))
-                        .result();
-            }
-
-            ;
+        private static final Comparator<ShardDir> SHARD_DIR_COMPARATOR = (lhs, rhs) -> {
+            return ComparisonChain.start()
+                    .compare(lhs.getVersion(), rhs.getVersion())
+                    .compare(lhs.getName(), rhs.getName())
+                    .compare(lhs.getIndexDir(), rhs.getIndexDir(), Comparator.comparing(Path::toString))
+                    .result();
         };
 
         final List<ShardLocator> shardLocators;
@@ -70,7 +63,9 @@ public interface ShardLocator {
                     .map(shardLocator -> shardLocator.locateShard(dataset, shardName))
                     .filter(Optional::isPresent)
                     .map(Optional::get)
-                    .max(SHARD_VERSION_COMPARATOR);
+                    .map(ShardDir::new)
+                    .max(SHARD_DIR_COMPARATOR)
+                    .map(ShardDir::getIndexDir);
         }
     }
 }
