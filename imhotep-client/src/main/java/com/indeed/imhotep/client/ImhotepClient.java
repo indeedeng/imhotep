@@ -472,9 +472,8 @@ public class ImhotepClient
                 nodes[i] = remoteSessions[i].getInetSocketAddress();
             }
             return new RemoteImhotepMultiSession(remoteSessions, sessionId, nodes, localTempFileSizeLimit, localTempFileSizeBytesLeft, username, clientName);
-        } catch (final ImhotepKnownException e) {
-            throw e;
         } catch (Exception e) {
+            Throwables.propagateIfInstanceOf(e, ImhotepKnownException.class);
             throw new RuntimeException("unable to open session",  e);
         }
     }
@@ -539,7 +538,6 @@ public class ImhotepClient
                         }
                     });
             } catch (final ExecutionException e) {
-                log.error("exception while opening session", e);
                 error = e.getCause();
                 if (!(error instanceof ImhotepKnownException)) {
                     log.error("exception while opening session", e);
