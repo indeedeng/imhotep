@@ -16,7 +16,6 @@
 import com.google.common.base.Function;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Iterators;
 import com.google.common.io.ByteStreams;
 import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Ints;
@@ -32,6 +31,9 @@ import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.PerformanceStats;
 import com.indeed.imhotep.io.ImhotepProtobufShipping;
 import com.indeed.imhotep.io.LimitedBufferedOutputStream;
+import com.indeed.imhotep.io.RequestTools;
+import com.indeed.imhotep.io.RequestTools.GroupMultiRemapRuleSender;
+import com.indeed.imhotep.io.RequestTools.ImhotepRequestSender;
 import com.indeed.imhotep.io.Streams;
 import com.indeed.imhotep.io.TempFileSizeLimitExceededException;
 import com.indeed.imhotep.io.WriteLimitExceededException;
@@ -170,7 +172,7 @@ public class ImhotepRemoteSession
         final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.GET_STATUS_DUMP)
                 .build();
 
-        final ImhotepResponse response = sendRequest(request, host, port);
+        final ImhotepResponse response = sendRequest(createSender(request), host, port);
 
         return ImhotepStatusDump.fromProto(response.getStatusDump());
     }
@@ -518,7 +520,7 @@ public class ImhotepRemoteSession
         final ImhotepResponse response;
         Path tmp = null;
         try {
-            response = sendRequest(request, is, os, host, port);
+            response = sendRequest(createSender(request), is, os, host, port);
             tmp = Files.createTempFile(tempFilePrefix, ".tmp");
             final long start = System.currentTimeMillis();
             try (final OutputStream out = new LimitedBufferedOutputStream(Files.newOutputStream(tmp), tempFileSizeBytesLeft)) {
@@ -551,26 +553,25 @@ public class ImhotepRemoteSession
     public int regroup(final GroupMultiRemapRule[] rawRules,
                        final boolean errorOnCollisions) throws ImhotepOutOfMemoryException {
         final Timer timer = new Timer();
-        try {
-            final ImhotepResponse response =
-                sendMultisplitRegroupRequest(rawRules, errorOnCollisions);
-            final int result = response.getNumGroups();
-            timer.complete(ImhotepRequest.RequestType.EXPLODED_MULTISPLIT_REGROUP);
-            return result;
-        } catch (final IOException e) {
-            throw newRuntimeException(e);
-        }
+        final GroupMultiRemapRuleSender ruleSender =
+                GroupMultiRemapRuleSender.createFromRules(Arrays.asList(rawRules).iterator(), false);
+        return regroupWithSender(ruleSender, errorOnCollisions, timer);
     }
 
     @Override
     public int regroupWithProtos(final GroupMultiRemapMessage[] rawRuleMessages,
                                  final boolean errorOnCollisions) throws ImhotepOutOfMemoryException {
         final Timer timer = new Timer();
+        final RequestTools.GroupMultiRemapRuleSender ruleSender =
+                GroupMultiRemapRuleSender.createFromMessages(Arrays.asList(rawRuleMessages).iterator(), false);
+        return regroupWithSender(ruleSender, errorOnCollisions, timer);
+    }
+
+    public int regroupWithSender(final GroupMultiRemapRuleSender ruleSender,
+                                 final boolean errorOnCollisions,
+                                 final Timer timer) throws ImhotepOutOfMemoryException {
         try {
-            final Iterator<GroupMultiRemapMessage> rawRuleMessagesIterator = Arrays.asList(rawRuleMessages).iterator();
-            final ImhotepResponse response =
-                    sendMultisplitRegroupRequestFromProtos(rawRuleMessages.length, rawRuleMessagesIterator, errorOnCollisions);
-            final int result = response.getNumGroups();
+            final int result = sendMultisplitRegroupRequest(ruleSender, errorOnCollisions);
             timer.complete(ImhotepRequest.RequestType.EXPLODED_MULTISPLIT_REGROUP);
             return result;
         } catch (final IOException e) {
@@ -583,15 +584,8 @@ public class ImhotepRemoteSession
                        final Iterator<GroupMultiRemapRule> rawRules,
                        final boolean errorOnCollisions) throws ImhotepOutOfMemoryException {
         final Timer timer = new Timer();
-        try {
-            final ImhotepResponse response =
-                sendMultisplitRegroupRequest(numRawRules, rawRules, errorOnCollisions);
-            final int result = response.getNumGroups();
-            timer.complete(ImhotepRequest.RequestType.EXPLODED_MULTISPLIT_REGROUP);
-            return result;
-        } catch (final IOException e) {
-            throw newRuntimeException(e);
-        }
+        final GroupMultiRemapRuleSender ruleSender = GroupMultiRemapRuleSender.createFromRules(rawRules, false);
+        return regroupWithSender(ruleSender, errorOnCollisions, timer);
     }
 
     @Override
@@ -641,15 +635,15 @@ public class ImhotepRemoteSession
             final int targetGroup,
             final int negativeGroup,
             final int positiveGroup) throws ImhotepOutOfMemoryException {
-        final ImhotepRequest request = buildIntOrRegroupRequest(field, terms, targetGroup, negativeGroup, positiveGroup);
+        final ImhotepRequestSender request = createSender(buildIntOrRegroupRequest(field, terms, targetGroup, negativeGroup, positiveGroup));
         sendVoidRequest(request);
     }
 
-    protected void sendVoidRequest(ImhotepRequest request) throws ImhotepOutOfMemoryException {
+    protected void sendVoidRequest(final ImhotepRequestSender request) throws ImhotepOutOfMemoryException {
         final Timer timer = new Timer();
         try {
             sendRequestWithMemoryException(request, host, port, socketTimeout);
-            timer.complete(request);
+            timer.complete(request.getRequestType());
         } catch (final IOException e) {
             throw newRuntimeException(e);
         }
@@ -673,7 +667,7 @@ public class ImhotepRemoteSession
             final int targetGroup,
             final int negativeGroup,
             final int positiveGroup) throws ImhotepOutOfMemoryException {
-        final ImhotepRequest request = buildStringOrRegroupRequest(field, terms, targetGroup, negativeGroup, positiveGroup);
+        final ImhotepRequestSender request = createSender(buildStringOrRegroupRequest(field, terms, targetGroup, negativeGroup, positiveGroup));
         sendVoidRequest(request);
     }
 
@@ -878,7 +872,7 @@ public class ImhotepRemoteSession
 
     @Override
     public int regroup(final int[] fromGroups, final int[] toGroups, final boolean filterOutNotTargeted) throws ImhotepOutOfMemoryException {
-        final ImhotepRequest request = buildGroupRemapRequest(fromGroups, toGroups, filterOutNotTargeted);
+        final ImhotepRequestSender request = createSender(buildGroupRemapRequest(fromGroups, toGroups, filterOutNotTargeted));
         return sendRegroupRequest(request);
     }
 
@@ -891,13 +885,13 @@ public class ImhotepRemoteSession
                 .build();
     }
 
-    public int sendRegroupRequest(final ImhotepRequest request) throws ImhotepOutOfMemoryException {
+    public int sendRegroupRequest(final ImhotepRequestSender request) throws ImhotepOutOfMemoryException {
         final Timer timer = new Timer();
 
         try {
             final ImhotepResponse response = sendRequestWithMemoryException(request, host, port, socketTimeout);
             final int result = response.getNumGroups();
-            timer.complete(request);
+            timer.complete(request.getRequestType());
             return result;
         } catch (final IOException e) {
             throw new RuntimeException(e);
@@ -1049,7 +1043,7 @@ public class ImhotepRemoteSession
                 .build();
 
         try {
-            sendRequest(request, host, port);
+            sendRequest(request, host, port, socketTimeout);
             timer.complete(request);
         } catch (final SocketTimeoutException e) {
             throw newRuntimeException(buildExceptionAfterSocketTimeout(e, host, port, null));
@@ -1222,11 +1216,11 @@ public class ImhotepRemoteSession
         return ImhotepRequest.newBuilder().setRequestType(requestType);
     }
 
-    private static ImhotepResponse sendRequest(final ImhotepRequest request, final String host, final int port) throws IOException {
+    private static ImhotepResponse sendRequest(final ImhotepRequestSender request, final String host, final int port) throws IOException {
         return sendRequest(request, host, port, -1);
     }
 
-    private static ImhotepResponse sendRequest(final ImhotepRequest request, final String host, final int port, final int socketTimeout) throws IOException {
+    private static ImhotepResponse sendRequest(final ImhotepRequestSender request, final String host, final int port, final int socketTimeout) throws IOException {
         final Socket socket = newSocket(host, port, socketTimeout);
         final InputStream is = Streams.newBufferedInputStream(socket.getInputStream());
         final OutputStream os = Streams.newBufferedOutputStream(socket.getOutputStream());
@@ -1237,32 +1231,23 @@ public class ImhotepRemoteSession
         }
     }
 
-    // Special cased in order to save memory and only have one marshalled rule exist at a time.
-    private ImhotepResponse sendMultisplitRegroupRequest(final GroupMultiRemapRule[] rules, final boolean errorOnCollisions) throws IOException, ImhotepOutOfMemoryException {
-        return sendMultisplitRegroupRequest(rules.length, Arrays.asList(rules).iterator(), errorOnCollisions);
+    private static ImhotepResponse sendRequest(final ImhotepRequest request, final String host, final int port, final int socketTimeout) throws IOException {
+        final Socket socket = newSocket(host, port, socketTimeout);
+        final InputStream is = Streams.newBufferedInputStream(socket.getInputStream());
+        final OutputStream os = Streams.newBufferedOutputStream(socket.getOutputStream());
+        final ImhotepRequestSender requestSender = createSender(request);
+        try {
+            return sendRequest(requestSender, is, os, host, port);
+        } finally {
+            closeSocket(socket);
+        }
     }
 
-    private ImhotepResponse sendMultisplitRegroupRequest(
-            final int numRules,
-            final Iterator<GroupMultiRemapRule> rules,
-            final boolean errorOnCollisions) throws IOException, ImhotepOutOfMemoryException {
-        final Iterator<GroupMultiRemapMessage> ruleMessageIterator = Iterators.transform(rules,
-                new Function<GroupMultiRemapRule, GroupMultiRemapMessage>() {
-            @Nullable
-            @Override
-            public GroupMultiRemapMessage apply(@Nullable final GroupMultiRemapRule rule) {
-                return ImhotepClientMarshaller.marshal(rule);
-            }
-        });
-        return sendMultisplitRegroupRequestFromProtos(numRules, ruleMessageIterator, errorOnCollisions);
-    }
-
-    private ImhotepResponse sendMultisplitRegroupRequestFromProtos(
-            final int numRules,
-            final Iterator<GroupMultiRemapMessage> rules,
+    private int sendMultisplitRegroupRequest(
+            final GroupMultiRemapRuleSender rulesSender,
             final boolean errorOnCollisions) throws IOException, ImhotepOutOfMemoryException {
         final ImhotepRequest initialRequest = getBuilderForType(ImhotepRequest.RequestType.EXPLODED_MULTISPLIT_REGROUP)
-                .setLength(numRules)
+                .setLength(rulesSender.getRulesCount())
                 .setSessionId(getSessionId())
                 .setErrorOnCollisions(errorOnCollisions)
                 .build();
@@ -1272,17 +1257,28 @@ public class ImhotepRemoteSession
         final OutputStream os = Streams.newBufferedOutputStream(socket.getOutputStream());
         try {
             ImhotepProtobufShipping.sendProtobufNoFlush(initialRequest, os);
-            while (rules.hasNext()) {
-                final GroupMultiRemapMessage ruleMessage = rules.next();
-                ImhotepProtobufShipping.sendProtobufNoFlush(ruleMessage, os);
-            }
+            rulesSender.writeToStreamNoFlush(os);
             os.flush();
-            return readResponseWithMemoryException(is, host, port);
+            final ImhotepResponse response = readResponseWithMemoryException(is, host, port);
+            return response.getNumGroups();
         } catch (final IOException e) {
             log.error("[" + getSessionId() + "] error sending exploded multisplit regroup request to " + host + ":" + port, e);
             throw e;
         } finally {
             closeSocket(socket);
+        }
+    }
+
+    private static ImhotepResponse sendRequestWithMemoryException(
+            final ImhotepRequestSender request,
+            final String host,
+            final int port,
+            final int socketTimeout) throws IOException, ImhotepOutOfMemoryException {
+        final ImhotepResponse response = sendRequest(request, host, port, socketTimeout);
+        if (response.getResponseCode() == ImhotepResponse.ResponseCode.OUT_OF_MEMORY) {
+            throw new ImhotepOutOfMemoryException();
+        } else {
+            return response;
         }
     }
 
@@ -1301,14 +1297,15 @@ public class ImhotepRemoteSession
     }
 
     private static ImhotepResponse sendRequest(
-            final ImhotepRequest request,
+            final ImhotepRequestSender request,
             final InputStream is,
             final OutputStream os,
             final String host,
             final int port) throws IOException {
-        final String sessionId = request.hasSessionId() ? request.getSessionId() : null;
+        final String sessionId = request.getSessionIdOrNull();
         try {
-            ImhotepProtobufShipping.sendProtobuf(request, os);
+            request.writeToStreamNoFlush(os);
+            os.flush();
             final ImhotepResponse response = ImhotepProtobufShipping.readResponse(is);
             if (response.getResponseCode() == ImhotepResponse.ResponseCode.OTHER_ERROR) {
                 throw buildExceptionFromResponse(response, host, port, sessionId);
@@ -1378,6 +1375,10 @@ public class ImhotepRemoteSession
         Closeables2.closeQuietly( socket, log );
     }
 
+    private static ImhotepRequestSender createSender(final ImhotepRequest request) {
+        return new RequestTools.ImhotepRequestSender.Simple(request);
+    }
+
     private static Socket newSocket(final String host, final int port) throws IOException {
         return newSocket(host, port, DEFAULT_SOCKET_TIMEOUT);
     }
@@ -1396,6 +1397,10 @@ public class ImhotepRemoteSession
 
     public void setNumStats(final int numStats) {
         this.numStats = numStats;
+    }
+
+    public Timer newTimer() {
+        return new Timer();
     }
 
     private final class Timer {
