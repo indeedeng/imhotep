@@ -142,7 +142,7 @@ class LocalFileCache {
 
             synchronized (lock) {
                 sumFileSizesReferenceCache = referencedFilesCache.asMap().values().stream().mapToLong(x -> x.fileSize).sum();
-                sumCacheFileStats = unusedFilesCache.getSumCacheFileSizeStats(); // gets SumCacheFileSize stats for UnusedFilesCache
+                sumCacheFileStats = unusedFilesCache.getSumCacheFileSizeStats();
             }
 
             //we consider Referenced file to have accessTime = System.currentTime
