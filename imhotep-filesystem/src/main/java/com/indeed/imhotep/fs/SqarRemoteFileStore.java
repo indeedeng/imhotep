@@ -89,8 +89,6 @@ class SqarRemoteFileStore extends RemoteFileStore implements Closeable {
         log.info("Starting one time conversion of remote FS metadata cache from H2 DB to LSM tree");
         final HikariConfig config = new HikariConfig();
         config.setJdbcUrl("jdbc:h2:" + h2DBFile + ";LAZY_QUERY_EXECUTION=1;ACCESS_MODE_DATA=r");
-        // TODO remove
-        //"jdbc:h2:/tmp/prodsquarmetadata;LAZY_QUERY_EXECUTION=1;ACCESS_MODE_DATA=r")
         final long startTime = System.currentTimeMillis();
 
         try(final HikariDataSource dataSource = new HikariDataSource(config)) {
