@@ -44,6 +44,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Timer;
@@ -228,7 +229,7 @@ class SqarMetaDataLSMStore implements SqarMetaDataDao, Closeable {
         try {
             final Value value = store.get(key);
             if (value == null) {
-                return null;
+                return Collections.emptyList();
             }
             final List<RemoteFileListing> result = new ArrayList<>();
             for(final SqarFileListing sqarFileListing: value.dirListing) {
