@@ -173,6 +173,7 @@ class SqarMetaDataLSMStore implements SqarMetaDataDao, Closeable {
     @Override
     public void cacheMetadata(Path shardPath, Iterable<RemoteFileMetadata> metadataList) {
         final int cachingTimestamp = (int)(System.currentTimeMillis() / 1000); // seconds since epoch
+        final List<SqarFileEntry> sqarFilesEntries = new ArrayList<>();
         final List<SqarFileListing> sqarFilesListing = new ArrayList<>();
         final Path normalizedShardPath = shardPath.normalize();
         final String key = normalizedShardPath.toString();
@@ -191,20 +192,28 @@ class SqarMetaDataLSMStore implements SqarMetaDataDao, Closeable {
                     fileMetadata.getCompressor().getKey(),
                     fileMetadata.getArchiveFilename(),
                     remoteFileMetadata.getCompressedSize());
-            final Value fileEntryValue = new Value(cachingTimestamp, fileEntry);
-            final String fileEntryKey = normalizedShardPath.toString() + SHARD_PATH_AND_FILE_PATH_DELIMITER + filePath;
-            try {
-                this.put(fileEntryKey, fileEntryValue);
-            } catch (IOException e) {
-                Throwables.propagate(e);
-            }
+
+            sqarFilesEntries.add(fileEntry);
         }
+        // have to write the listing first so that if we fail in the middle everything will be retried on next attempt
+        // since we determine whether a shard's metadata is cached using getFileMetadata() rather than listDirectory()
         final Value listingValue = new Value(cachingTimestamp, sqarFilesListing);
         final String listingKey = key + LISTING_KEY_SUFFIX;
         try {
             this.put(listingKey , listingValue);
         } catch (IOException e) {
             Throwables.propagate(e);
+        }
+
+        // now write the per file full metadata entries
+        for (final SqarFileEntry sqarFileEntry : sqarFilesEntries) {
+            final Value fileEntryValue = new Value(cachingTimestamp, sqarFileEntry);
+            final String fileEntryKey = normalizedShardPath.toString() + SHARD_PATH_AND_FILE_PATH_DELIMITER + sqarFileEntry.filePath;
+            try {
+                this.put(fileEntryKey, fileEntryValue);
+            } catch (IOException e) {
+                Throwables.propagate(e);
+            }
         }
     }
 

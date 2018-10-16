@@ -89,7 +89,6 @@ class SqarMetaDataManager {
 
     private void cacheMetadata(final RemoteCachingPath shardPath, final List<RemoteFileMetadata> fileList) throws IOException {
         final Set<String> dirList = new HashSet<>();
-        dirList.add("");
 
         for (final RemoteFileMetadata remoteMetadata : fileList) {
             final String fname = remoteMetadata.getFilename();
@@ -103,6 +102,8 @@ class SqarMetaDataManager {
                 }
             }
         }
+        // the dir entry for the root should come last as it signifies that all of this shard's metadata is cached
+        dirList.add("");
         for (final String dir : dirList) {
             fileList.add(new RemoteFileMetadata(dir));
         }
