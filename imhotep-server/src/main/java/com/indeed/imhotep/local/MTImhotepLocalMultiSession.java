@@ -469,8 +469,8 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
     }
 
     // Element-wise zip the FTGSIterator's into a MultiSessionMerger,
-    // Wrap with a MultiSessionWrapper, optionally wrap with topK or term limits,
-    // and persist to a file. Return all of said files.
+    // count the number of terms that pass each filter for each group on each merger,
+    // and return a GroupStatsIterator that adds those counts together.
     public GroupStatsIterator mergeMultiDistinct(
             final List<FTGSIterator[]> subIteratorLists,
             final List<AggregateStat> filters

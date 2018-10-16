@@ -313,6 +313,11 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
         }
     }
 
+    /**
+     * The data in the returned GroupStatsIterator is laid out as
+     * (group = g, filter = f, assuming 3 filters)
+     * g0 f0, g0 f1, g0 f2, g1 f0, g1 f1, g1 f2, ...
+     */
     public static GroupStatsIterator aggregateDistinct(
             final List<SessionField> sessionsWithFields,
             final List<AggregateStatTree> filters,
@@ -342,7 +347,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
                 final int index = pair.getFirst();
                 final HostAndPort hostAndPort = pair.getSecond();
                 // Definitely don't close this session
-                //noinspection resource
+                //noinspection resource,IOResourceOpenedButNotSafelyClosed
                 final ImhotepRemoteSession remoteSession = new ImhotepRemoteSession(hostAndPort.getHost(), hostAndPort.getPort(), concatenatedSessionIds, tempFileSizeBytesLeft, ImhotepRemoteSession.DEFAULT_SOCKET_TIMEOUT);
                 final MultiFTGSRequest proto = MultiFTGSRequest.newBuilder(baseRequest).setSplitIndex(index).build();
                 return remoteSession.aggregateDistinct(proto);

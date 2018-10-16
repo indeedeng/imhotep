@@ -263,6 +263,7 @@ public abstract class AbstractImhotepServiceCore
         return null;
     }
 
+    @Override
     public void handleGetFTGSIteratorSplit(final String sessionId, final String[] intFields, final String[] stringFields, final OutputStream os, final int splitIndex, final int numSplits, final long termLimit) throws IOException {
         doWithSession(sessionId, (ThrowingFunction<MTImhotepLocalMultiSession, Void, IOException>) session -> {
             final FTGSIterator merger = session.getFTGSIteratorSplit(intFields, stringFields, splitIndex, numSplits, termLimit);
@@ -298,58 +299,17 @@ public abstract class AbstractImhotepServiceCore
         });
     }
 
-    @Override
-    public void handleMergeMultiFTGSSplit(
-            final MultiFTGSRequest request,
-            final String validLocalSessionId,
-            final OutputStream os,
-            final InetSocketAddress[] nodes
-    ) {
-        final boolean isIntField = request.getIsIntField();
-        final int splitIndex = request.getSplitIndex();
-        final boolean sorted = request.getSortedFTGS();
-
-        final List<MultiFTGSRequest.MultiFTGSSession> sessionInfoList = request.getSessionInfoList();
-        final FTGSModifiers modifiers = new FTGSModifiers(request.getTermLimit(), request.getSortStat(), request.getSortedFTGS());
-
-        final Map<String, SessionStatsInfo> sessionStatsInfos = new HashMap<>();
-        for (int i = 0; i < sessionInfoList.size(); i++) {
-            sessionStatsInfos.put(sessionInfoList.get(i).getSessionId(), new SessionStatsInfo(i));
-        }
-
-        final AggregateStatStack selects = new AggregateStatStack();
-        for (final AggregateStat select : request.getSelectList()) {
-            ParseAggregate.parse(sessionStatsInfos, selects, select);
-        }
-
-        final AggregateStatStack filters = new AggregateStatStack();
-        for (final AggregateStat filter : request.getFilterList()) {
-            ParseAggregate.parse(sessionStatsInfos, filters, filter);
-        }
-
-        final Closer closer = Closer.create();
-
-        try {
-            final List<FTGSIterator[]> sessionSplitIterators = getMultiSessionSplitIterators(closer, validLocalSessionId, nodes, sessionInfoList, isIntField, splitIndex);
-
-            final FTGAIterator[] streams = doWithSession(validLocalSessionId, (Function<MTImhotepLocalMultiSession, FTGAIterator[]>) session -> {
-                return session.zipElementWise(modifiers, sessionSplitIterators, x -> new MultiSessionWrapper(x, filters.toList(), selects.toList()));
-            });
-            closer.register(Closeables2.forArray(log, streams));
-
-            final FTGAIterator interleaver = closer.register(sorted ? new SortedFTGAInterleaver(streams) : new UnsortedFTGAIterator(streams));
-
-            sendFTGAIterator(closer.register(modifiers.wrap(interleaver)), os);
-        } catch (Throwable t) {
-            Closeables2.closeQuietly(closer, log);
-            throw Throwables.propagate(t);
-        }
-    }
-
     // Processes the remote FTGS for each of the requested sessions, and splits it some number of ways, which
     // will be consistent for all elements in the list.
     // Each element in the returned list corresponds to a single input session.
-    private List<FTGSIterator[]> getMultiSessionSplitIterators(final Closer closer, final String validLocalSessionId, final InetSocketAddress[] nodes, final List<MultiFTGSRequest.MultiFTGSSession> sessionInfoList, final boolean isIntField, final int splitIndex) throws IOException {
+    private List<FTGSIterator[]> getMultiSessionSplitIterators(
+            final Closer closer,
+            final String validLocalSessionId,
+            final InetSocketAddress[] nodes,
+            final List<MultiFTGSRequest.MultiFTGSSession> sessionInfoList,
+            final boolean isIntField,
+            final int splitIndex
+    ) {
         final int numLocalSplits = Math.max(1, Runtime.getRuntime().availableProcessors()/2);
         final List<FTGSIterator[]> sessionSplitIterators = new ArrayList<>();
 
@@ -384,13 +344,65 @@ public abstract class AbstractImhotepServiceCore
         for (final Future<FTGSIterator[]> future : splitRemoteIteratorFutures) {
             try {
                 sessionSplitIterators.add(future.get());
-            } catch (InterruptedException | ExecutionException e) {
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new RuntimeException("Interrupted while retrieving and splitting remote FTGSes. System likely shutting down.");
+            } catch (ExecutionException e) {
                 throw new RuntimeException("Error in retrieving and splitting remote FTGSes", e);
             }
         }
         return sessionSplitIterators;
     }
 
+    @Override
+    public void handleMergeMultiFTGSSplit(
+            final MultiFTGSRequest request,
+            final String validLocalSessionId,
+            final OutputStream os,
+            final InetSocketAddress[] nodes
+    ) {
+        final boolean isIntField = request.getIsIntField();
+        final int splitIndex = request.getSplitIndex();
+        final boolean sorted = request.getSortedFTGS();
+
+        final List<MultiFTGSRequest.MultiFTGSSession> sessionInfoList = request.getSessionInfoList();
+        final FTGSModifiers modifiers = new FTGSModifiers(request.getTermLimit(), request.getSortStat(), request.getSortedFTGS());
+
+        final Map<String, SessionStatsInfo> sessionStatsInfos = new HashMap<>();
+        for (int i = 0; i < sessionInfoList.size(); i++) {
+            sessionStatsInfos.put(sessionInfoList.get(i).getSessionId(), new SessionStatsInfo(i));
+        }
+
+        final AggregateStatStack selects = new AggregateStatStack();
+        for (final AggregateStat select : request.getSelectList()) {
+            ParseAggregate.parse(sessionStatsInfos, selects, select);
+        }
+
+        final AggregateStatStack filters = new AggregateStatStack();
+        for (final AggregateStat filter : request.getFilterList()) {
+            ParseAggregate.parse(sessionStatsInfos, filters, filter);
+        }
+
+        final Closer closer = Closer.create();
+        try {
+            final List<FTGSIterator[]> sessionSplitIterators = getMultiSessionSplitIterators(closer, validLocalSessionId, nodes, sessionInfoList, isIntField, splitIndex);
+
+            final FTGAIterator[] streams = doWithSession(validLocalSessionId, (Function<MTImhotepLocalMultiSession, FTGAIterator[]>) session -> {
+                return session.zipElementWise(modifiers, sessionSplitIterators, x -> new MultiSessionWrapper(x, filters.toList(), selects.toList()));
+            });
+            closer.register(Closeables2.forArray(log, streams));
+
+            final FTGAIterator interleaver = closer.register(sorted ? new SortedFTGAInterleaver(streams) : new UnsortedFTGAIterator(streams));
+
+            sendFTGAIterator(closer.register(modifiers.wrap(interleaver)), os);
+        } catch (Throwable t) {
+            throw Throwables.propagate(t);
+        } finally {
+            Closeables2.closeQuietly(closer, log);
+        }
+    }
+
+    @Override
     public GroupStatsIterator handleMergeMultiDistinctSplit(final MultiFTGSRequest request, final String validLocalSessionId, final InetSocketAddress[] nodes) {
         final boolean isIntField = request.getIsIntField();
         final int splitIndex = request.getSplitIndex();
