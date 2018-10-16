@@ -26,7 +26,6 @@ import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.client.ImhotepClient;
 import com.indeed.imhotep.metrics.aggregate.AggregateStatTree;
-import com.indeed.util.core.Pair;
 import org.joda.time.DateTime;
 import org.junit.After;
 import org.junit.Before;

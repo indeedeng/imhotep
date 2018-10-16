@@ -45,7 +45,6 @@ import com.indeed.util.core.Either;
 import com.indeed.util.core.io.Closeables2;
 import org.apache.log4j.Logger;
 
-import javax.annotation.WillClose;
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.InetSocketAddress;

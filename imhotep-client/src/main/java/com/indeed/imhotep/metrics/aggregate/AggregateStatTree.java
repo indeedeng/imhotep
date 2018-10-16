@@ -8,7 +8,28 @@ import com.indeed.imhotep.protobuf.AggregateStat;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import static com.indeed.imhotep.metrics.aggregate.AggregateStatConstants.*;
+import static com.indeed.imhotep.metrics.aggregate.AggregateStatConstants.ABS;
+import static com.indeed.imhotep.metrics.aggregate.AggregateStatConstants.AND;
+import static com.indeed.imhotep.metrics.aggregate.AggregateStatConstants.DIVIDE;
+import static com.indeed.imhotep.metrics.aggregate.AggregateStatConstants.EQ;
+import static com.indeed.imhotep.metrics.aggregate.AggregateStatConstants.GT;
+import static com.indeed.imhotep.metrics.aggregate.AggregateStatConstants.GTE;
+import static com.indeed.imhotep.metrics.aggregate.AggregateStatConstants.IF_THEN_ELSE;
+import static com.indeed.imhotep.metrics.aggregate.AggregateStatConstants.LOG;
+import static com.indeed.imhotep.metrics.aggregate.AggregateStatConstants.LT;
+import static com.indeed.imhotep.metrics.aggregate.AggregateStatConstants.LTE;
+import static com.indeed.imhotep.metrics.aggregate.AggregateStatConstants.MAX;
+import static com.indeed.imhotep.metrics.aggregate.AggregateStatConstants.MIN;
+import static com.indeed.imhotep.metrics.aggregate.AggregateStatConstants.MINUS;
+import static com.indeed.imhotep.metrics.aggregate.AggregateStatConstants.MODULUS;
+import static com.indeed.imhotep.metrics.aggregate.AggregateStatConstants.MULTIPLY;
+import static com.indeed.imhotep.metrics.aggregate.AggregateStatConstants.NEQ;
+import static com.indeed.imhotep.metrics.aggregate.AggregateStatConstants.NOT;
+import static com.indeed.imhotep.metrics.aggregate.AggregateStatConstants.OR;
+import static com.indeed.imhotep.metrics.aggregate.AggregateStatConstants.PLUS;
+import static com.indeed.imhotep.metrics.aggregate.AggregateStatConstants.POWER;
+import static com.indeed.imhotep.metrics.aggregate.AggregateStatConstants.TERM_EQUALS_;
+import static com.indeed.imhotep.metrics.aggregate.AggregateStatConstants.TERM_REGEX_;
 
 /**
  * @author jwolfe
