@@ -306,7 +306,7 @@ message ImhotepRequest {
   repeated int32 toGroups = 67 [packed = true];
   optional bool filterOutNotTargeted = 68 [default = true];
 
-  // for MERGE_MULTI_FTGS_SPLIT
+  // for MERGE_MULTI_FTGS_SPLIT and MERGE_MULTI_DISTINCT_SPLIT
   optional MultiFTGSRequest multiFtgsRequest = 69;
 }
 
@@ -356,15 +356,6 @@ message MultiFTGSRequest {
   optional int32 sortStat = 8 [default = -1];
   optional bool sortedFTGS = 9 [default = true];
 
-}
-
-message MultiDistinctRequest {
-  repeated MultiFTGSRequest.MultiFTGSSession sessionInfo = 1;
-  // One entry per unique HAVING you're interested in counting
-  repeated AggregateStat filters = 2;
-  optional bool isIntField = 3;
-  optional int32 splitIndex = 4;
-  repeated HostAndPort nodes = 5;
 }
 
 message ImhotepResponse {
