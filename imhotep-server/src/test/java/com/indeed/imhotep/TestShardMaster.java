@@ -57,7 +57,6 @@ public class TestShardMaster {
     @SuppressWarnings({"ResultOfMethodCallIgnored"})
     public void testReadingShards() throws IOException, TimeoutException, InterruptedException {
         final Path directory = Files.createTempDirectory("imhotep-test");
-        final Path tempDir = Files.createTempDirectory("imhotep-temp");
         try {
             final Path datasetDir = directory.resolve("dataset");
             Files.createDirectory(datasetDir);
@@ -74,11 +73,10 @@ public class TestShardMaster {
             assertEquals(6, shards.size());
         } finally {
             TestFileUtils.deleteDirTree(directory);
-            TestFileUtils.deleteDirTree(tempDir);
         }
     }
 
-    private void createShardDirAndMetadataFile(Path datasetDir, String shardName) throws IOException {
+    private void createShardDirAndMetadataFile(final Path datasetDir, final String shardName) throws IOException {
         final Path directory = Files.createDirectory(datasetDir.resolve(shardName));
         FlamdexMetadata.writeMetadata(directory, new FlamdexMetadata(0, new ArrayList<>(), new ArrayList<>(), FlamdexFormatVersion.SIMPLE));
     }
