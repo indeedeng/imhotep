@@ -12,15 +12,15 @@
  * limitations under the License.
  */
 
-package com.indeed.imhotep.fs.sql;
+package com.indeed.imhotep.fs;
 
 import com.google.common.collect.Lists;
 import com.indeed.imhotep.archive.FileMetadata;
 import com.indeed.imhotep.archive.compression.SquallArchiveCompressor;
 import com.indeed.imhotep.dbutil.DbDataFixture;
-import com.indeed.imhotep.fs.RemoteFileMetadata;
 import com.indeed.imhotep.fs.db.metadata.Tables;
 import org.joda.time.DateTime;
+import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
@@ -28,6 +28,7 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
+import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.sql.SQLException;
 import java.util.Arrays;
@@ -37,15 +38,20 @@ import java.util.Collections;
  * @author kenh
  */
 
-public class FileMetadataDaoTest {
+public class SqarMetaDataLSMStoreTest {
     @Rule
     public final DbDataFixture dbDataFixture = new DbDataFixture(Collections.singletonList(Tables.TBLFILEMETADATA));
-    private FileMetadataDao fileMetadataDao;
+    private SqarMetaDataLSMStore fileMetadataDao;
     private final DateTime now = DateTime.now();
 
     @Before
     public void setUp() throws IOException, SQLException, URISyntaxException {
-        fileMetadataDao = new FileMetadataDao(dbDataFixture.getDataSource());
+        fileMetadataDao = new SqarMetaDataLSMStore(Files.createTempDirectory("sqarcachetest").toFile(), null);
+    }
+
+    @After
+    public void tearDown() throws Exception {
+        fileMetadataDao.close();
     }
 
     @Test
@@ -104,6 +110,8 @@ public class FileMetadataDaoTest {
                 400
         );
 
+        final RemoteFileMetadata dirmeta_def = new RemoteFileMetadata("def");
+
         Assert.assertFalse(fileMetadataDao.hasShard(Paths.get("a/b/c")));
 
         fileMetadataDao.cacheMetadata(Paths.get("a/b/c/"), Arrays.asList(
@@ -113,16 +121,17 @@ public class FileMetadataDaoTest {
                 filemeta_de2,
                 dirmeta_dd,
                 filemeta_dde1,
-                filemeta_dde2
+                filemeta_dde2,
+                dirmeta_def
         ));
 
         Assert.assertTrue(fileMetadataDao.hasShard(Paths.get("a/b/c")));
         Assert.assertTrue(fileMetadataDao.hasShard(Paths.get("a/b/c/")));
 
-        final RemoteFileMetadata dirmeta_def = new RemoteFileMetadata("def");
-        fileMetadataDao.cacheMetadata(Paths.get("a/b/c/"), Collections.singletonList(
-                dirmeta_def
-        ));
+        // TODO: Do we need to support caching partial metadata (multiple cache calls for same shard)? probably not
+//        fileMetadataDao.cacheMetadata(Paths.get("a/b/c/"), Collections.singletonList(
+//                dirmeta_def
+//        ));
 
         Assert.assertTrue(fileMetadataDao.hasShard(Paths.get("a/b/c")));
 
@@ -142,10 +151,10 @@ public class FileMetadataDaoTest {
 
         Assert.assertEquals(
                 Arrays.asList(
-                        dirmeta_dd.toListing(),
                         filemeta_de1.toListing(),
-                        filemeta_de2.toListing()
-                ),
+                        filemeta_de2.toListing(),
+                        dirmeta_dd.toListing()
+                        ),
                 Lists.newArrayList(fileMetadataDao.listDirectory(Paths.get("a/b/c"), "d")));
 
         Assert.assertEquals(dirmeta_dd, fileMetadataDao.getFileMetadata(Paths.get("a/b/c"), "d/d"));
@@ -243,10 +252,10 @@ public class FileMetadataDaoTest {
 
         Assert.assertEquals(
                 Arrays.asList(
-                        dirmeta_dd.toListing(),
                         filemeta_de1.toListing(),
-                        filemeta_de2.toListing()
-                ),
+                        filemeta_de2.toListing(),
+                        dirmeta_dd.toListing()
+                        ),
                 Lists.newArrayList(fileMetadataDao.listDirectory(Paths.get("a/b/c"), "d")));
 
         final RemoteFileMetadata filemeta_de2_2 = new RemoteFileMetadata(new FileMetadata(
@@ -284,11 +293,11 @@ public class FileMetadataDaoTest {
 
         Assert.assertEquals(
                 Arrays.asList(
-                        dirmeta_dd.toListing(),
                         filemeta_de1.toListing(),
                         filemeta_de2_2.toListing(),
-                        filemeta_de3.toListing()
-                ),
+                        filemeta_de3.toListing(),
+                        dirmeta_dd.toListing()
+                        ),
                 Lists.newArrayList(fileMetadataDao.listDirectory(Paths.get("a/b/c"), "d")));
     }
 

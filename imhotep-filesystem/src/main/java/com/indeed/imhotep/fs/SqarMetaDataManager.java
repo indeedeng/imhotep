@@ -14,7 +14,6 @@
 
 package com.indeed.imhotep.fs;
 
-import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
 import com.indeed.imhotep.archive.ArchiveUtils;
 import com.indeed.imhotep.archive.FileMetadata;
@@ -173,11 +172,8 @@ class SqarMetaDataManager {
         if ((shardPath == null) && (fileName == null)) {
             return Collections.emptyList();
         }
-        return FluentIterable.from(sqarMetaDataDao.listDirectory(shardPath, fileName)).transform(new Function<RemoteFileMetadata, RemoteFileStore.RemoteFileAttributes>() {
-            @Override
-            public RemoteFileStore.RemoteFileAttributes apply(final RemoteFileMetadata fileMetadata) {
-                return new RemoteFileStore.RemoteFileAttributes(shardPath.resolve(fileMetadata.getFilename()), fileMetadata.getSize(), fileMetadata.isFile());
-            }
-        }).toList();
+        return FluentIterable.from(sqarMetaDataDao.listDirectory(shardPath, fileName)).transform(fileMetadata ->
+                new RemoteFileStore.RemoteFileAttributes(shardPath.resolve(fileMetadata.getFilename()), fileMetadata.getSize(), fileMetadata.isFile())
+        ).toList();
     }
 }
