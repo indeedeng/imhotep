@@ -118,6 +118,7 @@ class LocalFileCache {
                         final int lastAccessEpochTimeSeconds = (int)(System.currentTimeMillis()/1000);
 
                         diskSpaceUsage.addAndGet(fileSize);
+                        referencedFilesCacheSize.addAndGet(fileSize);
                         unusedFilesCache.cleanUp();
 
                         return new FileCacheEntry(
@@ -136,8 +137,8 @@ class LocalFileCache {
     private class CacheStatsEmitter{
 
         private SumCacheFileSizeIntervals getSumCacheFilesSize() {
-            SumCacheFileSizeIntervals sumCacheFileStats = new SumCacheFileSizeIntervals();
-            long sumFileSizesReferenceCache = 0l;
+            final SumCacheFileSizeIntervals sumCacheFileStats;
+            final long sumFileSizesReferenceCache;
 
             synchronized (lock) {
                 sumFileSizesReferenceCache = referencedFilesCache.asMap().values().stream().mapToLong(x -> x.fileSize).sum();
@@ -334,20 +335,15 @@ class LocalFileCache {
         synchronized (lock) {
             final int counter = decFileUsageRef(path);
             if (counter == 0) {
-                try {
-                    long referencedFileSize = referencedFilesCache.get(path).fileSize;
+                FileCacheEntry referencedFile = referencedFilesCache.getIfPresent(path);
+                if (referencedFile != null) {
+                    long referencedFileSize = referencedFile.fileSize;
                     referencedFilesCache.invalidate(path);
                     referencedFilesCacheSize.addAndGet(-referencedFileSize);
                     unusedFilesCache.put(path, new FileCacheEntry(cachePath, referencedFileSize, (int) (System.currentTimeMillis() / 1000)));
-                } catch (final ExecutionException e) {
-                    LOGGER.warn("File with path " + cachePath + "to be disposed not present in referencedFilesCache ", e);
-                    try {
-                        unusedFilesCache.put(path, new FileCacheEntry(cachePath, sizeOnDisk(path), (int) (System.currentTimeMillis() / 1000)));
-                    } catch ( final IOException ex){
-                        LOGGER.warn("Failed to get file size for disposed cache file " + cachePath +
-                                ". The file will be assumed to been removed", ex);
-                    }
-
+                } else {
+                    LOGGER.warn("Failed to get file size for disposed cache file " + cachePath +
+                            ". The file will be assumed to been removed");
                 }
             }
         }
@@ -460,10 +456,6 @@ class LocalFileCache {
                     continue;
                 }
                 final int timeDifferenceSeconds = secondsSinceEpoch - entry.lastAccessEpochTimeSeconds;
-
-                if (timeDifferenceSeconds > 60*60*24){
-                    continue;
-                }
 
                 if (timeDifferenceSeconds <= 60) {
                     sumCacheFileStats.minuteSum += entry.fileSize;
