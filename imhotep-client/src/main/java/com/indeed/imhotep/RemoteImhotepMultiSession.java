@@ -36,6 +36,7 @@ import com.indeed.util.core.io.Closeables2;
 import it.unimi.dsi.fastutil.longs.LongIterators;
 import org.apache.log4j.Logger;
 
+import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
@@ -310,6 +311,53 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
         }
     }
 
+    /**
+     * The data in the returned GroupStatsIterator is laid out as
+     * (group = g, filter = f, assuming 3 filters)
+     * g0 f0, g0 f1, g0 f2, g1 f0, g1 f1, g1 f2, ...
+     */
+    public static GroupStatsIterator aggregateDistinct(
+            final List<SessionField> sessionsWithFields,
+            final List<AggregateStatTree> filters,
+            final boolean isIntField
+    ) {
+        final MultiFTGSRequest.Builder builder = MultiFTGSRequest.newBuilder();
+        final List<RemoteImhotepMultiSession> remoteSessions = processSessionFields(sessionsWithFields, builder);
+        builder
+                .addAllFilter(AggregateStatTree.allAsList(filters))
+                .setIsIntField(isIntField);
+
+        final Pair<Integer, HostAndPort>[] indexedServers = multiFtgsIndexedServers(builder);
+        final MultiFTGSRequest baseRequest = builder.build();
+
+        final Closer closeOnFailCloser = Closer.create();
+        try {
+            final GroupStatsIterator[] subCounts = new GroupStatsIterator[indexedServers.length];
+            closeOnFailCloser.register(Closeables2.forArray(log, subCounts));
+
+            final AtomicLong tempFileSizeBytesLeft = getTempFileSizeBytesLeft(sessionsWithFields);
+            final String concatenatedSessionIds = getConcatenatedSessionIds(sessionsWithFields);
+
+            // Arbitrarily use the executor for the first session.
+            // Still allows a human to understand and avoids making global state executors
+            // or passing in an executor.
+            remoteSessions.get(0).execute(subCounts, indexedServers, false, pair -> {
+                final int index = pair.getFirst();
+                final HostAndPort hostAndPort = pair.getSecond();
+                // Definitely don't close this session
+                //noinspection resource,IOResourceOpenedButNotSafelyClosed
+                final ImhotepRemoteSession remoteSession = new ImhotepRemoteSession(hostAndPort.getHost(), hostAndPort.getPort(), concatenatedSessionIds, tempFileSizeBytesLeft, ImhotepRemoteSession.DEFAULT_SOCKET_TIMEOUT);
+                final MultiFTGSRequest proto = MultiFTGSRequest.newBuilder(baseRequest).setSplitIndex(index).build();
+                return remoteSession.aggregateDistinct(proto);
+            });
+
+            return new GroupStatsIteratorCombiner(subCounts);
+        } catch (Throwable t) {
+            Closeables2.closeQuietly(closeOnFailCloser, log);
+            throw Throwables.propagate(t);
+        }
+    }
+
     // There's a bit of trickiness going on here.
     //
     // We need to get the same term from all sessions to the same node.
@@ -331,28 +379,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
             final boolean sorted
     ) {
         final MultiFTGSRequest.Builder builder = MultiFTGSRequest.newBuilder();
-
-        final List<RemoteImhotepMultiSession> remoteSessions = new ArrayList<>();
-        final Set<HostAndPort> allNodes = new HashSet<>();
-
-        for (final SessionField sessionField : sessionsWithFields) {
-            final RemoteImhotepMultiSession session = sessionField.session;
-            remoteSessions.add(session);
-            final String fieldName = sessionField.field;
-            final List<HostAndPort> nodes = Arrays.stream(session.nodes).map(input ->
-                    HostAndPort.newBuilder()
-                            .setHost(input.getHostName())
-                            .setPort(input.getPort())
-                            .build()
-            ).collect(Collectors.toList());
-            allNodes.addAll(nodes);
-            builder.addSessionInfoBuilder()
-                    .setSessionId(session.getSessionId())
-                    .addAllNodes(nodes)
-                    .setField(fieldName);
-        }
-
-        final List<HostAndPort> allNodesList = Lists.newArrayList(allNodes);
+        final List<RemoteImhotepMultiSession> remoteSessions = processSessionFields(sessionsWithFields, builder);
 
         builder
                 .addAllSelect(AggregateStatTree.allAsList(selects))
@@ -360,14 +387,9 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
                 .setIsIntField(isIntField)
                 .setTermLimit(termLimit)
                 .setSortStat(sortStat)
-                .setSortedFTGS(sorted)
-                .addAllNodes(allNodesList);
+                .setSortedFTGS(sorted);
 
-        final Pair<Integer, HostAndPort>[] indexedServers = new Pair[allNodesList.size()];
-        for (int i = 0; i < allNodesList.size(); i++) {
-            HostAndPort hostAndPort = allNodesList.get(i);
-            indexedServers[i] = new Pair<>(i, hostAndPort);
-        }
+        final Pair<Integer, HostAndPort>[] indexedServers = multiFtgsIndexedServers(builder);
 
         final MultiFTGSRequest baseRequest = builder.build();
 
@@ -376,25 +398,8 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
         final Closer closer = Closer.create();
         closer.register(Closeables2.forArray(log, subIterators));
         try {
-            // This gives a conservative choice for when we have multiple sessions
-            // with separate tempFileSizeBytesLeft, and also will behave correctly
-            // once we fix it so that multiple sessions from the same IQL2 query
-            // share a single AtomicLong.
-            final AtomicLong tempFileSizeBytesLeft = sessionsWithFields
-                    .stream()
-                    .map(x -> x.session.tempFileSizeBytesLeft)
-                    .filter(Objects::nonNull)
-                    .min(Comparator.comparingLong(AtomicLong::get))
-                    .orElse(null);
-
-            // This will not affect semantics on the other side but allows
-            // properly tracing and logging things in useful ways.
-            final String concatenatedSessionIds = sessionsWithFields
-                    .stream()
-                    .map(x -> x.session.getSessionId())
-                    .distinct()
-                    .sorted()
-                    .collect(Collectors.joining(","));
+            final AtomicLong tempFileSizeBytesLeft = getTempFileSizeBytesLeft(sessionsWithFields);
+            final String concatenatedSessionIds = getConcatenatedSessionIds(sessionsWithFields);
 
             // Arbitrarily use the executor for the first session.
             // Still allows a human to understand and avoids making global state executors
@@ -425,5 +430,67 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
         }
 
         return modifiers.wrap(interleaver);
+    }
+
+    // This gives a conservative choice for when we have multiple sessions
+    // with separate tempFileSizeBytesLeft, and also will behave correctly
+    // once we fix it so that multiple sessions from the same IQL2 query
+    // share a single AtomicLong.
+    private static AtomicLong getTempFileSizeBytesLeft(final List<SessionField> sessionsWithFields) {
+        return sessionsWithFields
+                .stream()
+                .map(x -> x.session.tempFileSizeBytesLeft)
+                .filter(Objects::nonNull)
+                .min(Comparator.comparingLong(AtomicLong::get))
+                .orElse(null);
+    }
+
+    // This will not affect semantics on the other side but allows
+    // properly tracing and logging things in useful ways.
+    private static String getConcatenatedSessionIds(final List<SessionField> sessionsWithFields) {
+        return sessionsWithFields
+                        .stream()
+                        .map(x -> x.session.getSessionId())
+                        .distinct()
+                        .sorted()
+                        .collect(Collectors.joining(","));
+    }
+
+    @Nonnull
+    private static Pair<Integer, HostAndPort>[] multiFtgsIndexedServers(final MultiFTGSRequest.Builder builder) {
+        final List<HostAndPort> nodesList = builder.getNodesList();
+        final Pair<Integer, HostAndPort>[] indexedServers = new Pair[nodesList.size()];
+        for (int i = 0; i < nodesList.size(); i++) {
+            HostAndPort hostAndPort = nodesList.get(i);
+            indexedServers[i] = new Pair<>(i, hostAndPort);
+        }
+        return indexedServers;
+    }
+
+    // Adds nodes and sessionInfos to the given builder, and extracts the list of imhotep sessions
+    private static List<RemoteImhotepMultiSession> processSessionFields(final List<SessionField> sessionsWithFields, final MultiFTGSRequest.Builder builder) {
+        final List<RemoteImhotepMultiSession> remoteSessions = new ArrayList<>();
+        final Set<HostAndPort> allNodes = new HashSet<>();
+
+        for (final SessionField sessionField : sessionsWithFields) {
+            final RemoteImhotepMultiSession session = sessionField.session;
+            remoteSessions.add(session);
+            final String fieldName = sessionField.field;
+            final List<HostAndPort> nodes = Arrays.stream(session.nodes).map(input ->
+                    HostAndPort.newBuilder()
+                            .setHost(input.getHostName())
+                            .setPort(input.getPort())
+                            .build()
+            ).collect(Collectors.toList());
+            allNodes.addAll(nodes);
+            builder.addSessionInfoBuilder()
+                    .setSessionId(session.getSessionId())
+                    .addAllNodes(nodes)
+                    .setField(fieldName);
+        }
+
+        final List<HostAndPort> allNodesList = Lists.newArrayList(allNodes);
+        builder.addAllNodes(allNodesList);
+        return remoteSessions;
     }
 }
