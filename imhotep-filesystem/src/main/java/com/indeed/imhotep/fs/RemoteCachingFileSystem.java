@@ -37,7 +37,6 @@ import java.nio.file.Paths;
 import java.nio.file.WatchService;
 import java.nio.file.attribute.UserPrincipalLookupService;
 import java.nio.file.spi.FileSystemProvider;
-import java.sql.SQLException;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
@@ -58,11 +57,8 @@ class RemoteCachingFileSystem extends FileSystem {
         this.provider = provider;
         final RemoteFileStore backingFileStore = RemoteFileStoreType.fromName((String) configuration.get("imhotep.fs.store.type"))
                 .getFactory().create(configuration);
-        try {
-            fileStore = new SqarRemoteFileStore(backingFileStore, configuration);
-        } catch (final SQLException e) {
-            throw new IllegalStateException("Failed to initialize SqarRemoteFileStore", e);
-        }
+
+        fileStore = new SqarRemoteFileStore(backingFileStore, configuration);
 
         final URI cacheRootUri;
         try {

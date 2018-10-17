@@ -174,7 +174,6 @@ public class RemoteCachingFileSystemTestContext extends ExternalResource {
                 .put("imhotep.fs.filestore.s3.key", testS3Endpoint.key)
                 .put("imhotep.fs.filestore.s3.secret", testS3Endpoint.secret)
 
-                .put("imhotep.fs.sqardb.file", new File(sqarDbDir, "db.data").toString())
                 .put("imhotep.fs.sqar.metadata.cache.path", new File(sqarDbDir, "lsmtree").toString())
                 .build();
     }

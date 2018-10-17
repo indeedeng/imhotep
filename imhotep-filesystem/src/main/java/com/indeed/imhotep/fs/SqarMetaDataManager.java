@@ -18,7 +18,6 @@ import com.google.common.collect.FluentIterable;
 import com.indeed.imhotep.archive.ArchiveUtils;
 import com.indeed.imhotep.archive.FileMetadata;
 import com.indeed.imhotep.archive.SquallArchiveReader;
-import com.indeed.imhotep.fs.sql.SqarMetaDataDao;
 import com.indeed.imhotep.scheduling.TaskScheduler;
 
 import javax.annotation.Nullable;

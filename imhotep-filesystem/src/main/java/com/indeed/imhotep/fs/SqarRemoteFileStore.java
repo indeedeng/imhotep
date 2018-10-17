@@ -17,19 +17,10 @@ package com.indeed.imhotep.fs;
 import com.google.common.base.Function;
 import com.google.common.base.Throwables;
 import com.google.common.collect.FluentIterable;
-import com.google.common.collect.Lists;
 import com.indeed.imhotep.archive.FileMetadata;
-import com.indeed.imhotep.fs.db.metadata.tables.records.TblfilemetadataRecord;
-import com.indeed.imhotep.fs.sql.FileMetadataDao;
-import com.indeed.imhotep.fs.sql.SqarMetaDataDao;
 import com.indeed.imhotep.scheduling.TaskScheduler;
 import com.indeed.util.core.io.Closeables2;
-import com.zaxxer.hikari.HikariConfig;
-import com.zaxxer.hikari.HikariDataSource;
 import org.apache.log4j.Logger;
-import org.joda.time.Period;
-import org.jooq.Cursor;
-import org.jooq.Result;
 
 import javax.annotation.Nullable;
 import java.io.Closeable;
@@ -40,8 +31,6 @@ import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.NotDirectoryException;
 import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.sql.SQLException;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -58,73 +47,15 @@ class SqarRemoteFileStore extends RemoteFileStore implements Closeable {
     private final RemoteFileStore backingFileStore;
 
     SqarRemoteFileStore(final RemoteFileStore backingFileStore,
-                               final Map<String, ?> configuration) throws SQLException, IOException {
+                               final Map<String, ?> configuration) throws IOException {
         this.backingFileStore = backingFileStore;
-
-        final String h2dbFilePath = (String) configuration.get("imhotep.fs.sqardb.file");
-        final File h2DBFile = h2dbFilePath != null ? new File(h2dbFilePath) : null;
         final File lsmTreeMetadataStore = new File((String)configuration.get("imhotep.fs.sqar.metadata.cache.path"));
         final String lsmTreeExpirationDurationString = (String)(configuration.get("imhotep.fs.sqar.metadata.cache.expiration.hours"));
         final int lsmTreeExpirationDurationHours = lsmTreeExpirationDurationString != null ? Integer.valueOf(lsmTreeExpirationDurationString) : 0;
         final Duration lsmTreeExpirationDuration = lsmTreeExpirationDurationHours > 0 ? Duration.of(lsmTreeExpirationDurationHours, ChronoUnit.HOURS) : null;
 
-        final boolean h2ToLSMConversionRequired = h2DBFile != null && new File(h2DBFile.toString() + ".mv.db").exists() &&
-                !SqarMetaDataLSMStore.lsmTreeExistsInDir(lsmTreeMetadataStore);
-
         sqarMetaDataDao = new SqarMetaDataLSMStore(lsmTreeMetadataStore, lsmTreeExpirationDuration);
-
-        if(h2ToLSMConversionRequired) {
-            try {
-                convertBackingStoreFromH2ToLSM(h2DBFile, sqarMetaDataDao);
-            } catch (Exception e) {
-                log.error("Failed to convert remote FS metadata cache from H2 DB to LSM tree. Exiting to avoid data loss", e);
-                System.exit(-1);
-            }
-        }
-
         sqarMetaDataManager = new SqarMetaDataManager(sqarMetaDataDao);
-    }
-
-    private void convertBackingStoreFromH2ToLSM(File h2DBFile, SqarMetaDataDao lsmMetadataCache) throws IOException, SQLException {
-        log.info("Starting one time conversion of remote FS metadata cache from H2 DB to LSM tree");
-        final HikariConfig config = new HikariConfig();
-        config.setJdbcUrl("jdbc:h2:" + h2DBFile + ";LAZY_QUERY_EXECUTION=1;ACCESS_MODE_DATA=r");
-        final long startTime = System.currentTimeMillis();
-
-        try(final HikariDataSource dataSource = new HikariDataSource(config)) {
-            final FileMetadataDao h2MetadataCache = new FileMetadataDao(dataSource);
-            final long totalRecords = h2MetadataCache.getNumberOfRecords();
-            log.info("Converting " + totalRecords + " records");
-            // read everything from H2 DB
-            final Cursor<TblfilemetadataRecord> h2DBCursor = h2MetadataCache.getAllRecords();
-            log.info("Loaded cursor from H2");
-            String currentShardPath = null;
-            List<RemoteFileMetadata> currentShardFiles = Lists.newArrayList();
-            int convertedRecords = 0;
-            // group by shard path and write to LSM tree
-            while (h2DBCursor.hasNext()) {
-                final Result<TblfilemetadataRecord> h2DBRecords = h2DBCursor.fetch(100000);
-                for(final TblfilemetadataRecord h2DBRecord : h2DBRecords) {
-                    final String shardPath = h2DBRecord.getShardName();
-                    if (!shardPath.equals(currentShardPath)) {
-                        if (currentShardPath != null) {
-                            lsmMetadataCache.cacheMetadata(Paths.get(currentShardPath), currentShardFiles);
-                        }
-                        currentShardPath = shardPath;
-                        currentShardFiles.clear();
-                    }
-                    currentShardFiles.add(FileMetadataDao.toRemoteFileMetadata(h2DBRecord));
-                    convertedRecords++;
-                }
-                log.info("Converted " + convertedRecords + " (" + ((long)convertedRecords * 100 / totalRecords) + "%)");
-            }
-            if(currentShardPath != null) {
-                lsmMetadataCache.cacheMetadata(Paths.get(currentShardPath), currentShardFiles);
-            }
-            h2DBCursor.close();
-        }
-
-        log.info("Conversion completed in " + new Period(System.currentTimeMillis() - startTime));
     }
 
     @Override

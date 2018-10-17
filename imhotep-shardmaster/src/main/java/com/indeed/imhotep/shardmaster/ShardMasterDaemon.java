@@ -21,7 +21,11 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 import com.indeed.imhotep.ZkEndpointPersister;
-import com.indeed.imhotep.client.*;
+import com.indeed.imhotep.client.DummyHostsReloader;
+import com.indeed.imhotep.client.Host;
+import com.indeed.imhotep.client.HostsReloader;
+import com.indeed.imhotep.client.StaticWithDynamicDowntimeHostsReloader;
+import com.indeed.imhotep.client.ZkHostsReloader;
 import com.indeed.imhotep.hadoopcommon.KerberosUtils;
 import com.indeed.imhotep.shardmaster.utils.SQLWriteManager;
 import com.indeed.imhotep.shardmasterrpc.MultiplexingRequestHandler;
@@ -32,7 +36,9 @@ import com.indeed.util.zookeeper.ZooKeeperConnection;
 import org.apache.commons.dbcp.BasicDataSource;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
-import org.apache.zookeeper.*;
+import org.apache.zookeeper.CreateMode;
+import org.apache.zookeeper.KeeperException;
+import org.apache.zookeeper.ZooDefs;
 import org.joda.time.Duration;
 import org.springframework.jdbc.core.JdbcTemplate;
 
@@ -41,11 +47,16 @@ import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.sql.SQLException;
-import java.util.*;
-import java.util.concurrent.*;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
+import java.util.Collections;
+import java.util.List;
+import java.util.Timer;
+import java.util.TimerTask;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  * @author kenh

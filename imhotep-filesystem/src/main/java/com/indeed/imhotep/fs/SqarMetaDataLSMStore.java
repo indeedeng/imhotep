@@ -18,7 +18,6 @@ import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.indeed.imhotep.archive.FileMetadata;
 import com.indeed.imhotep.archive.compression.SquallArchiveCompressor;
-import com.indeed.imhotep.fs.sql.SqarMetaDataDao;
 import com.indeed.lsmtree.core.StorageType;
 import com.indeed.lsmtree.core.Store;
 import com.indeed.lsmtree.core.StoreBuilder;

@@ -17,20 +17,15 @@ package com.indeed.imhotep.fs;
 import com.google.common.collect.Lists;
 import com.indeed.imhotep.archive.FileMetadata;
 import com.indeed.imhotep.archive.compression.SquallArchiveCompressor;
-import com.indeed.imhotep.dbutil.DbDataFixture;
-import com.indeed.imhotep.fs.db.metadata.Tables;
 import org.joda.time.DateTime;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
 
 import java.io.IOException;
-import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.Collections;
 
@@ -39,13 +34,11 @@ import java.util.Collections;
  */
 
 public class SqarMetaDataLSMStoreTest {
-    @Rule
-    public final DbDataFixture dbDataFixture = new DbDataFixture(Collections.singletonList(Tables.TBLFILEMETADATA));
     private SqarMetaDataLSMStore fileMetadataDao;
     private final DateTime now = DateTime.now();
 
     @Before
-    public void setUp() throws IOException, SQLException, URISyntaxException {
+    public void setUp() throws IOException {
         fileMetadataDao = new SqarMetaDataLSMStore(Files.createTempDirectory("sqarcachetest").toFile(), null);
     }
 
@@ -55,7 +48,7 @@ public class SqarMetaDataLSMStoreTest {
     }
 
     @Test
-    public void testGetMetaAndListDir() throws SQLException {
+    public void testGetMetaAndListDir() {
         Assert.assertNull(fileMetadataDao.getFileMetadata(Paths.get("a/b/c"), ""));
         Assert.assertNull(fileMetadataDao.getFileMetadata(Paths.get("a/b/c"), "d"));
         Assert.assertNull(fileMetadataDao.getFileMetadata(Paths.get("a/b/c"), "d/e"));
@@ -185,7 +178,7 @@ public class SqarMetaDataLSMStoreTest {
     }
 
     @Test
-    public void testDuplicateCache() throws SQLException {
+    public void testDuplicateCache() {
         Assert.assertNull(fileMetadataDao.getFileMetadata(Paths.get("a/b/c"), ""));
         Assert.assertNull(fileMetadataDao.getFileMetadata(Paths.get("a/b/c"), "d"));
         Assert.assertNull(fileMetadataDao.getFileMetadata(Paths.get("a/b/c"), "d/e"));
@@ -302,7 +295,7 @@ public class SqarMetaDataLSMStoreTest {
     }
 
     @Test
-    public void testCacheFromDifferentShards() throws SQLException {
+    public void testCacheFromDifferentShards() {
         final RemoteFileMetadata dirmeta_1a = new RemoteFileMetadata("a");
         final RemoteFileMetadata filemeta_1ab = new RemoteFileMetadata(new FileMetadata(
                 "a/b",
