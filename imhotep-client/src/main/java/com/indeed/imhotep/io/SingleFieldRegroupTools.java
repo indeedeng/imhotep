@@ -1,5 +1,6 @@
 package com.indeed.imhotep.io;
 
+import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.indeed.imhotep.GroupMultiRemapRule;
 import com.indeed.imhotep.RegroupCondition;
@@ -55,11 +56,10 @@ public class SingleFieldRegroupTools {
 
         // Convert rules into GroupMultiRemapRule and save into collection
         class Simple implements SingleFieldRulesBuilder {
-            private List<GroupMultiRemapRule> rules;
+            private final List<GroupMultiRemapRule> rules = new ArrayList<>();
             private final FieldOptions options;
 
             public Simple(final FieldOptions options) {
-                rules = new ArrayList<>();
                 this.options = options;
             }
 
@@ -69,9 +69,7 @@ public class SingleFieldRegroupTools {
                     final int negativeGroup,
                     final int[] positiveGroups,
                     final long[] intTerms) {
-                if (!options.intType) {
-                    throw new IllegalStateException();
-                }
+                Preconditions.checkState(options.intType, "Can't add int rule for string field");
                 checkParams(positiveGroups, intTerms, null);
 
                 final RegroupCondition[] conditions = new RegroupCondition[intTerms.length];
@@ -88,9 +86,7 @@ public class SingleFieldRegroupTools {
                     final int negativeGroup,
                     final int[] positiveGroups,
                     final String[] stringTerms) {
-                if (options.intType) {
-                    throw new IllegalStateException();
-                }
+                Preconditions.checkState(!options.intType, "Can't add string rule for int field");
                 checkParams(positiveGroups, null, stringTerms);
 
                 final RegroupCondition[] conditions = new RegroupCondition[stringTerms.length];
@@ -102,19 +98,13 @@ public class SingleFieldRegroupTools {
             }
 
             public GroupMultiRemapRule[] getRules() {
-                final GroupMultiRemapRule[] result = rules.toArray(new GroupMultiRemapRule[rules.size()]);
-                rules = null;
-                return result;
+                return rules.toArray(new GroupMultiRemapRule[0]);
             }
         }
 
         // Save rules into collection of SingleFieldMultiRemapRule
         class SingleField implements SingleFieldRulesBuilder {
-            private List<SingleFieldMultiRemapRule> rules;
-
-            public SingleField() {
-                rules = new ArrayList<>();
-            }
+            private final List<SingleFieldMultiRemapRule> rules = new ArrayList<>();
 
             @Override
             public void addIntRule(
@@ -135,9 +125,7 @@ public class SingleFieldRegroupTools {
             }
 
             public SingleFieldMultiRemapRule[] getRules() {
-                final SingleFieldMultiRemapRule[] result = rules.toArray(new SingleFieldMultiRemapRule[rules.size()]);
-                rules = null;
-                return result;
+                return rules.toArray(new SingleFieldMultiRemapRule[0]);
             }
         }
 
@@ -145,7 +133,7 @@ public class SingleFieldRegroupTools {
         class Cached implements SingleFieldRulesBuilder {
 
             private int rulesCount;
-            private RequestTools.HackedByteArrayOutputStream cachedRules;
+            private final RequestTools.HackedByteArrayOutputStream cachedRules;
 
             private final FieldOptions options;
 
@@ -236,18 +224,12 @@ public class SingleFieldRegroupTools {
             final int[] positiveGroups,
             final long[] intTerms,
             final String[] stringTerms) {
-        if ((intTerms != null) == (stringTerms != null)) {
-            throw new IllegalArgumentException();
-        }
+        Preconditions.checkState((intTerms == null) != (stringTerms == null), "Expected only int terms or string terms be defined");
         final int length = (intTerms != null) ? intTerms.length : stringTerms.length;
-        if (length != positiveGroups.length) {
-            throw new IllegalArgumentException("positiveGroups.length must equal length of intTerms/stringTerms");
-        }
+        Preconditions.checkArgument(length == positiveGroups.length, "positiveGroups.length must equal length of terms");
         if (stringTerms != null) {
             for (final String term : stringTerms) {
-                if (term == null) {
-                    throw new IllegalArgumentException("cannot have null string term");
-                }
+                Preconditions.checkArgument(term != null, "cannot have null string term");
             }
         }
     }

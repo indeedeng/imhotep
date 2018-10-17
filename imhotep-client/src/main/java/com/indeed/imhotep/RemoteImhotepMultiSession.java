@@ -433,7 +433,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
         if (sessions.length == 1) {
             return new RequestTools.ImhotepRequestSender.Simple(request);
         } else {
-            return new RequestTools.ImhotepRequestSender.Cached(request);
+            return RequestTools.ImhotepRequestSender.Cached.create(request);
         }
     }
 }

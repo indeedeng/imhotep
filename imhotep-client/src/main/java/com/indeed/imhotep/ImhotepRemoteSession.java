@@ -1302,7 +1302,7 @@ public class ImhotepRemoteSession
             final OutputStream os,
             final String host,
             final int port) throws IOException {
-        final String sessionId = request.getSessionIdOrNull();
+        final String sessionId = request.getSessionId();
         try {
             request.writeToStreamNoFlush(os);
             os.flush();

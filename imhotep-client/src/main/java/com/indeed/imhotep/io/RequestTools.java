@@ -1,5 +1,6 @@
 package com.indeed.imhotep.io;
 
+import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
@@ -8,6 +9,8 @@ import com.indeed.imhotep.marshal.ImhotepClientMarshaller;
 import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
 import com.indeed.imhotep.protobuf.ImhotepRequest;
 
+import javax.annotation.Nullable;
+import javax.annotation.concurrent.ThreadSafe;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -17,17 +20,22 @@ import java.util.List;
 
 public class RequestTools {
 
+    private RequestTools() {
+    }
+
     /**
      * Interface for sending ImhotepRequest to stream.
+     * All implementations of the interface must be thread safe.
      */
+    @ThreadSafe
     public interface ImhotepRequestSender {
 
         void writeToStreamNoFlush(final OutputStream os) throws IOException;
 
         ImhotepRequest.RequestType getRequestType();
 
-        String getSessionIdOrNull();
-
+        @Nullable
+        String getSessionId();
 
         // Wrapper over ImhotepRequest. Request is encoded every time writeToStreamNoFlush is called.
         class Simple implements ImhotepRequestSender {
@@ -36,7 +44,7 @@ public class RequestTools {
 
             public Simple(final ImhotepRequest request) {
                 this.request = request;
-                // request in not thread safe.
+                // request is not thread safe.
                 // calling here to fill ImhotepRequest.memoizedSerializedSize
                 // otherwise memoizedSerializedSize could be calculated several times by different threads.
                 request.getSerializedSize();
@@ -53,7 +61,8 @@ public class RequestTools {
             }
 
             @Override
-            public String getSessionIdOrNull() {
+            @Nullable
+            public String getSessionId() {
                 return request.hasSessionId() ? request.getSessionId() : null;
             }
         }
@@ -62,24 +71,32 @@ public class RequestTools {
         class Cached implements ImhotepRequestSender {
 
             private final ImhotepRequest.RequestType type;
-            private final String sessionId;
+            @Nullable private final String sessionId;
             private final byte[] cachedRequest;
 
-            public Cached(final ImhotepRequest request) {
-                type = request.getRequestType();
-                sessionId = request.hasSessionId() ? request.getSessionId() : null;
-                final int requestSize = request.getSerializedSize();
-                final HackedByteArrayOutputStream stream = new HackedByteArrayOutputStream(requestSize + 4);
+            public static Cached create(final ImhotepRequest request) {
+                final int requestSize = ImhotepProtobufShipping.getFullSizeInStream(request);
+                final HackedByteArrayOutputStream stream = new HackedByteArrayOutputStream(requestSize);
 
                 try {
                     ImhotepProtobufShipping.sendProtobufNoFlush(request, stream);
-                    if (stream.size() != (requestSize + 4)) {
-                        throw new IllegalStateException("Unexpected size of cached request");
-                    }
                 } catch (final IOException exc) {
                     throw Throwables.propagate(exc);
                 }
-                cachedRequest = stream.getBuffer();
+                Preconditions.checkState(
+                        (stream.getCount() == requestSize) && (stream.getCount() == stream.getBuffer().length),
+                        "Unexpected size of cached request");
+                return new Cached(stream.getBuffer(), request.hasSessionId() ? request.getSessionId() : null, request.getRequestType());
+            }
+
+            public Cached(
+                    final byte[] cachedRequest,
+                    @Nullable final String sessionId,
+                    final ImhotepRequest.RequestType type
+            ) {
+                this.cachedRequest = cachedRequest;
+                this.sessionId = sessionId;
+                this.type = type;
             }
 
             @Override
@@ -93,7 +110,8 @@ public class RequestTools {
             }
 
             @Override
-            public String getSessionIdOrNull() {
+            @Nullable
+            public String getSessionId() {
                 return sessionId;
             }
         }

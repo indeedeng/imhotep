@@ -35,6 +35,10 @@ import java.io.OutputStream;
 public final class ImhotepProtobufShipping {
     private ImhotepProtobufShipping() {}
 
+    public static int getFullSizeInStream(final Message request) {
+        return request.getSerializedSize() + 4;
+    }
+
     public static void sendProtobufNoFlush(final Message request, final OutputStream os) throws IOException {
         os.write(Bytes.intToBytes(request.getSerializedSize()));
         request.writeTo(os);
