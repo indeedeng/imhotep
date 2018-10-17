@@ -342,8 +342,8 @@ class LocalFileCache {
                     referencedFilesCacheSize.addAndGet(-referencedFileSize);
                     unusedFilesCache.put(path, new FileCacheEntry(cachePath, referencedFileSize, (int) (System.currentTimeMillis() / 1000)));
                 } else {
-                    LOGGER.warn("Failed to get file size for disposed cache file " + cachePath +
-                            ". The file will be assumed to been removed");
+                    LOGGER.error("Failed to get file" + cachePath + "from referencedFilesCache while disposing. " +
+                            "The file will assumed to be removed and not considered for disposing unless referenced again.");
                 }
             }
         }
