@@ -343,7 +343,7 @@ class LocalFileCache {
                     unusedFilesCache.put(path, new FileCacheEntry(cachePath, referencedFileSize, (int) (System.currentTimeMillis() / 1000)));
                 } else {
                     LOGGER.error("Failed to get file" + cachePath + "from referencedFilesCache while disposing. " +
-                            "The file will assumed to be removed and not considered for disposing unless referenced again.");
+                            "The file will assumed to be removed and not considered for disposing unless referenced again. ");
                 }
             }
         }
