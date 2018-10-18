@@ -562,10 +562,10 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
             try {
                 if(getPerformanceStats) {
                     perSessionStats = new PerformanceStats[sessions.length];
-                    executeRuntimeException(perSessionStats, ImhotepSession::closeAndGetPerformanceStats);
+                    executeRuntimeExceptionNoCpuLock(perSessionStats, ImhotepSession::closeAndGetPerformanceStats);
                 } else {
                     perSessionStats = null;
-                    executeRuntimeException(nullBuf, imhotepSession -> { imhotepSession.close(); return null;});
+                    executeRuntimeExceptionNoCpuLock(nullBuf, imhotepSession -> { imhotepSession.close(); return null;});
                 }
             } finally {
                 postClose();

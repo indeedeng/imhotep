@@ -88,9 +88,6 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
         if(waitLock == null) {
             throw new IllegalStateException("Tried to schedule task that is not startable " + toString());
         }
-        if (session.isClosed()) {
-            throw new IllegalArgumentException("Session with id " + session.getSessionId() + " was already closed");
-        }
         long waitTime = System.nanoTime() - lastWaitStartTime;
         if(session != null) {
             session.schedulerWaitTimeCallback(schedulerType, waitTime);
@@ -109,6 +106,9 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
             try {
                 lockToWaitOn.await();
                 finishedWaiting = true;
+                if (session != null && session.isClosed()) {
+                    throw new IllegalArgumentException("Session with id " + session.getSessionId() + " was already closed");
+                }
             } catch(InterruptedException ignored){ }
         }
     }
