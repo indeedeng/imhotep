@@ -21,6 +21,7 @@ import it.unimi.dsi.fastutil.longs.LongList;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -37,7 +38,7 @@ public final class FlamdexDocument {
     public static final int STRING_TERM_LENGTH_LIMIT = 8092;
 
     public FlamdexDocument() {
-        this(new HashMap<String, LongList>(), new HashMap<String, List<String>>());
+        this(new HashMap<>(), new HashMap<>());
     }
 
     public FlamdexDocument(@Nonnull final Map<String, LongList> intFields, @Nonnull final Map<String, List<String>> stringFields) {
@@ -85,12 +86,14 @@ public final class FlamdexDocument {
 
     // Integer Field Setters
 
-    private LongList prepareIntField(final String field) {
+    private LongList prepareIntField(
+            final String field,
+            final int capacityIfAbsent) {
         Preconditions.checkNotNull(field, "field cannot be null");
 
         LongList list = intFields.get(field);
         if (list == null) {
-            list = new LongArrayList();
+            list = new LongArrayList(capacityIfAbsent);
             intFields.put(field, list);
         }
         return list;
@@ -100,52 +103,73 @@ public final class FlamdexDocument {
         clearIntField(field);
         addIntTerms(field, terms);
     }
+
     public void addIntTerms(@Nonnull final String field, @Nonnull final long[] terms) {
-        final LongList list = prepareIntField(field);
         Preconditions.checkNotNull(terms, "terms list cannot be null");
-        for (final long term : terms) {
-            list.add(term);
-        }
+        final LongList list = prepareIntField(field, terms.length);
+        list.addElements(list.size(), terms);
     }
 
     public void setIntField(@Nonnull final String field, final long term) {
         clearIntField(field);
         addIntTerm(field, term);
     }
+
     public void addIntTerm(@Nonnull final String field, final long term) {
-        prepareIntField(field).add(term);
+        prepareIntField(field, 1).add(term);
     }
 
     public void setIntField(@Nonnull final String field, final boolean b) {
         clearIntField(field);
         addIntTerm(field, b);
     }
+
     public void addIntTerm(@Nonnull final String field, final boolean b) {
-        prepareIntField(field).add(b ? 1 : 0);
+        prepareIntField(field, 1).add(b ? 1 : 0);
     }
 
     public void setIntField(@Nonnull final String field, @Nonnull final Iterable<Long> terms) {
-        clearIntField(field);
-        addIntTerms(field, terms);
+        setIntField(field, terms, LongArrayList.DEFAULT_INITIAL_CAPACITY);
     }
+
     public void addIntTerms(@Nonnull final String field, @Nonnull final Iterable<Long> terms) {
-        final LongList list = prepareIntField(field);
+        addIntTerms(field, terms, LongArrayList.DEFAULT_INITIAL_CAPACITY);
+    }
+
+    public void setIntField(@Nonnull final String field, @Nonnull final Collection<Long> terms) {
+        setIntField(field, terms, terms.size());
+    }
+
+    public void addIntTerms(@Nonnull final String field, @Nonnull final Collection<Long> terms) {
+        addIntTerms(field, terms, terms.size());
+    }
+
+    // termsCount might differ from exact size of terms, it's just a hint
+    public void setIntField(@Nonnull final String field, @Nonnull final Iterable<Long> terms, final int termsCount) {
+        clearIntField(field);
+        addIntTerms(field, terms, termsCount);
+    }
+
+    // termsCount might differ from exact size of terms, it's just a hint
+    public void addIntTerms(@Nonnull final String field, @Nonnull final Iterable<Long> terms, final int termsCount) {
         Preconditions.checkNotNull(terms, "terms list cannot be null");
+        final LongList list = prepareIntField(field, termsCount);
         for (final Long term : terms) {
             Preconditions.checkNotNull(term, "null terms not allowed");
             list.add(term);
         }
     }
 
-
     // String Field Setters
 
-    private List<String> prepareStringField(final String field) {
+    private List<String> prepareStringField(
+            final String field,
+            final int capacityIfAbsent) {
         Preconditions.checkNotNull(field, "field cannot be null");
 
         List<String> list = stringFields.get(field);
         if (list == null) {
-            list = new ArrayList<>();
+            list = new ArrayList<>(capacityIfAbsent);
             stringFields.put(field, list);
         }
         return list;
@@ -163,17 +187,37 @@ public final class FlamdexDocument {
         clearStringField(field);
         addStringTerm(field, term);
     }
+
     public void addStringTerm(@Nonnull final String field, @Nonnull final CharSequence term) {
         checkStringTerm(field, term);
-        prepareStringField(field).add(term.toString());
+        prepareStringField(field, 1).add(term.toString());
     }
 
     public void setStringField(@Nonnull final String field, @Nonnull final Iterable<? extends CharSequence> terms) {
-        clearStringField(field);
-        addStringTerms(field, terms);
+        setStringField(field, terms, LongArrayList.DEFAULT_INITIAL_CAPACITY);
     }
+
     public void addStringTerms(@Nonnull final String field, @Nonnull final Iterable<? extends CharSequence> terms) {
-        final List<String> list = prepareStringField(field);
+        addStringTerms(field, terms, LongArrayList.DEFAULT_INITIAL_CAPACITY);
+    }
+
+    public void setStringField(@Nonnull final String field, @Nonnull final Collection<? extends CharSequence> terms) {
+        setStringField(field, terms, terms.size());
+    }
+
+    public void addStringTerms(@Nonnull final String field, @Nonnull final Collection<? extends CharSequence> terms) {
+        addStringTerms(field, terms, terms.size());
+    }
+
+    // termsCount might differ from exact size of terms, it's just a hint
+    public void setStringField(@Nonnull final String field, @Nonnull final Iterable<? extends CharSequence> terms, final int termsCount) {
+        clearStringField(field);
+        addStringTerms(field, terms, termsCount);
+    }
+
+    // termsCount might differ from exact size of terms, it's just a hint
+    public void addStringTerms(@Nonnull final String field, @Nonnull final Iterable<? extends CharSequence> terms, final int termsCount) {
+        final List<String> list = prepareStringField(field, termsCount);
         Preconditions.checkNotNull(terms, "terms list cannot be null");
         for (final CharSequence term : terms) {
             checkStringTerm(field, term);
@@ -185,9 +229,10 @@ public final class FlamdexDocument {
         clearStringField(field);
         addStringTerms(field, terms);
     }
+
     public void addStringTerms(@Nonnull final String field, @Nonnull final CharSequence[] terms) {
-        final List<String> list = prepareStringField(field);
         Preconditions.checkNotNull(terms, "terms list cannot be null");
+        final List<String> list = prepareStringField(field, terms.length);
         for (final CharSequence term : terms) {
             checkStringTerm(field, term);
             list.add(term.toString());
