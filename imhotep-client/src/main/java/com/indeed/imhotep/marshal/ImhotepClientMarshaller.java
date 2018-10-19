@@ -55,12 +55,14 @@ public final class ImhotepClientMarshaller {
     public static RegroupConditionMessage marshal(final RegroupCondition condition) {
         final RegroupConditionMessage.Builder builder = RegroupConditionMessage.newBuilder()
                 .setField(condition.field)
-                .setIntType(condition.intType)
-                .setInequality(condition.inequality);
+                .setIntType(condition.intType);
         if (condition.intType) {
             builder.setIntTerm(condition.intTerm);
         } else {
             builder.setStringTerm(condition.stringTerm);
+        }
+        if (condition.inequality) {
+            builder.setInequality(true);
         }
         return builder.build();
     }
