@@ -21,6 +21,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Iterables;
+import com.indeed.imhotep.service.MetricStatsEmitter;
 import com.indeed.util.core.Pair;
 import org.apache.log4j.Logger;
 
@@ -64,6 +65,7 @@ public class RemoteCachingFileSystemProvider extends FileSystemProvider {
     private static final Logger LOGGER = Logger.getLogger(RemoteCachingFileSystemProvider.class);
     static final String URI_SCHEME = "imhtpfs";
     public static final URI URI = java.net.URI.create(URI_SCHEME + ":///");
+    public static MetricStatsEmitter STATS_EMITTER = MetricStatsEmitter.NULL_EMITTER;
 
     private static class FileSystemHolder {
         private static RemoteCachingFileSystem fileSystem;
@@ -72,7 +74,7 @@ public class RemoteCachingFileSystemProvider extends FileSystemProvider {
             if (fileSystem != null) {
                 throw new FileSystemAlreadyExistsException("Multiple file systems not supported");
             }
-            fileSystem = new RemoteCachingFileSystem(fileSystemProvider, env);
+            fileSystem = new RemoteCachingFileSystem(fileSystemProvider, env, STATS_EMITTER);
             return fileSystem;
         }
 
@@ -103,6 +105,10 @@ public class RemoteCachingFileSystemProvider extends FileSystemProvider {
     }
 
     private static final FileSystemHolder FILE_SYSTEM_HOLDER = new FileSystemHolder();
+
+    public static void setStatsEmitter(MetricStatsEmitter statsEmitter){
+        STATS_EMITTER = statsEmitter;
+    }
 
     private static Map<String, Object> asMap(final Properties properties) {
         final Map<String, Object> configuration = new HashMap<>();

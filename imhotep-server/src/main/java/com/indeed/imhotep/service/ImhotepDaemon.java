@@ -1391,7 +1391,9 @@ public class ImhotepDaemon implements Instrumentation.Provider {
         final AbstractImhotepServiceCore localService;
 
         // initialize the imhotepfs if necessary
+        RemoteCachingFileSystemProvider.setStatsEmitter(localImhotepServiceConfig.getStatsEmitter());
         RemoteCachingFileSystemProvider.newFileSystem();
+
 
         final Path shardsDir = NioPathUtil.get(shardsDirectory);
         final Path tmpDir = NioPathUtil.get(shardTempDir);

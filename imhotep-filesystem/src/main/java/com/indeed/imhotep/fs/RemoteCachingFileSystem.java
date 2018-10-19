@@ -19,6 +19,7 @@ import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import com.indeed.imhotep.service.MetricStatsEmitter;
 import com.indeed.util.core.io.Closeables2;
 import org.apache.log4j.Logger;
 
@@ -43,6 +44,7 @@ import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.regex.Pattern;
 
+
 /**
  * @author kenh
  */
@@ -53,8 +55,9 @@ class RemoteCachingFileSystem extends FileSystem {
     private final SqarRemoteFileStore fileStore;
     private final LocalFileCache fileCache;
 
-    RemoteCachingFileSystem(final RemoteCachingFileSystemProvider provider, final Map<String, ?> configuration) throws IOException {
+    RemoteCachingFileSystem(final RemoteCachingFileSystemProvider provider, final Map<String, ?> configuration, final MetricStatsEmitter statsEmitter) throws IOException {
         this.provider = provider;
+
         final RemoteFileStore backingFileStore = RemoteFileStoreType.fromName((String) configuration.get("imhotep.fs.store.type"))
                 .getFactory().create(configuration);
 
@@ -77,9 +80,12 @@ class RemoteCachingFileSystem extends FileSystem {
                     public void load(final RemoteCachingPath src, final Path dest) throws IOException {
                         fileStore.downloadFile(src, dest);
                     }
-                }
+                },
+                statsEmitter
         );
+
     }
+
 
     Path getCachePath(final RemoteCachingPath path) throws ExecutionException, IOException {
         return fileCache.cache(path);
