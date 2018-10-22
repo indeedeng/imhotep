@@ -124,12 +124,7 @@ class MinHashShardAssigner implements ShardAssigner {
                 return FluentIterable.from(chosen).transform(new Function<Host, Shard>() {
                     @Override
                     public Shard apply(final Host chosenHost) {
-                        return new Shard(
-                                shard.shardId,
-                                shard.numDocs,
-                                shard.version,
-                                chosenHost
-                        );
+                        return new Shard(shard, chosenHost);
                     }
                 });
             }

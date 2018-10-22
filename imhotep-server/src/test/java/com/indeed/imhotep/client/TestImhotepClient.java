@@ -79,7 +79,7 @@ public class TestImhotepClient {
     }
 
     private static int getFreePort() throws IOException {
-        try(ServerSocket ss = new ServerSocket(0)) {
+        try (final ServerSocket ss = new ServerSocket(0)) {
             return ss.getLocalPort();
         }
     }
@@ -123,13 +123,11 @@ public class TestImhotepClient {
     @Test
     public void testRealFailure() throws IOException {
         daemon1.stop();
-        Host host1 = new Host("localhost", daemon1.getPort());
-        final ImhotepClient client = new ImhotepClient(Collections.singletonList(host1));
-        try {
-            Shard shard0 = new Shard(SHARD0, 0, 0, host1);
+        final Host host1 = new Host("localhost", daemon1.getPort());
+        try (final ImhotepClient client = new ImhotepClient(Collections.singletonList(host1))) {
+            final Shard shard0 = new Shard(SHARD0, 0, 0, host1);
             client.sessionBuilder(DATASET, null, null).shardsOverride(Collections.singletonList(shard0)).build();
             fail("session opening did not fail when it should have");
-            client.close();
         } catch (final RuntimeException e) {
             // pass
         }
@@ -200,8 +198,8 @@ public class TestImhotepClient {
 
     private static List<String> stripVersions(final List<String> shardIds) {
         final List<String> stripped = Lists.newArrayList();
-        for(String shardId : shardIds) {
-            final ShardDir shardDir = new ShardDir(Paths.get("/").resolve(shardId));
+        for (final String shardId : shardIds) {
+            final ShardDir shardDir = new ShardDir(Paths.get("/datasetName").resolve(shardId));
             stripped.add(shardDir.getId());
         }
         return stripped;
@@ -209,8 +207,8 @@ public class TestImhotepClient {
 
     private static List<Shard> shardBuilder(final List<String> shardIds) {
         final List<Shard> shards = Lists.newArrayList();
-        for(String shardId : shardIds) {
-            final ShardDir shardDir = new ShardDir(Paths.get("/").resolve(shardId));
+        for (final String shardId : shardIds) {
+            final ShardDir shardDir = new ShardDir(Paths.get("/datasetName").resolve(shardId));
             shards.add(new Shard(shardDir.getId(), 0, shardDir.getVersion(), null));
         }
         return shards;

@@ -146,9 +146,7 @@ public class RequestResponseClient implements ShardMaster {
         for(final ShardMasterResponse response: shardMasterResponses){
             final List<ShardMessage> shardsInTimeList = response.getShardsInTimeList();
             for(final ShardMessage message: shardsInTimeList) {
-                final Host host = new Host(message.getHost().getHost(), message.getHost().getPort());
-                final Shard shard = new Shard(message.getShardId(), message.getNumDocs(), message.getVersion(), host, message.getExtension());
-                toReturn.add(shard);
+                toReturn.add(Shard.fromShardMessage(message));
             }
         }
         return toReturn;

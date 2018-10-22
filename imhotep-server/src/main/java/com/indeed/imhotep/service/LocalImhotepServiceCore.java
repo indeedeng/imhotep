@@ -18,13 +18,10 @@ import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.indeed.flamdex.api.FlamdexReader;
-import com.indeed.flamdex.simple.SimpleFlamdexReader;
 import com.indeed.imhotep.ImhotepMemoryPool;
 import com.indeed.imhotep.ImhotepStatusDump;
 import com.indeed.imhotep.MemoryReservationContext;
 import com.indeed.imhotep.MemoryReserver;
-import com.indeed.imhotep.ShardDir;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.local.ImhotepJavaLocalSession;
 import com.indeed.imhotep.local.ImhotepLocalSession;
@@ -44,7 +41,6 @@ import java.io.IOException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -109,19 +105,10 @@ public class LocalImhotepServiceCore
         if(flamdexReaderFactory != null) {
             factory = flamdexReaderFactory;
         } else {
-            factory = new FlamdexReaderSource() {
-                @Override
-                public FlamdexReader openReader(Path directory) throws IOException {
-                    return SimpleFlamdexReader.open(directory);
-                }
-
-                @Override
-                public FlamdexReader openReader(Path directory, int numDocs) throws IOException {
-                    return SimpleFlamdexReader.open(directory, numDocs);
-                }
-            };
+            factory = new GenericFlamdexReaderSource();
         }
-        this.flamderReaderFactory = new ConcurrentFlamdexReaderFactory(memory, factory);
+        final ShardLocator shardLocator = ShardLocator.combine(config.getDynamicShardLocator(), ShardLocator.pathShardLocator(rootDir));
+        this.flamderReaderFactory = new ConcurrentFlamdexReaderFactory(memory, factory, shardLocator);
 
         if(config.getCpuSlots() > 0) {
             TaskScheduler.CPUScheduler = new TaskScheduler(config.getCpuSlots(),
@@ -317,11 +304,10 @@ public class LocalImhotepServiceCore
                                                                                                        String userName,
                                                                                                        String clientName) {
         final List<ConcurrentFlamdexReaderFactory.CreateRequest> readerRequests = Lists.newArrayList();
-        for (ShardNameNumDocsPair aShardRequestList : shardRequestList) {
-            final ShardDir shardDir = new ShardDir(Paths.get(dataset, aShardRequestList.getShardName()));
+        for (final ShardNameNumDocsPair aShardRequestList : shardRequestList) {
+            final String shardName = aShardRequestList.getShardName();
             final int numDocs = aShardRequestList.getNumDocs();
-            final Path path = rootDir.resolve(shardDir.getIndexDir().toString());
-            readerRequests.add(new ConcurrentFlamdexReaderFactory.CreateRequest(path, numDocs, userName, clientName));
+            readerRequests.add(new ConcurrentFlamdexReaderFactory.CreateRequest(dataset, shardName, numDocs, userName, clientName));
         }
         return readerRequests;
     }

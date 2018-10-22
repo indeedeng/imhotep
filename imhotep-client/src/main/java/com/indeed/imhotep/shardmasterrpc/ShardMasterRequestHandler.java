@@ -18,11 +18,9 @@ import com.indeed.imhotep.DatasetInfo;
 import com.indeed.imhotep.Shard;
 import com.indeed.imhotep.ShardInfo;
 import com.indeed.imhotep.protobuf.DatasetShardsMessage;
-import com.indeed.imhotep.protobuf.HostAndPort;
 import com.indeed.imhotep.protobuf.ShardMasterRequest;
 import com.indeed.imhotep.protobuf.ShardMasterResponse;
 import com.indeed.imhotep.protobuf.ShardMessage;
-import org.apache.log4j.Logger;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -90,16 +88,9 @@ class ShardMasterRequestHandler implements RequestHandler {
         try {
             final Iterable<Shard> shardsInTime = shardMaster.getShardsInTime(request.getDataset(), request.getStartTime(), request.getEndTime());
             final ShardMasterResponse.Builder builder = ShardMasterResponse.newBuilder();
-            for(final Shard shard: shardsInTime) {
-                    final ShardMessage.Builder message = ShardMessage.newBuilder()
-                            .setDataset(request.getDataset())
-                            .setHost(HostAndPort.newBuilder().setHost(shard.server.hostname).setPort(shard.server.port))
-                            .setShardId(shard.shardId)
-                            .setNumDocs(shard.numDocs)
-                            .setVersion(shard.version)
-                            .setExtension(shard.getExtension());
-                    builder.addShardsInTime(message.build());
-                }
+            for (final Shard shard : shardsInTime) {
+                shard.addToShardMessage(builder.addShardsInTimeBuilder().setDataset(request.getDataset()));
+            }
             return Collections.singletonList(builder.setResponseCode(ShardMasterResponse.ResponseCode.OK).build());
         } catch (final IOException e) {
             throw new IllegalStateException("Failed to get shards in time "+request.getStartTime()+"-"+request.getEndTime()+" for dataset "+request.getDataset(), e);

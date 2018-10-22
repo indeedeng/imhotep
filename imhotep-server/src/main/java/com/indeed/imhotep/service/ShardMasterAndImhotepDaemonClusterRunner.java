@@ -18,10 +18,12 @@ import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.imhotep.client.Host;
 import com.indeed.imhotep.client.ImhotepClient;
 import com.indeed.imhotep.client.ShardTimeUtils;
+import com.indeed.imhotep.shardmasterrpc.ShardMaster;
 import org.joda.time.DateTime;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
+import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -44,6 +46,10 @@ public class ShardMasterAndImhotepDaemonClusterRunner {
     final ImhotepShardCreator shardCreator;
 
     private static final DateTimeFormatter SHARD_VERSION_FORMAT = DateTimeFormat.forPattern(".yyyyMMddHHmmss");
+    @Nullable
+    private ShardLocator dynamicShardLocator = null;
+    @Nullable
+    private ShardMaster dynamicShardMaster = null;
 
     public ShardMasterAndImhotepDaemonClusterRunner(final File shardsDir, final File tempRootDir, final ImhotepShardCreator shardCreator) {
         this.shardsDir = shardsDir;
@@ -53,6 +59,11 @@ public class ShardMasterAndImhotepDaemonClusterRunner {
 
     public ShardMasterAndImhotepDaemonClusterRunner(final File shardsDir, final File tempRootDir) {
         this(shardsDir, tempRootDir, ImhotepShardCreator.DEFAULT);
+    }
+
+    public void setDynamicShardMasterAndLocator(@Nullable final ShardMaster dynamicShardMaster, @Nullable final ShardLocator dynamicShardLocator) {
+        this.dynamicShardMaster = dynamicShardMaster;
+        this.dynamicShardLocator = dynamicShardLocator;
     }
 
     public void createDailyShard(final String dataset, final DateTime dateTime, final FlamdexReader flamdexReader) throws IOException {
@@ -80,6 +91,7 @@ public class ShardMasterAndImhotepDaemonClusterRunner {
                 // each daemonRunners should have its own private scratch temp dir
                 tempRootDir.toPath().resolve(UUID.randomUUID().toString()),
                 0, new GenericFlamdexReaderSource());
+        runner.setConfig(new LocalImhotepServiceConfig().setDynamicShardLocator(dynamicShardLocator));
         runner.start();
         daemonRunners.add(runner);
         return runner;
@@ -90,7 +102,8 @@ public class ShardMasterAndImhotepDaemonClusterRunner {
     }
 
     public ImhotepClient createClient() throws InterruptedException, TimeoutException, IOException {
-        ShardMasterRunner smRunner = new ShardMasterRunner(shardsDir.toPath(), 0, getDaemonHosts());
+        final ShardMasterRunner smRunner = new ShardMasterRunner(shardsDir.toPath(), 0, getDaemonHosts());
+        smRunner.setDynamicShardMaster(dynamicShardMaster);
         shardMasterRunners.add(smRunner);
         smRunner.start();
         return new ImhotepClient(Collections.singletonList(new Host("localhost", smRunner.getActualPort())));

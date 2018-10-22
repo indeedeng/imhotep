@@ -23,6 +23,9 @@ import java.util.List;
  * the run method of this class will be called once a minute so there's no need to have a while (true) loop or anything like that
  */
 public interface HostsReloader extends Runnable, Terminable {
-    List<Host> getHosts();
+    /**
+     * The returned list could contain null. {@link StaticWithDynamicDowntimeHostsReloader}
+     */
+    List</* @Nullable */ Host> getHosts();
     boolean isLoadedDataSuccessfullyRecently();
 }

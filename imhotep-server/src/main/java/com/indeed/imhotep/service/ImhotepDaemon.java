@@ -1398,7 +1398,12 @@ public class ImhotepDaemon implements Instrumentation.Provider {
         final Path shardsDir = NioPathUtil.get(shardsDirectory);
         final Path tmpDir = NioPathUtil.get(shardTempDir);
 
-        final String myHostname = InetAddress.getLocalHost().getCanonicalHostName();
+        final String myHostname;
+        if (localImhotepServiceConfig.getAdvertisedHostName() != null) {
+            myHostname = localImhotepServiceConfig.getAdvertisedHostName();
+        } else {
+            myHostname = InetAddress.getLocalHost().getCanonicalHostName();
+        }
         final ServerSocket ss = new ServerSocket(port);
         final Host myHost = new Host(myHostname, ss.getLocalPort());
 

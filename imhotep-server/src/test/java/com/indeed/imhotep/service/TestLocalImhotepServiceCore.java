@@ -16,15 +16,10 @@
 import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.reader.MockFlamdexReader;
 import com.indeed.flamdex.simple.TestSimpleFlamdexDocWriter;
-import com.indeed.imhotep.ShardInfo;
 import com.indeed.imhotep.api.FTGSParams;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
-import com.indeed.imhotep.client.Host;
 import com.indeed.imhotep.io.TestFileUtils;
 import com.indeed.imhotep.protobuf.ShardNameNumDocsPair;
-import com.indeed.imhotep.shardmaster.FlamdexFormatVersion;
-import com.indeed.imhotep.shardmaster.FlamdexMetadata;
-import com.indeed.imhotep.shardmasterrpc.ShardMaster;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -32,14 +27,8 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.TimeoutException;
 
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.fail;
 
@@ -129,37 +118,5 @@ public class TestLocalImhotepServiceCore {
         public void close() throws IOException {
             closed = true;
         }
-    }
-
-    // TODO: move to shardmaster tests
-    @Test
-    @SuppressWarnings({"ResultOfMethodCallIgnored"})
-    public void testReadingShards() throws IOException, TimeoutException, InterruptedException {
-        final Path directory = Files.createTempDirectory("imhotep-test");
-        final Path tempDir = Files.createTempDirectory("imhotep-temp");
-        try {
-            final Path datasetDir = directory.resolve("dataset");
-            Files.createDirectory(datasetDir);
-            createShardDirAndMetadataFile(datasetDir, "index20160101");
-            createShardDirAndMetadataFile(datasetDir, "index20160101.20120101000000");
-            createShardDirAndMetadataFile(datasetDir, "index20160101.20111231000000");
-            createShardDirAndMetadataFile(datasetDir, "index20160102.20120101000000");
-            createShardDirAndMetadataFile(datasetDir, "index20160102.20120101123456");
-            createShardDirAndMetadataFile(datasetDir, "index20160103.20120102000000");
-
-            ShardMaster shardMaster = ShardMasterRunner.getFunctioningShardMaster(directory, Collections.singletonList(new Host("localhost", 0)));
-            final Map<String, Collection<ShardInfo>> shardList = shardMaster.getShardList();
-            final List<ShardInfo> shards = new ArrayList<>(shardList.get("dataset"));
-            assertEquals(6, shards.size());
-        } finally {
-            TestFileUtils.deleteDirTree(directory);
-            TestFileUtils.deleteDirTree(tempDir);
-        }
-    }
-
-    private void createShardDirAndMetadataFile(Path datasetDir, String shardName) throws IOException {
-        final Path directory = Files.createDirectory(datasetDir.resolve(shardName));
-        FlamdexMetadata.writeMetadata(directory, new FlamdexMetadata(0, new ArrayList<>(), new ArrayList<>(), FlamdexFormatVersion.SIMPLE));
-
     }
 }

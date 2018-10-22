@@ -14,13 +14,12 @@
 package com.indeed.imhotep.service;
 
 import com.google.common.base.Throwables;
-import com.google.common.collect.Lists;
 import com.indeed.imhotep.client.Host;
 import com.indeed.imhotep.shardmaster.ShardMasterDaemon;
-import com.indeed.imhotep.shardmasterrpc.RequestResponseClient;
 import com.indeed.imhotep.shardmasterrpc.ShardMaster;
 import org.apache.commons.lang.StringUtils;
 
+import javax.annotation.Nullable;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.nio.file.Path;
@@ -35,6 +34,9 @@ public class ShardMasterRunner {
     private final ServerSocket socket;
     private final List<Host> staticHostsList;
 
+    @Nullable
+    private ShardMaster dynamicShardMaster = null;
+    @Nullable
     private ShardMasterDaemon currentlyRunning;
 
     public ShardMasterRunner(final Path rootShardsDir,
@@ -50,6 +52,10 @@ public class ShardMasterRunner {
         return socket.getLocalPort();
     }
 
+    public void setDynamicShardMaster(@Nullable final ShardMaster dynamicShardMaster) {
+        this.dynamicShardMaster = dynamicShardMaster;
+    }
+
     public void start() throws IOException, TimeoutException, InterruptedException {
         if (currentlyRunning != null) {
             currentlyRunning.shutdown();
@@ -57,16 +63,17 @@ public class ShardMasterRunner {
 
         final String hostsString = StringUtils.join(staticHostsList, ",");
 
-        currentlyRunning =
-                new ShardMasterDaemon(new ShardMasterDaemon.Config()
-                        .setShardsRootPath(rootShardsDir.toString())
-                        .setServerSocket(socket)
-                        .setInitialRefreshReadFilesystem(true)
-                        .setReplicationFactor(1)
-                        .setLocalMode(true)
-                        .setReadSQL(false)
-                        .setWriteSQL(false)
-                        .setHostsListStatic(hostsString));
+        final ShardMasterDaemon.Config config = new ShardMasterDaemon.Config()
+                .setShardsRootPath(rootShardsDir.toString())
+                .setServerSocket(socket)
+                .setInitialRefreshReadFilesystem(true)
+                .setReplicationFactor(1)
+                .setLocalMode(true)
+                .setReadSQL(false)
+                .setWriteSQL(false)
+                .setHostsListStatic(hostsString)
+                .setDynamicShardMaster(dynamicShardMaster);
+        currentlyRunning = new ShardMasterDaemon(config);
 
         new Thread(() -> {
             try {
@@ -83,11 +90,5 @@ public class ShardMasterRunner {
             currentlyRunning.shutdown();
             currentlyRunning = null;
         }
-    }
-
-    public static ShardMaster getFunctioningShardMaster(final Path rootShardsDir, final List<Host> staticHostsList) throws IOException, TimeoutException, InterruptedException {
-        ShardMasterRunner runner = new ShardMasterRunner(rootShardsDir, 0, staticHostsList);
-        runner.start();
-        return new RequestResponseClient(Lists.newArrayList(new Host("localhost", runner.getActualPort())));
     }
 }

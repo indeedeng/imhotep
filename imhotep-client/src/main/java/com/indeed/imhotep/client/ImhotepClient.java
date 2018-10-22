@@ -201,7 +201,7 @@ public class ImhotepClient
             if(imhotepDaemonsOverride == null) {
                 return shardsInTime;
             }
-            return shardsInTime.stream().map(shard -> new Shard(shard.shardId, shard.numDocs, shard.version, computeOverrideHost(dataset, shard), shard.getExtension())).collect(Collectors.toList());
+            return shardsInTime.stream().map(shard -> shard.withHost(computeOverrideHost(dataset, shard))).collect(Collectors.toList());
         } catch (IOException e) {
             throw Throwables.propagate(e);
         }

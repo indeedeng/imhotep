@@ -31,6 +31,7 @@ import com.indeed.imhotep.shardmaster.utils.SQLWriteManager;
 import com.indeed.imhotep.shardmasterrpc.MultiplexingRequestHandler;
 import com.indeed.imhotep.shardmasterrpc.RequestMetricStatsEmitter;
 import com.indeed.imhotep.shardmasterrpc.RequestResponseServer;
+import com.indeed.imhotep.shardmasterrpc.ShardMaster;
 import com.indeed.imhotep.shardmasterrpc.ShardMasterExecutors;
 import com.indeed.util.zookeeper.ZooKeeperConnection;
 import org.apache.commons.dbcp.BasicDataSource;
@@ -42,6 +43,7 @@ import org.apache.zookeeper.ZooDefs;
 import org.joda.time.Duration;
 import org.springframework.jdbc.core.JdbcTemplate;
 
+import javax.annotation.Nullable;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.ServerSocket;
@@ -147,9 +149,12 @@ public class ShardMasterDaemon {
                 refresher.refresh(config.readFilesystem && leader, config.readSQL, shouldDelete, leader && config.writeSQL, leader);
             }, config.getRefreshInterval().getMillis(), config.getRefreshInterval().getMillis(), TimeUnit.MILLISECONDS);
 
+            final DatabaseShardMaster datasetShardMaster = new DatabaseShardMaster(config.createAssigner(), shardData, hostsReloader, refresher);
+            final ShardMaster shardMaster = (config.dynamicShardMaster == null) ? datasetShardMaster : new CombiningShardMaster(datasetShardMaster, config.dynamicShardMaster);
+
             server = new RequestResponseServer(config.getServerSocket(), new MultiplexingRequestHandler(
                     config.statsEmitter,
-                    new DatabaseShardMaster(config.createAssigner(), shardData, hostsReloader, refresher, config.localMode ? "" : ".sqar"),
+                    shardMaster,
                     config.shardsResponseBatchSize
             ), config.serviceConcurrency);
             startupLatch.countDown();
@@ -254,6 +259,8 @@ public class ShardMasterDaemon {
         private boolean writeSQL = true;
         private boolean readFilesystem = true;
         private boolean initialRefreshReadFilesystem = false;
+        @Nullable
+        private ShardMaster dynamicShardMaster = null;
 
         /*
          * Local mode does:
@@ -495,6 +502,11 @@ public class ShardMasterDaemon {
 
         public Config setLocalMode(final boolean b) {
             this.localMode = b;
+            return this;
+        }
+
+        public Config setDynamicShardMaster(@Nullable final ShardMaster dynamicShardMaster) {
+            this.dynamicShardMaster = dynamicShardMaster;
             return this;
         }
     }

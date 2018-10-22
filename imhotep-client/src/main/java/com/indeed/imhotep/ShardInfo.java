@@ -13,6 +13,7 @@
  */
  package com.indeed.imhotep;
 
+import com.google.common.base.Objects;
 import com.google.common.primitives.Longs;
 import com.indeed.imhotep.client.ShardTimeUtils;
 import com.indeed.imhotep.protobuf.ShardInfoMessage;
@@ -20,18 +21,27 @@ import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * @author jsgroth
  */
 public class ShardInfo implements Comparable<ShardInfo> {
+    @Nullable
+    protected final String fileName;
     public final String shardId;
     public final int numDocs;
     public final long version;
 
+    @Nullable
     private DateTimeRange range;    // lazily computed
 
     public ShardInfo(final String shardId, final int numDocs, final long version) {
+        this(null, shardId, numDocs, version);
+    }
+
+    public ShardInfo(@Nullable final String fileName, final String shardId, final int numDocs, final long version) {
+        this.fileName = fileName;
         this.shardId = shardId;
         this.numDocs = numDocs;
         this.version = version;
@@ -112,24 +122,22 @@ public class ShardInfo implements Comparable<ShardInfo> {
         if (version != shardInfo.version) {
             return false;
         }
-        if (shardId != null ? !shardId.equals(shardInfo.shardId) : shardInfo.shardId != null) {
-            return false;
-        }
-
-        return true;
+        return Objects.equal(shardId, shardInfo.shardId) && Objects.equal(fileName, shardInfo.fileName);
     }
 
     @Override
     public int hashCode() {
-        int result = shardId != null ? shardId.hashCode() : 0;
-        result = 31 * result + numDocs;
-        result = 31 * result + (int) (version ^ (version >>> 32));
-        return result;
+        return Objects.hashCode(shardId, numDocs, version, fileName);
     }
 
     @Override
     public String toString() {
-        return shardId;
+        return "ShardInfo{" +
+                "fileName='" + (fileName == null ? "null" : fileName) + '\'' +
+                ", shardId='" + shardId + '\'' +
+                ", numDocs=" + numDocs +
+                ", version=" + version +
+                '}';
     }
 
     public static DateTimeRange parseDateTime(final String shardId) {
