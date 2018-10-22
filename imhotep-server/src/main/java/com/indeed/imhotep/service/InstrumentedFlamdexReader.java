@@ -93,8 +93,8 @@ public class InstrumentedFlamdexReader
         metrics.put(metric, memoryRequired(metric));
     }
 
-    private void onField(final String field) {
-        fields.put(field, flamdexInfo.getFieldSizeInBytes(field, wrapped));
+    private void onField(final String field, final boolean fieldIsString) {
+        fields.put(field, flamdexInfo.getFieldSizeInBytes(field, fieldIsString, wrapped));
     }
 
     @Override
@@ -119,27 +119,27 @@ public class InstrumentedFlamdexReader
     }
 
     public IntTermIterator getIntTermIterator(final String field) {
-        onField(field);
+        onField(field, false);
         return wrapped.getIntTermIterator(field);
     }
 
     public IntTermIterator getUnsortedIntTermIterator(final String field) {
-        onField(field);
+        onField(field, false);
         return wrapped.getUnsortedIntTermIterator(field);
     }
 
     public StringTermIterator getStringTermIterator(final String field) {
-        onField(field);
+        onField(field, true);
         return wrapped.getStringTermIterator(field);
     }
 
     public IntTermDocIterator getIntTermDocIterator(final String field) {
-        onField(field);
+        onField(field, false);
         return wrapped.getIntTermDocIterator(field);
     }
 
     public StringTermDocIterator getStringTermDocIterator(final String field) {
-        onField(field);
+        onField(field, true);
         return wrapped.getStringTermDocIterator(field);
     }
 
@@ -157,6 +157,7 @@ public class InstrumentedFlamdexReader
 
     public IntValueLookup getMetric(final String metric)
         throws FlamdexOutOfMemoryException {
+        onField(metric, false);    // metrics are loaded from fields so note the field is accessed
         onMetric(metric);
         return wrapped.getMetric(metric);
     }

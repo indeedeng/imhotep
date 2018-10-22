@@ -11,21 +11,21 @@
  * express or implied. See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-package com.indeed.imhotep.fs.sql;
-
-import com.indeed.imhotep.fs.RemoteFileMetadata;
-
-import javax.annotation.Nullable;
-import java.nio.file.Path;
+package com.indeed.imhotep.exceptions;
 
 /**
- * @author kenh
+ * @author dcahill
  */
+public class GenericImhotepKnownException extends ImhotepKnownException {
+    public GenericImhotepKnownException() {
+        super();
+    }
 
-public interface SqarMetaDataDao {
-    void cacheMetadata(final Path shardPath, final Iterable<RemoteFileMetadata> metadataList);
-    Iterable<RemoteFileMetadata> listDirectory(final Path shardPath, final String dirname);
-    @Nullable RemoteFileMetadata getFileMetadata(final Path shardPath, final String filename);
-    boolean hasShard(final Path shardPath);
+    public GenericImhotepKnownException(final String s) {
+        super(s);
+    }
+
+    public GenericImhotepKnownException(final String message, final Throwable cause) {
+        super(message, cause);
+    }
 }

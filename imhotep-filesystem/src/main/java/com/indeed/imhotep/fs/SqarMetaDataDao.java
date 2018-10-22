@@ -12,28 +12,19 @@
  * limitations under the License.
  */
 
-package com.indeed.imhotep.fs.sql;
+package com.indeed.imhotep.fs;
 
-import org.jooq.DSLContext;
-import org.jooq.SQLDialect;
-import org.jooq.conf.Settings;
-import org.jooq.impl.DSL;
-
-import javax.sql.DataSource;
+import javax.annotation.Nullable;
+import java.io.Closeable;
+import java.nio.file.Path;
 
 /**
  * @author kenh
  */
 
-public class DSLContextContainer {
-    private final Settings settings = new Settings().withRenderSchema(false);
-    private final DataSource dataSource;
-
-    public DSLContextContainer(final DataSource dataSource) {
-        this.dataSource = dataSource;
-    }
-
-    public DSLContext getDSLContext() {
-        return DSL.using(dataSource, SQLDialect.H2, settings);
-    }
+public interface SqarMetaDataDao extends Closeable {
+    void cacheMetadata(final Path shardPath, final Iterable<RemoteFileMetadata> metadataList);
+    Iterable<RemoteFileListing> listDirectory(final Path shardPath, final String dirname);
+    @Nullable RemoteFileMetadata getFileMetadata(final Path shardPath, final String filename);
+    boolean hasShard(final Path shardPath);
 }

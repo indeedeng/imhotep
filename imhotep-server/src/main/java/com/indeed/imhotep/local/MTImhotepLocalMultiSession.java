@@ -23,6 +23,7 @@ import com.indeed.imhotep.FTGSMerger;
 import com.indeed.imhotep.FTGSSplitter;
 import com.indeed.imhotep.GroupMultiRemapRule;
 import com.indeed.imhotep.GroupStatsDummyIterator;
+import com.indeed.imhotep.GroupStatsIteratorCombiner;
 import com.indeed.imhotep.ImhotepRemoteSession;
 import com.indeed.imhotep.MemoryReservationContext;
 import com.indeed.imhotep.MultiSessionMerger;
@@ -36,6 +37,7 @@ import com.indeed.imhotep.api.FTGSParams;
 import com.indeed.imhotep.api.GroupStatsIterator;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
+import com.indeed.imhotep.metrics.aggregate.AggregateStat;
 import com.indeed.imhotep.metrics.aggregate.MultiFTGSIterator;
 import com.indeed.imhotep.pool.GroupStatsPool;
 import com.indeed.imhotep.scheduling.TaskScheduler;
@@ -451,16 +453,88 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
                 for (final FTGSIterator[] list : subIteratorLists) {
                     indexIterators.add(list[i]);
                 }
-                splitEntries[i] = modifiers.wrap(processor.apply(new MultiSessionMerger(indexIterators, null)));
+                final MultiSessionMerger sessionMerger = closer.register(new MultiSessionMerger(indexIterators, null));
+                final FTGAIterator processed = closer.register(processor.apply(sessionMerger));
+                splitEntries[i] = closer.register(modifiers.wrap(processed));
             }
-
             final FTGAIterator[] persisted = new FTGAIterator[numSplits];
             execute(persisted, splitEntries, true, this::persist);
             return persisted;
-        } catch (Throwable t) {
+        } catch (ExecutionException e) {
+            throw Throwables.propagate(e);
+        } finally {
             Closeables2.closeQuietly(closer, log);
-            throw Throwables.propagate(t);
         }
+    }
+
+    // Element-wise zip the FTGSIterator's into a MultiSessionMerger,
+    // count the number of terms that pass each filter for each group on each merger,
+    // and return a GroupStatsIterator that adds those counts together.
+    public GroupStatsIterator mergeMultiDistinct(
+            final List<FTGSIterator[]> subIteratorLists,
+            final List<AggregateStat> filters
+    ) {
+        final Closer closer = Closer.create();
+        final Closer closeOnFailCloser = Closer.create();
+        try {
+            for (final FTGSIterator[] subIteratorList : subIteratorLists) {
+                closer.register(Closeables2.forArray(log, subIteratorList));
+            }
+            Preconditions.checkArgument(subIteratorLists.size() > 0);
+            final int numSplits = subIteratorLists.get(0).length;
+            for (final FTGSIterator[] list : subIteratorLists) {
+                Preconditions.checkArgument(list.length == numSplits);
+            }
+            // 1 list per SPLIT, where the elements are the elements that have the same index
+            final MultiFTGSIterator[] splitEntries = new MultiFTGSIterator[numSplits];
+            for (int i = 0; i < numSplits; i++) {
+                final List<FTGSIterator> indexIterators = new ArrayList<>();
+                for (final FTGSIterator[] list : subIteratorLists) {
+                    indexIterators.add(list[i]);
+                }
+                splitEntries[i] = closer.register(new MultiSessionMerger(indexIterators, null));
+            }
+
+            final GroupStatsIterator[] threadCounts = new GroupStatsIterator[numSplits];
+            closeOnFailCloser.register(Closeables2.forArray(log, threadCounts));
+            execute(threadCounts, splitEntries, true, x -> calculateMultiDistinct(x, filters));
+            return new GroupStatsIteratorCombiner(threadCounts);
+        } catch (ExecutionException e) {
+            Closeables2.closeQuietly(closeOnFailCloser, log);
+            throw Throwables.propagate(e);
+        } finally {
+            Closeables2.closeQuietly(closer, log);
+        }
+    }
+
+    /**
+     *
+     * @param iterator input iterator
+     * @param filters one filter per HAVING
+     * @return group stats iterator with num stats == filters.size(), corresponding element-wise
+     */
+    public static GroupStatsIterator calculateMultiDistinct(final MultiFTGSIterator iterator, final List<AggregateStat> filters) {
+        Preconditions.checkState(iterator.nextField(), "MultiFTGSIterator had no fields, expected exactly 1");
+        Preconditions.checkState(iterator.fieldName().equals("magic"), "MultiFTGSIterator has field name \"%s\", expected \"magic\"", iterator.fieldName());
+
+        final int numStats = filters.size();
+        // Layout is group0 f0, group0 f1, group 0 f2, group1 f0, group1 f1, group1 f2, ...
+        final long[] data = new long[iterator.getNumGroups() * numStats];
+        while (iterator.nextTerm()) {
+            while (iterator.nextGroup()) {
+                final int group = iterator.group();
+                for (int i = 0; i < numStats; i++) {
+                    final AggregateStat filter = filters.get(i);
+                    if (AggregateStat.truthy(filter.apply(iterator))) {
+                        data[group * numStats + i] += 1;
+                    }
+                }
+            }
+        }
+
+        Preconditions.checkState(!iterator.nextField(), "MultiFTGSIterator had more than 1 field, expected exactly 1");
+
+        return new GroupStatsDummyIterator(data);
     }
 
     private <T extends ImhotepSession> FTGSIterator mergeFTGSIteratorsForSessions(

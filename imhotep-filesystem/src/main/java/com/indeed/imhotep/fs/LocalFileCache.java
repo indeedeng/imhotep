@@ -17,11 +17,12 @@ package com.indeed.imhotep.fs;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.cache.AbstractCache;
-import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.indeed.imhotep.scheduling.TaskScheduler;
+import com.indeed.imhotep.service.MetricStatsEmitter;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import org.apache.log4j.Logger;
 
@@ -38,7 +39,11 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+
 
 /**
  * @author kenh
@@ -50,19 +55,38 @@ class LocalFileCache {
     private final long diskSpaceCapacity;
     private final int diskBlockSize;
     private final AtomicLong diskSpaceUsage = new AtomicLong(0);
+    private final AtomicLong referencedFilesCacheSize = new AtomicLong(0);
     private final Object2IntOpenHashMap<RemoteCachingPath> fileUseCounter;
-    private final Cache<RemoteCachingPath, FileCacheEntry> unusedFilesCache;
+    private final UnusedFileCache unusedFilesCache;
     private final LoadingCache<RemoteCachingPath, FileCacheEntry> referencedFilesCache;
     private final Object lock = new Object();
+    private final MetricStatsEmitter statsEmitter;
+    private static final int FAST_REPORTING_FREQUENCY_MILLIS = 100;
+    private static final int SLOW_REPORTING_FREQUENCY_MINUTES = 60;
+
+    LocalFileCache(final RemoteCachingFileSystem fs, final Path cacheRootDir, final long diskSpaceCapacity, final int diskBlockSize, final CacheFileLoader cacheFileLoader) throws IOException {
+        this(fs, cacheRootDir, diskSpaceCapacity, diskBlockSize, cacheFileLoader, MetricStatsEmitter.NULL_EMITTER);
+    }
 
     LocalFileCache(
             final RemoteCachingFileSystem fs,
             final Path cacheRootDir,
             final long diskSpaceCapacity,
             final int diskBlockSize,
-            final CacheFileLoader cacheFileLoader) throws IOException {
+            final CacheFileLoader cacheFileLoader,
+            final MetricStatsEmitter statsEmitter) throws IOException {
         this.cacheRootDir = cacheRootDir;
         this.diskSpaceCapacity = diskSpaceCapacity;
+        this.statsEmitter = statsEmitter;
+
+        final CacheStatsEmitter cacheFileStatsEmitter = new CacheStatsEmitter();
+        final ScheduledExecutorService fastStatsReportingExecutor =
+                Executors.newSingleThreadScheduledExecutor(new ThreadFactoryBuilder().setNameFormat("sumCacheOldestFileReferencedFilesSizeReporter").setDaemon(true).build());
+        fastStatsReportingExecutor.scheduleAtFixedRate(cacheFileStatsEmitter::reportFastFreqStats, FAST_REPORTING_FREQUENCY_MILLIS, FAST_REPORTING_FREQUENCY_MILLIS, TimeUnit.MILLISECONDS);
+        final ScheduledExecutorService slowStatsReportingExecutor =
+                Executors.newSingleThreadScheduledExecutor(new ThreadFactoryBuilder().setNameFormat("sumCacheFileSizeReporter").setDaemon(true).build());
+        slowStatsReportingExecutor.scheduleAtFixedRate(cacheFileStatsEmitter::reportSumCacheFileSize, SLOW_REPORTING_FREQUENCY_MINUTES, SLOW_REPORTING_FREQUENCY_MINUTES, TimeUnit.MINUTES);
+
         this.diskBlockSize = diskBlockSize;
 
         fileUseCounter = new Object2IntOpenHashMap<>();
@@ -89,20 +113,69 @@ class LocalFileCache {
                             throw new IOException("Failed to place cache file under " + cachePath);
                         }
 
+
                         final long fileSize = sizeOnDisk(cachePath);
+                        final int lastAccessEpochTimeSeconds = (int)(System.currentTimeMillis()/1000);
 
                         diskSpaceUsage.addAndGet(fileSize);
+                        referencedFilesCacheSize.addAndGet(fileSize);
                         unusedFilesCache.cleanUp();
 
                         return new FileCacheEntry(
                                 cachePath,
-                                fileSize
+                                fileSize,
+                                lastAccessEpochTimeSeconds
                         );
                     }
                 });
 
         initialize(fs);
+
     }
+
+
+    private class CacheStatsEmitter{
+
+        private SumCacheFileSizeIntervals getSumCacheFilesSize() {
+            final SumCacheFileSizeIntervals sumCacheFileStats;
+            final long sumFileSizesReferenceCache;
+
+            synchronized (lock) {
+                sumFileSizesReferenceCache = referencedFilesCache.asMap().values().stream().mapToLong(x -> x.fileSize).sum();
+                sumCacheFileStats = unusedFilesCache.getSumCacheFileSizeStats();
+            }
+
+            //we consider Referenced file to have accessTime = System.currentTime
+            sumCacheFileStats.minuteSum += sumFileSizesReferenceCache;
+            sumCacheFileStats.hourSum += sumFileSizesReferenceCache;
+            sumCacheFileStats.minuteSum += sumFileSizesReferenceCache;
+
+            return sumCacheFileStats;
+        }
+
+        public void reportFastFreqStats() { // reports total cache size, sum of size of referenced files, oldest file age
+            statsEmitter.histogram("file.cache.total.size", getCacheUsage());
+            int oldestFileAgeSeconds = unusedFilesCache.getOldestFileAccessTime();
+
+            if (oldestFileAgeSeconds != Integer.MIN_VALUE) {  // ignoring the files never accessed.
+                int currentTimeMinutes = (int)TimeUnit.MILLISECONDS.toMinutes(System.currentTimeMillis());
+                int minutesSinceLastAccess = currentTimeMinutes - (oldestFileAgeSeconds/60);
+                statsEmitter.histogram("file.cache.oldest.file.age.minutes", minutesSinceLastAccess);
+            }
+
+            statsEmitter.histogram("file.cache.referenced.files.size", referencedFilesCacheSize.get());
+        }
+
+        public void reportSumCacheFileSize() {
+            SumCacheFileSizeIntervals sumCacheFilesStats = getSumCacheFilesSize();
+
+            statsEmitter.gauge("sum.cache.file.size.minute", sumCacheFilesStats.minuteSum);
+            statsEmitter.gauge("sum.cache.file.size.hour", sumCacheFilesStats.hourSum);
+            statsEmitter.gauge("sum.cache.file.size.day", sumCacheFilesStats.daySum);
+        }
+    }
+
+
 
     private void evictCacheFile(final FileCacheEntry entry) {
         // we only need to delete the cache if the entry was pushed out
@@ -125,10 +198,11 @@ class LocalFileCache {
                     super.visitFile(cachePath, attrs);
 
                     final long localCacheSize = sizeOnDisk(cachePath);
+                    final int lastAccessEpochTimeSeconds = Integer.MIN_VALUE; // Initialize with MIN_VALUE to ignore in stats reporting.
                     final RemoteCachingPath path = RemoteCachingPath.resolve(RemoteCachingPath.getRoot(fs), cacheRootDir.relativize(cachePath));
 
                     diskSpaceUsage.addAndGet(localCacheSize);
-                    unusedFilesCache.put(path, new FileCacheEntry(cachePath, localCacheSize));
+                    unusedFilesCache.put(path, new FileCacheEntry(cachePath, (int) localCacheSize, lastAccessEpochTimeSeconds));
 
                     return FileVisitResult.CONTINUE;
                 }
@@ -166,6 +240,7 @@ class LocalFileCache {
      */
     Path cache(final RemoteCachingPath path) throws ExecutionException, IOException {
         Preconditions.checkArgument(path.isAbsolute(), "Only absolute paths are supported");
+
         if (Files.isDirectory(path)) {
             // directories should not go into the usage book keeping
             final Path cacheDirPath = toCachePath(path);
@@ -215,6 +290,7 @@ class LocalFileCache {
                 // if the file was in the unused file cache, we can use that again
                 unusedFilesCache.invalidate(path);
                 referencedFilesCache.put(path, fileCacheEntry);
+                referencedFilesCacheSize.addAndGet(fileCacheEntry.fileSize);
                 return fileCacheEntry.cachePath;
             }
         }
@@ -224,7 +300,7 @@ class LocalFileCache {
         // 2. loading the cache file (which can result in exceptions and the file use counter has to be rolled back)
         try {
             try (final Closeable ignored = TaskScheduler.CPUScheduler.temporaryUnlock()) {
-                fileCacheEntry = referencedFilesCache.get(path);
+                fileCacheEntry = referencedFilesCache.get(path) ;
             } catch (final IOException e) {
                 throw Throwables.propagate(e);
             }
@@ -259,12 +335,15 @@ class LocalFileCache {
         synchronized (lock) {
             final int counter = decFileUsageRef(path);
             if (counter == 0) {
-                referencedFilesCache.invalidate(path);
-                try {
-                    unusedFilesCache.put(path, new FileCacheEntry(cachePath, sizeOnDisk(cachePath)));
-                } catch (final IOException e) {
-                    LOGGER.warn("Failed to get file size for disposed cache file " + cachePath +
-                            ". The file will be assumed to been removed", e);
+                FileCacheEntry referencedFile = referencedFilesCache.getIfPresent(path);
+                if (referencedFile != null) {
+                    long referencedFileSize = referencedFile.fileSize;
+                    referencedFilesCache.invalidate(path);
+                    referencedFilesCacheSize.addAndGet(-referencedFileSize);
+                    unusedFilesCache.put(path, new FileCacheEntry(cachePath, referencedFileSize, (int) (System.currentTimeMillis() / 1000)));
+                } else {
+                    LOGGER.error("Failed to get file" + cachePath + "from referencedFilesCache while disposing. " +
+                            "The file will assumed to be removed and not considered for disposing unless referenced again. ");
                 }
             }
         }
@@ -279,11 +358,26 @@ class LocalFileCache {
     static class FileCacheEntry {
         private final Path cachePath;
         private final long fileSize;
+        private final int lastAccessEpochTimeSeconds;
 
-        FileCacheEntry(final Path cachePath, final long fileSize) {
+        private FileCacheEntry(final Path cachePath, final long fileSize, final int lastAccessEpochTimeSeconds) {
             this.cachePath = cachePath;
             this.fileSize = fileSize;
+            this.lastAccessEpochTimeSeconds = lastAccessEpochTimeSeconds;
         }
+    }
+
+    static class SumCacheFileSizeIntervals {
+        private long minuteSum;
+        private long hourSum;
+        private long daySum;
+
+        public SumCacheFileSizeIntervals() {
+            this.minuteSum = 0;
+            this.hourSum = 0;
+            this.daySum = 0;
+        }
+
     }
 
     static class ScopedCacheFile implements Closeable {
@@ -346,5 +440,36 @@ class LocalFileCache {
         public synchronized FileCacheEntry getIfPresent(@Nonnull final Object key) {
             return updateOrderMap.get(key);
         }
+
+        public synchronized int getOldestFileAccessTime() {
+                return updateOrderMap.values().stream().mapToInt(x -> x.lastAccessEpochTimeSeconds).findFirst().orElse(Integer.MIN_VALUE);
+        }
+
+        public synchronized SumCacheFileSizeIntervals getSumCacheFileSizeStats() {
+
+            final Iterator<FileCacheEntry> iterator = updateOrderMap.values().iterator();
+            final int secondsSinceEpoch = (int)(System.currentTimeMillis()/1000);
+            SumCacheFileSizeIntervals sumCacheFileStats = new SumCacheFileSizeIntervals();
+            while(iterator.hasNext()) {
+                final FileCacheEntry entry = iterator.next();
+                if (entry.lastAccessEpochTimeSeconds == Integer.MIN_VALUE) { // ignore files not accessed yet
+                    continue;
+                }
+                final int timeDifferenceSeconds = secondsSinceEpoch - entry.lastAccessEpochTimeSeconds;
+
+                if (timeDifferenceSeconds <= 60) {
+                    sumCacheFileStats.minuteSum += entry.fileSize;
+                }
+                if (timeDifferenceSeconds <= 60*60 ) {
+                    sumCacheFileStats.hourSum += entry.fileSize;
+                }
+                if (timeDifferenceSeconds <= 60*60*24) {
+                    sumCacheFileStats.daySum += entry.fileSize;
+                }
+            }
+
+            return sumCacheFileStats;
+        }
+
     }
 }

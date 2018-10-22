@@ -28,6 +28,20 @@ public class RegroupCondition {
         this.inequality = inequality;
     }
 
+    public static RegroupCondition intCondition(
+            final String field,
+            final long intTerm,
+            final boolean inequality) {
+        return new RegroupCondition(field, true, intTerm, "", inequality);
+    }
+
+    public static RegroupCondition stringCondition(
+            final String field,
+            final String stringTerm,
+            final boolean inequality) {
+        return new RegroupCondition(field, false, 0, stringTerm, inequality);
+    }
+
     public String toString() {
         return field+(inequality?" <= ":" = ")+(intType?intTerm:stringTerm);
     }

@@ -18,13 +18,9 @@ import com.google.common.base.Function;
 import com.google.common.base.Throwables;
 import com.google.common.collect.FluentIterable;
 import com.indeed.imhotep.archive.FileMetadata;
-import com.indeed.imhotep.fs.db.metadata.Tables;
-import com.indeed.imhotep.fs.sql.FileMetadataDao;
-import com.indeed.imhotep.fs.sql.SchemaInitializer;
-import com.indeed.imhotep.fs.sql.SqarMetaDataDao;
 import com.indeed.imhotep.scheduling.TaskScheduler;
-import com.zaxxer.hikari.HikariConfig;
-import com.zaxxer.hikari.HikariDataSource;
+import com.indeed.util.core.io.Closeables2;
+import org.apache.log4j.Logger;
 
 import javax.annotation.Nullable;
 import java.io.Closeable;
@@ -35,8 +31,8 @@ import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.NotDirectoryException;
 import java.nio.file.Path;
-import java.sql.SQLException;
-import java.util.Collections;
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 
@@ -44,29 +40,27 @@ import java.util.Map;
  * @author kenh
  */
 class SqarRemoteFileStore extends RemoteFileStore implements Closeable {
+    private static final Logger log = Logger.getLogger(SqarRemoteFileStore.class);
+
     private final SqarMetaDataManager sqarMetaDataManager;
-    private final HikariDataSource dataSource;
+    private final SqarMetaDataDao sqarMetaDataDao;
     private final RemoteFileStore backingFileStore;
 
     SqarRemoteFileStore(final RemoteFileStore backingFileStore,
-                               final Map<String, ?> configuration) throws SQLException, IOException {
+                               final Map<String, ?> configuration) throws IOException {
         this.backingFileStore = backingFileStore;
+        final File lsmTreeMetadataStore = new File((String)configuration.get("imhotep.fs.sqar.metadata.cache.path"));
+        final String lsmTreeExpirationDurationString = (String)(configuration.get("imhotep.fs.sqar.metadata.cache.expiration.hours"));
+        final int lsmTreeExpirationDurationHours = lsmTreeExpirationDurationString != null ? Integer.valueOf(lsmTreeExpirationDurationString) : 0;
+        final Duration lsmTreeExpirationDuration = lsmTreeExpirationDurationHours > 0 ? Duration.of(lsmTreeExpirationDurationHours, ChronoUnit.HOURS) : null;
 
-        final File dbFile = new File((String) configuration.get("imhotep.fs.sqardb.file"));
-        final HikariConfig config = new HikariConfig();
-        config.setJdbcUrl("jdbc:h2:" + dbFile);
-
-
-        dataSource = new HikariDataSource(config);
-        new SchemaInitializer(dataSource).initialize(Collections.singletonList(Tables.TBLFILEMETADATA));
-
-        final SqarMetaDataDao sqarMetaDataDao = new FileMetadataDao(dataSource);
+        sqarMetaDataDao = new SqarMetaDataLSMStore(lsmTreeMetadataStore, lsmTreeExpirationDuration);
         sqarMetaDataManager = new SqarMetaDataManager(sqarMetaDataDao);
     }
 
     @Override
     public void close() throws IOException {
-        dataSource.close();
+        Closeables2.closeQuietly(sqarMetaDataDao, log);
     }
 
     RemoteFileStore getBackingFileStore() {

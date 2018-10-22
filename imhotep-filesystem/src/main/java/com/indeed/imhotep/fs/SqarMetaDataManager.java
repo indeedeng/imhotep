@@ -14,12 +14,10 @@
 
 package com.indeed.imhotep.fs;
 
-import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
 import com.indeed.imhotep.archive.ArchiveUtils;
 import com.indeed.imhotep.archive.FileMetadata;
 import com.indeed.imhotep.archive.SquallArchiveReader;
-import com.indeed.imhotep.fs.sql.SqarMetaDataDao;
 import com.indeed.imhotep.scheduling.TaskScheduler;
 
 import javax.annotation.Nullable;
@@ -90,7 +88,6 @@ class SqarMetaDataManager {
 
     private void cacheMetadata(final RemoteCachingPath shardPath, final List<RemoteFileMetadata> fileList) throws IOException {
         final Set<String> dirList = new HashSet<>();
-        dirList.add("");
 
         for (final RemoteFileMetadata remoteMetadata : fileList) {
             final String fname = remoteMetadata.getFilename();
@@ -104,6 +101,8 @@ class SqarMetaDataManager {
                 }
             }
         }
+        // the dir entry for the root should come last as it signifies that all of this shard's metadata is cached
+        dirList.add("");
         for (final String dir : dirList) {
             fileList.add(new RemoteFileMetadata(dir));
         }
@@ -173,11 +172,8 @@ class SqarMetaDataManager {
         if ((shardPath == null) && (fileName == null)) {
             return Collections.emptyList();
         }
-        return FluentIterable.from(sqarMetaDataDao.listDirectory(shardPath, fileName)).transform(new Function<RemoteFileMetadata, RemoteFileStore.RemoteFileAttributes>() {
-            @Override
-            public RemoteFileStore.RemoteFileAttributes apply(final RemoteFileMetadata fileMetadata) {
-                return new RemoteFileStore.RemoteFileAttributes(shardPath.resolve(fileMetadata.getFilename()), fileMetadata.getSize(), fileMetadata.isFile());
-            }
-        }).toList();
+        return FluentIterable.from(sqarMetaDataDao.listDirectory(shardPath, fileName)).transform(fileMetadata ->
+                new RemoteFileStore.RemoteFileAttributes(shardPath.resolve(fileMetadata.getFilename()), fileMetadata.getSize(), fileMetadata.isFile())
+        ).toList();
     }
 }

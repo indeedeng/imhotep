@@ -1,7 +1,7 @@
 package com.indeed.imhotep.shardmaster.utils;
 
 import org.apache.log4j.Logger;
-import org.jooq.exception.DataAccessException;
+import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DuplicateKeyException;
 
 import javax.annotation.Nonnull;

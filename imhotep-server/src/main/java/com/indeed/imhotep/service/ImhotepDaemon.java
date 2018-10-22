@@ -35,6 +35,7 @@ import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepServiceCore;
 import com.indeed.imhotep.api.PerformanceStats;
 import com.indeed.imhotep.client.Host;
+import com.indeed.imhotep.exceptions.ImhotepKnownException;
 import com.indeed.imhotep.fs.RemoteCachingFileSystemProvider;
 import com.indeed.imhotep.io.ImhotepProtobufShipping;
 import com.indeed.imhotep.io.NioPathUtil;
@@ -70,7 +71,6 @@ import java.net.Socket;
 import java.net.SocketException;
 import java.net.URISyntaxException;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -539,6 +539,23 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             return Pair.of(builder.build(), groupStats);
         }
 
+        private Pair<ImhotepResponse, GroupStatsIterator> mergeMultiDistinctSplit(final ImhotepRequest request, final ImhotepResponse.Builder builder) {
+            final MultiFTGSRequest multiFtgsRequest = request.getMultiFtgsRequest();
+
+            final String localSessionId = chooseMultiFtgsLocalSessionId(multiFtgsRequest);
+            final InetSocketAddress[] nodes = extractMultiFtgsNodes(multiFtgsRequest);
+
+            final GroupStatsIterator groupStats = service.handleMergeMultiDistinctSplit(
+                    multiFtgsRequest,
+                    localSessionId,
+                    nodes
+            );
+
+            builder.setGroupStatSize(groupStats.getNumGroups());
+
+            return Pair.of(builder.build(), groupStats);
+        }
+
         private FTGSParams getFTGSParams(final ImhotepRequest request) {
             return new FTGSParams(
                     getIntFields(request),
@@ -633,14 +650,22 @@ public class ImhotepDaemon implements Instrumentation.Provider {
 
         private void mergeMultiFTGSSplit(
                 final ImhotepRequest request,
-                final ImhotepResponse.Builder builder,
                 final OutputStream os
-        ) throws IOException {
+        ) {
             final MultiFTGSRequest multiFtgsRequest = request.getMultiFtgsRequest();
-            final List<MultiFTGSRequest.MultiFTGSSession> sessionInfos = multiFtgsRequest.getSessionInfoList();
+            service.handleMergeMultiFTGSSplit(
+                    multiFtgsRequest,
+                    chooseMultiFtgsLocalSessionId(multiFtgsRequest),
+                    os,
+                    extractMultiFtgsNodes(multiFtgsRequest)
+            );
+        }
+
+        private String chooseMultiFtgsLocalSessionId(final MultiFTGSRequest request) {
             final Set<String> sessionIds = new HashSet<>();
+
             String localSessionId = null;
-            for (final MultiFTGSRequest.MultiFTGSSession sessionInfo : sessionInfos) {
+            for (final MultiFTGSRequest.MultiFTGSSession sessionInfo : request.getSessionInfoList()) {
                 final String sessionId = sessionInfo.getSessionId();
                 sessionIds.add(sessionId);
                 if (service.sessionIsValid(sessionId)) {
@@ -652,18 +677,14 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 throw new IllegalArgumentException("MultiFTGS request had no valid sessions on this server. Sessions requested are: " + sessionIds);
             }
 
-            final InetSocketAddress[] nodes =
-                    multiFtgsRequest.getNodesList()
-                            .stream()
-                            .map(input -> new InetSocketAddress(input.getHost(), input.getPort()))
-                            .toArray(InetSocketAddress[]::new);
+            return localSessionId;
+        }
 
-            service.handleMergeMultiFTGSSplit(
-                    multiFtgsRequest,
-                    localSessionId,
-                    os,
-                    nodes
-            );
+        private InetSocketAddress[] extractMultiFtgsNodes(final MultiFTGSRequest request) {
+            return request.getNodesList()
+                    .stream()
+                    .map(input -> new InetSocketAddress(input.getHost(), input.getPort()))
+                    .toArray(InetSocketAddress[]::new);
         }
 
         private ImhotepResponse pushStat(
@@ -1014,7 +1035,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                             mergeSubsetFTGSSplit(request, builder, os);
                             break;
                         case MERGE_MULTI_FTGS_SPLIT:
-                            mergeMultiFTGSSplit(request, builder, os);
+                            mergeMultiFTGSSplit(request, os);
                             break;
                         case PUSH_STAT:
                             response = pushStat(request, builder);
@@ -1079,6 +1100,11 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                             final Pair<ImhotepResponse, GroupStatsIterator> responseAndDistinctSplit = mergeDistinctSplit(request, builder);
                             response = responseAndDistinctSplit.getFirst();
                             groupStats = Preconditions.checkNotNull(responseAndDistinctSplit.getSecond());
+                            break;
+                        case MERGE_MULTI_DISTINCT_SPLIT:
+                            final Pair<ImhotepResponse, GroupStatsIterator> responseAndMultiDistinctSplit = mergeMultiDistinctSplit(request, builder);
+                            response = responseAndMultiDistinctSplit.getFirst();
+                            groupStats = Preconditions.checkNotNull(responseAndMultiDistinctSplit.getSecond());
                             break;
                         case REMAP_GROUPS:
                             response = remapGroups(request, builder);
@@ -1156,12 +1182,16 @@ public class ImhotepDaemon implements Instrumentation.Provider {
         }
 
         private ImhotepResponse newErrorResponse(final Exception e) {
-            return ImhotepResponse.newBuilder()
-                    .setResponseCode(ImhotepResponse.ResponseCode.OTHER_ERROR)
+            final ImhotepResponse.Builder builder = ImhotepResponse.newBuilder()
                     .setExceptionType(e.getClass().getName())
                     .setExceptionMessage(e.getMessage() != null ? e.getMessage() : "")
-                    .setExceptionStackTrace(Throwables.getStackTraceAsString(e))
-                    .build();
+                    .setExceptionStackTrace(Throwables.getStackTraceAsString(e));
+            if ((e instanceof ImhotepKnownException)) {
+                builder.setResponseCode(ImhotepResponse.ResponseCode.KNOWN_ERROR);
+            } else {
+                builder.setResponseCode(ImhotepResponse.ResponseCode.OTHER_ERROR);
+            }
+            return builder.build();
         }
 
         private void expireSession(final ImhotepRequest protoRequest, final Exception reason) {
@@ -1361,7 +1391,9 @@ public class ImhotepDaemon implements Instrumentation.Provider {
         final AbstractImhotepServiceCore localService;
 
         // initialize the imhotepfs if necessary
+        RemoteCachingFileSystemProvider.setStatsEmitter(localImhotepServiceConfig.getStatsEmitter());
         RemoteCachingFileSystemProvider.newFileSystem();
+
 
         final Path shardsDir = NioPathUtil.get(shardsDirectory);
         final Path tmpDir = NioPathUtil.get(shardTempDir);

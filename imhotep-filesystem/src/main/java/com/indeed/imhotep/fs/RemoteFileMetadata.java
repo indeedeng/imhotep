@@ -73,6 +73,10 @@ public class RemoteFileMetadata {
         return compressedSize;
     }
 
+    public RemoteFileListing toListing() {
+        return new RemoteFileListing(getFilename(), isFile, getSize());
+    }
+
     @Override
     public String toString() {
         return "RemoteFileMetadata{" +

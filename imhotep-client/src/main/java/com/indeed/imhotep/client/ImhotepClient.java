@@ -29,6 +29,7 @@ import com.indeed.imhotep.Shard;
 import com.indeed.imhotep.ShardInfo;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
+import com.indeed.imhotep.exceptions.ImhotepKnownException;
 import com.indeed.imhotep.shardmasterrpc.RequestResponseClient;
 import com.indeed.imhotep.shardmasterrpc.ShardMaster;
 import org.apache.log4j.Logger;
@@ -469,6 +470,7 @@ public class ImhotepClient
             }
             return new RemoteImhotepMultiSession(remoteSessions, sessionId, nodes, localTempFileSizeLimit, localTempFileSizeBytesLeft, username, clientName);
         } catch (Exception e) {
+            Throwables.propagateIfInstanceOf(e, ImhotepKnownException.class);
             throw new RuntimeException("unable to open session",  e);
         }
     }
@@ -533,8 +535,10 @@ public class ImhotepClient
                         }
                     });
             } catch (final ExecutionException e) {
-                log.error("exception while opening session", e);
                 error = e.getCause();
+                if (!(error instanceof ImhotepKnownException)) {
+                    log.error("exception while opening session", e);
+                }
             } catch (final InterruptedException e) {
                 log.error("interrupted while opening session", e);
                 error = e;
