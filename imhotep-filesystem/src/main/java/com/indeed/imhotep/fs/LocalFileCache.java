@@ -202,7 +202,7 @@ class LocalFileCache {
                     final RemoteCachingPath path = RemoteCachingPath.resolve(RemoteCachingPath.getRoot(fs), cacheRootDir.relativize(cachePath));
 
                     diskSpaceUsage.addAndGet(localCacheSize);
-                    unusedFilesCache.put(path, new FileCacheEntry(cachePath, (int) localCacheSize, lastAccessEpochTimeSeconds));
+                    unusedFilesCache.put(path, new FileCacheEntry(cachePath, localCacheSize, lastAccessEpochTimeSeconds));
 
                     return FileVisitResult.CONTINUE;
                 }
