@@ -102,11 +102,13 @@ class SqarMetaDataManager {
                 }
             }
         }
-        // the dir entry for the root should come last as it signifies that all of this shard's metadata is cached
-        dirList.add("");
+
         for (final String dir : dirList) {
             fileList.add(new RemoteFileMetadata(dir));
         }
+
+        // the dir entry for the root should come last as it signifies that all of this shard's metadata is cached
+        fileList.add(new RemoteFileMetadata(""));
 
         sqarMetaDataDao.cacheMetadata(shardPath, fileList);
     }
