@@ -300,7 +300,8 @@ class SqarMetaDataLSMStore implements SqarMetaDataDao, Closeable {
 
     @Override
     public boolean hasShard(Path shardPath) {
-        final String key = shardPath.normalize().toString() + LISTING_KEY_SUFFIX;
+        // use the dir entry for the root to check since it's written last out of all the shard's entries
+        final String key = shardPath.normalize().toString() + SHARD_PATH_AND_FILE_PATH_DELIMITER + "";
         try {
             return store.containsKey(key);
         } catch (IOException e) {
@@ -320,7 +321,6 @@ class SqarMetaDataLSMStore implements SqarMetaDataDao, Closeable {
             while(storeIterator.hasNext()) {
                 Store.Entry<String, Value> entry = storeIterator.next();
                 if(entry.getValue().cachingTimestamp < oldestTimestampToKeep) {
-                    // TODO: verify that deletion during iteration is OK
                     delete(entry.getKey());
                     deletedCount++;
                 }
