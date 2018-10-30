@@ -98,7 +98,7 @@ class RemoteCachingFileSystem extends FileSystem {
 
     @Override
     public void close() throws IOException {
-        throw new UnsupportedOperationException();
+        Closeables2.closeQuietly(fileStore, LOGGER);
     }
 
     @Override
