@@ -34,7 +34,7 @@ public final class LocalImhotepServiceConfig {
     @Nullable
     private String advertisedHostName = null;
     private MetricStatsEmitter statsEmitter = MetricStatsEmitter.NULL_EMITTER;
-    private boolean useArchiveBackend = false;
+    private boolean areShardsSQARed = false;
     @Nullable
     private ShardLocator dynamicShardLocator = null;
 
@@ -127,12 +127,12 @@ public final class LocalImhotepServiceConfig {
         return this;
     }
 
-    public boolean useArchiveBackend() {
-        return useArchiveBackend;
+    public boolean areShardsSQARed() {
+        return areShardsSQARed;
     }
 
-    public LocalImhotepServiceConfig setUseArchiveBackend(final boolean useArchiveBackend) {
-        this.useArchiveBackend = useArchiveBackend;
+    public LocalImhotepServiceConfig setAreShardsSQARed(final boolean areShardsSQARed) {
+        this.areShardsSQARed = areShardsSQARed;
         return this;
     }
 

@@ -13,7 +13,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 public interface ShardLocator {
-    public static ShardLocator pathArchiveShardLocator(final Path rootDir) {
+    public static ShardLocator appendingSQARShardLocator(final Path rootDir) {
         return (dataset, shardName) -> {
             final String archiveName;
             if (shardName.endsWith(".sqar")) {

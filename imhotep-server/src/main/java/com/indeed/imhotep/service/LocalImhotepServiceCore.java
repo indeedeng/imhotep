@@ -109,7 +109,7 @@ public class LocalImhotepServiceCore
         }
         final ShardLocator shardLocator = ShardLocator.combine(
                 config.getDynamicShardLocator(),
-                config.useArchiveBackend() ? ShardLocator.pathArchiveShardLocator(rootDir) : ShardLocator.pathShardLocator(rootDir)
+                config.areShardsSQARed() ? ShardLocator.appendingSQARShardLocator(rootDir) : ShardLocator.pathShardLocator(rootDir)
         );
         this.flamderReaderFactory = new ConcurrentFlamdexReaderFactory(memory, factory, shardLocator);
 
