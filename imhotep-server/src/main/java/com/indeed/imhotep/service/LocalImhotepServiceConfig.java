@@ -34,6 +34,7 @@ public final class LocalImhotepServiceConfig {
     @Nullable
     private String advertisedHostName = null;
     private MetricStatsEmitter statsEmitter = MetricStatsEmitter.NULL_EMITTER;
+    private boolean useArchiveBackend = false;
     @Nullable
     private ShardLocator dynamicShardLocator = null;
 
@@ -123,6 +124,15 @@ public final class LocalImhotepServiceConfig {
 
     public LocalImhotepServiceConfig setAdvertisedHostName(final String advertisedHostName) {
         this.advertisedHostName = advertisedHostName;
+        return this;
+    }
+
+    public boolean useArchiveBackend() {
+        return useArchiveBackend;
+    }
+
+    public LocalImhotepServiceConfig setUseArchiveBackend(final boolean useArchiveBackend) {
+        this.useArchiveBackend = useArchiveBackend;
         return this;
     }
 

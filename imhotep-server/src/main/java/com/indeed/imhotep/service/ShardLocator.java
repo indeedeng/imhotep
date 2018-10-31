@@ -13,6 +13,23 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 public interface ShardLocator {
+    public static ShardLocator pathArchiveShardLocator(final Path rootDir) {
+        return (dataset, shardName) -> {
+            final String archiveName;
+            if (shardName.endsWith(".sqar")) {
+                archiveName = shardName;
+            } else {
+                archiveName = shardName + ".sqar";
+            }
+            final Path shardPath = rootDir.resolve(dataset).resolve(archiveName);
+            if (Files.exists(shardPath)) {
+                return Optional.of(shardPath);
+            } else {
+                return Optional.empty();
+            }
+        };
+    }
+
     public static ShardLocator pathShardLocator(final Path rootDir) {
         return (dataset, shardName) -> {
             final Path shardPath = rootDir.resolve(dataset).resolve(shardName);
