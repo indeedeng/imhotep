@@ -1141,8 +1141,16 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                     }
                     throw e;
                 } finally {
-                    // try to make the volume of logs manageable by skipping GET_FTGS_SPLIT requests
-                    if(request != null && request.getRequestType() != ImhotepRequest.RequestType.GET_FTGS_SPLIT) {
+                    // try to make the volume of logs manageable by skipping 1/160 GET_FTGS_SPLIT requests
+                    boolean logRequest = false;
+                    if (request != null) {
+                        if (request.getRequestType() == ImhotepRequest.RequestType.GET_FTGS_SPLIT) {
+                            logRequest = (request.getSessionId() != null) && ((request.getSessionId().hashCode() % 160) == 0);
+                        } else {
+                            logRequest = true;
+                        }
+                    }
+                    if (logRequest) {
                         final long endTm = System.currentTimeMillis();
                         final long elapsedTm = endTm - beginTm;
                         final DaemonEvents.HandleRequestEvent instEvent =
