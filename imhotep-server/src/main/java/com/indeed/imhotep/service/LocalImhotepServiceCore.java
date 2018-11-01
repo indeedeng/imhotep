@@ -107,7 +107,10 @@ public class LocalImhotepServiceCore
         } else {
             factory = new GenericFlamdexReaderSource();
         }
-        final ShardLocator shardLocator = ShardLocator.combine(config.getDynamicShardLocator(), ShardLocator.pathShardLocator(rootDir));
+        final ShardLocator shardLocator = ShardLocator.combine(
+                config.getDynamicShardLocator(),
+                config.areShardsSQARed() ? ShardLocator.appendingSQARShardLocator(rootDir) : ShardLocator.pathShardLocator(rootDir)
+        );
         this.flamderReaderFactory = new ConcurrentFlamdexReaderFactory(memory, factory, shardLocator);
 
         if(config.getCpuSlots() > 0) {
