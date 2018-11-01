@@ -1141,7 +1141,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                     }
                     throw e;
                 } finally {
-                    // try to make the volume of logs manageable by skipping 1/160 GET_FTGS_SPLIT requests
+                    // try to make the volume of logs manageable by skipping 159/160 GET_FTGS_SPLIT requests
                     boolean logRequest = false;
                     if (request != null) {
                         if (request.getRequestType() == ImhotepRequest.RequestType.GET_FTGS_SPLIT) {
