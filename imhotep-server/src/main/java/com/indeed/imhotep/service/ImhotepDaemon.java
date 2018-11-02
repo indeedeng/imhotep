@@ -43,6 +43,7 @@ import com.indeed.imhotep.io.Streams;
 import com.indeed.imhotep.marshal.ImhotepDaemonMarshaller;
 import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
 import com.indeed.imhotep.protobuf.GroupRemapMessage;
+import com.indeed.imhotep.protobuf.HostAndPort;
 import com.indeed.imhotep.protobuf.ImhotepRequest;
 import com.indeed.imhotep.protobuf.ImhotepResponse;
 import com.indeed.imhotep.protobuf.IntFieldAndTerms;
@@ -524,16 +525,12 @@ public class ImhotepDaemon implements Instrumentation.Provider {
         private Pair<ImhotepResponse, GroupStatsIterator> mergeDistinctSplit(final ImhotepRequest request,
                                                                final ImhotepResponse.Builder builder)
         {
-            final InetSocketAddress[] nodes =
-                    request.getNodesList().stream().map(input -> new InetSocketAddress(input.getHost(),
-                            input.getPort())).collect(Collectors.toList()).toArray(new InetSocketAddress[request.getNodesCount()]);
-
             final GroupStatsIterator groupStats =
                     service.handleMergeDistinctSplit(
                             request.getSessionId(),
                             request.getField(),
                             request.getIsIntField(),
-                            nodes,
+                            request.getNodesList().toArray(new HostAndPort[0]),
                             request.getSplitIndex());
             builder.setGroupStatSize(groupStats.getNumGroups());
             return Pair.of(builder.build(), groupStats);
@@ -543,7 +540,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             final MultiFTGSRequest multiFtgsRequest = request.getMultiFtgsRequest();
 
             final String localSessionId = chooseMultiFtgsLocalSessionId(multiFtgsRequest);
-            final InetSocketAddress[] nodes = extractMultiFtgsNodes(multiFtgsRequest);
+            final HostAndPort[] nodes = multiFtgsRequest.getNodesList().toArray(new HostAndPort[0]);
 
             final GroupStatsIterator groupStats = service.handleMergeMultiDistinctSplit(
                     multiFtgsRequest,
@@ -624,9 +621,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 final OutputStream            os)
             throws IOException {
             checkSessionValidity(request);
-            final InetSocketAddress[] nodes =
-                request.getNodesList().stream().map(input -> new InetSocketAddress(input.getHost(),
-                        input.getPort())).collect(Collectors.toList()).toArray(new InetSocketAddress[request.getNodesCount()]);
+            final HostAndPort[] nodes = request.getNodesList().toArray(new HostAndPort[0]);
             final FTGSParams params = getFTGSParams(request);
             service.handleMergeFTGSIteratorSplit(request.getSessionId(),
                                                  params,
@@ -639,9 +634,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 final OutputStream            os)
             throws IOException, ImhotepOutOfMemoryException {
             checkSessionValidity(request);
-            final InetSocketAddress[] nodes =
-                request.getNodesList().stream().map(input -> new InetSocketAddress(input.getHost(),
-                        input.getPort())).collect(Collectors.toList()).toArray(new InetSocketAddress[request.getNodesCount()]);
+            final HostAndPort[] nodes = request.getNodesList().toArray(new HostAndPort[0]);
             service.handleMergeSubsetFTGSIteratorSplit(request.getSessionId(),
                                                        getIntFieldsToTerms(request),
                                                        getStringFieldsToTerms(request),
@@ -653,11 +646,12 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 final OutputStream os
         ) {
             final MultiFTGSRequest multiFtgsRequest = request.getMultiFtgsRequest();
+            final HostAndPort[] nodes = multiFtgsRequest.getNodesList().toArray(new HostAndPort[0]);
             service.handleMergeMultiFTGSSplit(
                     multiFtgsRequest,
                     chooseMultiFtgsLocalSessionId(multiFtgsRequest),
                     os,
-                    extractMultiFtgsNodes(multiFtgsRequest)
+                    nodes
             );
         }
 
@@ -678,13 +672,6 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             }
 
             return localSessionId;
-        }
-
-        private InetSocketAddress[] extractMultiFtgsNodes(final MultiFTGSRequest request) {
-            return request.getNodesList()
-                    .stream()
-                    .map(input -> new InetSocketAddress(input.getHost(), input.getPort()))
-                    .toArray(InetSocketAddress[]::new);
         }
 
         private ImhotepResponse pushStat(

@@ -44,6 +44,7 @@ import com.indeed.imhotep.metrics.aggregate.ParseAggregate;
 import com.indeed.imhotep.metrics.aggregate.ParseAggregate.SessionStatsInfo;
 import com.indeed.imhotep.multisession.MultiSessionWrapper;
 import com.indeed.imhotep.protobuf.AggregateStat;
+import com.indeed.imhotep.protobuf.HostAndPort;
 import com.indeed.imhotep.protobuf.ImhotepResponse;
 import com.indeed.imhotep.protobuf.MultiFTGSRequest;
 import com.indeed.imhotep.protobuf.ShardNameNumDocsPair;
@@ -54,7 +55,6 @@ import org.apache.log4j.Logger;
 
 import java.io.IOException;
 import java.io.OutputStream;
-import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -70,7 +70,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 
 /**
  * @author jplaisance
@@ -150,7 +149,7 @@ public abstract class AbstractImhotepServiceCore
     public GroupStatsIterator handleMergeDistinctSplit(final String sessionId,
                                                        final String field,
                                                        final boolean isIntField,
-                                                       final InetSocketAddress[] nodes,
+                                                       final HostAndPort[] nodes,
                                                        final int splitIndex) {
         return doWithSession(sessionId, (Function<MTImhotepLocalMultiSession, GroupStatsIterator>) session -> session.mergeDistinctSplit(field, isIntField, nodes, splitIndex));
     }
@@ -283,7 +282,7 @@ public abstract class AbstractImhotepServiceCore
     public void handleMergeFTGSIteratorSplit(final String sessionId,
                                              final FTGSParams params,
                                              final OutputStream os,
-                                             final InetSocketAddress[] nodes,
+                                             final HostAndPort[] nodes,
                                              final int splitIndex) throws IOException {
         doWithSession(sessionId, (ThrowingFunction<MTImhotepLocalMultiSession, Void, IOException>) session -> {
             final FTGSIterator merger = session.mergeFTGSSplit(params, nodes, splitIndex);
@@ -292,7 +291,7 @@ public abstract class AbstractImhotepServiceCore
     }
 
     @Override
-    public void handleMergeSubsetFTGSIteratorSplit(final String sessionId, final Map<String, long[]> intFields, final Map<String, String[]> stringFields, final OutputStream os, final InetSocketAddress[] nodes, final int splitIndex) throws IOException {
+    public void handleMergeSubsetFTGSIteratorSplit(final String sessionId, final Map<String, long[]> intFields, final Map<String, String[]> stringFields, final OutputStream os, final HostAndPort[] nodes, final int splitIndex) throws IOException {
         doWithSession(sessionId, (ThrowingFunction<MTImhotepLocalMultiSession, Void, IOException>) session -> {
             final FTGSIterator merger = session.mergeSubsetFTGSSplit(intFields, stringFields, nodes, splitIndex);
             return sendFTGSIterator(merger, os);
@@ -305,7 +304,7 @@ public abstract class AbstractImhotepServiceCore
     private List<FTGSIterator[]> getMultiSessionSplitIterators(
             final Closer closer,
             final String validLocalSessionId,
-            final InetSocketAddress[] nodes,
+            final HostAndPort[] nodes,
             final List<MultiFTGSRequest.MultiFTGSSession> sessionInfoList,
             final boolean isIntField,
             final int splitIndex
@@ -320,8 +319,7 @@ public abstract class AbstractImhotepServiceCore
             final Future<FTGSIterator[]> future = multiFtgsExecutor.submit(new Callable<FTGSIterator[]>() {
                 @Override
                 public FTGSIterator[] call() throws Exception {
-                    final InetSocketAddress[] sessionNodes = sessionInfo.getNodesList().stream().map(input -> new InetSocketAddress(input.getHost(),
-                            input.getPort())).collect(Collectors.toList()).toArray(new InetSocketAddress[sessionInfo.getNodesCount()]);
+                    final HostAndPort[] sessionNodes = sessionInfo.getNodesList().toArray(new HostAndPort[0]);
                     final String localSessionChoice = sessionIsValid(sessionInfo.getSessionId()) ? sessionInfo.getSessionId() : validLocalSessionId;
                     final FTGSIterator[] sessionIterators = doWithSession(localSessionChoice, (ThrowingFunction<MTImhotepLocalMultiSession, FTGSIterator[], IOException>) session -> {
                         final String[] intFields = isIntField ? new String[]{sessionInfo.getField()} : new String[0];
@@ -359,7 +357,7 @@ public abstract class AbstractImhotepServiceCore
             final MultiFTGSRequest request,
             final String validLocalSessionId,
             final OutputStream os,
-            final InetSocketAddress[] nodes
+            final HostAndPort[] nodes
     ) {
         final boolean isIntField = request.getIsIntField();
         final int splitIndex = request.getSplitIndex();
@@ -403,7 +401,7 @@ public abstract class AbstractImhotepServiceCore
     }
 
     @Override
-    public GroupStatsIterator handleMergeMultiDistinctSplit(final MultiFTGSRequest request, final String validLocalSessionId, final InetSocketAddress[] nodes) {
+    public GroupStatsIterator handleMergeMultiDistinctSplit(final MultiFTGSRequest request, final String validLocalSessionId, final HostAndPort[] nodes) {
         final boolean isIntField = request.getIsIntField();
         final int splitIndex = request.getSplitIndex();
 

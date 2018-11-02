@@ -40,6 +40,7 @@ import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.metrics.aggregate.AggregateStat;
 import com.indeed.imhotep.metrics.aggregate.MultiFTGSIterator;
 import com.indeed.imhotep.pool.GroupStatsPool;
+import com.indeed.imhotep.protobuf.HostAndPort;
 import com.indeed.imhotep.scheduling.TaskScheduler;
 import com.indeed.util.core.Either;
 import com.indeed.util.core.io.Closeables2;
@@ -294,7 +295,7 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
 
     public GroupStatsIterator mergeDistinctSplit(final String field,
                                                  final boolean isIntField,
-                                                 final InetSocketAddress[] nodes,
+                                                 final HostAndPort[] nodes,
                                                  final int splitIndex) {
         checkSplitParams(splitIndex, nodes.length);
         final String[] intFields = isIntField ? new String[]{field} : new String[0];
@@ -357,34 +358,42 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
         return getRemoteSessions(getSessionId(), nodes);
     }
 
+    private ImhotepRemoteSession getRemoteSession(final String sessionId, final HostAndPort hostAndPort) {
+        return getRemoteSession(sessionId, new InetSocketAddress(hostAndPort.getHost(), hostAndPort.getPort()));
+    }
+
+    private ImhotepRemoteSession getRemoteSession(final String sessionId, final InetSocketAddress node) {
+        final ImhotepRemoteSession session = createImhotepRemoteSession(sessionId, node);
+        session.setNumStats(numStats);
+        session.addObserver(new RelayObserver());
+        return session;
+    }
+
     private ImhotepRemoteSession[] getRemoteSessions(final String sessionId, final InetSocketAddress[] nodes) {
         final ImhotepRemoteSession[] remoteSessions = new ImhotepRemoteSession[nodes.length];
         for (int i = 0; i < nodes.length; i++) {
-            remoteSessions[i] = createImhotepRemoteSession(sessionId, nodes[i]);
-            remoteSessions[i].setNumStats(numStats);
-            remoteSessions[i].addObserver(new RelayObserver());
+            remoteSessions[i] = getRemoteSession(sessionId, nodes[i]);
         }
         return remoteSessions;
     }
 
-    public FTGSIterator mergeFTGSSplit(final FTGSParams params, final InetSocketAddress[] nodes, final int splitIndex) {
+    public FTGSIterator mergeFTGSSplit(final FTGSParams params, final HostAndPort[] nodes, final int splitIndex) {
         checkSplitParams(splitIndex, nodes.length);
         final long perSplitTermLimit = params.isTopTerms() ? 0 : params.termLimit;
+        final String sessionId = getSessionId();
 
-        final ImhotepRemoteSession[] remoteSessions = getRemoteSessions(nodes);
-
-        return mergeFTGSIteratorsForSessions(remoteSessions, params.termLimit, params.sortStat, params.sorted,
-                s -> s.getFTGSIteratorSplit(params.intFields, params.stringFields, splitIndex, nodes.length, perSplitTermLimit));
+        return mergeFTGSIteratorsForSessions(nodes, params.termLimit, params.sortStat, params.sorted,
+                node -> getRemoteSession(sessionId, node).getFTGSIteratorSplit(params.intFields, params.stringFields, splitIndex, nodes.length, perSplitTermLimit));
     }
 
     public FTGSIterator mergeSubsetFTGSSplit(final Map<String, long[]> intFields,
                                              final Map<String, String[]> stringFields,
-                                             final InetSocketAddress[] nodes,
+                                             final HostAndPort[] nodes,
                                              final int splitIndex) {
         checkSplitParams(splitIndex, nodes.length);
-        final ImhotepRemoteSession[] remoteSessions = getRemoteSessions(nodes);
-        return mergeFTGSIteratorsForSessions(remoteSessions, 0, -1, true,
-                s -> s.getSubsetFTGSIteratorSplit(intFields, stringFields, splitIndex, nodes.length));
+        final String sessionId = getSessionId();
+        return mergeFTGSIteratorsForSessions(nodes, 0, -1, true,
+                node -> getRemoteSession(sessionId, node).getSubsetFTGSIteratorSplit(intFields, stringFields, splitIndex, nodes.length));
     }
 
     // splitIndex and numLocalSplits have NOTHING WHATSOEVER to do with eachother.
@@ -392,13 +401,8 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
     // numLocalSplits refers to how many split/merge threads to use.
     // This is required as a parameter because it MUST MATCH across sessions but number of
     // cores is NOT guaranteed to be consistent over the runtime of a JVM.
-    public FTGSIterator[] partialMergeFTGSSplit(final String remoteSessionId, final FTGSParams params, final InetSocketAddress[] nodes, final int splitIndex, final int numGlobalSplits, int numLocalSplits) {
+    public FTGSIterator[] partialMergeFTGSSplit(final String remoteSessionId, final FTGSParams params, final HostAndPort[] nodes, final int splitIndex, final int numGlobalSplits, int numLocalSplits) {
         final FTGSIterator[] iterators = new FTGSIterator[nodes.length];
-
-        // These exist solely to make remote calls and should never be closed.
-        // Closing them would close the session, and make future operations fail.
-        // This is similar to mergeFTGSSplit.
-        final ImhotepRemoteSession[] remoteSessions = getRemoteSessions(remoteSessionId, nodes);
 
         final long perSplitTermLimit = params.isTopTerms() ? 0 : params.termLimit;
 
@@ -407,12 +411,19 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
         if (numGlobalSplits == 1) {
             // In this case, we know that there is exactly one server involved -- this one! No need to request splits.
             Preconditions.checkState(splitIndex == 0, "Split index must be zero if there's only 1 split!");
-            iterators[0] = remoteSessions[0].getFTGSIterator(params.intFields, params.stringFields, perSplitTermLimit);
+            // This session exists solely to make remote calls and should never be closed.
+            // Closing it would close the session, and make future operations fail.
+            // This is similar to mergeFTGSSplit.
+            final ImhotepRemoteSession remoteSession = getRemoteSession(remoteSessionId, nodes[0]);
+            iterators[0] = remoteSession.getFTGSIterator(params.intFields, params.stringFields, perSplitTermLimit);
         } else {
             checkSplitParams(splitIndex, numGlobalSplits);
             try {
-                execute(mergeSplitBufferThreads, iterators, remoteSessions, false,
-                        s -> s.getFTGSIteratorSplit(params.intFields, params.stringFields, splitIndex, numGlobalSplits, perSplitTermLimit));
+                execute(mergeSplitBufferThreads, iterators, nodes, false,
+                        // This session exists solely to make remote calls and should never be closed.
+                        // Closing it would close the session, and make future operations fail.
+                        // This is similar to mergeFTGSSplit.
+                        node -> getRemoteSession(remoteSessionId, node).getFTGSIteratorSplit(params.intFields, params.stringFields, splitIndex, numGlobalSplits, perSplitTermLimit));
             } catch (final Throwable t) {
                 Closeables2.closeAll(log, iterators);
                 throw Throwables.propagate(t);
@@ -537,7 +548,7 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
         return new GroupStatsDummyIterator(data);
     }
 
-    private <T extends ImhotepSession> FTGSIterator mergeFTGSIteratorsForSessions(
+    private <T> FTGSIterator mergeFTGSIteratorsForSessions(
             final T[] imhotepSessions,
             final long termLimit,
             final int sortStat,
