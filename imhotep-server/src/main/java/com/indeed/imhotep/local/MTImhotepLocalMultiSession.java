@@ -423,7 +423,7 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
                         // This session exists solely to make remote calls and should never be closed.
                         // Closing it would close the session, and make future operations fail.
                         // This is similar to mergeFTGSSplit.
-                        node -> getRemoteSession(remoteSessionId, node).getFTGSIteratorSplit(params.intFields, params.stringFields, splitIndex, numGlobalSplits, perSplitTermLimit));
+                        node -> getRemoteSession(remoteSessionId, node).getFTGSIteratorSplit(params.intFields, params.stringFields, splitIndex, numGlobalSplits, perSplitTermLimit, true));
             } catch (final Throwable t) {
                 Closeables2.closeAll(log, iterators);
                 throw Throwables.propagate(t);

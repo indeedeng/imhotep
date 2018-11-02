@@ -778,6 +778,37 @@ public class TestMultiFTGS {
 
                 expectEnd(iterator);
             }
+
+            // Imbalanced pushed stats
+            session2.popStat();
+
+            // GROUP BY country
+            try (FTGAIterator iterator = multiFtgs(
+                    ImmutableList.of(
+                            new SessionField(session1, "country"),
+                            new SessionField(session2, "country")
+                    ),
+                    Lists.newArrayList(),
+                    Lists.newArrayList(),
+                    false,
+                    0,
+                    -1
+            )) {
+                assertTrue(iterator.nextField());
+                assertEquals("magic", iterator.fieldName());
+                assertFalse(iterator.fieldIsIntType());
+
+                expectStrTerm(iterator,"AU", 10);
+                expectGroup(iterator, 1, new double[]{});
+                expectStrTerm(iterator,"GB", 1);
+                expectGroup(iterator, 1, new double[]{});
+                expectStrTerm(iterator,"JP", 70);
+                expectGroup(iterator, 1, new double[]{});
+                expectStrTerm(iterator,"US", 150);
+                expectGroup(iterator, 1, new double[]{});
+
+                expectEnd(iterator);
+            }
         }
     }
 

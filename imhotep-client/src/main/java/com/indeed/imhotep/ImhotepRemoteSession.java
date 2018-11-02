@@ -386,6 +386,10 @@ public class ImhotepRemoteSession
     }
 
     public FTGSIterator getFTGSIteratorSplit(final String[] intFields, final String[] stringFields, final int splitIndex, final int numSplits, final long termLimit) {
+        return getFTGSIteratorSplit(intFields, stringFields, splitIndex, numSplits, termLimit, false);
+    }
+
+    public FTGSIterator getFTGSIteratorSplit(final String[] intFields, final String[] stringFields, final int splitIndex, final int numSplits, final long termLimit, final boolean skipNumStatsCheck) {
         checkSplitParams(splitIndex, numSplits);
         // TODO: disable timer to reduce logrepo logging volume of SubmitRequestEvent?
         final Timer timer = new Timer();
@@ -399,7 +403,7 @@ public class ImhotepRemoteSession
                 .setSortStat(-1) // never top terms
                 .setSortedFTGS(true) // always sorted
                 .build();
-        final FTGSIterator result = fileBufferedFTGSRequest(request);
+        final FTGSIterator result = fileBufferedFTGSRequest(request, skipNumStatsCheck);
         timer.complete(request);
         return result;
     }
@@ -511,10 +515,14 @@ public class ImhotepRemoteSession
     }
 
     private FTGSIterator fileBufferedFTGSRequest(final ImhotepRequest request) {
+        return fileBufferedFTGSRequest(request, false);
+    }
+
+    private FTGSIterator fileBufferedFTGSRequest(final ImhotepRequest request, final boolean skipNumStatsCheck) {
         try {
             final Pair<ImhotepResponse, InputStream> responseAndFile = sendRequestAndSaveResponseToFile(request, "ftgs");
             final int numStats = responseAndFile.getFirst().getNumStats();
-            if (numStats != this.numStats) {
+            if ((!skipNumStatsCheck) && (numStats != this.numStats)) {
                 throw new IllegalStateException("numStats mismatch");
             }
             final int numGroups = responseAndFile.getFirst().getNumGroups();
