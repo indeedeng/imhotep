@@ -21,6 +21,7 @@ import org.apache.log4j.Logger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -30,6 +31,7 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
     final static ThreadLocal<ImhotepTask> THREAD_LOCAL_TASK = new ThreadLocal<>();
 
     private static final AtomicLong nextTaskId = new AtomicLong(0);
+    private static final Logger log = Logger.getLogger(ImhotepTask.class);
     private final long creationTimestamp;
     private final long taskId;
     final String userName;
@@ -40,7 +42,7 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
     private long lastWaitStartTime = 0;
     private long totalExecutionTime = 0;
     private TaskScheduler ownerScheduler = null;
-    private static final Logger log = Logger.getLogger(ImhotepTask.class);
+
 
     public static void setup(AbstractImhotepMultiSession session) {
         final ImhotepTask task = new ImhotepTask(session);
@@ -54,8 +56,8 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
 
     public static void clear() {
         ImhotepTask clearingTask = ImhotepTask.THREAD_LOCAL_TASK.get();
-        if (clearingTask.getTotalExecutionTime() > 60L*Math.pow(10,9) ) {
-            log.warn("Task " + clearingTask.toString() + " took " + (double)clearingTask.getTotalExecutionTime()/Math.pow(10,9) + " seconds for execution.");
+        if (clearingTask.getTotalExecutionTime() > TimeUnit.MINUTES.toNanos(1) ) {
+            log.warn("Task " + clearingTask.toString() + " took " + TimeUnit.NANOSECONDS.toMillis(clearingTask.getTotalExecutionTime()) + " milli-seconds for execution.");
         }
 
         ImhotepTask.THREAD_LOCAL_TASK.remove();
@@ -125,11 +127,16 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
 
     @Override
     public String toString() {
-        return "ImhotepTask{" +
+        String taskStringVal ="ImhotepTask{" +
                 "taskId=" + taskId +
                 ", userName='" + userName + '\'' +
-                ", clientName='" + clientName + '\'' +
-                '}';
+                ", clientName='" + clientName + '\'';
+        if (session != null) {
+            taskStringVal += ", sessionID='" + session.getSessionId() + '\'';
+        }
+        taskStringVal += '}';
+
+        return taskStringVal;
     }
 
 
