@@ -55,7 +55,7 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
     }
 
     public static void clear() {
-        ImhotepTask clearingTask = ImhotepTask.THREAD_LOCAL_TASK.get();
+        final ImhotepTask clearingTask = ImhotepTask.THREAD_LOCAL_TASK.get();
         if (clearingTask.getTotalExecutionTime() > TimeUnit.MINUTES.toNanos(1) ) {
             log.warn("Task " + clearingTask.toString() + " took " + TimeUnit.NANOSECONDS.toMillis(clearingTask.getTotalExecutionTime()) + " milli-seconds for execution.");
         }
