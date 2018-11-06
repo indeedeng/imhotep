@@ -17,6 +17,7 @@ package com.indeed.imhotep.scheduling;
 import com.google.common.primitives.Longs;
 import com.indeed.imhotep.AbstractImhotepMultiSession;
 import org.apache.log4j.Logger;
+import com.indeed.imhotep.exceptions.InvalidSessionException;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -107,7 +108,7 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
                 lockToWaitOn.await();
                 finishedWaiting = true;
                 if (session != null && session.isClosed()) {
-                    throw new IllegalArgumentException("Session with id " + session.getSessionId() + " was already closed");
+                    throw new InvalidSessionException("Session with id " + session.getSessionId() + " was already closed");
                 }
             } catch(InterruptedException ignored){ }
         }
