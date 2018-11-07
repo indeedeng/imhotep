@@ -20,7 +20,7 @@ package com.indeed.imhotep.exceptions;
 
 public class QueryCancelledException extends ImhotepKnownException {
     public QueryCancelledException() {
-    super();
+        super();
     }
 
     public QueryCancelledException(final String s) {
@@ -28,6 +28,6 @@ public class QueryCancelledException extends ImhotepKnownException {
     }
 
     public QueryCancelledException(final String message, final Throwable cause) {
-            super(message, cause);
-        }
+        super(message, cause);
+    }
 }

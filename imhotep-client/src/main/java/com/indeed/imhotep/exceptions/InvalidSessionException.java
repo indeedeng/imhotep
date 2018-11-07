@@ -20,7 +20,7 @@ package com.indeed.imhotep.exceptions;
 
 public class InvalidSessionException extends ImhotepKnownException {
     public InvalidSessionException() {
-    super();
+        super();
     }
 
     public InvalidSessionException(final String s) {
@@ -28,6 +28,6 @@ public class InvalidSessionException extends ImhotepKnownException {
     }
 
     public InvalidSessionException(final String message, final Throwable cause) {
-            super(message, cause);
-        }
+        super(message, cause);
+    }
 }
