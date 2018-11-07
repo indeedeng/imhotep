@@ -201,8 +201,12 @@ public class FTGSIteratorUtil {
     ) {
         final int numStats = iterator.getNumStats();
         final int numGroups = iterator.getNumGroups();
-        final TopTermsStatsByField<double[]> topTerms = FTGSIteratorUtil.extractTopTermsGeneric(termLimit, iterator, new DoubleStatExtractor(iterator.getNumStats(), sortStat));
-        return new TopTermsFTGAIterator(topTerms, numStats, numGroups);
+        try {
+            final TopTermsStatsByField<double[]> topTerms = FTGSIteratorUtil.extractTopTermsGeneric(termLimit, iterator, new DoubleStatExtractor(iterator.getNumStats(), sortStat));
+            return new TopTermsFTGAIterator(topTerms, numStats, numGroups);
+        } finally {
+            iterator.close();
+        }
     }
 
     /**
