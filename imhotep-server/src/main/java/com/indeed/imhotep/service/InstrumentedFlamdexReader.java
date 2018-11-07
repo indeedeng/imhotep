@@ -26,6 +26,7 @@ import com.indeed.flamdex.api.StringTermIterator;
 import com.indeed.flamdex.api.StringValueLookup;
 import com.indeed.imhotep.Instrumentation;
 import com.indeed.imhotep.Instrumentation.Keys;
+import it.unimi.dsi.fastutil.ints.IntIterator;
 import it.unimi.dsi.fastutil.objects.Object2LongArrayMap;
 import org.apache.log4j.Logger;
 
@@ -174,6 +175,11 @@ public class InstrumentedFlamdexReader
     @Override
     public FieldsCardinalityMetadata getFieldsMetadata() {
         return wrapped.getFieldsMetadata();
+    }
+
+    @Override
+    public IntIterator getDeletedDocIterator() {
+        return wrapped.getDeletedDocIterator();
     }
 
     public static class PerformanceStats {

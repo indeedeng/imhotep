@@ -33,6 +33,9 @@ import com.indeed.flamdex.reader.GenericFlamdexReader;
 import com.indeed.flamdex.reader.GenericStringToIntTermIterator;
 import com.indeed.flamdex.search.FlamdexSearcher;
 import com.indeed.util.core.io.Closeables2;
+import it.unimi.dsi.fastutil.ints.AbstractIntIterator;
+import it.unimi.dsi.fastutil.ints.IntIterator;
+import it.unimi.dsi.fastutil.ints.IntIterators;
 import org.apache.log4j.Logger;
 
 import javax.annotation.Nonnull;
@@ -79,6 +82,29 @@ public class SegmentReader implements FlamdexReader {
             return Optional.absent();
         } else {
             return Optional.of(newTombstoneSet);
+        }
+    }
+
+    @Override
+    public IntIterator getDeletedDocIterator() {
+        if (tombstoneSet == null) {
+            return IntIterators.EMPTY_ITERATOR;
+        } else {
+            return new DeletedDocIterator();
+        }
+    }
+
+    private final class DeletedDocIterator extends AbstractIntIterator {
+        final FastBitSet.IntIterator inner = tombstoneSet.iterator();
+
+        @Override
+        public boolean hasNext() {
+            return inner.next();
+        }
+
+        @Override
+        public int nextInt() {
+            return inner.getValue();
         }
     }
 

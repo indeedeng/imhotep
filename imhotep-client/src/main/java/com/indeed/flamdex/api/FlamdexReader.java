@@ -13,6 +13,9 @@
  */
  package com.indeed.flamdex.api;
 
+import it.unimi.dsi.fastutil.ints.IntIterator;
+import it.unimi.dsi.fastutil.ints.IntIterators;
+
 import javax.annotation.Nullable;
 import java.io.Closeable;
 import java.nio.file.Path;
@@ -45,4 +48,11 @@ public interface FlamdexReader extends Closeable {
      */
     @Nullable
     FieldsCardinalityMetadata getFieldsMetadata();
+
+    /**
+     * For DynamicFlamdexReader. This doesn't guaranteed to be valid after close.
+     */
+    default IntIterator getDeletedDocIterator() {
+        return IntIterators.EMPTY_ITERATOR;
+    }
 }
