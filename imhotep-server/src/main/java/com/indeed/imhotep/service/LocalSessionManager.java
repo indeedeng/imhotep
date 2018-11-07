@@ -18,6 +18,7 @@ import com.google.common.cache.CacheBuilder;
 import com.indeed.imhotep.ImhotepStatusDump;
 import com.indeed.imhotep.MemoryReservationContext;
 import com.indeed.imhotep.ShardDir;
+import com.indeed.imhotep.exceptions.InvalidSessionException;
 import com.indeed.imhotep.exceptions.TooManySessionsException;
 import com.indeed.imhotep.exceptions.UserSessionCountLimitExceededException;
 import com.indeed.imhotep.local.MTImhotepLocalMultiSession;
@@ -180,7 +181,7 @@ public final class LocalSessionManager implements SessionManager {
     private void checkSession(final String sessionId) {
         if (!sessionMap.containsKey(sessionId)) {
             final Exception e = failureCauseMap.get(sessionId);
-            throw new IllegalArgumentException("there does not exist a session with id " + sessionId, e);
+            throw new InvalidSessionException("there does not exist a session with id " + sessionId, e);
         }
     }
 

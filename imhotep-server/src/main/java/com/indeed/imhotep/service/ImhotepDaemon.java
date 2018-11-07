@@ -36,6 +36,7 @@ import com.indeed.imhotep.api.ImhotepServiceCore;
 import com.indeed.imhotep.api.PerformanceStats;
 import com.indeed.imhotep.client.Host;
 import com.indeed.imhotep.exceptions.ImhotepKnownException;
+import com.indeed.imhotep.exceptions.InvalidSessionException;
 import com.indeed.imhotep.fs.RemoteCachingFileSystemProvider;
 import com.indeed.imhotep.io.ImhotepProtobufShipping;
 import com.indeed.imhotep.io.NioPathUtil;
@@ -1171,7 +1172,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
 
         private void checkSessionValidity(String sessionId) {
             if (!service.sessionIsValid(sessionId)) {
-                throw new IllegalArgumentException("invalid session: " +
+                throw new InvalidSessionException("invalid session: " +
                         sessionId);
             }
         }

@@ -18,16 +18,16 @@ package com.indeed.imhotep.exceptions;
  * @author vladimir
  */
 
-public class QueryCancelledException extends ImhotepKnownException {
-    public QueryCancelledException() {
+public class InvalidSessionException extends ImhotepKnownException {
+    public InvalidSessionException() {
         super();
     }
 
-    public QueryCancelledException(final String s) {
+    public InvalidSessionException(final String s) {
         super(s);
     }
 
-    public QueryCancelledException(final String message, final Throwable cause) {
+    public InvalidSessionException(final String message, final Throwable cause) {
         super(message, cause);
     }
 }
