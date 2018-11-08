@@ -23,6 +23,7 @@ import com.indeed.util.core.threads.NamedThreadFactory;
 import javax.annotation.Nonnull;
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Map;
 import java.util.Optional;
 import java.util.PriorityQueue;
@@ -207,6 +208,16 @@ public class TaskScheduler {
         }
     }
 
+    public ArrayList<TaskServletUtil> getRunningTasksServlet() {
+        synchronized (this) {
+            final ArrayList<TaskServletUtil> allRunningTasks = new ArrayList<TaskServletUtil>();
+            for (ImhotepTask task: runningTasks) {
+                allRunningTasks.add(task.getTaskServletFields());
+            }
+            return allRunningTasks;
+        }
+    }
+
     @Nonnull
     private synchronized TaskQueue getOrCreateQueueForTask(final ImhotepTask task) {
         TaskQueue queue = usernameToQueue.get(task.userName);
@@ -226,5 +237,9 @@ public class TaskScheduler {
         if(cleanupExecutor != null) {
             cleanupExecutor.shutdown();
         }
+    }
+
+    public String getSchedulerTypeName() {
+        return schedulerType.toString();
     }
 }
