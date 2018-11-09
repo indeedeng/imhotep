@@ -31,6 +31,7 @@ import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 /**
  * Decides which TaskQueue task should execute next
@@ -208,13 +209,9 @@ public class TaskScheduler {
         }
     }
 
-    public ArrayList<TaskServletUtil> getRunningTasksServlet() {
+    public ArrayList<TaskSnapshot> getRunningTasksSnapshot() {
         synchronized (this) {
-            final ArrayList<TaskServletUtil> allRunningTasks = new ArrayList<TaskServletUtil>();
-            for (ImhotepTask task: runningTasks) {
-                allRunningTasks.add(task.getTaskServletFields());
-            }
-            return allRunningTasks;
+            return new ArrayList<TaskSnapshot>(runningTasks.stream().map(x->x.getSnapshot()).collect(Collectors.toList()));
         }
     }
 
@@ -239,7 +236,7 @@ public class TaskScheduler {
         }
     }
 
-    public String getSchedulerTypeName() {
-        return schedulerType.toString();
+    public SchedulerType getSchedulerType() {
+        return schedulerType;
     }
 }

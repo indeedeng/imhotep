@@ -162,8 +162,8 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
         return totalExecutionTime;
     }
 
-    public TaskServletUtil getTaskServletFields() {
-        return new TaskServletUtil(
+    public TaskSnapshot getSnapshot() {
+        return new TaskSnapshot(
                 this.taskId,
                 this.session,
                 this.creationTimestamp,
@@ -172,7 +172,7 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
                 this.lastExecutionStartTime,
                 this.lastWaitStartTime,
                 this.totalExecutionTime,
-                this.ownerScheduler.getSchedulerTypeName()
+                this.ownerScheduler.getSchedulerType()
         );
     }
 
