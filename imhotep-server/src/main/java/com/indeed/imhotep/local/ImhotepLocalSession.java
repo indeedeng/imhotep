@@ -100,6 +100,7 @@ import com.indeed.util.core.reference.SharedReference;
 import com.indeed.util.core.threads.ThreadSafeBitSet;
 import it.unimi.dsi.fastutil.PriorityQueue;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
+import it.unimi.dsi.fastutil.ints.IntIterator;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectHeapPriorityQueue;
@@ -212,6 +213,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         docIdToGroup = new ConstantGroupLookup(this, 1, numDocs);
         docIdToGroup.recalculateNumGroups();
         zeroGroupDocCount = 0;
+        moveDeletedDocumentsToGroupZero();
 
         accountForFlamdexFTGSIteratorMemChange(0, docIdToGroup.getNumGroups());
 
@@ -223,6 +225,20 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                                                          statLookup.get(index));
                 }
             });
+    }
+
+    private void moveDeletedDocumentsToGroupZero() throws ImhotepOutOfMemoryException {
+        final IntIterator deletedDocIds = flamdexReader.getDeletedDocIterator();
+        if (!deletedDocIds.hasNext()) {
+            return;
+        }
+
+        docIdToGroup = GroupLookupFactory.resize(docIdToGroup, docIdToGroup.getNumGroups(), memory);
+        while (deletedDocIds.hasNext()) {
+            docIdToGroup.set(deletedDocIds.nextInt(), 0);
+        }
+        docIdToGroup.recalculateNumGroups();
+        resetLazyValues();
     }
 
     FlamdexReader getReader() {
@@ -2436,6 +2452,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         docIdToGroup = new ConstantGroupLookup(this, group, numDocs);
         resetLazyValues();
         memory.releaseMemory(bytesToFree);
+        moveDeletedDocumentsToGroupZero();
     }
 
     static void clear(final long[] array, final int[] groupsSeen, final int groupsSeenCount) {
