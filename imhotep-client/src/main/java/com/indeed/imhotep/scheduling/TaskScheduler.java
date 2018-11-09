@@ -24,6 +24,7 @@ import javax.annotation.Nonnull;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.PriorityQueue;
@@ -209,9 +210,9 @@ public class TaskScheduler {
         }
     }
 
-    public ArrayList<TaskSnapshot> getRunningTasksSnapshot() {
+    public List<TaskSnapshot> getRunningTasksSnapshot() {
         synchronized (this) {
-            return new ArrayList<TaskSnapshot>(runningTasks.stream().map(x->x.getSnapshot()).collect(Collectors.toList()));
+            return runningTasks.stream().map(ImhotepTask::getSnapshot).collect(Collectors.toList());
         }
     }
 
