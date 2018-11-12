@@ -29,6 +29,7 @@ import com.indeed.imhotep.ImhotepStatusDump;
 import com.indeed.imhotep.MemoryReservationContext;
 import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.core.reference.ReloadableSharedReference;
+import it.unimi.dsi.fastutil.ints.IntIterator;
 import org.apache.log4j.Logger;
 
 import javax.annotation.Nullable;
@@ -206,6 +207,11 @@ public class CachedFlamdexReader implements FlamdexReader, MetricCache {
     @Override
     public FieldsCardinalityMetadata getFieldsMetadata() {
         return wrapped.getFieldsMetadata();
+    }
+
+    @Override
+    public IntIterator getDeletedDocIterator() {
+        return wrapped.getDeletedDocIterator();
     }
 
     @Override

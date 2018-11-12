@@ -33,6 +33,9 @@ import com.indeed.flamdex.api.StringTermDocIterator;
 import com.indeed.flamdex.api.StringTermIterator;
 import com.indeed.flamdex.api.StringValueLookup;
 import com.indeed.util.core.io.Closeables2;
+import it.unimi.dsi.fastutil.ints.AbstractIntIterator;
+import it.unimi.dsi.fastutil.ints.IntIterator;
+import it.unimi.dsi.fastutil.ints.IntIterators;
 import org.apache.log4j.Logger;
 
 import javax.annotation.Nonnull;
@@ -421,6 +424,36 @@ public class DynamicFlamdexReader implements FlamdexReader {
     @Override
     public FieldsCardinalityMetadata getFieldsMetadata() {
         return null;
+    }
+
+    @Override
+    public IntIterator getDeletedDocIterator() {
+        return new DeletedDocIterator();
+    }
+
+    private final class DeletedDocIterator extends AbstractIntIterator {
+        private int currentSegment = -1;
+        private IntIterator currentIterator = IntIterators.EMPTY_ITERATOR;
+
+        @Override
+        public boolean hasNext() {
+            while (!currentIterator.hasNext()) {
+                ++currentSegment;
+                if (currentSegment >= segmentReaders.size()) {
+                    return false;
+                }
+                currentIterator = segmentReaders.get(currentSegment).getDeletedDocIterator();
+            }
+            return true;
+        }
+
+        @Override
+        public int nextInt() {
+            if (currentSegment >= segmentReaders.size()) {
+                throw new IllegalStateException("No more deleted documents");
+            }
+            return offsets[currentSegment] + currentIterator.nextInt();
+        }
     }
 
     @Override

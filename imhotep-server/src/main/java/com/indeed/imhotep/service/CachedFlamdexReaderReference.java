@@ -26,12 +26,12 @@ import com.indeed.flamdex.api.StringValueLookup;
 import com.indeed.imhotep.ImhotepStatusDump;
 import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.core.reference.SharedReference;
+import it.unimi.dsi.fastutil.ints.IntIterator;
 import org.apache.log4j.Logger;
 
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
-import java.util.Set;
 
 /**
  * @author jplaisance
@@ -134,6 +134,11 @@ public class CachedFlamdexReaderReference implements FlamdexReader, MetricCache 
     @Override
     public FieldsCardinalityMetadata getFieldsMetadata() {
         return reader.getFieldsMetadata();
+    }
+
+    @Override
+    public IntIterator getDeletedDocIterator() {
+        return reader.getDeletedDocIterator();
     }
 
     @Override

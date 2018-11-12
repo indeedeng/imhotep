@@ -24,6 +24,7 @@ import com.indeed.flamdex.api.StringTermDocIterator;
 import com.indeed.flamdex.datastruct.FastBitSet;
 import com.indeed.flamdex.simple.SimpleFlamdexDocWriter;
 import com.indeed.flamdex.writer.FlamdexDocWriter;
+import it.unimi.dsi.fastutil.ints.IntIterator;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -40,6 +41,8 @@ import java.util.List;
 import java.util.Random;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 /**
  * @author michihiko
@@ -181,6 +184,15 @@ public class TestDynamicFlamdexReader {
 
     @Test
     public void testTombstoneSet() throws IOException, FlamdexOutOfMemoryException, NoSuchMethodException, IllegalAccessException, InvocationTargetException, InstantiationException {
+        final int[] docIdToNum;
+        try (final FlamdexReader flamdexReader = new DynamicFlamdexReader(indexDirectory)) {
+            docIdToNum = new int[flamdexReader.getNumDocs()];
+            for (int docId = 0; docId < flamdexReader.getNumDocs(); ++docId) {
+                final int num = DynamicFlamdexTestUtils.restoreOriginalNumber(flamdexReader, docId);
+                docIdToNum[docId] = num;
+            }
+        }
+
         for (final Path segmentDirectory : segmentDirectories) {
             try (final Closer closer = Closer.create()) {
                 final Path tombstoneSetPath = segmentDirectory.resolve("tombstoneSet.bin");
@@ -231,6 +243,14 @@ public class TestDynamicFlamdexReader {
                     assertEquals(3, okBit[i]);
                 }
             }
+            final IntIterator tombstoneIterator = flamdexReader.getDeletedDocIterator();
+            for (int docId = 0; docId < okBit.length; ++docId) {
+                if ((docIdToNum[docId] % 5) == 4) {
+                    assertTrue(tombstoneIterator.hasNext());
+                    assertEquals(docId, tombstoneIterator.nextInt());
+                }
+            }
+            assertFalse(tombstoneIterator.hasNext());
         }
     }
 
