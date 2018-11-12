@@ -36,11 +36,13 @@ import com.indeed.util.core.io.Closeables2;
 import org.apache.log4j.Logger;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.io.Closeable;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -78,6 +80,7 @@ public class DynamicFlamdexReader implements FlamdexReader {
     };
 
     private final Path indexDirectory;
+    @Nullable
     private final Closeable lock;
     private final List<SegmentReader> segmentReaders;
     private final int[] offsets;
@@ -104,6 +107,9 @@ public class DynamicFlamdexReader implements FlamdexReader {
         }
     }
 
+    /**
+     * Open reader on given segment readers WITHOUT taking reader lock.
+     */
     DynamicFlamdexReader(final Path directory, @Nonnull final List<SegmentReader> segmentReaders) {
         this.indexDirectory = directory;
         this.lock = null;
@@ -112,6 +118,15 @@ public class DynamicFlamdexReader implements FlamdexReader {
         for (int i = 0; i < this.segmentReaders.size(); ++i) {
             this.offsets[i + 1] = this.offsets[i] + this.segmentReaders.get(i).maxNumDocs();
         }
+    }
+
+    /**
+     * Don't use this method unless you know what you're doing.
+     * This method exposes internal segment readers. You shouldn't close the returned segment readers,
+     * and shouldn't close this reader while using the returned segment readers.
+     */
+    List<SegmentReader> getSegmentReaders() {
+        return Collections.unmodifiableList(segmentReaders);
     }
 
     int getNumberOfSegments() {
