@@ -96,15 +96,18 @@ public class SegmentReader implements FlamdexReader {
 
     private final class DeletedDocIterator extends AbstractIntIterator {
         final FastBitSet.IntIterator inner = tombstoneSet.iterator();
+        boolean hasNext = inner.next();
 
         @Override
         public boolean hasNext() {
-            return inner.next();
+            return hasNext;
         }
 
         @Override
         public int nextInt() {
-            return inner.getValue();
+            final int value = inner.getValue();
+            hasNext = inner.next();
+            return value;
         }
     }
 
