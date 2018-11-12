@@ -55,7 +55,7 @@ public abstract class NativeTermDocIterator<I extends SimpleTermIterator> implem
     // index of current term
     private int bufferedTermIndex = 0;
     // sum of all docFreq for buffered, but not-yet-processed terms
-    private int bufferedTermsDocCount;
+    private long bufferedTermsDocCount;
     // docFreq's for buffered terms
     private final int[] docFreqBuffer = new int[BUFFER_SIZE];
     // offsets for buffered terms
