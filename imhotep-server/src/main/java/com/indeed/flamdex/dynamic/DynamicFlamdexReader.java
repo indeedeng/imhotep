@@ -424,7 +424,7 @@ public class DynamicFlamdexReader implements FlamdexReader {
         public boolean hasNext() {
             while (!currentIterator.hasNext()) {
                 ++currentSegment;
-                if (segmentReaders.size() <= currentSegment) {
+                if (currentSegment >= segmentReaders.size()) {
                     return false;
                 }
                 currentIterator = segmentReaders.get(currentSegment).getDeletedDocIterator();
@@ -434,7 +434,7 @@ public class DynamicFlamdexReader implements FlamdexReader {
 
         @Override
         public int nextInt() {
-            if (segmentReaders.size() <= currentSegment) {
+            if (currentSegment >= segmentReaders.size()) {
                 throw new IllegalStateException("No more deleted documents");
             }
             return offsets[currentSegment] + currentIterator.nextInt();
