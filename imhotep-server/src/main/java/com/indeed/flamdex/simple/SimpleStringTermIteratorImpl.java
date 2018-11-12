@@ -300,7 +300,7 @@ final class SimpleStringTermIteratorImpl implements SimpleStringTermIterator {
         long ret = 0L;
         int shift = 0;
         do {
-            ret |= ((b & 0x7F) << shift);
+            ret |= ((b & 0x7FL) << shift);
             if (b < 0x80) {
                 return ret;
             }
@@ -314,7 +314,7 @@ final class SimpleStringTermIteratorImpl implements SimpleStringTermIterator {
         int shift = 0;
         do {
             final int b = read();
-            ret |= ((b & 0x7F) << shift);
+            ret |= ((b & 0x7FL) << shift);
             if (b < 0x80) {
                 return ret;
             }
