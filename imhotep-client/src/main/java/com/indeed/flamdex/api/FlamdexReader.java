@@ -50,7 +50,7 @@ public interface FlamdexReader extends Closeable {
     FieldsCardinalityMetadata getFieldsMetadata();
 
     /**
-     * For DynamicFlamdexReader. This doesn't guaranteed to be valid after close.
+     * For DynamicFlamdexReader. This isn't guaranteed to be valid after close.
      */
     default IntIterator getDeletedDocIterator() {
         return IntIterators.EMPTY_ITERATOR;
