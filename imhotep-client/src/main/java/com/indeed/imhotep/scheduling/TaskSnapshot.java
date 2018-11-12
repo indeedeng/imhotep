@@ -33,11 +33,11 @@ public class TaskSnapshot {
             SchedulerType schedulerType) {
         this.taskID = taskID;
         this.sessionID = ( (session == null) ? "null" : session.getSessionId() );
-        this.creationTime = new Date(creationTime);
+        this.creationTime = new Date(System.currentTimeMillis() - TimeUnit.NANOSECONDS.toMillis(System.nanoTime()-creationTime));
         this.userName = userName;
         this.clientName = clientName;
-        this.lastExecutionStartTime = new Date(lastExecutionStartTime);
-        this.lastWaitStartTime = new Date(lastWaitStartTime);
+        this.lastExecutionStartTime = new Date(System.currentTimeMillis() - TimeUnit.NANOSECONDS.toMillis(System.nanoTime()-lastExecutionStartTime));
+        this.lastWaitStartTime = new Date(System.currentTimeMillis() - TimeUnit.NANOSECONDS.toMillis(System.nanoTime()-lastWaitStartTime));
         this.totalExecutionTimeMillis = TimeUnit.MILLISECONDS.convert(totalExecutionTime, TimeUnit.NANOSECONDS);
         this.schedulerType = schedulerType;
     }
