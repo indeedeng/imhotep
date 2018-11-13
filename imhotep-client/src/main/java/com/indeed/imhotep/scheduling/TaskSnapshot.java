@@ -1,6 +1,8 @@
 package com.indeed.imhotep.scheduling;
 
 import com.indeed.imhotep.AbstractImhotepMultiSession;
+
+import java.time.Duration;
 import java.util.Date;
 import javax.annotation.Nullable;
 import java.util.concurrent.TimeUnit;
@@ -13,11 +15,11 @@ public class TaskSnapshot {
 
     public final long taskID;
     public final String sessionID;
-    public final Date creationTime;
+    public final String timeSinceCreation;
     public final String userName;
     public final String clientName;
-    public final Date lastExecutionStartTime;
-    public final Date lastWaitStartTime;
+    public final String timeSinceLastExecutionStart;
+    public final String timeSinceLastWaitStart;
     public final long totalExecutionTimeMillis;
     public final SchedulerType schedulerType;
 
@@ -33,12 +35,12 @@ public class TaskSnapshot {
             SchedulerType schedulerType) {
         this.taskID = taskID;
         this.sessionID = ( (session == null) ? "null" : session.getSessionId() );
-        this.creationTime = new Date(System.currentTimeMillis() - TimeUnit.NANOSECONDS.toMillis(System.nanoTime()-creationTime));
+        this.timeSinceCreation = Duration.ZERO.plusNanos(System.nanoTime() - creationTime).toString();
         this.userName = userName;
         this.clientName = clientName;
-        this.lastExecutionStartTime = new Date(System.currentTimeMillis() - TimeUnit.NANOSECONDS.toMillis(System.nanoTime()-lastExecutionStartTime));
-        this.lastWaitStartTime = new Date(System.currentTimeMillis() - TimeUnit.NANOSECONDS.toMillis(System.nanoTime()-lastWaitStartTime));
-        this.totalExecutionTimeMillis = TimeUnit.MILLISECONDS.convert(totalExecutionTime, TimeUnit.NANOSECONDS);
+        this.timeSinceLastExecutionStart = Duration.ZERO.plusNanos(System.nanoTime() - lastExecutionStartTime).toString();
+        this.timeSinceLastWaitStart = Duration.ZERO.plusNanos(System.nanoTime() - lastWaitStartTime).toString();
+        this.totalExecutionTimeMillis = TimeUnit.MILLISECONDS.convert((totalExecutionTime + System.nanoTime() - lastExecutionStartTime), TimeUnit.NANOSECONDS);
         this.schedulerType = schedulerType;
     }
 
