@@ -171,8 +171,7 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
                 this.clientName,
                 this.lastExecutionStartTime,
                 this.lastWaitStartTime,
-                this.totalExecutionTime,
-                this.ownerScheduler.getSchedulerType()
+                this.totalExecutionTime
         );
     }
 
