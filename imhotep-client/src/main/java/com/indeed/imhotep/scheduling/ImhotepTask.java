@@ -17,7 +17,6 @@ package com.indeed.imhotep.scheduling;
 import com.google.common.primitives.Longs;
 import com.indeed.imhotep.AbstractImhotepMultiSession;
 import org.apache.log4j.Logger;
-import com.indeed.imhotep.exceptions.InvalidSessionException;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -107,9 +106,10 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
             try {
                 lockToWaitOn.await();
                 finishedWaiting = true;
-                if (session != null && session.isClosed()) {
-                    throw new InvalidSessionException("Session with id " + session.getSessionId() + " was already closed");
-                }
+                // Commented out pending a change to make TaskScheduler::schedule exception-safe in IMTEPD-450
+                //  if (session != null && session.isClosed()) {
+                //      throw new InvalidSessionException("Session with id " + session.getSessionId() + " was already closed");
+                //  }
             } catch(InterruptedException ignored){ }
         }
     }
