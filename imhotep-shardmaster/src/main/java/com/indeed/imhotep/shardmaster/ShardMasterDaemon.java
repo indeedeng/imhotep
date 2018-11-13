@@ -141,12 +141,16 @@ public class ShardMasterDaemon {
             }, config.getHostsRefreshInterval().getMillis(), config.getHostsRefreshInterval().getMillis());
 
             datasetReloadExecutor.scheduleAtFixedRate(() -> {
-                final boolean shouldDelete = ShardFilter.ACCEPT_ALL.equals(config.shardFilter) && ((System.currentTimeMillis() - lastDeleteTimeMillis) > config.getDeleteInterval().getMillis());
-                if(shouldDelete) {
-                    lastDeleteTimeMillis = System.currentTimeMillis();
+                try {
+                    final boolean shouldDelete = ShardFilter.ACCEPT_ALL.equals(config.shardFilter) && ((System.currentTimeMillis() - lastDeleteTimeMillis) > config.getDeleteInterval().getMillis());
+                    if (shouldDelete) {
+                        lastDeleteTimeMillis = System.currentTimeMillis();
+                    }
+                    final boolean leader = isLeader(leaderElectionRoot, zkConnection);
+                    refresher.refresh(config.readFilesystem && leader, config.readSQL, shouldDelete, leader && config.writeSQL, leader);
+                } catch (Exception e) {
+                    LOGGER.error("Datasets reload failed", e);
                 }
-                final boolean leader = isLeader(leaderElectionRoot, zkConnection);
-                refresher.refresh(config.readFilesystem && leader, config.readSQL, shouldDelete, leader && config.writeSQL, leader);
             }, config.getRefreshInterval().getMillis(), config.getRefreshInterval().getMillis(), TimeUnit.MILLISECONDS);
 
             final DatabaseShardMaster datasetShardMaster = new DatabaseShardMaster(config.createAssigner(), shardData, hostsReloader, refresher);
@@ -266,7 +270,6 @@ public class ShardMasterDaemon {
          * Local mode does:
          * - prevent the shardmaster from registering in zookeeper (for leader election or as a daemon)
          * - cause the shardmaster to behave as if it were a leader
-         * - change the forwarded file type from .sqar to unpacked shards
          * Local mode does not:
          * - disable reads / writes to SQL
          * - make the shardmaster read the filesystem if readFilesystem = false

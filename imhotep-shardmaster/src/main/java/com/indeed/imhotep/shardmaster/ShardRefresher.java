@@ -102,15 +102,23 @@ public class ShardRefresher {
                     }
                 },
                 0, 1, TimeUnit.MINUTES);
-        long time = -System.currentTimeMillis();
-        // Actually run
-        innerRun(readFilesystem, readSQL, delete,  writeSQL, shouldRefreshFieldsForDataset);
-        time += System.currentTimeMillis();
-        LOGGER.info("Finished a refresh in " + new Period(time));
-        if (numDatasetsFailedToRead.get() > 0) {
-            LOGGER.error("We have failed to scan " + numDatasetsFailedToRead.get() + " datasets");
+        try {
+            long time = -System.currentTimeMillis();
+            // Actually run
+            innerRun(readFilesystem, readSQL, delete, writeSQL, shouldRefreshFieldsForDataset);
+            time += System.currentTimeMillis();
+            LOGGER.info("Finished a refresh in " + new Period(time));
+            if (numDatasetsFailedToRead.get() > 0) {
+                LOGGER.error("We have failed to scan " + numDatasetsFailedToRead.get() + " datasets");
+            }
+        } finally {
+            try {
+                updates.shutdownNow();
+            } catch (Exception e) {
+                LOGGER.error("Failed to shutdown update progress executor", e);
+            }
         }
-        updates.shutdownNow();
+
     }
 
     private void innerRun(final boolean readFilesystem, final boolean readSQL, final boolean delete, final boolean writeSQL, final boolean shouldRefreshFieldsForDataset) {
