@@ -217,6 +217,7 @@ public final class MultiFile {
         private final class MultiFileInputStream extends InputStream {
 
             private final int split;
+            private boolean closed = false;
             private final AtomicInteger openInputs;
             private long position = 0;
             private long limit = 0;
@@ -298,6 +299,10 @@ public final class MultiFile {
 
             @Override
             public void close() throws IOException {
+                if (closed) {
+                    return;
+                }
+                closed = true;
                 try {
                     if (currentBuffer != null) {
                         currentBuffer.close();
