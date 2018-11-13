@@ -165,4 +165,18 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
     public long getTotalExecutionTime() {
         return totalExecutionTime;
     }
+
+    public TaskSnapshot getSnapshot() {
+        return new TaskSnapshot(
+                this.taskId,
+                this.session,
+                this.creationTimestamp,
+                this.userName,
+                this.clientName,
+                this.lastExecutionStartTime,
+                this.lastWaitStartTime,
+                this.totalExecutionTime
+        );
+    }
+
 }

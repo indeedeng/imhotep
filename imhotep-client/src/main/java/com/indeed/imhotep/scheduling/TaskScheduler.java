@@ -23,6 +23,7 @@ import com.indeed.util.core.threads.NamedThreadFactory;
 import javax.annotation.Nonnull;
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.PriorityQueue;
@@ -30,6 +31,7 @@ import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 /**
  * Decides which TaskQueue task should execute next
@@ -207,6 +209,12 @@ public class TaskScheduler {
         }
     }
 
+    public List<TaskSnapshot> getRunningTasksSnapshot() {
+        synchronized (this) {
+            return runningTasks.stream().map(ImhotepTask::getSnapshot).collect(Collectors.toList());
+        }
+    }
+
     @Nonnull
     private synchronized TaskQueue getOrCreateQueueForTask(final ImhotepTask task) {
         TaskQueue queue = usernameToQueue.get(task.userName);
@@ -226,5 +234,9 @@ public class TaskScheduler {
         if(cleanupExecutor != null) {
             cleanupExecutor.shutdown();
         }
+    }
+
+    public SchedulerType getSchedulerType() {
+        return schedulerType;
     }
 }
