@@ -25,7 +25,7 @@ public class TaskSnapshot {
     @Nullable public final Integer numGroups;
     @Nullable public final Integer numStats;
     public final Duration timeSinceCreation;
-    public final String userName;
+    @Nullable public final String userName;
     @Nullable public final String clientName;
     @Nullable public final String dataset;
     @Nullable public final String shardName;
