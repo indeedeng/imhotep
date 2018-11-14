@@ -16,8 +16,12 @@ package com.indeed.imhotep.service;
 
 import com.indeed.imhotep.Instrumentation;
 import com.indeed.imhotep.Instrumentation.Keys;
+import com.indeed.imhotep.RequestContext;
 import com.indeed.imhotep.protobuf.ImhotepRequest;
 import com.indeed.imhotep.protobuf.ImhotepResponse;
+
+import javax.annotation.Nullable;
+import java.util.Map;
 
 class DaemonEvents {
 
@@ -25,37 +29,43 @@ class DaemonEvents {
 
         public static final String NAME = HandleRequestEvent.class.getSimpleName();
 
-        public HandleRequestEvent(final String          name,
-                                  final ImhotepRequest  protoRequest,
+        public HandleRequestEvent(final String name,
+                                  final ImhotepRequest protoRequest,
                                   final ImhotepResponse protoResponse,
-                                  final String          sourceAddr,
-                                  final String          targetAddr,
-                                  final long            beginTmMillis,
-                                  final long            elapsedTmMillis) {
+                                  final String sourceAddr,
+                                  final String targetAddr,
+                                  final long beginTmMillis,
+                                  final long elapsedTmMillis,
+                                  @Nullable final RequestContext requestContext) {
             super(name);
             final String sessionId = protoRequest.getSessionId();
-            getProperties().put(Keys.BEGIN_TIME_MILLIS,   beginTmMillis);
-            getProperties().put(Keys.ELAPSED_TIME_MILLIS, elapsedTmMillis);
-            getProperties().put(Keys.REQUEST_SIZE,        protoRequest.getSerializedSize());
-            getProperties().put(Keys.REQUEST_TYPE,        protoRequest.getRequestType().toString());
-            getProperties().put(Keys.SESSION_ID,          protoRequest.getSessionId());
-            getProperties().put(Keys.SOURCE_ADDR,         sourceAddr);
-            getProperties().put(Keys.TARGET_ADDR,         targetAddr);
+            final Map<String, Object> properties = getProperties();
+            properties.put(Keys.BEGIN_TIME_MILLIS,   beginTmMillis);
+            properties.put(Keys.ELAPSED_TIME_MILLIS, elapsedTmMillis);
+            properties.put(Keys.REQUEST_SIZE,        protoRequest.getSerializedSize());
+            properties.put(Keys.REQUEST_TYPE,        protoRequest.getRequestType().toString());
+            properties.put(Keys.SESSION_ID,          protoRequest.getSessionId());
+            properties.put(Keys.SOURCE_ADDR,         sourceAddr);
+            properties.put(Keys.TARGET_ADDR,         targetAddr);
             if (protoResponse != null) {
-                getProperties().put(Keys.RESPONSE_SIZE, protoResponse.getSerializedSize());
+                properties.put(Keys.RESPONSE_SIZE, protoResponse.getSerializedSize());
             }
-            getProperties().put(Keys.USERNAME,            protoRequest.getUsername());
+            if (requestContext != null) {
+                requestContext.addTimingProperties(properties);
+            }
+            properties.put(Keys.USERNAME,            protoRequest.getUsername());
         }
 
-        public HandleRequestEvent(final ImhotepRequest  protoRequest,
+        public HandleRequestEvent(final ImhotepRequest protoRequest,
                                   final ImhotepResponse protoResponse,
-                                  final String          sourceAddr,
-                                  final String          targetAddr,
-                                  final long            beginTmMillis,
-                                  final long            elapsedTmMillis) {
+                                  final String sourceAddr,
+                                  final String targetAddr,
+                                  final long beginTmMillis,
+                                  final long elapsedTmMillis,
+                                  @Nullable final RequestContext requestContext) {
             this(NAME, protoRequest, protoResponse,
                  sourceAddr, targetAddr,
-                 beginTmMillis, elapsedTmMillis);
+                 beginTmMillis, elapsedTmMillis, requestContext);
         }
     }
 
@@ -63,15 +73,16 @@ class DaemonEvents {
 
         public static final String NAME = OpenSessionEvent.class.getSimpleName();
 
-        public OpenSessionEvent(final ImhotepRequest  protoRequest,
+        public OpenSessionEvent(final ImhotepRequest protoRequest,
                                 final ImhotepResponse protoResponse,
-                                final String          sourceAddr,
-                                final String          targetAddr,
-                                final long            beginTmMillis,
-                                final long            elapsedTmMillis) {
+                                final String sourceAddr,
+                                final String targetAddr,
+                                final long beginTmMillis,
+                                final long elapsedTmMillis,
+                                @Nullable final RequestContext requestContext) {
             super(NAME, protoRequest, protoResponse,
                   sourceAddr, targetAddr,
-                  beginTmMillis, elapsedTmMillis);
+                  beginTmMillis, elapsedTmMillis, requestContext);
 
             getProperties().put(Keys.DATASET,            protoRequest.getDataset());
             getProperties().put(Keys.USERNAME,           protoRequest.getUsername());

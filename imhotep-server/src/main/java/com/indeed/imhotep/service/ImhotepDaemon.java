@@ -28,6 +28,7 @@ import com.indeed.imhotep.ImhotepStatusDump;
 import com.indeed.imhotep.Instrumentation;
 import com.indeed.imhotep.Instrumentation.Keys;
 import com.indeed.imhotep.RegroupCondition;
+import com.indeed.imhotep.RequestContext;
 import com.indeed.imhotep.TermCount;
 import com.indeed.imhotep.api.FTGSParams;
 import com.indeed.imhotep.api.GroupStatsIterator;
@@ -947,10 +948,15 @@ public class ImhotepDaemon implements Instrumentation.Provider {
 
                 NDC.push("#" + requestId);
 
+                RequestContext requestContext = null;
+
                 try {
                     log.debug("getting request");
                     // TODO TODO TODO validate request
                     request = ImhotepProtobufShipping.readRequest(is);
+
+                    requestContext = new RequestContext(request);
+                    RequestContext.THREAD_REQUEST_CONTEXT.set(requestContext);
 
                     if (request.hasSessionId()) {
                         NDC.push(request.getSessionId());
@@ -1145,10 +1151,10 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                                 request.getRequestType().equals(ImhotepRequest.RequestType.OPEN_SESSION) ?
                                         new DaemonEvents.OpenSessionEvent(request, response,
                                                 remoteAddr, localAddr,
-                                                beginTm, elapsedTm) :
+                                                beginTm, elapsedTm, requestContext) :
                                         new DaemonEvents.HandleRequestEvent(request, response,
                                                 remoteAddr, localAddr,
-                                                beginTm, elapsedTm);
+                                                beginTm, elapsedTm, requestContext);
                         instrumentation.fire(instEvent);
                     }
                     NDC.setMaxDepth(ndcDepth);
