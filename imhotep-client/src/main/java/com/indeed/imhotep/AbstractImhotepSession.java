@@ -51,6 +51,22 @@ public abstract class AbstractImhotepSession implements ImhotepSession {
         return null;
     }
 
+    /**
+     * Read numStats without providing any guarantees about reading
+     * the most up to date value
+     */
+    public int weakGetNumStats() {
+        return -1;
+    }
+
+    /**
+     * Read numGroups without providing any guarantees about reading
+     * the most up to date value
+     */
+    public int weakGetNumGroups() {
+        return -1;
+    }
+
     @Override
     public FTGSIterator getFTGSIterator(final String[] intFields, final String[] stringFields) {
         return getFTGSIterator(intFields, stringFields, 0);

@@ -253,6 +253,25 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         return this.flamdexReader.getDirectory();
     }
 
+    /**
+     * Read numStats without providing any guarantees about reading
+     * the most up to date value
+     */
+    @Override
+    public int weakGetNumStats() {
+        return this.numStats;
+    }
+
+    /**
+     * Read numGroups without providing any guarantees about reading
+     * the most up to date value
+     */
+    @Override
+    public int weakGetNumGroups() {
+        // Safe because getNumGroups is a final method that reads a constant.
+        return docIdToGroup.getNumGroups();
+    }
+
     public Map<String, DynamicMetric> getDynamicMetrics() {
         return dynamicMetrics;
     }

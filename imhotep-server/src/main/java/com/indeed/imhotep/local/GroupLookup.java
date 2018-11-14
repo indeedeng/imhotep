@@ -60,6 +60,7 @@ public abstract class GroupLookup {
     public abstract ImhotepLocalSession getSession();
     protected abstract void recalculateNumGroups();
 
+    // If this definition changes, please see ImhotepLocalSession::weakGetNumGroups
     public final int getNumGroups() {
         return numGroups;
     }

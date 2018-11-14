@@ -3,13 +3,16 @@ package com.indeed.imhotep.scheduling;
 import com.indeed.imhotep.AbstractImhotepMultiSession;
 import com.indeed.imhotep.AbstractImhotepSession;
 import com.indeed.imhotep.RequestContext;
+import com.indeed.imhotep.api.ImhotepSession;
 
 import javax.annotation.Nullable;
 import java.time.Duration;
+import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Class to hold all the fields of ImhotepTask to be reported in the Task Sevlet
+ * Class to hold all the fields of ImhotepTask to be reported in the Task Servlet
  */
 
 public class TaskSnapshot {
@@ -19,21 +22,22 @@ public class TaskSnapshot {
     @Nullable public final String shardPath;
     @Nullable public final RequestContext requestContext;
     @Nullable public final Long numDocs;
+    @Nullable public final Integer numGroups;
     @Nullable public final Integer numStats;
     public final Duration timeSinceCreation;
     public final String userName;
-    public final String clientName;
-    private final String dataset;
-    private final String shardName;
+    @Nullable public final String clientName;
+    @Nullable public final String dataset;
+    @Nullable public final String shardName;
     public final Duration timeSinceLastExecutionStart;
     public final Duration timeSinceLastWaitStart;
     public final long totalExecutionTimeMillis;
 
     public TaskSnapshot(
             final long taskID,
-            final @Nullable AbstractImhotepMultiSession session,
-            final @Nullable AbstractImhotepSession innerSession,
-            final @Nullable RequestContext requestContext,
+            @Nullable final AbstractImhotepMultiSession session,
+            @Nullable final AbstractImhotepSession innerSession,
+            @Nullable final RequestContext requestContext,
             final long creationTime,
             @Nullable final String userName,
             @Nullable final String clientName,
@@ -45,11 +49,8 @@ public class TaskSnapshot {
             final long totalExecutionTime
     ) {
         this.taskID = taskID;
-        this.sessionID = ( (session == null) ? "null" : session.getSessionId() );
-        this.shardPath = (innerSession == null) ? null : innerSession.getShardPath().toString();
+        this.sessionID = (session == null) ? "null" : session.getSessionId();
         this.requestContext = requestContext;
-        this.numDocs = (innerSession == null) ? ((numDocs != null) ? (long)(int)numDocs : null) : (Long)innerSession.getNumDocs();
-        this.numStats = (innerSession == null) ? null : innerSession.getNumStats();
         this.timeSinceCreation = Duration.ZERO.plusNanos(System.nanoTime() - creationTime);
         this.userName = userName;
         this.clientName = clientName;
@@ -58,6 +59,18 @@ public class TaskSnapshot {
         this.timeSinceLastExecutionStart = Duration.ZERO.plusNanos(System.nanoTime() - lastExecutionStartTime);
         this.timeSinceLastWaitStart = Duration.ZERO.plusNanos(System.nanoTime() - lastWaitStartTime);
         this.totalExecutionTimeMillis = TimeUnit.MILLISECONDS.convert((totalExecutionTime + System.nanoTime() - lastExecutionStartTime), TimeUnit.NANOSECONDS);
+
+        // innerSession access is dangerous
+        // It must be ensured that any methods that are called from here are
+        // non-synchronized methods
+        this.shardPath = Optional.ofNullable(innerSession)
+                .map(AbstractImhotepSession::getShardPath)
+                .map(Object::toString)
+                .orElse(null);
+        this.numDocs = (innerSession == null) ? ((numDocs != null) ? (long)(int)numDocs : null) : (Long)innerSession.getNumDocs();
+        this.numStats = (innerSession == null) ? null : innerSession.weakGetNumStats();
+        this.numGroups = (innerSession == null) ? null : innerSession.weakGetNumGroups();
+        // end innerSession access
     }
 
     public String getTimeSinceCreation() {
