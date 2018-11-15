@@ -95,6 +95,18 @@ public final class MultiFile {
         return splits[split].in;
     }
 
+    /**
+     * Clean up the internal resources and invalidate all i/o streams returned by
+     * {@link MultiFile#getInputStream(int)} / {@link MultiFile#getOutputStream(int)}.
+     * The logic in the happy path should close each individual i/o streams, and in that case
+     * you don't need to call this method.
+     */
+    public void cleanupQuietly() {
+        for (final Split split : splits) {
+            Closeables2.closeAll(log, split.in, split.out);
+        }
+    }
+
     private final class Split {
         private final OutputStream out;
         private final InputStream in;
@@ -217,6 +229,7 @@ public final class MultiFile {
         private final class MultiFileInputStream extends InputStream {
 
             private final int split;
+            private boolean closed = false;
             private final AtomicInteger openInputs;
             private long position = 0;
             private long limit = 0;
@@ -298,6 +311,10 @@ public final class MultiFile {
 
             @Override
             public void close() throws IOException {
+                if (closed) {
+                    return;
+                }
+                closed = true;
                 try {
                     if (currentBuffer != null) {
                         currentBuffer.close();

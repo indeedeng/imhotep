@@ -139,6 +139,7 @@ public final class FTGSSplitter implements Closeable {
             return iterators;
         } catch (final Throwable t) {
             Closeables2.closeAll(log, iterators);
+            multiFile.cleanupQuietly();
             try {
                 close();
             } finally {
