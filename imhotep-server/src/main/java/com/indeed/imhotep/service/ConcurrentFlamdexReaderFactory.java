@@ -114,7 +114,7 @@ public class ConcurrentFlamdexReaderFactory {
 
         public Void call() {
             final SharedReference<CachedFlamdexReader> reader;
-            ImhotepTask.setup(createRequest.userName, createRequest.clientName);
+            ImhotepTask.setup(createRequest.userName, createRequest.clientName, createRequest.dataset, createRequest.shardName, createRequest.numDocs);
             final Path shardPath = locateShard(createRequest);
             try {
             // TODO: enable locking

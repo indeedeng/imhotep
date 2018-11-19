@@ -82,10 +82,7 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
     @Nonnull
     private final String clientName;
 
-    private final AtomicLong cpuTimeNs = new AtomicLong(0);
-    private final AtomicLong cpuWaitNs = new AtomicLong(0);
-    private final AtomicLong ioTimeNs = new AtomicLong(0);
-    private final AtomicLong ioWaitNs = new AtomicLong(0);
+    private final SlotTiming slotTiming = new SlotTiming();
 
     private long savedCPUTime;
 
@@ -628,17 +625,11 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
         // Calculating and setting correct value.
         final long tempFileSize = (tempFileSizeBytesLeft == null)? 0 : tempFileSizeBytesLeft.get();
         builder.setFtgsTempFileSize(savedTempFileSizeValue - tempFileSize);
-        builder.setCpuSlotsExecTimeMs(TimeUnit.NANOSECONDS.toMillis(cpuTimeNs.get()));
-        builder.setCpuSlotsWaitTimeMs(TimeUnit.NANOSECONDS.toMillis(cpuWaitNs.get()));
-        builder.setIoSlotsExecTimeMs(TimeUnit.NANOSECONDS.toMillis(ioTimeNs.get()));
-        builder.setIoSlotsWaitTimeMs(TimeUnit.NANOSECONDS.toMillis(ioWaitNs.get()));
+        slotTiming.writeToPerformanceStats(builder);
         if (reset) {
            savedTempFileSizeValue = tempFileSize;
            savedCPUTime = cpuTotalTime;
-           cpuTimeNs.set(0);
-           cpuWaitNs.set(0);
-           ioTimeNs.set(0);
-           ioWaitNs.set(0);
+           slotTiming.reset();
         }
 
         return builder.build();
@@ -655,25 +646,11 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
     }
 
     public void schedulerExecTimeCallback(SchedulerType schedulerType, long execTime) {
-        switch(schedulerType) {
-            case CPU:
-                cpuTimeNs.addAndGet(execTime);
-                break;
-            case REMOTE_FS_IO:
-                ioTimeNs.addAndGet(execTime);
-                break;
-        }
+        slotTiming.schedulerExecTimeCallback(schedulerType, execTime);
     }
 
     public void schedulerWaitTimeCallback(SchedulerType schedulerType, long waitTime) {
-        switch(schedulerType) {
-            case CPU:
-                cpuWaitNs.addAndGet(waitTime);
-                break;
-            case REMOTE_FS_IO:
-                ioWaitNs.addAndGet(waitTime);
-                break;
-        }
+        slotTiming.schedulerWaitTimeCallback(schedulerType, waitTime);
     }
 
     @Override
@@ -744,10 +721,13 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
                                         final ThrowingFunction<? super E, ? extends T> function)
         throws ExecutionException {
 
+        final RequestContext requestContext = RequestContext.THREAD_REQUEST_CONTEXT.get();
         final List<Future<T>> futures = new ArrayList<>(things.length);
         try {
             for (final E thing : things) {
                 futures.add(es.submit(() -> {
+                    RequestContext.THREAD_REQUEST_CONTEXT.set(requestContext);
+                    // this must happen after setting request context
                     ImhotepTask.setup(AbstractImhotepMultiSession.this);
                     try {
                         if (lockCPU) {
@@ -793,16 +773,23 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
                                        final R[] ret, final boolean lockCPU,
                                        final ThrowingFunction<? super T, ? extends R> function)
         throws ExecutionException {
-        execute(es, ret, sessions, lockCPU, function);
+        execute(es, ret, sessions, lockCPU, registerSessionWrapper(function));
     }
 
     protected <R> void executeSessions(final R[] ret, final boolean lockCPU,
                                        final ThrowingFunction<? super T, ? extends R> function)
         throws ExecutionException {
-        execute(executor, ret, sessions, lockCPU, function);
+        execute(executor, ret, sessions, lockCPU, registerSessionWrapper(function));
     }
 
-    protected static interface ThrowingFunction<K, V> {
+    private <R> ThrowingFunction<? super T, ? extends R> registerSessionWrapper(final ThrowingFunction<? super T, ? extends R> function) {
+        return (T input) -> {
+            ImhotepTask.registerInnerSession(input);
+            return function.apply(input);
+        };
+    }
+
+    protected interface ThrowingFunction<K, V> {
         V apply(K k) throws Exception;
     }
 

@@ -63,6 +63,10 @@ public class Instrumentation {
         public static final String USERNAME            = "username";
         public static final String CLIENT_NAME         = "clientname";
         public static final String REMOTE_IP_ADDRESS   = "raddr";
+        public static final String CPU_SLOTS_WAIT_TIME_MILLIS   = "cpuwaitmillis";
+        public static final String CPU_SLOTS_EXEC_TIME_MILLIS   = "cpuexecmillis";
+        public static final String IO_SLOTS_WAIT_TIME_MILLIS   = "iowaitmillis";
+        public static final String IO_SLOTS_EXEC_TIME_MILLIS   = "ioexecmillis";
     }
 
     public static class Event {

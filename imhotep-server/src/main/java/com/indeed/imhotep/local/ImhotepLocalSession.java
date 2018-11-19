@@ -107,7 +107,9 @@ import it.unimi.dsi.fastutil.objects.ObjectHeapPriorityQueue;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.log4j.Logger;
 
+import javax.annotation.Nullable;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -243,6 +245,31 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
 
     FlamdexReader getReader() {
         return this.flamdexReader;
+    }
+
+    @Nullable
+    @Override
+    public Path getShardPath() {
+        return this.flamdexReader.getDirectory();
+    }
+
+    /**
+     * Read numStats without providing any guarantees about reading
+     * the most up to date value
+     */
+    @Override
+    public int weakGetNumStats() {
+        return this.numStats;
+    }
+
+    /**
+     * Read numGroups without providing any guarantees about reading
+     * the most up to date value
+     */
+    @Override
+    public int weakGetNumGroups() {
+        // Safe because getNumGroups is a final method that reads a constant.
+        return docIdToGroup.getNumGroups();
     }
 
     public Map<String, DynamicMetric> getDynamicMetrics() {

@@ -16,6 +16,8 @@ package com.indeed.imhotep.scheduling;
 
 import com.google.common.primitives.Longs;
 import com.indeed.imhotep.AbstractImhotepMultiSession;
+import com.indeed.imhotep.AbstractImhotepSession;
+import com.indeed.imhotep.RequestContext;
 import org.apache.log4j.Logger;
 
 import javax.annotation.Nonnull;
@@ -36,7 +38,12 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
     private final long taskId;
     final String userName;
     private final String clientName;
+    @Nullable private final RequestContext requestContext;
+    @Nullable private final String dataset;
+    @Nullable private final String shardName;
+    @Nullable private final Integer numDocs;
     @Nullable private final AbstractImhotepMultiSession session;
+    @Nullable private AbstractImhotepSession innerSession;
     private CountDownLatch waitLock = null;
     private long lastExecutionStartTime = 0;
     private long lastWaitStartTime = 0;
@@ -49,9 +56,20 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
         ImhotepTask.THREAD_LOCAL_TASK.set(task);
     }
 
-    public static void setup(String userName, String clientName) {
-        final ImhotepTask task = new ImhotepTask(userName, clientName, null);
+    public static void setup(
+            final String userName,
+            final String clientName,
+            final String dataset,
+            final String shardName,
+            final int numDocs
+    ) {
+        final ImhotepTask task = new ImhotepTask(userName, clientName, null, dataset, shardName, numDocs);
         ImhotepTask.THREAD_LOCAL_TASK.set(task);
+    }
+
+    public static void registerInnerSession(final AbstractImhotepSession innerSession) {
+        final ImhotepTask task = ImhotepTask.THREAD_LOCAL_TASK.get();
+        task.innerSession = innerSession;
     }
 
     public static void clear() {
@@ -63,16 +81,27 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
         ImhotepTask.THREAD_LOCAL_TASK.remove();
     }
 
-    private ImhotepTask(String userName, String clientName, @Nullable AbstractImhotepMultiSession session) {
+    private ImhotepTask(
+            final String userName,
+            final String clientName,
+            @Nullable final AbstractImhotepMultiSession session,
+            @Nullable final String dataset,
+            @Nullable final String shardName,
+            @Nullable final Integer numDocs
+    ) {
         this.userName = userName;
         this.clientName = clientName;
+        this.requestContext = RequestContext.THREAD_REQUEST_CONTEXT.get();
+        this.dataset = dataset;
+        this.shardName = shardName;
+        this.numDocs = numDocs;
         this.taskId = nextTaskId.incrementAndGet();
         creationTimestamp = System.nanoTime();
         this.session = session;
     }
 
     private ImhotepTask(AbstractImhotepMultiSession session) {
-        this(session.getUserName(), session.getClientName(), session);
+        this(session.getUserName(), session.getClientName(), session, null, null, null);
     }
 
     synchronized void preExecInitialize(TaskScheduler newOwnerScheduler) {
@@ -91,6 +120,9 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
         long waitTime = System.nanoTime() - lastWaitStartTime;
         if(session != null) {
             session.schedulerWaitTimeCallback(schedulerType, waitTime);
+        }
+        if (requestContext != null) {
+            requestContext.schedulerWaitTimeCallback(schedulerType, waitTime);
         }
         waitLock.countDown();
         lastExecutionStartTime = System.nanoTime();
@@ -123,6 +155,9 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
         totalExecutionTime += executionTime;
         if(session != null) {
             session.schedulerExecTimeCallback(schedulerType, executionTime);
+        }
+        if (requestContext != null) {
+            requestContext.schedulerExecTimeCallback(schedulerType, executionTime);
         }
         lastExecutionStartTime = 0;
         ownerScheduler = null;
@@ -170,9 +205,14 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
         return new TaskSnapshot(
                 this.taskId,
                 this.session,
+                this.innerSession,
+                this.requestContext,
                 this.creationTimestamp,
                 this.userName,
                 this.clientName,
+                this.dataset,
+                this.shardName,
+                this.numDocs,
                 this.lastExecutionStartTime,
                 this.lastWaitStartTime,
                 this.totalExecutionTime

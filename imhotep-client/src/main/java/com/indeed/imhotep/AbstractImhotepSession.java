@@ -22,7 +22,9 @@ import com.indeed.imhotep.exceptions.ImhotepKnownException;
 import com.indeed.imhotep.exceptions.QueryCancelledException;
 import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
 
+import javax.annotation.Nullable;
 import java.nio.channels.ClosedByInterruptException;
+import java.nio.file.Path;
 import java.util.Iterator;
 
 /**
@@ -42,6 +44,27 @@ public abstract class AbstractImhotepSession implements ImhotepSession {
     @Override
     public final String getSessionId() {
         return sessionId;
+    }
+
+    @Nullable
+    public Path getShardPath() {
+        return null;
+    }
+
+    /**
+     * Read numStats without providing any guarantees about reading
+     * the most up to date value
+     */
+    public int weakGetNumStats() {
+        return -1;
+    }
+
+    /**
+     * Read numGroups without providing any guarantees about reading
+     * the most up to date value
+     */
+    public int weakGetNumGroups() {
+        return -1;
     }
 
     @Override
