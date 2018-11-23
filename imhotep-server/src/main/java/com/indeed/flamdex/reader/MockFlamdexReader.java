@@ -28,6 +28,7 @@ import com.indeed.flamdex.api.StringTermDocIterator;
 import com.indeed.flamdex.api.StringTermIterator;
 import com.indeed.flamdex.api.StringValueLookup;
 import com.indeed.flamdex.api.TermIterator;
+import com.indeed.flamdex.simple.UnsortedStringToIntTermIterator;
 import com.indeed.flamdex.utils.FlamdexUtils;
 
 import java.io.IOException;
@@ -279,6 +280,8 @@ public class MockFlamdexReader implements FlamdexReader {
                 docs = ((MockIntTermIterator)term).docs;
             } else if (term instanceof MockStringTermIterator) {
                 docs = ((MockStringTermIterator)term).docs;
+            } else if (term instanceof UnsortedStringToIntTermIterator) {
+                docs = ((UnsortedStringToIntTermIterator<MockStringTermIterator>) term).getStringTermIterator().docs;
             } else {
                 throw new IllegalArgumentException("invalid term iterator: iterator is of type "+term.getClass().getName());
             }
@@ -410,12 +413,19 @@ public class MockFlamdexReader implements FlamdexReader {
 
     @Override
     public IntTermIterator getIntTermIterator(final String field) {
+        // TODO: support getIntTermIterator(stringField);
         return intTerms.containsKey(field) ? new MockIntTermIterator(field) : new MockEmptyIntTermIterator();
     }
 
     @Override
     public IntTermIterator getUnsortedIntTermIterator(final String field) {
-        return getIntTermIterator(field);
+        if (intTerms.containsKey(field)) {
+            return new MockIntTermIterator(field);
+        } else if (stringTerms.containsKey(field)) {
+            return new UnsortedStringToIntTermIterator(new MockStringTermIterator(field));
+        } else {
+            return new MockEmptyIntTermIterator();
+        }
     }
 
     @Override

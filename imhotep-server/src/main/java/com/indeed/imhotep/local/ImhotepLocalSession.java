@@ -31,6 +31,7 @@ import com.indeed.flamdex.api.IntTermIterator;
 import com.indeed.flamdex.api.IntValueLookup;
 import com.indeed.flamdex.api.StringTermDocIterator;
 import com.indeed.flamdex.api.StringTermIterator;
+import com.indeed.flamdex.api.TermIterator;
 import com.indeed.flamdex.datastruct.FastBitSet;
 import com.indeed.flamdex.datastruct.FastBitSetPooler;
 import com.indeed.flamdex.fieldcache.ByteArrayIntValueLookup;
@@ -1685,10 +1686,10 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             statLookup.set(numStats, statName, matchByRegex(fieldName, regexp, matchIndex));
         } else if (statName.startsWith("inttermcount ")) {
             final String field = statName.substring("inttermcount ".length()).trim();
-            statLookup.set(numStats, statName, intTermCountLookup(field));
+            statLookup.set(numStats, statName, termCountLookup(field, true));
         } else if (statName.startsWith("strtermcount ")) {
             final String field = statName.substring("strtermcount ".length()).trim();
-            statLookup.set(numStats, statName, stringTermCountLookup(field));
+            statLookup.set(numStats, statName, termCountLookup(field, false));
         } else if (statName.startsWith("floatscale ")) {
             final Matcher matcher = floatScalePattern.matcher(statName);
             // accepted format is 'floatscale field*scale+offset' (or just look
@@ -2918,18 +2919,29 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         return new MemoryReservingIntValueLookupWrapper(FlamdexUtils.cacheRegExpCapturedLong(field, flamdexReader, Pattern.compile(regex), matchIndex));
     }
 
-    private IntValueLookup intTermCountLookup(final String field)
-        throws ImhotepOutOfMemoryException {
+    private IntValueLookup termCountLookup(
+            final String field,
+            final boolean isIntOperator)
+            throws ImhotepOutOfMemoryException {
         final long memoryUsage = flamdexReader.getNumDocs();
 
         if (!memory.claimMemory(memoryUsage)) {
             throw newImhotepOutOfMemoryException();
         }
 
+        // operation(fieldType) -> requested iterator type
+        // -----------------------------------------------
+        // intTermCount(intField) -> intIterator
+        // intTermCount(strField) -> intIterator (will be converted to int into flamdex and will return only valid int terms)
+        // strTermCount(strField) -> strIterator
+        // strTermCount(intField) -> intIterator (since every int is convertible to string without error)
+        final boolean requestIntField = isIntOperator || flamdexReader.getIntFields().contains(field);
+
         final byte[] array = new byte[flamdexReader.getNumDocs()];
 
-        try (IntTermIterator iterator = flamdexReader.getUnsortedIntTermIterator(field)) {
-            try (DocIdStream docIdStream = flamdexReader.getDocIdStream()) {
+        try (final TermIterator iterator = requestIntField ?
+                flamdexReader.getUnsortedIntTermIterator(field) : flamdexReader.getStringTermIterator(field)) {
+            try (final DocIdStream docIdStream = flamdexReader.getDocIdStream()) {
                 final int[] docIdBuf = memoryPool.getIntBuffer(BUFFER_SIZE, true);
                 while (iterator.next()) {
                     docIdStream.reset(iterator);
@@ -2991,41 +3003,6 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         }
 
         return new MemoryReservingIntValueLookupWrapper(new CharArrayIntValueLookup(result, min, max));
-    }
-
-    private IntValueLookup stringTermCountLookup(final String field)
-        throws ImhotepOutOfMemoryException {
-        final long memoryUsage = flamdexReader.getNumDocs();
-
-        if (!memory.claimMemory(memoryUsage)) {
-            throw newImhotepOutOfMemoryException();
-        }
-
-        final byte[] array = new byte[flamdexReader.getNumDocs()];
-
-        final StringTermDocIterator iterator = flamdexReader.getStringTermDocIterator(field);
-        try {
-            final int[] docIdBuf = memoryPool.getIntBuffer(BUFFER_SIZE, true);
-            while (iterator.nextTerm()) {
-                while (true) {
-                    final int n = iterator.fillDocIdBuffer(docIdBuf);
-                    for (int i = 0; i < n; ++i) {
-                        final int doc = docIdBuf[i];
-                        if (array[doc] != (byte) 255) {
-                            ++array[doc];
-                        }
-                    }
-                    if (n < BUFFER_SIZE) {
-                        break;
-                    }
-                }
-            }
-            memoryPool.returnIntBuffer(docIdBuf);
-        } finally {
-            Closeables2.closeQuietly(iterator, log);
-        }
-
-        return new MemoryReservingIntValueLookupWrapper(new ByteArrayIntValueLookup(array, 0, 255));
     }
 
     private static int parseAndRound(final String term, final double scale, final double offset) {
