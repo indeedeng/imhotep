@@ -32,6 +32,10 @@ import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.exceptions.ImhotepKnownException;
 import com.indeed.imhotep.shardmasterrpc.RequestResponseClient;
 import com.indeed.imhotep.shardmasterrpc.ShardMaster;
+import io.opentracing.ActiveSpan;
+import io.opentracing.NoopActiveSpanSource;
+import io.opentracing.Tracer;
+import io.opentracing.util.GlobalTracer;
 import org.apache.log4j.Logger;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
@@ -492,29 +496,39 @@ public class ImhotepClient
 
         final ExecutorService executor = Executors.newCachedThreadPool();
         final List<Future<ImhotepRemoteSession>> futures = new ArrayList<>(shardRequestMap.size());
+        final Tracer tracer = GlobalTracer.get();
         try {
             for (final Map.Entry<Host, List<Shard>> entry : shardRequestMap.entrySet()) {
                 final Host host = entry.getKey();
                 final List<Shard> shardList = entry.getValue();
 
                 final long numDocs = shardRequestMap.get(host).stream().mapToInt(Shard::getNumDocs).asLongStream().sum();
+                final ActiveSpan activeSpan = tracer.activeSpan();
+                final ActiveSpan.Continuation continuation;
+                if (activeSpan != null) {
+                    continuation = activeSpan.capture();
+                } else {
+                    continuation = NoopActiveSpanSource.NoopContinuation.INSTANCE;
+                }
 
                 futures.add(executor.submit(new Callable<ImhotepRemoteSession>() {
                     @Override
                     public ImhotepRemoteSession call() throws IOException, ImhotepOutOfMemoryException {
-                        return ImhotepRemoteSession.openSession(host.hostname, host.port,
-                                                                dataset, shardList,
-                                                                mergeThreadLimit,
-                                                                username,
-                                                                clientName,
-                                                                optimizeGroupZeroLookups,
-                                                                socketTimeout,
-                                                                sessionId,
-                                                                tempFileSizeLimit,
-                                                                tempFileSizeBytesLeft,
-                                                                sessionTimeout,
-                                                                allowSessionForwarding,
-                                                                numDocs);
+                        try (final ActiveSpan parentSpan = continuation.activate()) {
+                            return ImhotepRemoteSession.openSession(host.hostname, host.port,
+                                    dataset, shardList,
+                                    mergeThreadLimit,
+                                    username,
+                                    clientName,
+                                    optimizeGroupZeroLookups,
+                                    socketTimeout,
+                                    sessionId,
+                                    tempFileSizeLimit,
+                                    tempFileSizeBytesLeft,
+                                    sessionTimeout,
+                                    allowSessionForwarding,
+                                    numDocs);
+                        }
                     }
                 }));
             }

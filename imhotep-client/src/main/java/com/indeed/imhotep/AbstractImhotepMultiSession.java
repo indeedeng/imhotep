@@ -11,7 +11,7 @@
  * express or implied. See the License for the specific language governing permissions and
  * limitations under the License.
  */
- package com.indeed.imhotep;
+package com.indeed.imhotep;
 
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
@@ -26,6 +26,9 @@ import com.indeed.imhotep.scheduling.SchedulerType;
 import com.indeed.imhotep.scheduling.TaskScheduler;
 import com.indeed.util.core.Throwables2;
 import com.indeed.util.core.threads.LogOnUncaughtExceptionHandler;
+import io.opentracing.ActiveSpan;
+import io.opentracing.Tracer;
+import io.opentracing.util.GlobalTracer;
 import it.unimi.dsi.fastutil.longs.Long2LongMap;
 import it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongIterator;
@@ -719,47 +722,49 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
     protected final <E, T> void execute(final ExecutorService es,
                                         final T[] ret, final E[] things, final boolean lockCPU,
                                         final ThrowingFunction<? super E, ? extends T> function)
-        throws ExecutionException {
-
+            throws ExecutionException {
+        final Tracer tracer = GlobalTracer.get();
         final RequestContext requestContext = RequestContext.THREAD_REQUEST_CONTEXT.get();
         final List<Future<T>> futures = new ArrayList<>(things.length);
-        try {
-            for (final E thing : things) {
-                futures.add(es.submit(() -> {
-                    RequestContext.THREAD_REQUEST_CONTEXT.set(requestContext);
-                    // this must happen after setting request context
-                    ImhotepTask.setup(AbstractImhotepMultiSession.this);
-                    try {
-                        if (lockCPU) {
-                            try (final Closeable ignored = TaskScheduler.CPUScheduler.lockSlot()) {
+        try (final ActiveSpan activeSpan = tracer.buildSpan("execute").withTag("sessionid", getSessionId()).startActive()) {
+            try {
+                for (final E thing : things) {
+                    final ActiveSpan.Continuation continuation = activeSpan.capture();
+                    futures.add(es.submit(() -> {
+                        RequestContext.THREAD_REQUEST_CONTEXT.set(requestContext);
+                        // this must happen after setting request context
+                        ImhotepTask.setup(AbstractImhotepMultiSession.this);
+                        try (final ActiveSpan parentSpan = continuation.activate()) {
+                            if (lockCPU) {
+                                try (final Closeable ignored = TaskScheduler.CPUScheduler.lockSlot()) {
+                                    return function.apply(thing);
+                                }
+                            } else {
                                 return function.apply(thing);
                             }
-                        } else {
-                            return function.apply(thing);
+                        } finally {
+                            ImhotepTask.clear();
                         }
-                    } finally {
-                        ImhotepTask.clear();
-                    }
-
-                }));
+                    }));
+                }
+            } catch (final RejectedExecutionException e) {
+                safeClose();
+                throw new QueryCancelledException("The query was cancelled during execution", e);
             }
-        } catch (final RejectedExecutionException e) {
-            safeClose();
-            throw new QueryCancelledException("The query was cancelled during execution", e);
-        }
 
-        Throwable t = null;
-        for (int i = 0; i < futures.size(); ++i) {
-            try {
-                final Future<T> future = futures.get(i);
-                ret[i] = future.get();
-            } catch (final Throwable t2) {
-                t = t2;
+            Throwable t = null;
+            for (int i = 0; i < futures.size(); ++i) {
+                try {
+                    final Future<T> future = futures.get(i);
+                    ret[i] = future.get();
+                } catch (final Throwable t2) {
+                    t = t2;
+                }
             }
-        }
-        if (t != null) {
-            safeClose();
-            throw Throwables2.propagate(t, ExecutionException.class);
+            if (t != null) {
+                safeClose();
+                throw Throwables2.propagate(t, ExecutionException.class);
+            }
         }
     }
 

@@ -57,6 +57,11 @@
 
 	<dependencies>
 		<dependency>
+			<groupId>io.opentracing</groupId>
+			<artifactId>opentracing-util</artifactId>
+			<version>0.30.0</version>
+		</dependency>
+		<dependency>
 			<groupId>com.indeed</groupId>
 			<artifactId>util-core</artifactId>
 			<version>${indeed-util.version}</version>
