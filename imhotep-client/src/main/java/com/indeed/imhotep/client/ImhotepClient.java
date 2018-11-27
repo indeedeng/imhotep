@@ -503,13 +503,7 @@ public class ImhotepClient
                 final List<Shard> shardList = entry.getValue();
 
                 final long numDocs = shardRequestMap.get(host).stream().mapToInt(Shard::getNumDocs).asLongStream().sum();
-                final ActiveSpan activeSpan = tracer.activeSpan();
-                final ActiveSpan.Continuation continuation;
-                if (activeSpan != null) {
-                    continuation = activeSpan.capture();
-                } else {
-                    continuation = NoopActiveSpanSource.NoopContinuation.INSTANCE;
-                }
+                final ActiveSpan.Continuation continuation = getContinuation(tracer);
 
                 futures.add(executor.submit(new Callable<ImhotepRemoteSession>() {
                     @Override
@@ -572,6 +566,15 @@ public class ImhotepClient
             throw Throwables.propagate(error);
         }
         return remoteSessions;
+    }
+
+    private ActiveSpan.Continuation getContinuation(final Tracer tracer) {
+        final ActiveSpan activeSpan = tracer.activeSpan();
+        if (activeSpan != null) {
+            return activeSpan.capture();
+        } else {
+            return NoopActiveSpanSource.NoopContinuation.INSTANCE;
+        }
     }
 
     private Map<Host, List<Shard>> orderShardsByHost(final Collection<Shard> requestedShards) {
