@@ -54,6 +54,9 @@ import com.indeed.imhotep.protobuf.ShardNameNumDocsPair;
 import com.indeed.imhotep.protobuf.StringFieldAndTerms;
 import com.indeed.util.core.Pair;
 import com.indeed.util.core.io.Closeables2;
+import io.opentracing.ActiveSpan;
+import io.opentracing.Tracer;
+import io.opentracing.util.GlobalTracer;
 import it.unimi.dsi.fastutil.longs.LongIterators;
 import org.apache.log4j.Logger;
 
@@ -70,6 +73,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -218,8 +222,8 @@ public class ImhotepRemoteSession
         final Socket socket = newSocket(host, port, socketTimeout);
         final OutputStream os = Streams.newBufferedOutputStream(socket.getOutputStream());
         final InputStream is = Streams.newBufferedInputStream(socket.getInputStream());
-
-        try {
+        final Tracer tracer = GlobalTracer.get();
+        try (final ActiveSpan activeSpan = tracer.buildSpan("OPEN_SESSION").withTag("sessionid", sessionId).withTag("dataset", dataset).withTag("host", host + ":" + port).startActive()) {
             log.trace("sending open request to "+host+":"+port+" for shards "+shards);
             final ImhotepRequest openSessionRequest = getBuilderForType(ImhotepRequest.RequestType.OPEN_SESSION)
                     .setUsername(username)
@@ -1276,7 +1280,9 @@ public class ImhotepRemoteSession
         final Socket socket = newSocket(host, port, socketTimeout);
         final InputStream is = Streams.newBufferedInputStream(socket.getInputStream());
         final OutputStream os = Streams.newBufferedOutputStream(socket.getOutputStream());
-        try {
+        final Tracer tracer = GlobalTracer.get();
+        final String sessionId = initialRequest.getSessionId();
+        try (final ActiveSpan activeSpan = tracer.buildSpan(initialRequest.getRequestType().name()).withTag("sessionid", sessionId).withTag("host", host + ":" + port).startActive()) {
             ImhotepProtobufShipping.sendProtobufNoFlush(initialRequest, os);
             rulesSender.writeToStreamNoFlush(os);
             os.flush();
@@ -1323,8 +1329,9 @@ public class ImhotepRemoteSession
             final OutputStream os,
             final String host,
             final int port) throws IOException {
+        final Tracer tracer = GlobalTracer.get();
         final String sessionId = request.getSessionId();
-        try {
+        try (final ActiveSpan activeSpan = tracer.buildSpan(request.getRequestType().name()).withTag("sessionid", sessionId).withTag("host", host + ":" + port).startActive()) {
             request.writeToStreamNoFlush(os);
             os.flush();
             final ImhotepResponse response = ImhotepProtobufShipping.readResponse(is);
