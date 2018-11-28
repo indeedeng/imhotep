@@ -2923,23 +2923,31 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             final String field,
             final boolean isIntOperator)
             throws ImhotepOutOfMemoryException {
+        // operation(fieldType) -> requested iterator type
+        // -----------------------------------------------
+        // intTermCount(intField) -> intIterator
+        // intTermCount(strField) -> intIterator (will be converted to int into flamdex and will return only valid int terms)
+        // strTermCount(strField) -> strIterator
+        // strTermCount(intField) -> 0 for some reason (see IMTEPD-455 for details)
+
+        final boolean isIntField = flamdexReader.getIntFields().contains(field);
+        final boolean isStringField = flamdexReader.getStringFields().contains(field);
+
+        if ((!isIntField && !isStringField) ||
+                (!isIntOperator && isIntField && !isStringField)) {
+            // no such field or strTermCount(intField), result is 0 in both cases.
+            return new Constant(0);
+        }
+
         final long memoryUsage = flamdexReader.getNumDocs();
 
         if (!memory.claimMemory(memoryUsage)) {
             throw newImhotepOutOfMemoryException();
         }
 
-        // operation(fieldType) -> requested iterator type
-        // -----------------------------------------------
-        // intTermCount(intField) -> intIterator
-        // intTermCount(strField) -> intIterator (will be converted to int into flamdex and will return only valid int terms)
-        // strTermCount(strField) -> strIterator
-        // strTermCount(intField) -> intIterator (since every int is convertible to string without error)
-        final boolean requestIntField = isIntOperator || flamdexReader.getIntFields().contains(field);
-
         final byte[] array = new byte[flamdexReader.getNumDocs()];
 
-        try (final TermIterator iterator = requestIntField ?
+        try (final TermIterator iterator = isIntOperator ?
                 flamdexReader.getUnsortedIntTermIterator(field) : flamdexReader.getStringTermIterator(field)) {
             try (final DocIdStream docIdStream = flamdexReader.getDocIdStream()) {
                 final int[] docIdBuf = memoryPool.getIntBuffer(BUFFER_SIZE, true);

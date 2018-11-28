@@ -1801,8 +1801,8 @@ public class TestImhotepLocalSession {
             session.pushStat("inttermcount if2");
             // strtermcount strfield
             session.pushStat("strtermcount sf4");
-            // check that inttermcount intfield == strtermcount intfield by calculating abs(int... - str...);
-            session.pushStats(Lists.newArrayList("inttermcount if2", "strtermcount if2", "-", "abs()"));
+            // check that strtermcount intfield is zero
+            session.pushStat("strtermcount if2");
             // check only convertible strings are counted
             session.pushStat("inttermcount floatfield");
 
