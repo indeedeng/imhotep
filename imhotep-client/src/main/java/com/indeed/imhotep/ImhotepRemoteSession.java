@@ -1280,7 +1280,9 @@ public class ImhotepRemoteSession
         final Socket socket = newSocket(host, port, socketTimeout);
         final InputStream is = Streams.newBufferedInputStream(socket.getInputStream());
         final OutputStream os = Streams.newBufferedOutputStream(socket.getOutputStream());
-        try {
+        final Tracer tracer = GlobalTracer.get();
+        final String sessionId = initialRequest.getSessionId();
+        try (final ActiveSpan activeSpan = tracer.buildSpan(initialRequest.getRequestType().name()).withTag("sessionid", sessionId).withTag("host", host + ":" + port).startActive()) {
             ImhotepProtobufShipping.sendProtobufNoFlush(initialRequest, os);
             rulesSender.writeToStreamNoFlush(os);
             os.flush();
