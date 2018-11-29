@@ -4,7 +4,7 @@
     <parent>
         <groupId>com.indeed</groupId>
         <artifactId>imhotep</artifactId>
-        <version>3.1.144</version>
+        <version>3.1.145-experimental-0</version>
     </parent>
 
 	<artifactId>imhotep-client</artifactId>
