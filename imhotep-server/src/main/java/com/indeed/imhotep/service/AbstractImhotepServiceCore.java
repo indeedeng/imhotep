@@ -307,7 +307,8 @@ public abstract class AbstractImhotepServiceCore
             final HostAndPort[] nodes,
             final List<MultiFTGSRequest.MultiFTGSSession> sessionInfoList,
             final boolean isIntField,
-            final int splitIndex
+            final int splitIndex,
+            final long termLimit
     ) {
         final int numLocalSplits = Math.max(1, Runtime.getRuntime().availableProcessors()/2);
         final List<FTGSIterator[]> sessionSplitIterators = new ArrayList<>();
@@ -324,7 +325,7 @@ public abstract class AbstractImhotepServiceCore
                     final FTGSIterator[] sessionIterators = doWithSession(localSessionChoice, (ThrowingFunction<MTImhotepLocalMultiSession, FTGSIterator[], IOException>) session -> {
                         final String[] intFields = isIntField ? new String[]{sessionInfo.getField()} : new String[0];
                         final String[] stringFields = isIntField ? new String[0] : new String[]{sessionInfo.getField()};
-                        final FTGSParams ftgsParams = new FTGSParams(intFields, stringFields, 0, -1, true);
+                        final FTGSParams ftgsParams = new FTGSParams(intFields, stringFields, termLimit, -1, true);
                         return session.partialMergeFTGSSplit(sessionInfo.getSessionId(), ftgsParams, sessionNodes, splitIndex, nodes.length, numLocalSplits);
                     });
                     synchronized (closer) {
@@ -383,14 +384,17 @@ public abstract class AbstractImhotepServiceCore
 
         final Closer closer = Closer.create();
         try {
-            final List<FTGSIterator[]> sessionSplitIterators = getMultiSessionSplitIterators(closer, validLocalSessionId, nodes, sessionInfoList, isIntField, splitIndex);
-
+            final boolean useUpstreamTermLimit = (filters.size() == 0) && (request.getSortStat() == -1);
+            final long upstreamTermLimit = useUpstreamTermLimit ? request.getTermLimit() : 0L;
+            final List<FTGSIterator[]> sessionSplitIterators = getMultiSessionSplitIterators(closer, validLocalSessionId, nodes, sessionInfoList, isIntField, splitIndex, upstreamTermLimit);
             final FTGAIterator[] streams = doWithSession(validLocalSessionId, (Function<MTImhotepLocalMultiSession, FTGAIterator[]>) session -> {
                 return session.zipElementWise(modifiers, sessionSplitIterators, x -> new MultiSessionWrapper(x, filters.toList(), selects.toList()));
             });
             closer.register(Closeables2.forArray(log, streams));
 
-            final FTGAIterator interleaver = closer.register(sorted ? new SortedFTGAInterleaver(streams) : new UnsortedFTGAIterator(streams));
+            // If using term limits, then picking the lowest terms from amongst all inputs is required for ensuring that
+            // we have the full data for the terms that are chosen.
+            final FTGAIterator interleaver = closer.register((sorted || useUpstreamTermLimit) ? new SortedFTGAInterleaver(streams) : new UnsortedFTGAIterator(streams));
 
             sendFTGAIterator(closer.register(modifiers.wrap(interleaver)), os);
         } catch (Throwable t) {
@@ -419,7 +423,7 @@ public abstract class AbstractImhotepServiceCore
 
         final Closer closeOnFailCloser = Closer.create();
         try {
-            final List<FTGSIterator[]> sessionSplitIterators = getMultiSessionSplitIterators(closeOnFailCloser, validLocalSessionId, nodes, sessionInfoList, isIntField, splitIndex);
+            final List<FTGSIterator[]> sessionSplitIterators = getMultiSessionSplitIterators(closeOnFailCloser, validLocalSessionId, nodes, sessionInfoList, isIntField, splitIndex, 0);
             for (final FTGSIterator[] sessionSplitIterator : sessionSplitIterators) {
                 closeOnFailCloser.register(Closeables2.forArray(log, sessionSplitIterator));
             }
