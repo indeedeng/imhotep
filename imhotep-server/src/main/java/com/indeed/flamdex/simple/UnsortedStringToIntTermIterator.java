@@ -32,6 +32,10 @@ public class UnsortedStringToIntTermIterator<T extends StringTermIterator> imple
         this.stringTermIterator = stringTermIterator;
     }
 
+    public T getStringTermIterator() {
+        return stringTermIterator;
+    }
+
     @Override
     public void reset(final long term) {
         stringTermIterator.reset(String.valueOf(term));

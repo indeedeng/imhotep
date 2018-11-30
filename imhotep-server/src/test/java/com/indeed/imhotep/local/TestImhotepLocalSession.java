@@ -1789,6 +1789,36 @@ public class TestImhotepLocalSession {
     }
 
     @Test
+    public void testPushStatTermCount() throws ImhotepOutOfMemoryException {
+        final FlamdexReader r = MakeAFlamdex.make();
+        try (ImhotepLocalSession session = new ImhotepJavaLocalSession("testLocalSession", r)) {
+
+            session.pushStat("docId()");
+            session.metricRegroup(0, 0, session.numDocs, 1, true);
+            session.popStat();
+
+            // inttermcount intfield
+            session.pushStat("inttermcount if2");
+            // strtermcount strfield
+            session.pushStat("strtermcount sf4");
+            // check that strtermcount intfield is zero
+            session.pushStat("strtermcount if2");
+            // check only convertible strings are counted
+            session.pushStat("inttermcount floatfield");
+
+            final long[] stats0 = session.getGroupStats(0);
+            final long[] stats1 = session.getGroupStats(1);
+            final long[] stats2 = session.getGroupStats(2);
+            final long[] stats3 = session.getGroupStats(3);
+
+            assertArrayEquals(new long[] {0, 1, 2, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 0, 2, 0, 1, 1, 1, 1, 1}, stats0);
+            assertArrayEquals(new long[] {0, 0, 0, 1, 1, 1, 1, 2, 2, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1}, stats1);
+            assertArrayEquals(new long[] {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, stats2);
+            assertArrayEquals(new long[] {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}, stats3);
+        }
+    }
+
+    @Test
     public void testGroup0Filtering() throws ImhotepOutOfMemoryException, IOException {
         /* make session 1 */
         final FlamdexReader r1 = MakeAFlamdex.make();
