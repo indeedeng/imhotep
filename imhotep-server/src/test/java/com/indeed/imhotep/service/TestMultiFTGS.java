@@ -24,8 +24,10 @@ import com.indeed.imhotep.RemoteImhotepMultiSession.SessionField;
 import com.indeed.imhotep.api.FTGAIterator;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
+import com.indeed.imhotep.api.PerformanceStats;
 import com.indeed.imhotep.client.ImhotepClient;
 import com.indeed.imhotep.metrics.aggregate.AggregateStatTree;
+import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import org.joda.time.DateTime;
 import org.junit.After;
 import org.junit.Before;
@@ -42,8 +44,10 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.concurrent.TimeoutException;
 import java.util.function.BiFunction;
+import java.util.stream.Collectors;
 
 import static com.indeed.imhotep.FTGSIteratorTestUtils.expectEnd;
 import static com.indeed.imhotep.FTGSIteratorTestUtils.expectGroup;
@@ -835,5 +839,104 @@ public class TestMultiFTGS {
         }
 
         return iterator;
+    }
+
+    private static String randomString(final Random rng, final StringBuilder sb, final int length) {
+        sb.setLength(0);
+        for (int i = 0; i < length; i++) {
+            sb.append('a' + rng.nextInt(26));
+        }
+        return sb.toString();
+    }
+
+    @Test
+    public void testUpstreamLimit() throws IOException, TimeoutException, InterruptedException, ImhotepOutOfMemoryException {
+        final String limitDataset = "limit";
+        final MemoryFlamdex memoryFlamdex = new MemoryFlamdex();
+
+        final Random rng = new Random(123L);
+        final StringBuilder sb = new StringBuilder();
+        final Object2IntOpenHashMap<String> termCounts = new Object2IntOpenHashMap<>();
+        for (int i = 0; i < 1_000_000; i++) {
+            // with 1M documents and a length of 4, the expected number of collisions for any given string is 2.2
+            final String term = randomString(rng, sb, 4);
+            termCounts.add(term, 1);
+            memoryFlamdex.addDocument(new FlamdexDocument.Builder()
+                    .addStringTerm("field", term)
+                    .build()
+            );
+        }
+
+        final List<String> minimumTerms = termCounts.keySet().stream().sorted().limit(10).collect(Collectors.toList());
+
+        clusterRunner.createDailyShard(limitDataset, TODAY.minusDays(1), memoryFlamdex);
+
+        for (int i = 0; i < numServers; i++) {
+            clusterRunner.startDaemon();
+        }
+
+        final ImhotepClient client = clusterRunner.createClient();
+
+        final ImhotepClient.SessionBuilder sessionBuilder = client
+                .sessionBuilder(limitDataset, TODAY.minusDays(1), TODAY)
+                // 100 MB
+                .daemonTempFileSizeLimit(100_000_000);
+
+        try (final ImhotepSession session = sessionBuilder.build()) {
+            // Try without limit to ensure that our ftgsMB is > 0
+            try (FTGAIterator it = makeLimitIterator(session, 0)) {
+            }
+
+            final PerformanceStats performanceStats = session.closeAndGetPerformanceStats();
+            // > 1 MB
+            assertTrue(performanceStats.ftgsTempFileSize > 1_000_000);
+        }
+
+        try (final ImhotepSession session = sessionBuilder.build()) {
+            try (final FTGAIterator ftga = makeLimitIterator(session, 10)) {
+                final double[] statsBuf = new double[1];
+                assertTrue(ftga.nextField());
+                if (sortedFTGS) {
+                    for (int i = 0; i < 10; i++) {
+                        assertTrue(ftga.nextTerm());
+                        final String term = ftga.termStringVal();
+                        assertEquals(minimumTerms.get(i), term);
+                        assertTrue(ftga.nextGroup());
+                        ftga.groupStats(statsBuf);
+                        assertEquals(termCounts.getInt(term), (int) statsBuf[0]);
+                        assertFalse(ftga.nextGroup());
+                    }
+                } else {
+                    for (int i = 0; i < 10; i++) {
+                        assertTrue(ftga.nextTerm());
+                        final String term = ftga.termStringVal();
+                        assertTrue(termCounts.containsKey(term));
+                        assertTrue(ftga.nextGroup());
+                        ftga.groupStats(statsBuf);
+                        assertEquals(termCounts.getInt(term), (int) statsBuf[0]);
+                        assertFalse(ftga.nextGroup());
+                    }
+                }
+                assertFalse(ftga.nextTerm());
+                assertFalse(ftga.nextField());
+            }
+
+            final PerformanceStats performanceStats = session.closeAndGetPerformanceStats();
+            // < 1KB
+            assertTrue(performanceStats.ftgsTempFileSize < 1_000);
+        }
+    }
+
+    private FTGAIterator makeLimitIterator(final ImhotepSession session, final int termLimit) throws ImhotepOutOfMemoryException {
+        final AggregateStatTree count = AggregateStatTree.stat(session, session.pushStat("count()") - 1);
+        return RemoteImhotepMultiSession.multiFtgs(
+                ImmutableList.of(new SessionField(session, "field")),
+                ImmutableList.of(count),
+                ImmutableList.of(),
+                false,
+                termLimit,
+                -1,
+                sortedFTGS
+        );
     }
 }
