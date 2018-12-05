@@ -22,6 +22,7 @@ import org.apache.log4j.Logger;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
@@ -172,6 +173,21 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
                 ", clientName='" + clientName + '\'';
         if (session != null) {
             taskStringVal += ", sessionID='" + session.getSessionId() + '\'';
+        }
+
+        // innerSession access is dangerous
+        // It must be ensured that any methods that are called from here are
+        // non-synchronized methods
+        final String shardPath = Optional.ofNullable(innerSession)
+                .map(AbstractImhotepSession::getShardPath)
+                .map(Object::toString)
+                .orElse(null);
+        if (shardPath != null) {
+            taskStringVal += ", shardPath='" + shardPath + '\'';
+        }
+
+        if (requestContext != null) {
+            taskStringVal += ", requestType=" + requestContext.getRequestType();
         }
         taskStringVal += '}';
 
