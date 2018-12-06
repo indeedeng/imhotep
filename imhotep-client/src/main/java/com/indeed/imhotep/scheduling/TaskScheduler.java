@@ -209,9 +209,11 @@ public class TaskScheduler {
         }
     }
 
-    public List<TaskSnapshot> getRunningTasksSnapshot() {
+    public List<TaskSnapshot> getRunningTasksSnapshot(final boolean takeStackTrace) {
         synchronized (this) {
-            return runningTasks.stream().map(ImhotepTask::getSnapshot).collect(Collectors.toList());
+            return runningTasks.stream()
+                    .map(task -> task.getSnapshot(takeStackTrace))
+                    .collect(Collectors.toList());
         }
     }
 

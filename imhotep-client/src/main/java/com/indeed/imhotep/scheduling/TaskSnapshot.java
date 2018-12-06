@@ -3,12 +3,10 @@ package com.indeed.imhotep.scheduling;
 import com.indeed.imhotep.AbstractImhotepMultiSession;
 import com.indeed.imhotep.AbstractImhotepSession;
 import com.indeed.imhotep.RequestContext;
-import com.indeed.imhotep.api.ImhotepSession;
 
 import javax.annotation.Nullable;
 import java.time.Duration;
 import java.util.Optional;
-import java.util.OptionalInt;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -32,6 +30,8 @@ public class TaskSnapshot {
     public final Duration timeSinceLastExecutionStart;
     public final Duration timeSinceLastWaitStart;
     public final long totalExecutionTimeMillis;
+    @Nullable
+    public final StackTraceElement[] stackTrace;
 
     public TaskSnapshot(
             final long taskID,
@@ -46,7 +46,8 @@ public class TaskSnapshot {
             @Nullable final Integer numDocs,
             final long lastExecutionStartTime,
             final long lastWaitStartTime,
-            final long totalExecutionTime
+            final long totalExecutionTime,
+            @Nullable final StackTraceElement[] stackTrace
     ) {
         this.taskID = taskID;
         this.sessionID = (session == null) ? "null" : session.getSessionId();
@@ -59,6 +60,7 @@ public class TaskSnapshot {
         this.timeSinceLastExecutionStart = Duration.ZERO.plusNanos(System.nanoTime() - lastExecutionStartTime);
         this.timeSinceLastWaitStart = Duration.ZERO.plusNanos(System.nanoTime() - lastWaitStartTime);
         this.totalExecutionTimeMillis = TimeUnit.MILLISECONDS.convert((totalExecutionTime + System.nanoTime() - lastExecutionStartTime), TimeUnit.NANOSECONDS);
+        this.stackTrace = stackTrace;
 
         // innerSession access is dangerous
         // It must be ensured that any methods that are called from here are
@@ -83,5 +85,23 @@ public class TaskSnapshot {
 
     public String getTimeSinceLastWaitStart() {
         return this.timeSinceLastWaitStart.toString();
+    }
+
+    @Nullable
+    public String getStackTrace() {
+        if (stackTrace == null) {
+            return null;
+        }
+        final StringBuilder builder = new StringBuilder();
+        boolean isFirstElement = true;
+        for (final StackTraceElement traceElement : stackTrace) {
+            if (isFirstElement) {
+                isFirstElement = false;
+            } else {
+                builder.append("  at  ");
+            }
+            builder.append(traceElement);
+        }
+        return builder.toString();
     }
 }
