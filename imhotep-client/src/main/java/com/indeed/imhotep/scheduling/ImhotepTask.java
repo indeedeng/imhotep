@@ -31,6 +31,8 @@ import java.util.concurrent.atomic.AtomicLong;
  * Represents a piece of work that will happen in a single thread
  */
 public class ImhotepTask implements Comparable<ImhotepTask> {
+    private static final Logger LOGGER = Logger.getLogger(ImhotepTask.class);
+
     final static ThreadLocal<ImhotepTask> THREAD_LOCAL_TASK = new ThreadLocal<>();
 
     private static final AtomicLong nextTaskId = new AtomicLong(0);
@@ -39,6 +41,7 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
     private final long taskId;
     final String userName;
     private final String clientName;
+    private final Thread taskThread;
     @Nullable private final RequestContext requestContext;
     @Nullable private final String dataset;
     @Nullable private final String shardName;
@@ -92,6 +95,7 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
     ) {
         this.userName = userName;
         this.clientName = clientName;
+        this.taskThread = Thread.currentThread();
         this.requestContext = RequestContext.THREAD_REQUEST_CONTEXT.get();
         this.dataset = dataset;
         this.shardName = shardName;
@@ -217,7 +221,15 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
         return totalExecutionTime;
     }
 
-    public TaskSnapshot getSnapshot() {
+    public TaskSnapshot getSnapshot(final boolean takeStackTrace) {
+        @Nullable StackTraceElement[] stackTrace = null;
+        if (takeStackTrace) {
+            try {
+                stackTrace = taskThread.getStackTrace();
+            } catch (final Exception e) {
+                LOGGER.warn("Failed to take stack trace", e);
+            }
+        }
         return new TaskSnapshot(
                 this.taskId,
                 this.session,
@@ -231,7 +243,8 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
                 this.numDocs,
                 this.lastExecutionStartTime,
                 this.lastWaitStartTime,
-                this.totalExecutionTime
+                this.totalExecutionTime,
+                stackTrace
         );
     }
 
