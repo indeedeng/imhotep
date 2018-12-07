@@ -6,8 +6,11 @@ import com.indeed.imhotep.RequestContext;
 
 import javax.annotation.Nullable;
 import java.time.Duration;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 /**
  * Class to hold all the fields of ImhotepTask to be reported in the Task Servlet
@@ -88,20 +91,13 @@ public class TaskSnapshot {
     }
 
     @Nullable
-    public String getStackTrace() {
+    public List<String> getStackTrace() {
         if (stackTrace == null) {
-            return null;
+            return  null;
         }
-        final StringBuilder builder = new StringBuilder();
-        boolean isFirstElement = true;
-        for (final StackTraceElement traceElement : stackTrace) {
-            if (isFirstElement) {
-                isFirstElement = false;
-            } else {
-                builder.append("  at  ");
-            }
-            builder.append(traceElement);
-        }
-        return builder.toString();
+        return Arrays.stream(stackTrace)
+                        .map(StackTraceElement::toString)
+                        .collect(Collectors.toList());
     }
+
 }
