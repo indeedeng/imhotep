@@ -764,11 +764,9 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
             }
             if (t != null) {
                 safeClose();
-                final Throwable cause = t.getCause();
-                if (t instanceof ExecutionException && cause instanceof ImhotepKnownException) {
-                    t = cause;
-                }
-                throw Throwables2.propagate(t, ExecutionException.class);
+                Throwables.propagateIfInstanceOf(t.getCause(), ImhotepKnownException.class);
+                Throwables.propagateIfInstanceOf(t, ExecutionException.class);
+                throw Throwables.propagate(t);
             }
         }
     }
