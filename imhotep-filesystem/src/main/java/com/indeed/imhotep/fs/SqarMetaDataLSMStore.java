@@ -23,6 +23,8 @@ import com.indeed.lsmtree.core.Store;
 import com.indeed.lsmtree.core.StoreBuilder;
 import com.indeed.util.compress.SnappyCodec;
 import com.indeed.util.core.shell.PosixFileOperations;
+import com.indeed.util.core.time.DefaultWallClock;
+import com.indeed.util.core.time.WallClock;
 import com.indeed.util.serialization.BooleanSerializer;
 import com.indeed.util.serialization.IntSerializer;
 import com.indeed.util.serialization.LongSerializer;
@@ -79,14 +81,21 @@ class SqarMetaDataLSMStore implements SqarMetaDataDao, Closeable {
     private final Store<String, Value> store;
     private final Duration expirationDuration;
     private final Timer trimTimer;
+    private final WallClock wallClock;
 
     SqarMetaDataLSMStore(final File root, @Nullable final Duration expirationDuration) throws IOException {
+        this(root, expirationDuration, new DefaultWallClock());
+    }
+
+    @VisibleForTesting
+    SqarMetaDataLSMStore(final File root, @Nullable final Duration expirationDuration, final WallClock wallClock) throws IOException {
         this.expirationDuration = expirationDuration;
         final StoreBuilder<String, Value> builder =
             new StoreBuilder<>(root, strSerializer, valueSerializer);
         builder.setCodec(new SnappyCodec());
         builder.setStorageType(StorageType.BLOCK_COMPRESSED);
         store = builder.build();
+        this.wallClock = wallClock;
 
         final TimerTask trimTask = new TimerTask() {
             @Override
@@ -172,7 +181,7 @@ class SqarMetaDataLSMStore implements SqarMetaDataDao, Closeable {
 
     @Override
     public void cacheMetadata(Path shardPath, Iterable<RemoteFileMetadata> metadataList) {
-        final int cachingTimestamp = (int)(System.currentTimeMillis() / 1000); // seconds since epoch
+        final int cachingTimestamp = (int)(wallClock.currentTimeMillis() / 1000); // seconds since epoch
         final List<SqarFileEntry> sqarFilesEntries = new ArrayList<>();
         final List<SqarFileListing> sqarFilesListing = new ArrayList<>();
         final Path normalizedShardPath = shardPath.normalize();
@@ -317,7 +326,7 @@ class SqarMetaDataLSMStore implements SqarMetaDataDao, Closeable {
     void trim() {
         try {
             long deletedCount = 0;
-            final int oldestTimestampToKeep = (int) ((System.currentTimeMillis() - expirationDuration.toMillis()) / 1000);
+            final int oldestTimestampToKeep = (int) ((wallClock.currentTimeMillis() - expirationDuration.toMillis()) / 1000);
             final Iterator<Store.Entry<String, Value>> storeIterator = iterator();
             while(storeIterator.hasNext()) {
                 Store.Entry<String, Value> entry = storeIterator.next();
