@@ -316,7 +316,7 @@ class SqarMetaDataLSMStore implements SqarMetaDataDao, Closeable {
     void trim() {
         try {
             long deletedCount = 0;
-            final int oldestTimestampToKeep = (int) (System.currentTimeMillis() - expirationDuration.toMillis());
+            final int oldestTimestampToKeep = (int) ((System.currentTimeMillis() - expirationDuration.toMillis()) / 1000);
             final Iterator<Store.Entry<String, Value>> storeIterator = iterator();
             while(storeIterator.hasNext()) {
                 Store.Entry<String, Value> entry = storeIterator.next();
