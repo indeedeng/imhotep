@@ -21,7 +21,9 @@ import org.joda.time.DateTime;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -34,12 +36,14 @@ import java.util.Collections;
  */
 
 public class SqarMetaDataLSMStoreTest {
+    @Rule
+    public final TemporaryFolder tempDir = new TemporaryFolder();
     private SqarMetaDataLSMStore fileMetadataDao;
     private final DateTime now = DateTime.now();
 
     @Before
     public void setUp() throws IOException {
-        fileMetadataDao = new SqarMetaDataLSMStore(Files.createTempDirectory("sqarcachetest").toFile(), null);
+        fileMetadataDao = new SqarMetaDataLSMStore(tempDir.getRoot(), null);
     }
 
     @After
