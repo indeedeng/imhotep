@@ -107,7 +107,8 @@ class SqarMetaDataLSMStore implements SqarMetaDataDao, Closeable {
         store.close();
         try {
             store.waitForCompactions();
-        } catch (InterruptedException e) {
+        } catch (final InterruptedException e) {
+            Thread.currentThread().interrupt();
             log.warn("Interrupted while waiting for the SQAR metadata cache LSM tree to close", e);
         }
         if(trimTimer != null) {
