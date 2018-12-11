@@ -141,7 +141,7 @@ class SqarMetaDataLSMStore implements SqarMetaDataDao, Closeable {
 
     private Object getLockObject(final String shardPath) {
         final Object newLockObj = new Object(); // To keep a strong reference
-        return lockPerShard.putIfAbsent(shardPath, newLockObj);
+        return lockPerShard.computeIfAbsent(shardPath, ignored -> newLockObj);
     }
 
     boolean containsKey(final String key) throws IOException { return store.containsKey(key); }
