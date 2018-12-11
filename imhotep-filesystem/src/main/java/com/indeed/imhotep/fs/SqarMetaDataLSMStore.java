@@ -21,6 +21,7 @@ import com.google.common.collect.MapMaker;
 import com.google.common.collect.Maps;
 import com.indeed.imhotep.archive.FileMetadata;
 import com.indeed.imhotep.archive.compression.SquallArchiveCompressor;
+import com.indeed.imhotep.scheduling.TaskScheduler;
 import com.indeed.lsmtree.core.StorageType;
 import com.indeed.lsmtree.core.Store;
 import com.indeed.lsmtree.core.StoreBuilder;
@@ -89,8 +90,13 @@ class SqarMetaDataLSMStore implements SqarMetaDataDao, Closeable {
     private final Duration expirationDuration;
     private final Timer trimTimer;
     private final WallClock wallClock;
-    // Lock object per shard for modifications on the store above. Use weak references to be able to GCed.
-    private final Map<String, Object> lockPerShard = new MapMaker().weakValues().makeMap();
+    /**
+     * Lock object per shard for modifications on the store above to avoid race condition between
+     * adding elements into store ({@link SqarMetaDataLSMStore#cacheMetadata}) and deleting elements from store ({@link SqarMetaDataLSMStore#trim}).
+     * Every modification on store should take an object via {@link SqarMetaDataLSMStore#getLockObject} method and synchronize on it.
+     * Using weak reference values to be able to be GCed.
+     */
+    private final Map<String, Object> lockPerShard;
 
 
     SqarMetaDataLSMStore(final File root, @Nullable final Duration expirationDuration) throws IOException {
@@ -106,6 +112,13 @@ class SqarMetaDataLSMStore implements SqarMetaDataDao, Closeable {
         builder.setStorageType(StorageType.BLOCK_COMPRESSED);
         store = builder.build();
         this.wallClock = wallClock;
+
+        final int numIOSlots = TaskScheduler.RemoteFSIOScheduler.getTotalSlots();
+        final MapMaker lockMapMaker = new MapMaker().weakValues();
+        if (numIOSlots > 0) {
+            lockMapMaker.concurrencyLevel(numIOSlots);
+        }
+        this.lockPerShard = lockMapMaker.makeMap();
 
         final TimerTask trimTask = new TimerTask() {
             @Override
@@ -139,14 +152,22 @@ class SqarMetaDataLSMStore implements SqarMetaDataDao, Closeable {
         return store.iterator();
     }
 
+    /**
+     * Returns an object you should synchronize on it whenever you modify store entries.
+     *
+     * @param shardPath normalized shard path containing keys you're modifying
+     * @return a object
+     */
     private Object getLockObject(final String shardPath) {
-        final Object newLockObj = new Object(); // To keep a strong reference
+        // To keep a strong reference even if computeIfAbsent was implemented as putIfAbsent and get,
+        // which will loose strong reference returned by the function call.
+        final Object newLockObj = new Object();
         return lockPerShard.computeIfAbsent(shardPath, ignored -> newLockObj);
     }
 
     boolean containsKey(final String key) throws IOException { return store.containsKey(key); }
 
-    void putAll(final String normalizedShardPath, final Collection<Map.Entry<String, Value>> entries) throws IOException {
+    private void putAll(final String normalizedShardPath, final Collection<Map.Entry<String, Value>> entries) throws IOException {
         synchronized (getLockObject(normalizedShardPath)) {
             for (final Map.Entry<String, Value> entry : entries) {
                 store.put(entry.getKey(), entry.getValue());
@@ -154,7 +175,7 @@ class SqarMetaDataLSMStore implements SqarMetaDataDao, Closeable {
         }
     }
 
-    boolean deleteIf(final String key, final Predicate<Value> predicate) throws IOException {
+    private boolean deleteIf(final String key, final Predicate<Value> predicate) throws IOException {
         final String[] shardPathAndFilePath = StringUtils.split(key, SHARD_PATH_AND_FILE_PATH_DELIMITER);
         Preconditions.checkState(shardPathAndFilePath.length >= 1, "Illegal key found in sqar metadata lsm store: %s", key);
         final String shardPath = shardPathAndFilePath[0];
@@ -368,7 +389,7 @@ class SqarMetaDataLSMStore implements SqarMetaDataDao, Closeable {
             while (storeIterator.hasNext()) {
                 final Store.Entry<String, Value> entry = storeIterator.next();
                 if(entry.getValue().cachingTimestamp < oldestTimestampToKeep) {
-                    // Make sure the value is still meets the condition
+                    // Make sure the value still meets the condition
                     final boolean deleted = deleteIf(entry.getKey(), value -> value.cachingTimestamp < oldestTimestampToKeep);
                     if (deleted) {
                         deletedCount++;
