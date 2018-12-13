@@ -47,12 +47,17 @@ import java.util.concurrent.TimeUnit;
 public class SqarMetaDataLSMStoreTest {
     @Rule
     public final TemporaryFolder tempDir = new TemporaryFolder();
+    final StoppedClock wallClock = new StoppedClock();
     private SqarMetaDataLSMStore fileMetadataDao;
     private final DateTime now = DateTime.now();
 
     @Before
     public void setUp() throws IOException {
-        fileMetadataDao = new SqarMetaDataLSMStore(tempDir.newFolder("fileMatadataDao"), null);
+        fileMetadataDao = new SqarMetaDataLSMStore(
+                tempDir.newFolder("fileMatadataDao"),
+                Duration.ofHours(1),
+                wallClock
+        );
     }
 
     @After
@@ -363,10 +368,6 @@ public class SqarMetaDataLSMStoreTest {
     public void testRaceBetweenCacheAndTrim() throws IOException, InterruptedException, ExecutionException {
         final int numTrials = 10;
         final int numFiles = 10000;
-
-        final StoppedClock wallClock = new StoppedClock();
-        final SqarMetaDataLSMStore fileMetadataDao = new SqarMetaDataLSMStore(tempDir.newFolder("forTestConcurrency"), Duration.ofSeconds(1), wallClock);
-
         final Path shardPath = Paths.get("/shard/path");
         final List<RemoteFileMetadata> remoteFiles = new ArrayList<>();
         for (int i = 0; i < numFiles; ++i) {
@@ -375,7 +376,7 @@ public class SqarMetaDataLSMStoreTest {
 
         final ExecutorService executor = Executors.newFixedThreadPool(2);
         for (int trial = 0; trial < numTrials; ++trial) {
-            wallClock.plus(2, TimeUnit.SECONDS);
+            wallClock.plus(2, TimeUnit.HOURS);
             final Future<?> cache = executor.submit(() -> fileMetadataDao.cacheMetadata(shardPath, remoteFiles));
             final Future<?> trim = executor.submit(fileMetadataDao::trim);
 
