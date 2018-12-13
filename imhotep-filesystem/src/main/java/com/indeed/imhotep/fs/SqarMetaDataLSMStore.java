@@ -14,15 +14,21 @@
 package com.indeed.imhotep.fs;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
+import com.google.common.collect.MapMaker;
+import com.google.common.collect.Maps;
 import com.indeed.imhotep.archive.FileMetadata;
 import com.indeed.imhotep.archive.compression.SquallArchiveCompressor;
+import com.indeed.imhotep.scheduling.TaskScheduler;
 import com.indeed.lsmtree.core.StorageType;
 import com.indeed.lsmtree.core.Store;
 import com.indeed.lsmtree.core.StoreBuilder;
 import com.indeed.util.compress.SnappyCodec;
 import com.indeed.util.core.shell.PosixFileOperations;
+import com.indeed.util.core.time.DefaultWallClock;
+import com.indeed.util.core.time.WallClock;
 import com.indeed.util.serialization.BooleanSerializer;
 import com.indeed.util.serialization.IntSerializer;
 import com.indeed.util.serialization.LongSerializer;
@@ -30,6 +36,7 @@ import com.indeed.util.serialization.Serializer;
 import com.indeed.util.serialization.StringSerializer;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.apache.commons.io.FilenameUtils;
+import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 
 import javax.annotation.Nullable;
@@ -43,12 +50,15 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Predicate;
 
 /**
  *  LSM tree backed cache of SQAR metadata
@@ -79,14 +89,36 @@ class SqarMetaDataLSMStore implements SqarMetaDataDao, Closeable {
     private final Store<String, Value> store;
     private final Duration expirationDuration;
     private final Timer trimTimer;
+    private final WallClock wallClock;
+    /**
+     * Lock object per shard for modifications on the store above to avoid race condition between
+     * adding elements into store ({@link SqarMetaDataLSMStore#cacheMetadata}) and deleting elements from store ({@link SqarMetaDataLSMStore#trim}).
+     * Every modification on store should take an object via {@link SqarMetaDataLSMStore#getLockObject} method and synchronize on it.
+     * Using weak reference values to be able to be GCed.
+     */
+    private final Map<String, Object> lockPerShard;
+
 
     SqarMetaDataLSMStore(final File root, @Nullable final Duration expirationDuration) throws IOException {
+        this(root, expirationDuration, new DefaultWallClock());
+    }
+
+    @VisibleForTesting
+    SqarMetaDataLSMStore(final File root, @Nullable final Duration expirationDuration, final WallClock wallClock) throws IOException {
         this.expirationDuration = expirationDuration;
         final StoreBuilder<String, Value> builder =
             new StoreBuilder<>(root, strSerializer, valueSerializer);
         builder.setCodec(new SnappyCodec());
         builder.setStorageType(StorageType.BLOCK_COMPRESSED);
         store = builder.build();
+        this.wallClock = wallClock;
+
+        final int numIOSlots = TaskScheduler.RemoteFSIOScheduler.getTotalSlots();
+        final MapMaker lockMapMaker = new MapMaker().weakValues();
+        if (numIOSlots > 0) {
+            lockMapMaker.concurrencyLevel(numIOSlots);
+        }
+        this.lockPerShard = lockMapMaker.makeMap();
 
         final TimerTask trimTask = new TimerTask() {
             @Override
@@ -107,7 +139,8 @@ class SqarMetaDataLSMStore implements SqarMetaDataDao, Closeable {
         store.close();
         try {
             store.waitForCompactions();
-        } catch (InterruptedException e) {
+        } catch (final InterruptedException e) {
+            Thread.currentThread().interrupt();
             log.warn("Interrupted while waiting for the SQAR metadata cache LSM tree to close", e);
         }
         if(trimTimer != null) {
@@ -119,14 +152,50 @@ class SqarMetaDataLSMStore implements SqarMetaDataDao, Closeable {
         return store.iterator();
     }
 
+    /**
+     * Returns an object you should synchronize on it whenever you modify store entries.
+     *
+     * @param shardPath normalized shard path containing keys you're modifying
+     * @return a object
+     */
+    private Object getLockObject(final String shardPath) {
+        // To keep a strong reference even if computeIfAbsent was implemented as putIfAbsent and get,
+        // which will loose strong reference returned by the function call.
+        final Object newLockObj = new Object();
+        return lockPerShard.computeIfAbsent(shardPath, ignored -> newLockObj);
+    }
+
     boolean containsKey(final String key) throws IOException { return store.containsKey(key); }
 
-    void put(final String key, final Value value) throws IOException { store.put(key, value); }
-    Value get(final String key) throws IOException { return store.get(key); }
+    private void putAll(final String normalizedShardPath, final Collection<Map.Entry<String, Value>> entries) throws IOException {
+        synchronized (getLockObject(normalizedShardPath)) {
+            for (final Map.Entry<String, Value> entry : entries) {
+                store.put(entry.getKey(), entry.getValue());
+            }
+        }
+    }
 
-    void delete(final String key) throws IOException { store.delete(key); }
+    private boolean deleteIf(final String key, final Predicate<Value> predicate) throws IOException {
+        final String[] shardPathAndFilePath = StringUtils.split(key, SHARD_PATH_AND_FILE_PATH_DELIMITER);
+        Preconditions.checkState(shardPathAndFilePath.length >= 1, "Illegal key found in sqar metadata lsm store: %s", key);
+        final String shardPath = shardPathAndFilePath[0];
+        synchronized (getLockObject(shardPath)) {
+            final Value value = store.get(key);
+            if (predicate.test(value)) {
+                store.delete(key);
+                return true;
+            }
+        }
+        return false;
+    }
 
-    void sync() throws IOException { store.sync(); }
+    Value get(final String key) throws IOException {
+        return store.get(key);
+    }
+
+    void sync() throws IOException {
+        store.sync();
+    }
 
     static boolean lsmTreeExistsInDir(final File dirToCheck) throws IOException {
         if (dirToCheck == null) {
@@ -171,7 +240,7 @@ class SqarMetaDataLSMStore implements SqarMetaDataDao, Closeable {
 
     @Override
     public void cacheMetadata(Path shardPath, Iterable<RemoteFileMetadata> metadataList) {
-        final int cachingTimestamp = (int)(System.currentTimeMillis() / 1000); // seconds since epoch
+        final int cachingTimestamp = (int)(wallClock.currentTimeMillis() / 1000); // seconds since epoch
         final List<SqarFileEntry> sqarFilesEntries = new ArrayList<>();
         final List<SqarFileListing> sqarFilesListing = new ArrayList<>();
         final Path normalizedShardPath = shardPath.normalize();
@@ -194,25 +263,24 @@ class SqarMetaDataLSMStore implements SqarMetaDataDao, Closeable {
 
             sqarFilesEntries.add(fileEntry);
         }
+        final List<Map.Entry<String, Value>> entriesToPut = new ArrayList<>(1 + sqarFilesEntries.size());
+
         // have to write the listing first so that if we fail in the middle everything will be retried on next attempt
         // since we determine whether a shard's metadata is cached using getFileMetadata() rather than listDirectory()
         final Value listingValue = new Value(cachingTimestamp, sqarFilesListing);
         final String listingKey = key + LISTING_KEY_SUFFIX;
-        try {
-            this.put(listingKey , listingValue);
-        } catch (IOException e) {
-            Throwables.propagate(e);
-        }
+        entriesToPut.add(Maps.immutableEntry(listingKey, listingValue));
 
         // now write the per file full metadata entries
         for (final SqarFileEntry sqarFileEntry : sqarFilesEntries) {
             final Value fileEntryValue = new Value(cachingTimestamp, sqarFileEntry);
-            final String fileEntryKey = normalizedShardPath.toString() + SHARD_PATH_AND_FILE_PATH_DELIMITER + sqarFileEntry.filePath;
-            try {
-                this.put(fileEntryKey, fileEntryValue);
-            } catch (IOException e) {
-                Throwables.propagate(e);
-            }
+            final String fileEntryKey = key + SHARD_PATH_AND_FILE_PATH_DELIMITER + sqarFileEntry.filePath;
+            entriesToPut.add(Maps.immutableEntry(fileEntryKey, fileEntryValue));
+        }
+        try {
+            putAll(key, entriesToPut);
+        } catch (final IOException e) {
+            Throwables.propagate(e);
         }
     }
 
@@ -316,13 +384,16 @@ class SqarMetaDataLSMStore implements SqarMetaDataDao, Closeable {
     void trim() {
         try {
             long deletedCount = 0;
-            final int oldestTimestampToKeep = (int) (System.currentTimeMillis() - expirationDuration.toMillis());
+            final int oldestTimestampToKeep = (int) ((wallClock.currentTimeMillis() - expirationDuration.toMillis()) / 1000);
             final Iterator<Store.Entry<String, Value>> storeIterator = iterator();
-            while(storeIterator.hasNext()) {
-                Store.Entry<String, Value> entry = storeIterator.next();
+            while (storeIterator.hasNext()) {
+                final Store.Entry<String, Value> entry = storeIterator.next();
                 if(entry.getValue().cachingTimestamp < oldestTimestampToKeep) {
-                    delete(entry.getKey());
-                    deletedCount++;
+                    // Make sure the value still meets the condition
+                    final boolean deleted = deleteIf(entry.getKey(), value -> value.cachingTimestamp < oldestTimestampToKeep);
+                    if (deleted) {
+                        deletedCount++;
+                    }
                 }
             }
             log.info("Deleted " + deletedCount + " expired entries from the SQAR metadata cache");

@@ -17,29 +17,42 @@ package com.indeed.imhotep.fs;
 import com.google.common.collect.Lists;
 import com.indeed.imhotep.archive.FileMetadata;
 import com.indeed.imhotep.archive.compression.SquallArchiveCompressor;
+import com.indeed.util.core.time.StoppedClock;
 import org.joda.time.DateTime;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 import java.io.IOException;
-import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 /**
  * @author kenh
  */
 
 public class SqarMetaDataLSMStoreTest {
+    @Rule
+    public final TemporaryFolder tempDir = new TemporaryFolder();
     private SqarMetaDataLSMStore fileMetadataDao;
     private final DateTime now = DateTime.now();
 
     @Before
     public void setUp() throws IOException {
-        fileMetadataDao = new SqarMetaDataLSMStore(Files.createTempDirectory("sqarcachetest").toFile(), null);
+        fileMetadataDao = new SqarMetaDataLSMStore(tempDir.newFolder("fileMatadataDao"), null);
     }
 
     @After
@@ -344,5 +357,34 @@ public class SqarMetaDataLSMStoreTest {
                         filemeta_2ab.toListing(),
                         filemeta_2ac.toListing()
                 ), Lists.newArrayList(fileMetadataDao.listDirectory(Paths.get("2"), "a")));
+    }
+
+    @Test
+    public void testRaceBetweenCacheAndTrim() throws IOException, InterruptedException, ExecutionException {
+        final int numTrials = 10;
+        final int numFiles = 10000;
+
+        final StoppedClock wallClock = new StoppedClock();
+        final SqarMetaDataLSMStore fileMetadataDao = new SqarMetaDataLSMStore(tempDir.newFolder("forTestConcurrency"), Duration.ofSeconds(1), wallClock);
+
+        final Path shardPath = Paths.get("/shard/path");
+        final List<RemoteFileMetadata> remoteFiles = new ArrayList<>();
+        for (int i = 0; i < numFiles; ++i) {
+            remoteFiles.add(new RemoteFileMetadata(String.valueOf(i)));
+        }
+
+        final ExecutorService executor = Executors.newFixedThreadPool(2);
+        for (int trial = 0; trial < numTrials; ++trial) {
+            wallClock.plus(2, TimeUnit.SECONDS);
+            final Future<?> cache = executor.submit(() -> fileMetadataDao.cacheMetadata(shardPath, remoteFiles));
+            final Future<?> trim = executor.submit(fileMetadataDao::trim);
+
+            cache.get();
+            trim.get();
+
+            for (final RemoteFileMetadata remoteFile : remoteFiles) {
+                Assert.assertNotNull(fileMetadataDao.getFileMetadata(shardPath, remoteFile.getFilename()));
+            }
+        }
     }
 }

@@ -42,7 +42,7 @@ public class TaskScheduler {
     // history of consumption of all tasks that ran recently
     private final Map<String, ConsumptionTracker> usernameToConsumptionTracker = Maps.newHashMap();
     private final Set<ImhotepTask> runningTasks = Sets.newHashSet();
-    private final long totalSlots;
+    private final int totalSlots;
     private final long historyLengthNanos;
     private final long batchNanos;
     private final SchedulerType schedulerType;
@@ -56,7 +56,7 @@ public class TaskScheduler {
     private ScheduledExecutorService statsReportingExecutor = null;
     private ScheduledExecutorService cleanupExecutor = null;
 
-    public TaskScheduler(long totalSlots, long historyLengthNanos, long batchNanos, SchedulerType schedulerType, MetricStatsEmitter statsEmitter) {
+    public TaskScheduler(int totalSlots, long historyLengthNanos, long batchNanos, SchedulerType schedulerType, MetricStatsEmitter statsEmitter) {
         this.totalSlots = totalSlots;
         this.historyLengthNanos = historyLengthNanos;
         this.batchNanos = batchNanos;
@@ -72,6 +72,10 @@ public class TaskScheduler {
 
         cleanupExecutor = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("schedulerCleanup-" + schedulerType));
         cleanupExecutor.scheduleAtFixedRate(this::cleanup, CLEANUP_FREQUENCY_MILLIS, CLEANUP_FREQUENCY_MILLIS, TimeUnit.MILLISECONDS);
+    }
+
+    public int getTotalSlots() {
+        return totalSlots;
     }
 
     private void reportStats() {
