@@ -20,6 +20,7 @@ import com.indeed.flamdex.query.Term;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.api.PerformanceStats;
+import com.indeed.imhotep.exceptions.ImhotepKnownException;
 import com.indeed.imhotep.exceptions.QueryCancelledException;
 import com.indeed.imhotep.scheduling.ImhotepTask;
 import com.indeed.imhotep.scheduling.SchedulerType;
@@ -763,7 +764,9 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
             }
             if (t != null) {
                 safeClose();
-                throw Throwables2.propagate(t, ExecutionException.class);
+                Throwables.propagateIfInstanceOf(t.getCause(), ImhotepKnownException.class);
+                Throwables.propagateIfInstanceOf(t, ExecutionException.class);
+                throw Throwables.propagate(t);
             }
         }
     }
