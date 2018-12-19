@@ -47,12 +47,17 @@ import java.util.concurrent.TimeUnit;
 public class SqarMetaDataLSMStoreTest {
     @Rule
     public final TemporaryFolder tempDir = new TemporaryFolder();
+    final StoppedClock wallClock = new StoppedClock(0L);
     private SqarMetaDataLSMStore fileMetadataDao;
     private final DateTime now = DateTime.now();
 
     @Before
     public void setUp() throws IOException {
-        fileMetadataDao = new SqarMetaDataLSMStore(tempDir.newFolder("fileMatadataDao"), null);
+        fileMetadataDao = new SqarMetaDataLSMStore(
+                tempDir.newFolder("fileMatadataDao"),
+                Duration.ofHours(1),
+                wallClock
+        );
     }
 
     @After
@@ -360,13 +365,9 @@ public class SqarMetaDataLSMStoreTest {
     }
 
     @Test
-    public void testRaceBetweenCacheAndTrim() throws IOException, InterruptedException, ExecutionException {
+    public void testRaceBetweenCacheAndTrim() throws InterruptedException, ExecutionException {
         final int numTrials = 10;
         final int numFiles = 10000;
-
-        final StoppedClock wallClock = new StoppedClock();
-        final SqarMetaDataLSMStore fileMetadataDao = new SqarMetaDataLSMStore(tempDir.newFolder("forTestConcurrency"), Duration.ofSeconds(1), wallClock);
-
         final Path shardPath = Paths.get("/shard/path");
         final List<RemoteFileMetadata> remoteFiles = new ArrayList<>();
         for (int i = 0; i < numFiles; ++i) {
@@ -375,7 +376,7 @@ public class SqarMetaDataLSMStoreTest {
 
         final ExecutorService executor = Executors.newFixedThreadPool(2);
         for (int trial = 0; trial < numTrials; ++trial) {
-            wallClock.plus(2, TimeUnit.SECONDS);
+            wallClock.plus(2, TimeUnit.HOURS);
             final Future<?> cache = executor.submit(() -> fileMetadataDao.cacheMetadata(shardPath, remoteFiles));
             final Future<?> trim = executor.submit(fileMetadataDao::trim);
 
@@ -385,6 +386,79 @@ public class SqarMetaDataLSMStoreTest {
             for (final RemoteFileMetadata remoteFile : remoteFiles) {
                 Assert.assertNotNull(fileMetadataDao.getFileMetadata(shardPath, remoteFile.getFilename()));
             }
+        }
+    }
+
+    @Test
+    public void testTrim() {
+        final Path shardA = Paths.get("/shard/pathA");
+        final Path shardB = Paths.get("/shard/pathB");
+
+        final List<RemoteFileMetadata> remoteFiles = new ArrayList<>();
+        for (int i = 0; i < 10; ++i) {
+            remoteFiles.add(new RemoteFileMetadata(String.valueOf(i)));
+        }
+
+        for (final RemoteFileMetadata remoteFile : remoteFiles) {
+            Assert.assertNull(fileMetadataDao.getFileMetadata(shardA, remoteFile.getFilename()));
+        }
+
+        fileMetadataDao.cacheMetadata(shardA, remoteFiles);
+
+        // trim should keep elements an hour.
+        wallClock.plus(1, TimeUnit.HOURS);
+        fileMetadataDao.trim();
+        for (final RemoteFileMetadata remoteFile : remoteFiles) {
+            Assert.assertNotNull(fileMetadataDao.getFileMetadata(shardA, remoteFile.getFilename()));
+        }
+
+        // an hour + a sec should trigger eviction.
+        wallClock.plus(1, TimeUnit.SECONDS);
+        fileMetadataDao.trim();
+        for (final RemoteFileMetadata remoteFile : remoteFiles) {
+            Assert.assertNull(fileMetadataDao.getFileMetadata(shardA, remoteFile.getFilename()));
+        }
+
+        wallClock.plus(1, TimeUnit.DAYS);
+        fileMetadataDao.cacheMetadata(shardA, remoteFiles);
+        wallClock.plus(30, TimeUnit.MINUTES);
+        fileMetadataDao.cacheMetadata(shardB, remoteFiles);
+        fileMetadataDao.trim();
+        for (final RemoteFileMetadata remoteFile : remoteFiles) {
+            Assert.assertNotNull(fileMetadataDao.getFileMetadata(shardA, remoteFile.getFilename()));
+            Assert.assertNotNull(fileMetadataDao.getFileMetadata(shardB, remoteFile.getFilename()));
+        }
+
+        wallClock.plus(40, TimeUnit.MINUTES);
+        // 1 hour and 10 minutes from shardA insertion. Should evict them, but not shardB.
+        fileMetadataDao.trim();
+        for (final RemoteFileMetadata remoteFile : remoteFiles) {
+            Assert.assertNull(fileMetadataDao.getFileMetadata(shardA, remoteFile.getFilename()));
+            Assert.assertNotNull(fileMetadataDao.getFileMetadata(shardB, remoteFile.getFilename()));
+        }
+
+        wallClock.plus(10, TimeUnit.MINUTES);
+        // re insert shardA.
+        fileMetadataDao.cacheMetadata(shardA, remoteFiles);
+        fileMetadataDao.trim();
+        for (final RemoteFileMetadata remoteFile : remoteFiles) {
+            Assert.assertNotNull(fileMetadataDao.getFileMetadata(shardA, remoteFile.getFilename()));
+            Assert.assertNotNull(fileMetadataDao.getFileMetadata(shardB, remoteFile.getFilename()));
+        }
+
+        wallClock.plus(20, TimeUnit.MINUTES);
+        // 1 hour and 10 minutes from shardB insertion. Should evict them, but not shardA.
+        fileMetadataDao.trim();
+        for (final RemoteFileMetadata remoteFile : remoteFiles) {
+            Assert.assertNotNull(fileMetadataDao.getFileMetadata(shardA, remoteFile.getFilename()));
+            Assert.assertNull(fileMetadataDao.getFileMetadata(shardB, remoteFile.getFilename()));
+        }
+
+        wallClock.plus(1, TimeUnit.HOURS);
+        fileMetadataDao.trim();
+        for (final RemoteFileMetadata remoteFile : remoteFiles) {
+            Assert.assertNull(fileMetadataDao.getFileMetadata(shardA, remoteFile.getFilename()));
+            Assert.assertNull(fileMetadataDao.getFileMetadata(shardB, remoteFile.getFilename()));
         }
     }
 }
