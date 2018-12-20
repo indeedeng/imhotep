@@ -171,18 +171,21 @@ public abstract class AbstractImhotepServiceCore
         });
     }
 
-    private Void sendFTGSIterator(final FTGSIterator merger, final OutputStream os) throws IOException {
-        final ImhotepResponse.Builder responseBuilder =
-                ImhotepResponse.newBuilder()
-                        .setNumStats(merger.getNumStats())
-                        .setNumGroups(merger.getNumGroups());
-        log.debug("sending FTGS response");
-        ImhotepProtobufShipping.sendProtobufNoFlush(responseBuilder.build(), os);
-        writeFTGSIteratorToOutputStream(merger, os);
-        os.flush();
-        log.debug("FTGS response sent");
-
-        return null;
+    private Void sendFTGSIterator(final FTGSIterator iterator, final OutputStream os) throws IOException {
+        try {
+            final ImhotepResponse.Builder responseBuilder =
+                    ImhotepResponse.newBuilder()
+                            .setNumStats(iterator.getNumStats())
+                            .setNumGroups(iterator.getNumGroups());
+            log.debug("sending FTGS response");
+            ImhotepProtobufShipping.sendProtobufNoFlush(responseBuilder.build(), os);
+            writeFTGSIteratorToOutputStream(iterator, os);
+            os.flush();
+            log.debug("FTGS response sent");
+            return null;
+        } finally {
+            iterator.close();
+        }
     }
 
     private void writeFTGSIteratorToOutputStream(final FTGSIterator merger, final OutputStream os) throws IOException {
@@ -217,17 +220,20 @@ public abstract class AbstractImhotepServiceCore
     }
 
     private Void sendFTGAIterator(final FTGAIterator iterator, final OutputStream os) throws IOException {
-        final ImhotepResponse.Builder responseBuilder =
-                ImhotepResponse.newBuilder()
-                        .setNumStats(iterator.getNumStats())
-                        .setNumGroups(iterator.getNumGroups());
-        log.debug("sending FTGA response");
-        ImhotepProtobufShipping.sendProtobufNoFlush(responseBuilder.build(), os);
-        writeFTGAIteratorToOutputStream(iterator, os);
-        os.flush();
-        log.debug("FTGA response sent");
-
-        return null;
+        try {
+            final ImhotepResponse.Builder responseBuilder =
+                    ImhotepResponse.newBuilder()
+                            .setNumStats(iterator.getNumStats())
+                            .setNumGroups(iterator.getNumGroups());
+            log.debug("sending FTGA response");
+            ImhotepProtobufShipping.sendProtobufNoFlush(responseBuilder.build(), os);
+            writeFTGAIteratorToOutputStream(iterator, os);
+            os.flush();
+            log.debug("FTGA response sent");
+            return null;
+        } finally {
+            iterator.close();
+        }
     }
 
     private Void writeFTGAIteratorToOutputStream(final FTGAIterator iterator, final OutputStream os) throws IOException {
