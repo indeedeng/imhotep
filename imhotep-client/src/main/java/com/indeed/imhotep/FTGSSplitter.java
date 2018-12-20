@@ -58,8 +58,8 @@ public final class FTGSSplitter implements Closeable {
         this.numSplits = numSplits;
         this.largePrime = largePrime;
         outputStreams = new OutputStream[numSplits];
-        final File file = File.createTempFile("ftgsSplitter", ".tmp");
         try {
+            final File file = File.createTempFile("ftgsSplitter", ".tmp");
             final MultiFile multiFile;
             try {
                 multiFile = MultiFile.create(file, numSplits, 256 * 1024, tempFileSizeBytesLeft);

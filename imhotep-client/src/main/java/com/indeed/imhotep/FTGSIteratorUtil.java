@@ -64,50 +64,54 @@ public class FTGSIteratorUtil {
     public static Pair<File, FieldStat[]> persistAsFile(
             final Logger log,
             final String sessionId,
-            final FTGSIterator iterator) throws IOException {
-        final File tmp = File.createTempFile("ftgs", ".tmp");
-        final FieldStat[] stats;
-        final long start = System.currentTimeMillis();
-        try (final OutputStream out = new BufferedOutputStream(new FileOutputStream(tmp))) {
-            stats = writeFtgsIteratorToStream(iterator, out);;
-            if (log.isDebugEnabled()) {
-                log.debug("[" + sessionId + "] time to merge splits to file: " +
-                        (System.currentTimeMillis() - start) +
-                        " ms, file length: " + tmp.length());
+            final FTGSIterator iterator
+    ) throws IOException {
+        try {
+            final File tmp = File.createTempFile("ftgs", ".tmp");
+            final FieldStat[] stats;
+            final long start = System.currentTimeMillis();
+            try (final OutputStream out = new BufferedOutputStream(new FileOutputStream(tmp))) {
+                stats = writeFtgsIteratorToStream(iterator, out);
+                if (log.isDebugEnabled()) {
+                    log.debug("[" + sessionId + "] time to merge splits to file: " +
+                            (System.currentTimeMillis() - start) +
+                            " ms, file length: " + tmp.length());
+                }
+            } catch (final Throwable t) {
+                tmp.delete();
+                throw Throwables2.propagate(t, IOException.class);
             }
-        } catch (final Throwable t) {
-            tmp.delete();
-            throw Throwables2.propagate(t, IOException.class);
+            return Pair.of(tmp, stats);
         } finally {
             Closeables2.closeQuietly(iterator, log);
         }
-
-        return Pair.of(tmp, stats);
     }
 
     // TODO: A bit too much code duplication here.
     public static Pair<File, FieldStat[]> persistAsFile(
             final Logger log,
             final String sessionId,
-            final FTGAIterator iterator) throws IOException {
-        final File tmp = File.createTempFile("ftgs", ".tmp");
-        final FieldStat[] stats;
-        final long start = System.currentTimeMillis();
-        try (final OutputStream out = new BufferedOutputStream(new FileOutputStream(tmp))) {
-            stats = writeFtgaIteratorToStream(iterator, out);
-            if (log.isDebugEnabled()) {
-                log.debug("[" + sessionId + "] time to merge splits to file: " +
-                        (System.currentTimeMillis() - start) +
-                        " ms, file length: " + tmp.length());
+            final FTGAIterator iterator
+    ) throws IOException {
+        try {
+            final File tmp = File.createTempFile("ftgs", ".tmp");
+            final FieldStat[] stats;
+            final long start = System.currentTimeMillis();
+            try (final OutputStream out = new BufferedOutputStream(new FileOutputStream(tmp))) {
+                stats = writeFtgaIteratorToStream(iterator, out);
+                if (log.isDebugEnabled()) {
+                    log.debug("[" + sessionId + "] time to merge splits to file: " +
+                            (System.currentTimeMillis() - start) +
+                            " ms, file length: " + tmp.length());
+                }
+            } catch (final Throwable t) {
+                tmp.delete();
+                throw Throwables2.propagate(t, IOException.class);
             }
-        } catch (final Throwable t) {
-            tmp.delete();
-            throw Throwables2.propagate(t, IOException.class);
+            return Pair.of(tmp, stats);
         } finally {
             Closeables2.closeQuietly(iterator, log);
         }
-
-        return Pair.of(tmp, stats);
     }
 
     public static FTGSIterator persist(final Logger log, final FTGSIterator iterator) throws IOException {
