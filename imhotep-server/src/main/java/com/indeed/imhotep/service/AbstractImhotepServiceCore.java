@@ -590,6 +590,17 @@ public abstract class AbstractImhotepServiceCore
         return doWithSession(sessionId, (ThrowingFunction<MTImhotepLocalMultiSession, Integer, ImhotepOutOfMemoryException>) session -> session.metricFilter(stat, min, max, negate));
     }
 
+    public int handleMetricFilter(
+            final String sessionId,
+            final int stat,
+            final long min,
+            final long max,
+            final int targetGroup,
+            final int negativeGroup,
+            final int positiveGroup) throws ImhotepOutOfMemoryException {
+        return doWithSession(sessionId, (ThrowingFunction<MTImhotepLocalMultiSession, Integer, ImhotepOutOfMemoryException>) session -> session.metricFilter(stat, min, max, targetGroup, negativeGroup, positiveGroup));
+    }
+
     @Override
     public List<TermCount> handleApproximateTopTerms(final String sessionId, final String field, final boolean isIntField, final int k) {
         return doWithSession(sessionId, (Function<MTImhotepLocalMultiSession, List<TermCount>>) session -> session.approximateTopTerms(field, isIntField, k));

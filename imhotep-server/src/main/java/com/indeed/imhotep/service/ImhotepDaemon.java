@@ -748,11 +748,26 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 final ImhotepRequest          request,
                 final ImhotepResponse.Builder builder)
             throws ImhotepOutOfMemoryException {
-            final int numGroups = service.handleMetricFilter(request.getSessionId(),
-                                                             request.getXStat(),
-                                                             request.getXMin(),
-                                                             request.getXMax(),
-                                                             request.getNegate());
+            final int numGroups;
+            if (request.getTargetGroup() > 0) {
+                numGroups = service.handleMetricFilter(
+                        request.getSessionId(),
+                        request.getXStat(),
+                        request.getXMin(),
+                        request.getXMax(),
+                        request.getTargetGroup(),
+                        request.getNegativeGroup(),
+                        request.getPositiveGroup()
+                );
+            } else {
+                numGroups = service.handleMetricFilter(
+                        request.getSessionId(),
+                        request.getXStat(),
+                        request.getXMin(),
+                        request.getXMax(),
+                        request.getNegate()
+                );
+            }
             builder.setNumGroups(numGroups);
             return builder.build();
         }

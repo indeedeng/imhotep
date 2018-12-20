@@ -338,6 +338,8 @@ public interface ImhotepSession
 
     int metricFilter(int stat, long min, long max, boolean negate) throws ImhotepOutOfMemoryException;
 
+    int metricFilter(int stat, long min, long max, int targetGroup, int negativeGroup, int positiveGroup) throws ImhotepOutOfMemoryException;
+
     /**
      * Return a list of the top k terms for a field, sorted by document frequency descending.
      *
