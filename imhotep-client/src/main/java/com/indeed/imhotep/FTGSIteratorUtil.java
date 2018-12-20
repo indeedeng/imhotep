@@ -37,6 +37,9 @@ import gnu.trove.procedure.TObjectProcedure;
 import org.apache.commons.lang.mutable.MutableInt;
 import org.apache.log4j.Logger;
 
+import javax.annotation.WillClose;
+import javax.annotation.WillCloseWhenClosed;
+import javax.annotation.WillNotClose;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.File;
@@ -64,7 +67,7 @@ public class FTGSIteratorUtil {
     public static Pair<File, FieldStat[]> persistAsFile(
             final Logger log,
             final String sessionId,
-            final FTGSIterator iterator
+            @WillClose final FTGSIterator iterator
     ) throws IOException {
         try {
             final File tmp = File.createTempFile("ftgs", ".tmp");
@@ -91,7 +94,7 @@ public class FTGSIteratorUtil {
     public static Pair<File, FieldStat[]> persistAsFile(
             final Logger log,
             final String sessionId,
-            final FTGAIterator iterator
+            @WillClose final FTGAIterator iterator
     ) throws IOException {
         try {
             final File tmp = File.createTempFile("ftgs", ".tmp");
@@ -114,13 +117,15 @@ public class FTGSIteratorUtil {
         }
     }
 
-    public static FTGSIterator persist(final Logger log, final FTGSIterator iterator) throws IOException {
+    public static FTGSIterator persist(final Logger log, @WillClose final FTGSIterator iterator) throws IOException {
         return persist(log, "noSessionId", iterator);
     }
 
-    public static FTGSIterator persist(final Logger log,
-                                   final String sessionId,
-                                   final FTGSIterator iterator) throws IOException {
+    public static FTGSIterator persist(
+            final Logger log,
+            final String sessionId,
+            @WillClose final FTGSIterator iterator
+    ) throws IOException {
         final int numStats = iterator.getNumStats();
         final int numGroups = iterator.getNumGroups();
         final Pair<File, FieldStat[]> tmp = persistAsFile(log, sessionId, iterator);
@@ -131,9 +136,11 @@ public class FTGSIteratorUtil {
         }
     }
 
-    public static FTGAIterator persist(final Logger log,
-                                       final String sessionId,
-                                       final FTGAIterator iterator) throws IOException {
+    public static FTGAIterator persist(
+            final Logger log,
+            final String sessionId,
+            @WillClose final FTGAIterator iterator
+    ) throws IOException {
         final int numStats = iterator.getNumStats();
         final int numGroups = iterator.getNumGroups();
         final Pair<File, FieldStat[]> tmp = persistAsFile(log, sessionId, iterator);
@@ -146,7 +153,7 @@ public class FTGSIteratorUtil {
     }
 
     public static TopTermsFTGSIterator getTopTermsFTGSIterator(
-            final FTGSIterator originalIterator,
+            @WillClose final FTGSIterator originalIterator,
             final long termLimit,
             final int sortStat) {
         try {
@@ -160,7 +167,7 @@ public class FTGSIteratorUtil {
     }
 
     public static TopTermsFTGAIterator getTopTermsFTGSIterator(
-            final FTGAIterator originalIterator,
+            @WillClose final FTGAIterator originalIterator,
             final long termLimit,
             final int sortStat) {
         try {
@@ -177,7 +184,7 @@ public class FTGSIteratorUtil {
     // For testing purposes only!
     // Use this only in tests with small iterators
     @VisibleForTesting
-    public static FTGSIterator sortFTGSIterator(final FTGSIterator originalIterator) {
+    public static FTGSIterator sortFTGSIterator(@WillClose final FTGSIterator originalIterator) {
         return getTopTermsFTGSIteratorInternal(originalIterator, Long.MAX_VALUE, -1);
     }
 
@@ -185,21 +192,21 @@ public class FTGSIteratorUtil {
     // For testing purposes only!
     // Use this only in tests with small iterators
     @VisibleForTesting
-    public static FTGAIterator sortFTGSIterator(final FTGAIterator originalIterator) {
+    public static FTGAIterator sortFTGSIterator(@WillClose final FTGAIterator originalIterator) {
         return getTopTermsFTGSIteratorInternal(originalIterator, Long.MAX_VALUE, -1);
     }
 
     // Returns top terms iterator.
     // It's possible to pass termLimit = Long.MAX_VALUE and get sorted iterator as a result
     private static TopTermsFTGSIterator getTopTermsFTGSIteratorInternal(
-            final FTGSIterator originalIterator,
+            @WillClose final FTGSIterator originalIterator,
             final long termLimit,
             final int sortStat) {
         final int numStats = originalIterator.getNumStats();
         final int numGroups = originalIterator.getNumGroups();
         // We don't care about sorted stuff since we will sort by term afterward
         try (final FTGSIterator iterator = makeUnsortedIfPossible(originalIterator)) {
-            TopTermsStatsByField<long[]> topTerms = extractTopTermsGeneric(termLimit, iterator, new LongStatExtractor(iterator.getNumStats(), sortStat));
+            final TopTermsStatsByField<long[]> topTerms = extractTopTermsGeneric(termLimit, iterator, new LongStatExtractor(iterator.getNumStats(), sortStat));
             return new TopTermsFTGSIterator(topTerms, numStats, numGroups);
         }
     }
@@ -207,7 +214,7 @@ public class FTGSIteratorUtil {
     // Returns top terms iterator.
     // It's possible to pass termLimit = Long.MAX_VALUE and get sorted iterator as a result
     private static TopTermsFTGAIterator getTopTermsFTGSIteratorInternal(
-            final FTGAIterator iterator,
+            @WillClose final FTGAIterator iterator,
             final long termLimit,
             final int sortStat
     ) {
@@ -273,7 +280,7 @@ public class FTGSIteratorUtil {
         }
 
         @Override
-        public TermStat<long[]> extract(FTGSIterator iterator) {
+        public TermStat<long[]> extract(@WillNotClose FTGSIterator iterator) {
             final boolean fieldIsIntType = iterator.fieldIsIntType();
             final long termIntVal = fieldIsIntType ? iterator.termIntVal() : 0;
             final String termStringVal = fieldIsIntType ? null : iterator.termStringVal();
@@ -310,18 +317,18 @@ public class FTGSIteratorUtil {
         private final double[] statsBuf;
 
         @VisibleForTesting
-        DoubleStatExtractor(int numStats, int sortStat) {
+        DoubleStatExtractor(final int numStats, final int sortStat) {
             this.statsBuf = new double[numStats];
             this.sortStat = sortStat;
         }
 
         @Override
-        public void advance(FTGAIterator iterator) {
+        public void advance(@WillNotClose final FTGAIterator iterator) {
             iterator.groupStats(statsBuf);
         }
 
         @Override
-        public boolean itIsBetterThan(FTGAIterator iterator, TermStat<double[]> termStat) {
+        public boolean itIsBetterThan(@WillNotClose final FTGAIterator iterator, final TermStat<double[]> termStat) {
             final int statCmp = Double.compare(statsBuf[sortStat], termStat.groupStats[sortStat]);
             if (statCmp != 0) {
                 return statCmp > 0;
@@ -335,7 +342,7 @@ public class FTGSIteratorUtil {
         }
 
         @Override
-        public TermStat<double[]> extract(FTGAIterator iterator) {
+        public TermStat<double[]> extract(@WillNotClose final FTGAIterator iterator) {
             final boolean fieldIsIntType = iterator.fieldIsIntType();
             final long termIntVal = fieldIsIntType ? iterator.termIntVal() : 0;
             final String termStringVal = fieldIsIntType ? null : iterator.termStringVal();
@@ -352,7 +359,7 @@ public class FTGSIteratorUtil {
                     // It will only be invoked when max # terms == Long.MAX_VALUE, so does
                     // not need to be supported in itIsBetterThan.
                     // Feel free to remove it and fix broken unit tests if it measurably better.
-                    final int ret = sortStat < 0 ? 0 : Doubles.compare(x.groupStats[sortStat], y.groupStats[sortStat]);
+                    final int ret = (sortStat < 0) ? 0 : Doubles.compare(x.groupStats[sortStat], y.groupStats[sortStat]);
                     if (ret == 0) {
                         if (x.fieldIsIntType) {
                             return Longs.compare(y.intTerm, x.intTerm);
@@ -368,7 +375,7 @@ public class FTGSIteratorUtil {
 
     private static <IT extends FTGIterator, S> TopTermsStatsByField<S> extractTopTermsGeneric(
             final long termLimit,
-            final IT iterator,
+            @WillNotClose final IT iterator,
             final StatExtractor<S, IT> extractor
     ) {
         final TopTermsStatsByField<S> topTermsFTGS = new TopTermsStatsByField<>();
@@ -494,7 +501,7 @@ public class FTGSIteratorUtil {
         }
     }
 
-    public static FTGSIterator makeUnsortedIfPossible(final FTGSIterator iterator) {
+    public static FTGSIterator makeUnsortedIfPossible(@WillCloseWhenClosed final FTGSIterator iterator) {
         if (iterator instanceof SortedFTGSInterleaver) {
             final FTGSIterator[] iterators = ((SortedFTGSInterleaver) iterator).getIterators();
             return new UnsortedFTGSIterator(iterators);
@@ -502,7 +509,7 @@ public class FTGSIteratorUtil {
         return iterator;
     }
 
-    public static GroupStatsIterator calculateDistinct(final FTGSIterator iterator) {
+    public static GroupStatsIterator calculateDistinct(@WillClose final FTGSIterator iterator) {
         try (final FTGSIterator unsortedFtgs = FTGSIteratorUtil.makeUnsortedIfPossible(iterator)) {
 
             if (!unsortedFtgs.nextField()) {
@@ -540,7 +547,7 @@ public class FTGSIteratorUtil {
         throw new UnsupportedOperationException();
     }
 
-    public static int getNumStats(final FTGSIterator[] iterators) {
+    public static int getNumStats(@WillNotClose final FTGSIterator[] iterators) {
         if (iterators.length == 0) {
             throw new IllegalArgumentException("Nonempty array of iterators expected.");
         }
@@ -553,7 +560,7 @@ public class FTGSIteratorUtil {
         return numStats;
     }
 
-    public static int getNumStats(final FTGAIterator[] iterators) {
+    public static int getNumStats(@WillNotClose final FTGAIterator[] iterators) {
         if (iterators.length == 0) {
             throw new IllegalArgumentException("Nonempty array of iterators expected.");
         }
@@ -566,7 +573,7 @@ public class FTGSIteratorUtil {
         return numStats;
     }
 
-    public static int getNumGroups(final FTGIterator[] iterators) {
+    public static int getNumGroups(@WillNotClose final FTGIterator[] iterators) {
         int numGroups = 0;
         for (final FTGIterator iterator : iterators) {
             numGroups = Math.max(numGroups, iterator.getNumGroups());
@@ -574,7 +581,7 @@ public class FTGSIteratorUtil {
         return numGroups;
     }
 
-    public static FieldStat[] writeFtgsIteratorToStream(final FTGSIterator iterator, final OutputStream stream) throws IOException {
+    public static FieldStat[] writeFtgsIteratorToStream(@WillNotClose final FTGSIterator iterator, final OutputStream stream) throws IOException {
         // try write optimized or fall to default stream writer
 
         FieldStat[] result;
@@ -591,7 +598,7 @@ public class FTGSIteratorUtil {
         return FTGSOutputStreamWriter.write(iterator, stream);
     }
 
-    public static FieldStat[] writeFtgaIteratorToStream(final FTGAIterator iterator, final OutputStream stream) throws IOException {
+    public static FieldStat[] writeFtgaIteratorToStream(@WillNotClose final FTGAIterator iterator, final OutputStream stream) throws IOException {
         // try write optimized or fall to default stream writer
 
         FieldStat[] result;
@@ -610,7 +617,7 @@ public class FTGSIteratorUtil {
 
     // check if iterator is InputStreamFTGSIterator
     // if yes, copy data without decoding-encoding part
-    private static FieldStat[] tryWriteInputStreamIterator(final FTGIterator iterator, final OutputStream out) throws IOException {
+    private static FieldStat[] tryWriteInputStreamIterator(@WillNotClose final FTGIterator iterator, final OutputStream out) throws IOException {
         if (!(iterator instanceof AbstractInputStreamFTGXIterator)) {
             return null;
         }
@@ -639,7 +646,7 @@ public class FTGSIteratorUtil {
 
     // check if iterator is unsorted disjoint merger of InputStreamFTGSIterator
     // if yes, copy data with some hack on first/last term in sub-iterators
-    private static FieldStat[] tryWriteUnsortedInputStreamIterators(final FTGIterator iterator, final OutputStream originalOut) throws IOException {
+    private static FieldStat[] tryWriteUnsortedInputStreamIterators(@WillNotClose final FTGIterator iterator, @WillNotClose final OutputStream originalOut) throws IOException {
         if (!(iterator instanceof UnsortedFTGIterator)) {
             return null;
         }
