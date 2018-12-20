@@ -45,6 +45,7 @@ public final class SimpleFlamdexDocWriter implements FlamdexDocWriter {
     private final Path outputDirectory;
     private final int docBufferSize;
     private final int mergeFactor;
+    private final boolean addToExistingIndex;
 
     private final List<List<Path>> segmentsOnDisk;
 
@@ -65,6 +66,7 @@ public final class SimpleFlamdexDocWriter implements FlamdexDocWriter {
         this.outputDirectory = outputDirectory;
         this.docBufferSize = config.getDocBufferSize();
         this.mergeFactor = config.getMergeFactor();
+        this.addToExistingIndex = config.isAddToExistingIndex();
 
         segmentsOnDisk = Lists.newArrayList();
         segmentsOnDisk.add(new ArrayList<Path>());
@@ -173,7 +175,7 @@ public final class SimpleFlamdexDocWriter implements FlamdexDocWriter {
                 numDocs += reader.getNumDocs();
             }
 
-            final FlamdexWriter w = new SimpleFlamdexWriter(outputDirectory, numDocs, true, true);
+            final FlamdexWriter w = new SimpleFlamdexWriter(outputDirectory, numDocs, !addToExistingIndex, true);
             closer.register(new Closeable() {
                 @Override
                 public void close() throws IOException {
@@ -212,6 +214,7 @@ public final class SimpleFlamdexDocWriter implements FlamdexDocWriter {
     public static class Config {
         private int docBufferSize = 500;
         private int mergeFactor = 100;
+        private boolean addToExistingIndex = false;
 
         public int getDocBufferSize() {
             return docBufferSize;
@@ -221,6 +224,10 @@ public final class SimpleFlamdexDocWriter implements FlamdexDocWriter {
             return mergeFactor;
         }
 
+        public boolean isAddToExistingIndex() {
+            return addToExistingIndex;
+        }
+
         public Config setDocBufferSize(final int docBufferSize) {
             this.docBufferSize = docBufferSize;
             return this;
@@ -228,6 +235,11 @@ public final class SimpleFlamdexDocWriter implements FlamdexDocWriter {
 
         public Config setMergeFactor(final int mergeFactor) {
             this.mergeFactor = mergeFactor;
+            return this;
+        }
+
+        public Config setAddToExistingIndex(final boolean addToExistingIndex) {
+            this.addToExistingIndex = addToExistingIndex;
             return this;
         }
     }
