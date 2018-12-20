@@ -1616,28 +1616,28 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
 
             docIdToGroup.fillDocGrpBufferSequential(doc, docGroupBuffer, n);
 
-            int numNonZero = 0;
+            int numTargeted = 0;
             for (int i = 0; i < n; ++i) {
                 final int group = docGroupBuffer[i];
                 if (group == targetGroup) {
-                    docIdBuf[numNonZero] = doc + i;
-                    docGroupBuffer[numNonZero++] = group;
+                    docIdBuf[numTargeted] = doc + i;
+                    docGroupBuffer[numTargeted++] = group;
                 }
             }
 
-            if (numNonZero == 0) {
+            if (numTargeted == 0) {
                 continue;
             }
 
-            lookup.lookup(docIdBuf, valBuf, numNonZero);
+            lookup.lookup(docIdBuf, valBuf, numTargeted);
 
-            for (int i = 0; i < numNonZero; ++i) {
+            for (int i = 0; i < numTargeted; ++i) {
                 final long val = valBuf[i];
                 final boolean valInRange = val >= min && val <= max;
                 docGroupBuffer[i] = valInRange ? positiveGroup : negativeGroup;
             }
 
-            docIdToGroup.batchSet(docIdBuf, docGroupBuffer, numNonZero);
+            docIdToGroup.batchSet(docIdBuf, docGroupBuffer, numTargeted);
         }
 
         memoryPool.returnIntBuffer(docIdBuf);
@@ -1921,9 +1921,9 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
 
             final String salt = matcher.group(2);
 
-            final IntValueLookup operand = popLookup();
-
-            statLookup.set(numStats, statName, randomMetricLookup(operand, salt, percentiles));
+            try (final IntValueLookup operand = popLookup()) {
+                statLookup.set(numStats, statName, randomMetricLookup(operand, salt, percentiles));
+            }
         } else if (Metric.getMetric(statName) != null) {
             final IntValueLookup a;
             final IntValueLookup b;
