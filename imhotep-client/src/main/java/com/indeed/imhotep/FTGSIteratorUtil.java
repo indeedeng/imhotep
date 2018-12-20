@@ -149,20 +149,28 @@ public class FTGSIteratorUtil {
             final FTGSIterator originalIterator,
             final long termLimit,
             final int sortStat) {
-        if ((termLimit <= 0) || (sortStat < 0) || (sortStat >= originalIterator.getNumStats())) {
-            throw new IllegalArgumentException("TopTerms expect positive termLimit and valid sortStat index");
+        try {
+            if ((termLimit <= 0) || (sortStat < 0) || (sortStat >= originalIterator.getNumStats())) {
+                throw new IllegalArgumentException("TopTerms expect positive termLimit and valid sortStat index");
+            }
+            return getTopTermsFTGSIteratorInternal(originalIterator, termLimit, sortStat);
+        } finally {
+            originalIterator.close();
         }
-        return getTopTermsFTGSIteratorInternal(originalIterator, termLimit, sortStat);
     }
 
     public static TopTermsFTGAIterator getTopTermsFTGSIterator(
             final FTGAIterator originalIterator,
             final long termLimit,
             final int sortStat) {
-        if ((termLimit <= 0) || (sortStat < 0) || (sortStat >= originalIterator.getNumStats())) {
-            throw new IllegalArgumentException("TopTerms expect positive termLimit and valid sortStat index");
+        try {
+            if ((termLimit <= 0) || (sortStat < 0) || (sortStat >= originalIterator.getNumStats())) {
+                throw new IllegalArgumentException("TopTerms expect positive termLimit and valid sortStat index");
+            }
+            return getTopTermsFTGSIteratorInternal(originalIterator, termLimit, sortStat);
+        } finally {
+            originalIterator.close();
         }
-        return getTopTermsFTGSIteratorInternal(originalIterator, termLimit, sortStat);
     }
 
     // Consume iterator, sort by terms and return sorted.
