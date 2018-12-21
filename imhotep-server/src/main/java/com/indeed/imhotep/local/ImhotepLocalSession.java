@@ -1594,16 +1594,17 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
 
     @Override
     public synchronized int metricFilter(final int stat, final long min, final long max, final int targetGroup, final int negativeGroup, final int positiveGroup) throws ImhotepOutOfMemoryException {
-        if (stat < 0 || stat >= statLookup.length()) {
+        if ((stat < 0) || (stat >= statLookup.length())) {
             throw newIllegalArgumentException("invalid stat index: " + stat
                     + ", must be between [0," + statLookup.length() + ")");
         }
 
-        if (isFilteredOut()) {
+        if (isFilteredOut() || (targetGroup >= docIdToGroup.getNumGroups())) {
             return docIdToGroup.getNumGroups();
         }
 
-        docIdToGroup = GroupLookupFactory.resize(docIdToGroup, docIdToGroup.getNumGroups(), memory);
+        final int newMaxGroup = Math.max(docIdToGroup.getNumGroups(), Math.max(positiveGroup, negativeGroup));
+        docIdToGroup = GroupLookupFactory.resize(docIdToGroup, newMaxGroup, memory);
         final IntValueLookup lookup = statLookup.get(stat);
 
         final int numDocs = docIdToGroup.size();
@@ -1690,8 +1691,8 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                     + decimalPattern + ")");
 
     private static final Pattern REGEXPMATCH_COMMAND = Pattern.compile("regexmatch\\s+(\\w+)\\s+([0-9]+)\\s(.+)");
-    private static final Pattern RANDOM_PATTERN = Pattern.compile("random\\s+(int|str)\\s+\\[([0-9., ]+)]\\s+\"([^\"]*)\"\\s+(.*)");
-    private static final Pattern RANDOM_METRIC_PATTERN = Pattern.compile("random_metric\\s+\\[([0-9., ]+)]\\s+\"([^\"]*)\"");
+    private static final Pattern RANDOM_PATTERN = Pattern.compile("^random\\s+(?<type>int|str)\\s+\\[(?<percentiles>[0-9., ]+)]\\s+(?<field>.*)\\s+\"(?<salt>[^\"]*)\"$");
+    private static final Pattern RANDOM_METRIC_PATTERN = Pattern.compile("^random_metric\\s+\\[(?<percentiles>[0-9., ]+)]\\s+\"(?<salt>[^\"]*)\"$");
 
     @Override
     public synchronized int pushStat(String statName)
@@ -1899,14 +1900,14 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                 throw new IllegalArgumentException("random stat \"" + statName + "\" does not match the pattern: " + matcher.pattern());
             }
 
-            final boolean isIntField = "int".equals(matcher.group(1));
+            final boolean isIntField = "int".equals(matcher.group("type"));
 
-            final double[] percentiles = Arrays.stream(matcher.group(2).split(","))
+            final double[] percentiles = Arrays.stream(matcher.group("percentiles").split(","))
                     .mapToDouble(Double::parseDouble)
                     .toArray();
 
-            final String salt = matcher.group(3);
-            final String field = matcher.group(4).trim();
+            final String salt = matcher.group("salt");
+            final String field = matcher.group("field").trim();
 
             statLookup.set(numStats, statName, randomLookup(field, isIntField, salt, percentiles));
         } else if (statName.startsWith("random_metric ")) {
@@ -1915,11 +1916,11 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                 throw new IllegalArgumentException("random stat \"" + statName + "\" does not match the pattern: " + matcher.pattern());
             }
 
-            final double[] percentiles = Arrays.stream(matcher.group(1).split(","))
+            final double[] percentiles = Arrays.stream(matcher.group("percentiles").split(","))
                     .mapToDouble(Double::parseDouble)
                     .toArray();
 
-            final String salt = matcher.group(2);
+            final String salt = matcher.group("salt");
 
             try (final IntValueLookup operand = popLookup()) {
                 statLookup.set(numStats, statName, randomMetricLookup(operand, salt, percentiles));
@@ -3174,24 +3175,27 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                     IterativeHasherUtils.createChooser(percentages);
 
             final int[] docIdBuf = memoryPool.getIntBuffer(BUFFER_SIZE, true);
-            while (iterator.hasNext()) {
-                final int hash = iterator.getHash();
-                // Use zero as the not-present value for ease of use
-                final int value = groupChooser.getGroup(hash) + 1;
+            try {
+                while (iterator.hasNext()) {
+                    final int hash = iterator.getHash();
+                    // Use zero as the not-present value for ease of use
+                    final int value = groupChooser.getGroup(hash) + 1;
 
-                final DocIdStream docIdStream = iterator.getDocIdStream();
+                    final DocIdStream docIdStream = iterator.getDocIdStream();
 
-                while (true) {
-                    final int n = docIdStream.fillDocIdBuffer(docIdBuf);
-                    for (int i = 0; i < n; i++) {
-                        array[docIdBuf[i]] = value;
-                    }
-                    if (n < BUFFER_SIZE) {
-                        break;
+                    while (true) {
+                        final int n = docIdStream.fillDocIdBuffer(docIdBuf);
+                        for (int i = 0; i < n; i++) {
+                            array[docIdBuf[i]] = value;
+                        }
+                        if (n < BUFFER_SIZE) {
+                            break;
+                        }
                     }
                 }
+            } finally {
+                memoryPool.returnIntBuffer(docIdBuf);
             }
-            memoryPool.returnIntBuffer(docIdBuf);
         }
 
         return new MemoryReservingIntValueLookupWrapper(new IntArrayIntValueLookup(array, 0, percentages.length + 1));
@@ -3213,17 +3217,22 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
 
         final int[] docIdBuf = memoryPool.getIntBuffer(BUFFER_SIZE, true);
         final long[] valBuf = memoryPool.getLongBuffer(BUFFER_SIZE, true);
-        for (int startDoc = 0; startDoc < numDocs; startDoc += BUFFER_SIZE) {
-            final int n = Math.min(BUFFER_SIZE, numDocs - startDoc);
-            for (int i = 0; i < n; i++) {
-                docIdBuf[i] = startDoc + i;
+        try {
+            for (int startDoc = 0; startDoc < numDocs; startDoc += BUFFER_SIZE) {
+                final int n = Math.min(BUFFER_SIZE, numDocs - startDoc);
+                for (int i = 0; i < n; i++) {
+                    docIdBuf[i] = startDoc + i;
+                }
+                lookup.lookup(docIdBuf, valBuf, n);
+                for (int i = 0; i < n; i++) {
+                    final int hash = hasher.calculateHash(valBuf[i]);
+                    final int value = chooser.getGroup(hash) + 1;
+                    array[docIdBuf[i]] = value;
+                }
             }
-            lookup.lookup(docIdBuf, valBuf, n);
-            for (int i = 0; i < n; i++) {
-                final int hash = hasher.calculateHash(valBuf[i]);
-                final int value = chooser.getGroup(hash) + 1;
-                array[docIdBuf[i]] = value;
-            }
+        } finally {
+            memoryPool.returnIntBuffer(docIdBuf);
+            memoryPool.returnLongBuffer(valBuf);
         }
 
         return new MemoryReservingIntValueLookupWrapper(new IntArrayIntValueLookup(array, 0, percentages.length + 1));
