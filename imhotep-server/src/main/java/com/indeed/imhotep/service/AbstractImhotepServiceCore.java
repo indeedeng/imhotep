@@ -49,6 +49,7 @@ import com.indeed.imhotep.protobuf.ImhotepResponse;
 import com.indeed.imhotep.protobuf.MultiFTGSRequest;
 import com.indeed.imhotep.protobuf.ShardNameNumDocsPair;
 import com.indeed.imhotep.scheduling.ImhotepTask;
+import com.indeed.imhotep.scheduling.SilentCloseable;
 import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.core.reference.SharedReference;
 import org.apache.log4j.Logger;
@@ -173,7 +174,7 @@ public abstract class AbstractImhotepServiceCore
     }
 
     private Void sendFTGSIterator(@WillClose final FTGSIterator iterator, final OutputStream os) throws IOException {
-        try {
+        try (final SilentCloseable ignored = iterator) {
             final ImhotepResponse.Builder responseBuilder =
                     ImhotepResponse.newBuilder()
                             .setNumStats(iterator.getNumStats())
@@ -184,8 +185,6 @@ public abstract class AbstractImhotepServiceCore
             os.flush();
             log.debug("FTGS response sent");
             return null;
-        } finally {
-            iterator.close();
         }
     }
 
@@ -221,7 +220,7 @@ public abstract class AbstractImhotepServiceCore
     }
 
     private Void sendFTGAIterator(@WillClose final FTGAIterator iterator, final OutputStream os) throws IOException {
-        try {
+        try (final SilentCloseable ignored = iterator) {
             final ImhotepResponse.Builder responseBuilder =
                     ImhotepResponse.newBuilder()
                             .setNumStats(iterator.getNumStats())
@@ -232,8 +231,6 @@ public abstract class AbstractImhotepServiceCore
             os.flush();
             log.debug("FTGA response sent");
             return null;
-        } finally {
-            iterator.close();
         }
     }
 

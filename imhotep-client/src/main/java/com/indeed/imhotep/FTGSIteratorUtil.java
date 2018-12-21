@@ -27,6 +27,7 @@ import com.indeed.imhotep.api.FTGIterator;
 import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.api.GroupStatsIterator;
 import com.indeed.imhotep.api.ImhotepSession;
+import com.indeed.imhotep.scheduling.SilentCloseable;
 import com.indeed.imhotep.service.FTGSOutputStreamWriter;
 import com.indeed.util.core.Pair;
 import com.indeed.util.core.Throwables2;
@@ -156,13 +157,11 @@ public class FTGSIteratorUtil {
             @WillClose final FTGSIterator originalIterator,
             final long termLimit,
             final int sortStat) {
-        try {
+        try (final SilentCloseable ignored = originalIterator) {
             if ((termLimit <= 0) || (sortStat < 0) || (sortStat >= originalIterator.getNumStats())) {
                 throw new IllegalArgumentException("TopTerms expect positive termLimit and valid sortStat index");
             }
             return getTopTermsFTGSIteratorInternal(originalIterator, termLimit, sortStat);
-        } finally {
-            originalIterator.close();
         }
     }
 
@@ -170,13 +169,11 @@ public class FTGSIteratorUtil {
             @WillClose final FTGAIterator originalIterator,
             final long termLimit,
             final int sortStat) {
-        try {
+        try (final SilentCloseable ignored = originalIterator) {
             if ((termLimit <= 0) || (sortStat < 0) || (sortStat >= originalIterator.getNumStats())) {
                 throw new IllegalArgumentException("TopTerms expect positive termLimit and valid sortStat index");
             }
             return getTopTermsFTGSIteratorInternal(originalIterator, termLimit, sortStat);
-        } finally {
-            originalIterator.close();
         }
     }
 

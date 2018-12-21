@@ -13,9 +13,9 @@
  */
  package com.indeed.imhotep.api;
 
-import java.io.Closeable;
+import com.indeed.imhotep.scheduling.SilentCloseable;
 
-public interface FTGIterator extends Closeable {
+public interface FTGIterator extends SilentCloseable {
     /**
      * @return upper bound for number of groups.
      * It is guaranteed that values returned by {{@link #group()} method will be in range [1, getNumGroups() - 1],
