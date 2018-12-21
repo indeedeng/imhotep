@@ -1895,6 +1895,11 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                 throw Throwables2.propagate(t, ImhotepOutOfMemoryException.class);
             }
         } else if (statName.startsWith("random ")) {
+            // Expected result:
+            //      0 if document does not have the field.
+            //      1 through (percentiles.length + 1), where the distribution across these groups is determined
+            //        by the values in percentiles, and for any individual document is determined by the
+            //        hash of the term+salt
             final Matcher matcher = RANDOM_PATTERN.matcher(statName);
             if (!matcher.matches()) {
                 throw new IllegalArgumentException("random stat \"" + statName + "\" does not match the pattern: " + matcher.pattern());
@@ -1911,6 +1916,10 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
 
             statLookup.set(numStats, statName, randomLookup(field, isIntField, salt, percentiles));
         } else if (statName.startsWith("random_metric ")) {
+            // Expected result:
+            //      1 through (percentiles.length + 1), where the distribution across these groups is determined
+            //        by the values in percentiles, and for any individual document is determined by the
+            //        hash of the popped metric+salt
             final Matcher matcher = RANDOM_METRIC_PATTERN.matcher(statName);
             if (!matcher.matches()) {
                 throw new IllegalArgumentException("random stat \"" + statName + "\" does not match the pattern: " + matcher.pattern());
