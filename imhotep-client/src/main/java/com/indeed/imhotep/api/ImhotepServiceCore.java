@@ -51,6 +51,7 @@ public interface ImhotepServiceCore {
     int handleMetricRegroup2D(String sessionId, int xStat, long xMin, long xMax, long xIntervalSize, int yStat, long yMin, long yMax, long yIntervalSize) throws ImhotepOutOfMemoryException;
     int handleRegroup(String sessionId, int[] fromGroups, int[] toGroups, boolean filterOutNotTargeted) throws ImhotepOutOfMemoryException;
     int handleMetricFilter(String sessionId, int stat, long min, long max, boolean negate) throws ImhotepOutOfMemoryException;
+    int handleMetricFilter(String sessionId, int stat, long min, long max, int targetGroup, int negativeGroup, int positiveGroup) throws ImhotepOutOfMemoryException;
     List<TermCount> handleApproximateTopTerms(String sessionId, String field, boolean isIntField, int k);
     int handlePushStat(String sessionId, String metric) throws ImhotepOutOfMemoryException;
     int handlePopStat(String sessionId);

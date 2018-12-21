@@ -590,6 +590,7 @@ public abstract class AbstractImhotepServiceCore
         return doWithSession(sessionId, (ThrowingFunction<MTImhotepLocalMultiSession, Integer, ImhotepOutOfMemoryException>) session -> session.metricFilter(stat, min, max, negate));
     }
 
+    @Override
     public int handleMetricFilter(
             final String sessionId,
             final int stat,
