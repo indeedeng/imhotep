@@ -338,9 +338,9 @@ public interface ImhotepSession
 
     /**
      * Filters documents based on whether or not the given stat is within the specified range.
-     * If negate&eq;false, then documents with the metric inside the range are kept in their
+     * If negate=false, then documents with the metric inside the range are kept in their
      *     present groups, and documents outside of the range are moved to group 0.
-     * If negate&eq;true, then documents with the metric inside the range are moved to group 0,
+     * If negate=true, then documents with the metric inside the range are moved to group 0,
      *     and documents outside of the range are kept in their present groups.
      *
      * @param stat index on stack of metric to filter based on
