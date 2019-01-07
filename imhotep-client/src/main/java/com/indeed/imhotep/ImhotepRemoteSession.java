@@ -923,6 +923,7 @@ public class ImhotepRemoteSession
         }
     }
 
+    @Override
     public int metricFilter(
             final int stat,
             final long min,
@@ -935,6 +936,28 @@ public class ImhotepRemoteSession
                 .setXMin(min)
                 .setXMax(max)
                 .setNegate(negate)
+                .build();
+        try {
+            final ImhotepResponse response = sendRequestWithMemoryException(request, host, port, socketTimeout);
+            final int result = response.getNumGroups();
+            timer.complete(request);
+            return result;
+        } catch (final IOException e) {
+            throw Throwables.propagate(e);
+        }
+    }
+
+    @Override
+    public int metricFilter(final int stat, final long min, final long max, final int targetGroup, final int negativeGroup, final int positiveGroup) throws ImhotepOutOfMemoryException {
+        final Timer timer = new Timer();
+        final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.METRIC_FILTER)
+                .setSessionId(getSessionId())
+                .setXStat(stat)
+                .setXMin(min)
+                .setXMax(max)
+                .setTargetGroup(targetGroup)
+                .setPositiveGroup(positiveGroup)
+                .setNegativeGroup(negativeGroup)
                 .build();
         try {
             final ImhotepResponse response = sendRequestWithMemoryException(request, host, port, socketTimeout);

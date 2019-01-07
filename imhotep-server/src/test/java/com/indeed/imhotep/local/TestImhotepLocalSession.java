@@ -151,6 +151,36 @@ public class TestImhotepLocalSession {
     }
 
     @Test
+    public void testTargetedMetricFilter() throws ImhotepOutOfMemoryException {
+        final MockFlamdexReader r = newMetricRegroupTestReader();
+
+        try (ImhotepLocalSession session = new ImhotepJavaLocalSession("testLocalSession", r)) {
+            session.pushStat("if1");
+
+            session.pushStat("count()");
+            Assert.assertArrayEquals(new long[]{0, 10}, session.getGroupStats(1));
+
+            // Nothing should be 0-4, so this should do nothing.
+            session.metricFilter(0, 0, 4, 1, 1, 0);
+            Assert.assertArrayEquals(new long[]{0, 10}, session.getGroupStats(1));
+
+            // Move the 5s to 2
+            session.metricFilter(0, 0, 5, 1, 1, 2);
+            Assert.assertArrayEquals(new long[]{0, 5, 5}, session.getGroupStats(1));
+
+            // Make sure 19 and 21 do nothing to the 20
+            session.metricFilter(0, 19, 19, 1, 1, 3);
+            Assert.assertArrayEquals(new long[]{0, 5, 5}, session.getGroupStats(1));
+            session.metricFilter(0, 21, 21, 1, 1, 3);
+            Assert.assertArrayEquals(new long[]{0, 5, 5}, session.getGroupStats(1));
+
+            // Move the 20 to 3
+            session.metricFilter(0, 20, 20, 1, 1, 3);
+            Assert.assertArrayEquals(new long[]{0, 4, 5, 1}, session.getGroupStats(1));
+        }
+    }
+
+    @Test
     public void testMetricRegroup() throws ImhotepOutOfMemoryException {
         final MockFlamdexReader r = newMetricRegroupTestReader();
 

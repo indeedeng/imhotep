@@ -48,7 +48,7 @@ public class MultiplexingRequestHandler implements RequestHandler {
                     final Iterable<ShardMasterResponse> result = requestHandler.handleRequest(request);
                     final long elapsed = stopwatch.elapsed(TimeUnit.MILLISECONDS);
                     statsEmitter.processed(METRIC_PROCESSED, request.getRequestType(), elapsed);
-                    LOGGER.info("Finished handling request " + request.getRequestType() + " from " + request.getNode().getHost() + " in " + elapsed +" ms");
+                    LOGGER.debug("Finished handling request " + request.getRequestType() + " from " + request.getNode().getHost() + " in " + elapsed +" ms");
                     return result;
                 } catch (final IllegalArgumentException e) {
                     final Iterable<ShardMasterResponse> result = Collections.singletonList(ShardMasterResponse.newBuilder()

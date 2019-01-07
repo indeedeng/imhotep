@@ -313,11 +313,24 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
         return Collections.max(Arrays.asList(integerBuf));
     }
 
+    @Override
     public int metricFilter(final int stat, final long min, final long max, final boolean negate) throws ImhotepOutOfMemoryException {
         executeMemoryException(integerBuf, new ThrowingFunction<ImhotepSession, Integer>() {
             @Override
             public Integer apply(final ImhotepSession session) throws ImhotepOutOfMemoryException {
                 return session.metricFilter(stat, min, max, negate);
+            }
+        });
+
+        return Collections.max(Arrays.asList(integerBuf));
+    }
+
+    @Override
+    public int metricFilter(final int stat, final long min, final long max, final int targetGroup, final int negativeGroup, final int positiveGroup) throws ImhotepOutOfMemoryException {
+        executeMemoryException(integerBuf, new ThrowingFunction<ImhotepSession, Integer>() {
+            @Override
+            public Integer apply(final ImhotepSession session) throws ImhotepOutOfMemoryException {
+                return session.metricFilter(stat, min, max, targetGroup, negativeGroup, positiveGroup);
             }
         });
 

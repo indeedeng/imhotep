@@ -31,6 +31,7 @@ import com.indeed.flamdex.api.IntTermIterator;
 import com.indeed.flamdex.api.IntValueLookup;
 import com.indeed.flamdex.api.StringTermDocIterator;
 import com.indeed.flamdex.api.StringTermIterator;
+import com.indeed.flamdex.api.TermDocIterator;
 import com.indeed.flamdex.api.TermIterator;
 import com.indeed.flamdex.datastruct.FastBitSet;
 import com.indeed.flamdex.datastruct.FastBitSetPooler;
@@ -112,6 +113,7 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -1172,6 +1174,10 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             throw newIllegalArgumentException("percentages should have 1 fewer element than resultGroups");
         }
 
+        ensurePercentagesValidity(percentages);
+    }
+
+    private void ensurePercentagesValidity(final double[] percentages) {
         // Ensure validity of percentages values
         double curr = 0.0;
         for (int i = 0; i < percentages.length; i++) {
@@ -1529,7 +1535,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     }
 
     public synchronized int metricFilter(final int stat, final long min, final long max, final boolean negate)
-        throws ImhotepOutOfMemoryException {
+            throws ImhotepOutOfMemoryException {
         if (stat < 0 || stat >= statLookup.length()) {
             throw newIllegalArgumentException("invalid stat index: " + stat
                     + ", must be between [0," + statLookup.length() + ")");
@@ -1586,6 +1592,63 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         return docIdToGroup.getNumGroups();
     }
 
+    @Override
+    public synchronized int metricFilter(final int stat, final long min, final long max, final int targetGroup, final int negativeGroup, final int positiveGroup) throws ImhotepOutOfMemoryException {
+        if ((stat < 0) || (stat >= statLookup.length())) {
+            throw newIllegalArgumentException("invalid stat index: " + stat
+                    + ", must be between [0," + statLookup.length() + ")");
+        }
+
+        if (isFilteredOut() || (targetGroup >= docIdToGroup.getNumGroups())) {
+            return docIdToGroup.getNumGroups();
+        }
+
+        final int newMaxGroup = Math.max(docIdToGroup.getNumGroups(), Math.max(positiveGroup, negativeGroup));
+        docIdToGroup = GroupLookupFactory.resize(docIdToGroup, newMaxGroup, memory);
+        final IntValueLookup lookup = statLookup.get(stat);
+
+        final int numDocs = docIdToGroup.size();
+        final int[] docIdBuf = memoryPool.getIntBuffer(BUFFER_SIZE, true);
+        final int[] docGroupBuffer = memoryPool.getIntBuffer(BUFFER_SIZE, true);
+        final long[] valBuf = memoryPool.getLongBuffer(BUFFER_SIZE, true);
+        for (int doc = 0; doc < numDocs; doc += BUFFER_SIZE) {
+
+            final int n = Math.min(BUFFER_SIZE, numDocs - doc);
+
+            docIdToGroup.fillDocGrpBufferSequential(doc, docGroupBuffer, n);
+
+            int numTargeted = 0;
+            for (int i = 0; i < n; ++i) {
+                final int group = docGroupBuffer[i];
+                if (group == targetGroup) {
+                    docIdBuf[numTargeted] = doc + i;
+                    docGroupBuffer[numTargeted++] = group;
+                }
+            }
+
+            if (numTargeted == 0) {
+                continue;
+            }
+
+            lookup.lookup(docIdBuf, valBuf, numTargeted);
+
+            for (int i = 0; i < numTargeted; ++i) {
+                final long val = valBuf[i];
+                final boolean valInRange = val >= min && val <= max;
+                docGroupBuffer[i] = valInRange ? positiveGroup : negativeGroup;
+            }
+
+            docIdToGroup.batchSet(docIdBuf, docGroupBuffer, numTargeted);
+        }
+
+        memoryPool.returnIntBuffer(docIdBuf);
+        memoryPool.returnIntBuffer(docGroupBuffer);
+        memoryPool.returnLongBuffer(valBuf);
+        finalizeRegroup();
+
+        return docIdToGroup.getNumGroups();
+    }
+
     private static GroupRemapRule[] cleanUpRules(final GroupRemapRule[] rawRules, final int numGroups) {
         final GroupRemapRule[] cleanRules = new GroupRemapRule[numGroups];
         for (final GroupRemapRule rawRule : rawRules) {
@@ -1628,6 +1691,8 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                     + decimalPattern + ")");
 
     private static final Pattern REGEXPMATCH_COMMAND = Pattern.compile("regexmatch\\s+(\\w+)\\s+([0-9]+)\\s(.+)");
+    private static final Pattern RANDOM_PATTERN = Pattern.compile("^random\\s+(?<type>int|str)\\s+\\[(?<percentiles>[0-9., ]+)]\\s+(?<field>.*)\\s+\"(?<salt>.*)\"$");
+    private static final Pattern RANDOM_METRIC_PATTERN = Pattern.compile("^random_metric\\s+\\[(?<percentiles>[0-9., ]+)]\\s+\"(?<salt>.*)\"$");
 
     @Override
     public synchronized int pushStat(String statName)
@@ -1828,6 +1893,46 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                     throw newImhotepOutOfMemoryException(t);
                 }
                 throw Throwables2.propagate(t, ImhotepOutOfMemoryException.class);
+            }
+        } else if (statName.startsWith("random ")) {
+            // Expected result:
+            //      0 if document does not have the field.
+            //      1 through (percentiles.length + 1), where the distribution across these groups is determined
+            //        by the values in percentiles, and for any individual document is determined by the
+            //        hash of the term+salt
+            final Matcher matcher = RANDOM_PATTERN.matcher(statName);
+            if (!matcher.matches()) {
+                throw new IllegalArgumentException("random stat \"" + statName + "\" does not match the pattern: " + matcher.pattern());
+            }
+
+            final boolean isIntField = "int".equals(matcher.group("type"));
+
+            final double[] percentiles = Arrays.stream(matcher.group("percentiles").split(","))
+                    .mapToDouble(Double::parseDouble)
+                    .toArray();
+
+            final String salt = matcher.group("salt");
+            final String field = matcher.group("field").trim();
+
+            statLookup.set(numStats, statName, randomLookup(field, isIntField, salt, percentiles));
+        } else if (statName.startsWith("random_metric ")) {
+            // Expected result:
+            //      1 through (percentiles.length + 1), where the distribution across these groups is determined
+            //        by the values in percentiles, and for any individual document is determined by the
+            //        hash of the popped metric+salt
+            final Matcher matcher = RANDOM_METRIC_PATTERN.matcher(statName);
+            if (!matcher.matches()) {
+                throw new IllegalArgumentException("random stat \"" + statName + "\" does not match the pattern: " + matcher.pattern());
+            }
+
+            final double[] percentiles = Arrays.stream(matcher.group("percentiles").split(","))
+                    .mapToDouble(Double::parseDouble)
+                    .toArray();
+
+            final String salt = matcher.group("salt");
+
+            try (final IntValueLookup operand = popLookup()) {
+                statLookup.set(numStats, statName, randomMetricLookup(operand, salt, percentiles));
             }
         } else if (Metric.getMetric(statName) != null) {
             final IntValueLookup a;
@@ -3061,6 +3166,85 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         }
 
         return new MemoryReservingIntValueLookupWrapper(new IntArrayIntValueLookup(array, min, max));
+    }
+
+    private IntValueLookup randomLookup(final String field, final boolean isIntField, final String salt, final double[] percentages) throws ImhotepOutOfMemoryException {
+        ensurePercentagesValidity(percentages);
+
+        // TODO: Size this based on percentages.length + 1. No need to have a full int[].
+        final long memoryUsage = 4 * flamdexReader.getNumDocs();
+        if (!memory.claimMemory(memoryUsage)) {
+            throw newImhotepOutOfMemoryException();
+        }
+        final int[] array = new int[flamdexReader.getNumDocs()];
+
+        try(final IterativeHasherUtils.TermHashIterator iterator =
+                    IterativeHasherUtils.create(flamdexReader, field, isIntField, salt)) {
+            final IterativeHasherUtils.GroupChooser groupChooser =
+                    IterativeHasherUtils.createChooser(percentages);
+
+            final int[] docIdBuf = memoryPool.getIntBuffer(BUFFER_SIZE, true);
+            try {
+                while (iterator.hasNext()) {
+                    final int hash = iterator.getHash();
+                    // Use zero as the not-present value for ease of use
+                    final int value = groupChooser.getGroup(hash) + 1;
+
+                    final DocIdStream docIdStream = iterator.getDocIdStream();
+
+                    while (true) {
+                        final int n = docIdStream.fillDocIdBuffer(docIdBuf);
+                        for (int i = 0; i < n; i++) {
+                            array[docIdBuf[i]] = value;
+                        }
+                        if (n < BUFFER_SIZE) {
+                            break;
+                        }
+                    }
+                }
+            } finally {
+                memoryPool.returnIntBuffer(docIdBuf);
+            }
+        }
+
+        return new MemoryReservingIntValueLookupWrapper(new IntArrayIntValueLookup(array, 0, percentages.length + 1));
+    }
+
+    private IntValueLookup randomMetricLookup(final IntValueLookup lookup, final String salt, final double[] percentages) throws ImhotepOutOfMemoryException {
+        ensurePercentagesValidity(percentages);
+
+        // TODO: Size this based on percentages.length + 1. No need to have a full int[].
+        final long memoryUsage = 4 * flamdexReader.getNumDocs();
+        if (!memory.claimMemory(memoryUsage)) {
+            throw newImhotepOutOfMemoryException();
+        }
+        final int[] array = new int[flamdexReader.getNumDocs()];
+
+        // Using ConsistentLongHasher to be consistent with randomMetricRegroup to the extent that we can.
+        final IterativeHasher.ConsistentLongHasher hasher = new IterativeHasher.Murmur3Hasher(salt).consistentLongHasher();
+        final IterativeHasherUtils.GroupChooser chooser = IterativeHasherUtils.createChooser(percentages);
+
+        final int[] docIdBuf = memoryPool.getIntBuffer(BUFFER_SIZE, true);
+        final long[] valBuf = memoryPool.getLongBuffer(BUFFER_SIZE, true);
+        try {
+            for (int startDoc = 0; startDoc < numDocs; startDoc += BUFFER_SIZE) {
+                final int n = Math.min(BUFFER_SIZE, numDocs - startDoc);
+                for (int i = 0; i < n; i++) {
+                    docIdBuf[i] = startDoc + i;
+                }
+                lookup.lookup(docIdBuf, valBuf, n);
+                for (int i = 0; i < n; i++) {
+                    final int hash = hasher.calculateHash(valBuf[i]);
+                    final int value = chooser.getGroup(hash) + 1;
+                    array[docIdBuf[i]] = value;
+                }
+            }
+        } finally {
+            memoryPool.returnIntBuffer(docIdBuf);
+            memoryPool.returnLongBuffer(valBuf);
+        }
+
+        return new MemoryReservingIntValueLookupWrapper(new IntArrayIntValueLookup(array, 0, percentages.length + 1));
     }
 
     private int getBitSetMemoryUsage() {

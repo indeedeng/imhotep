@@ -336,7 +336,35 @@ public interface ImhotepSession
      */
     int regroup(final int[] fromGroups, final int[] toGroups, final boolean filterOutNotTargeted) throws ImhotepOutOfMemoryException;
 
+    /**
+     * Filters documents based on whether or not the given stat is within the specified range.
+     * If negate&eq;false, then documents with the metric inside the range are kept in their
+     *     present groups, and documents outside of the range are moved to group 0.
+     * If negate&eq;true, then documents with the metric inside the range are moved to group 0,
+     *     and documents outside of the range are kept in their present groups.
+     *
+     * @param stat index on stack of metric to filter based on
+     * @param min minimum value (inclusive) of the metric range
+     * @param max maximum value (inclusive!) of the metric range
+     * @param negate whether the range is being kept, or the negation of the range is being kept
+     * @return the number of groups after applying the regroup
+     * @throws ImhotepOutOfMemoryException if performing this operation would cause imhotep to run out of memory
+     */
     int metricFilter(int stat, long min, long max, boolean negate) throws ImhotepOutOfMemoryException;
+
+    /**
+     * Move documents based on whether or not the given stat is within the specified range.
+     *
+     * @param stat index on stack of metric to filter based on
+     * @param min minimum value (inclusive) of the metric range
+     * @param max maximum value (inclusive!) of the metric range
+     * @param targetGroup the group to affect
+     * @param negativeGroup the group to move documents outside of the range to
+     * @param positiveGroup the group to move documents inside the range to
+     * @return the number of groups after applying the regroup
+     * @throws ImhotepOutOfMemoryException if performing this operation would cause imhotep to run out of memory
+     */
+    int metricFilter(int stat, long min, long max, int targetGroup, int negativeGroup, int positiveGroup) throws ImhotepOutOfMemoryException;
 
     /**
      * Return a list of the top k terms for a field, sorted by document frequency descending.
