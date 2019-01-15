@@ -128,7 +128,7 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
     }
 
     private final List<InstrumentedThreadFactory> threadFactories;
-    private final ExecutorService executor;
+    protected final ExecutorService executor;
     protected final ExecutorService getSplitBufferThreads;
     protected final ExecutorService mergeSplitBufferThreads;
 
