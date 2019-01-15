@@ -42,7 +42,7 @@ public class TaskScheduler {
     private static final Logger LOGGER = Logger.getLogger(TaskScheduler.class);
 
     private static final long LONG_RUNNING_TASK_THRESHOLD_MILLIS = TimeUnit.MINUTES.toMillis(5);
-    private static final int REPORTING_FREQUENCY_MILLIS = 100;
+    private static final int DATADOG_STATS_REPORTING_FREQUENCY_MILLIS = 100;
     private static final int CLEANUP_FREQUENCY_MILLIS = 1000;
     private static final long LONG_RUNNING_TASK_REPORT_FREQUENCY_MILLIS = TimeUnit.MINUTES.toMillis(1);
 
@@ -60,7 +60,7 @@ public class TaskScheduler {
     public static TaskScheduler CPUScheduler = new NoopTaskScheduler();
     public static TaskScheduler RemoteFSIOScheduler = new NoopTaskScheduler();
 
-    private ScheduledExecutorService statsReportingExecutor = null;
+    private ScheduledExecutorService datadogStatsReportingExecutor = null;
     private ScheduledExecutorService cleanupExecutor = null;
     private ScheduledExecutorService longRunningTaskReportingExecutor = null;
 
@@ -75,13 +75,13 @@ public class TaskScheduler {
     }
 
     protected void initializeSchedulers(final SchedulerType schedulerType) {
-        statsReportingExecutor = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("schedulerStatsReporter-" + schedulerType));
-        statsReportingExecutor.scheduleAtFixedRate(this::reportStats, REPORTING_FREQUENCY_MILLIS, REPORTING_FREQUENCY_MILLIS, TimeUnit.MILLISECONDS);
+        datadogStatsReportingExecutor = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("schedulerDatadogStatsReporter-" + schedulerType));
+        datadogStatsReportingExecutor.scheduleAtFixedRate(this::reportDatadogStats, DATADOG_STATS_REPORTING_FREQUENCY_MILLIS, DATADOG_STATS_REPORTING_FREQUENCY_MILLIS, TimeUnit.MILLISECONDS);
 
         cleanupExecutor = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("schedulerCleanup-" + schedulerType));
         cleanupExecutor.scheduleAtFixedRate(this::cleanup, CLEANUP_FREQUENCY_MILLIS, CLEANUP_FREQUENCY_MILLIS, TimeUnit.MILLISECONDS);
 
-        longRunningTaskReportingExecutor = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("longRunnintTaskReporter-" + schedulerType));
+        longRunningTaskReportingExecutor = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("schedulerLongRunningTaskReporter-" + schedulerType));
         longRunningTaskReportingExecutor.scheduleAtFixedRate(this::reportLongRunningTasks, LONG_RUNNING_TASK_REPORT_FREQUENCY_MILLIS, LONG_RUNNING_TASK_REPORT_FREQUENCY_MILLIS, TimeUnit.MILLISECONDS);
     }
 
@@ -89,7 +89,7 @@ public class TaskScheduler {
         return totalSlots;
     }
 
-    private void reportStats() {
+    private void reportDatadogStats() {
         long waitingUsersCount = 0;
         long waitingTasksCount = 0;
         long runningTasksCount = 0;
@@ -108,7 +108,7 @@ public class TaskScheduler {
             longestRunningTaskNanos = nowNanos - oldestRunStartTimeNanos;
 
             long minWaitStartTimeNanos = nowNanos;
-            for(TaskQueue taskQueue: usernameToQueue.values()) {
+            for (TaskQueue taskQueue : usernameToQueue.values()) {
                 final ImhotepTask oldestTask = taskQueue.peek();
                 if (oldestTask != null) {
                     minWaitStartTimeNanos = Math.min(minWaitStartTimeNanos, oldestTask.getLastWaitStartTime());
@@ -264,8 +264,8 @@ public class TaskScheduler {
     }
 
     public void close() {
-        if(statsReportingExecutor != null) {
-            statsReportingExecutor.shutdown();
+        if (datadogStatsReportingExecutor != null) {
+            datadogStatsReportingExecutor.shutdown();
         }
         if(cleanupExecutor != null) {
             cleanupExecutor.shutdown();
