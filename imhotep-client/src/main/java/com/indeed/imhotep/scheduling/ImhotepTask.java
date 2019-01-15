@@ -221,11 +221,15 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
         return totalExecutionTime;
     }
 
+    public StackTraceElement[] getStackTrace() {
+        return taskThread.getStackTrace();
+    }
+
     public TaskSnapshot getSnapshot(final boolean takeStackTrace) {
         @Nullable StackTraceElement[] stackTrace = null;
         if (takeStackTrace) {
             try {
-                stackTrace = taskThread.getStackTrace();
+                stackTrace = getStackTrace();
             } catch (final Exception e) {
                 LOGGER.warn("Failed to take stack trace", e);
             }
