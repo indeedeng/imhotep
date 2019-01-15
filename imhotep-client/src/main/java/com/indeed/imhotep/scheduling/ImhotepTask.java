@@ -29,7 +29,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * Represents a piece of work that will happen in a single thread
+ * Represents a piece of work that will happen in a single thread.
+ *
+ * Synchronizations on this object are for avoiding race between initialize task vs start/finish task.
  */
 public class ImhotepTask implements Comparable<ImhotepTask> {
     private static final Logger LOGGER = Logger.getLogger(ImhotepTask.class);
@@ -227,6 +229,9 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
         return totalExecutionTime;
     }
 
+    /**
+     * Returns empty iff this task is not currently running
+     */
     public OptionalLong getCurrentExecutionTime() {
         synchronized (executionTimeStatsLock) {
             if (!isRunning()) {
