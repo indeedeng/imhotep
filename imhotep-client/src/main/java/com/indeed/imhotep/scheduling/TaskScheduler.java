@@ -130,7 +130,8 @@ public class TaskScheduler {
 
     private void reportLongRunningTasks() {
         for (final ImhotepTask runningTask : runningTasks) {
-            if (runningTask.isRunning() && (runningTask.getTotalExecutionTime() >= LONG_RUNNING_TASK_THRESHOLD_MILLIS)) {
+            final long currentExecutionTime = TimeUnit.NANOSECONDS.toMillis(runningTask.getCurrentExecutionTime().orElse(0));
+            if (currentExecutionTime >= LONG_RUNNING_TASK_THRESHOLD_MILLIS) {
                 final StackTraceElement[] stackTraceElements;
                 try {
                     stackTraceElements = runningTask.getStackTrace();

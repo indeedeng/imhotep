@@ -23,6 +23,7 @@ import org.apache.log4j.Logger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.Optional;
+import java.util.OptionalLong;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
@@ -33,8 +34,7 @@ import java.util.concurrent.atomic.AtomicLong;
 public class ImhotepTask implements Comparable<ImhotepTask> {
     private static final Logger LOGGER = Logger.getLogger(ImhotepTask.class);
 
-    final static ThreadLocal<ImhotepTask> THREAD_LOCAL_TASK = new ThreadLocal<>();
-
+    static final ThreadLocal<ImhotepTask> THREAD_LOCAL_TASK = new ThreadLocal<>();
     private static final AtomicLong nextTaskId = new AtomicLong(0);
 
     private final long creationTimestamp;
@@ -53,6 +53,7 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
     private long lastWaitStartTime = 0;
     private long totalExecutionTime = 0;
     private TaskScheduler ownerScheduler = null;
+    private final Object executionTimeStatsLock = new Object(); // Lock for changing lastExecutionStartTime and totalExecutionTime atomically
 
 
     public static void setup(AbstractImhotepMultiSession session) {
@@ -122,7 +123,7 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
         if(waitLock == null) {
             throw new IllegalStateException("Tried to schedule task that is not startable " + toString());
         }
-        long waitTime = System.nanoTime() - lastWaitStartTime;
+        final long waitTime = System.nanoTime() - lastWaitStartTime;
         if(session != null) {
             session.schedulerWaitTimeCallback(schedulerType, waitTime);
         }
@@ -130,7 +131,9 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
             requestContext.schedulerWaitTimeCallback(schedulerType, waitTime);
         }
         waitLock.countDown();
-        lastExecutionStartTime = System.nanoTime();
+        synchronized (executionTimeStatsLock) {
+            lastExecutionStartTime = System.nanoTime();
+        }
     }
 
     void blockAndWait() {
@@ -153,18 +156,21 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
 
     /** returns the task resource consumption */
     synchronized long stopped(SchedulerType schedulerType) {
-        if(!isRunning()) {
-            throw new IllegalStateException("Tried to finish a task that wasn't started");
+        long executionTime;
+        synchronized (executionTimeStatsLock) {
+            if (!isRunning()) {
+                throw new IllegalStateException("Tried to finish a task that wasn't started");
+            }
+            executionTime = System.nanoTime() - lastExecutionStartTime;
+            totalExecutionTime += executionTime;
+            lastExecutionStartTime = 0;
         }
-        long executionTime = System.nanoTime() - lastExecutionStartTime;
-        totalExecutionTime += executionTime;
         if(session != null) {
             session.schedulerExecTimeCallback(schedulerType, executionTime);
         }
         if (requestContext != null) {
             requestContext.schedulerExecTimeCallback(schedulerType, executionTime);
         }
-        lastExecutionStartTime = 0;
         ownerScheduler = null;
         return executionTime;
     }
@@ -221,6 +227,15 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
         return totalExecutionTime;
     }
 
+    public OptionalLong getCurrentExecutionTime() {
+        synchronized (executionTimeStatsLock) {
+            if (!isRunning()) {
+                return OptionalLong.empty();
+            }
+            return OptionalLong.of(System.nanoTime() - lastExecutionStartTime);
+        }
+    }
+
     public StackTraceElement[] getStackTrace() {
         return taskThread.getStackTrace();
     }
@@ -234,22 +249,24 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
                 LOGGER.warn("Failed to take stack trace", e);
             }
         }
-        return new TaskSnapshot(
-                this.taskId,
-                this.session,
-                this.innerSession,
-                this.requestContext,
-                this.creationTimestamp,
-                this.userName,
-                this.clientName,
-                this.dataset,
-                this.shardName,
-                this.numDocs,
-                this.lastExecutionStartTime,
-                this.lastWaitStartTime,
-                this.totalExecutionTime,
-                stackTrace
-        );
+        synchronized (executionTimeStatsLock) {
+            return new TaskSnapshot(
+                    this.taskId,
+                    this.session,
+                    this.innerSession,
+                    this.requestContext,
+                    this.creationTimestamp,
+                    this.userName,
+                    this.clientName,
+                    this.dataset,
+                    this.shardName,
+                    this.numDocs,
+                    this.lastExecutionStartTime,
+                    this.lastWaitStartTime,
+                    this.totalExecutionTime,
+                    stackTrace
+            );
+        }
     }
 
 }
