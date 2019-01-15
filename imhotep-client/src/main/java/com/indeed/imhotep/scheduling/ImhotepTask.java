@@ -36,7 +36,7 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
     final static ThreadLocal<ImhotepTask> THREAD_LOCAL_TASK = new ThreadLocal<>();
 
     private static final AtomicLong nextTaskId = new AtomicLong(0);
-    private static final Logger log = Logger.getLogger(ImhotepTask.class);
+
     private final long creationTimestamp;
     private final long taskId;
     final String userName;
@@ -79,7 +79,7 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
     public static void clear() {
         final ImhotepTask clearingTask = ImhotepTask.THREAD_LOCAL_TASK.get();
         if (clearingTask.getTotalExecutionTime() > TimeUnit.MINUTES.toNanos(1) ) {
-            log.warn("Task " + clearingTask.toString() + " took " + TimeUnit.NANOSECONDS.toMillis(clearingTask.getTotalExecutionTime()) + " milli-seconds for execution.");
+            LOGGER.warn("Task " + clearingTask.toString() + " took " + TimeUnit.NANOSECONDS.toMillis(clearingTask.getTotalExecutionTime()) + " milli-seconds for execution.");
         }
 
         ImhotepTask.THREAD_LOCAL_TASK.remove();
