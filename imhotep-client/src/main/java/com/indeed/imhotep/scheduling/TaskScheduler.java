@@ -141,8 +141,8 @@ public class TaskScheduler {
                 }
 
                 LOGGER.info(
-                        "Imhotep task " + runningTask + " running a long time. stack trace:\n"
-                                + Joiner.on('\n').join(stackTraceElements)
+                        "Imhotep task " + runningTask + " for schedular " + schedulerType + " running a long time. stack trace:\n  "
+                                + Joiner.on("\n  ").join(stackTraceElements)
                 );
             }
         }
