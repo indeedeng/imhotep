@@ -296,10 +296,9 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
     }
 
     public AbstractImhotepMultiSession<AsynchronousRemoteImhotepSession> toAsync() {
-        final RemoteImhotepMultiSession capturedThis = this;
         final AsynchronousRemoteImhotepSession[] asyncSessions = new AsynchronousRemoteImhotepSession[this.sessions.length];
         Arrays.setAll(asyncSessions, i -> new AsynchronousRemoteImhotepSession(sessions[i], executor));
-        return new AsynchronousRemoteImhotepMultiSession(asyncSessions, capturedThis);
+        return new AsynchronousRemoteImhotepMultiSession(asyncSessions, this);
     }
 
     public static class SessionField {
@@ -311,7 +310,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
          * This constructor has sharp edges.
          * It takes an ImhotepSession for ease of use because ImhotepClient doesn't return a concrete type
          *
-         * @throws IllegalArgumentException if session is not a RemoteImhotepMultiSession or AsynhcronousRemoteImhotepMultiSession
+         * @throws IllegalArgumentException if session is not a RemoteImhotepMultiSession or AsynchronousRemoteImhotepMultiSession
          */
         public SessionField(final ImhotepSession session, final String field) {
             if (session instanceof AsynchronousRemoteImhotepMultiSession) {

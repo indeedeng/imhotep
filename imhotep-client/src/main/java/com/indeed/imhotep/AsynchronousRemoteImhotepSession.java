@@ -69,7 +69,10 @@ public class AsynchronousRemoteImhotepSession extends AbstractImhotepSession {
         try {
             future.get();
             return function.apply(this.wrapped);
-        } catch (InterruptedException | ExecutionException e) {
+        } catch (final InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw Throwables.propagate(e);
+        } catch (final ExecutionException e) {
             throw Throwables.propagate(e);
         }
     }
