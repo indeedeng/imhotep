@@ -17,6 +17,10 @@ public class ParseAggregate {
     static {
         final ImmutableMap.Builder<String, Function<AggregateStat, AggregateStat>> unopsBuilder = ImmutableMap.builder();
         unopsBuilder.put(ABS, AggregateAbsoluteValue::new);
+        unopsBuilder.put(FLOOR, AggregateFloor::new);
+        unopsBuilder.put(CEIL, AggregateCeil::new);
+        unopsBuilder.put(ROUND, AggregateRound::new);
+
         unopsBuilder.put(LOG, AggregateLog::new);
         unopsBuilder.put(NOT, AggregateNot::new);
         UNOPS = unopsBuilder.build();
