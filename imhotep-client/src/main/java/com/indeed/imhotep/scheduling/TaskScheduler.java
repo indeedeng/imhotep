@@ -268,8 +268,11 @@ public class TaskScheduler {
         if (datadogStatsReportingExecutor != null) {
             datadogStatsReportingExecutor.shutdown();
         }
-        if(cleanupExecutor != null) {
+        if (cleanupExecutor != null) {
             cleanupExecutor.shutdown();
+        }
+        if (longRunningTaskReportingExecutor != null) {
+            longRunningTaskReportingExecutor.shutdown();
         }
     }
 
