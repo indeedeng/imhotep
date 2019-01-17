@@ -24,6 +24,7 @@ import com.indeed.util.core.hash.MurmurHash;
 import com.indeed.util.core.io.Closeables2;
 import org.apache.log4j.Logger;
 
+import javax.annotation.WillClose;
 import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
@@ -50,7 +51,7 @@ public final class FTGSSplitter implements Closeable {
 
     private final int largePrime;
 
-    public FTGSSplitter(final FTGSIterator ftgsIterator,
+    public FTGSSplitter(@WillClose final FTGSIterator ftgsIterator,
                         final int numSplits,
                         final int largePrime,
                         final AtomicLong tempFileSizeBytesLeft) throws IOException {
@@ -58,8 +59,8 @@ public final class FTGSSplitter implements Closeable {
         this.numSplits = numSplits;
         this.largePrime = largePrime;
         outputStreams = new OutputStream[numSplits];
-        final File file = File.createTempFile("ftgsSplitter", ".tmp");
         try {
+            final File file = File.createTempFile("ftgsSplitter", ".tmp");
             final MultiFile multiFile;
             try {
                 multiFile = MultiFile.create(file, numSplits, 256 * 1024, tempFileSizeBytesLeft);
@@ -79,7 +80,7 @@ public final class FTGSSplitter implements Closeable {
         }
     }
 
-    public static FTGSIterator[] doSplit(final FTGSIterator ftgsIterator,
+    public static FTGSIterator[] doSplit(@WillClose final FTGSIterator ftgsIterator,
                                          final int numSplits,
                                          final int largePrime,
                                          final AtomicLong tempFileSizeBytesLeft) throws IOException {

@@ -49,10 +49,12 @@ import com.indeed.imhotep.protobuf.ImhotepResponse;
 import com.indeed.imhotep.protobuf.MultiFTGSRequest;
 import com.indeed.imhotep.protobuf.ShardNameNumDocsPair;
 import com.indeed.imhotep.scheduling.ImhotepTask;
+import com.indeed.imhotep.scheduling.SilentCloseable;
 import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.core.reference.SharedReference;
 import org.apache.log4j.Logger;
 
+import javax.annotation.WillClose;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.ArrayList;
@@ -158,41 +160,42 @@ public abstract class AbstractImhotepServiceCore
     public void handleGetFTGSIterator(final String sessionId, final FTGSParams params, final OutputStream os) throws
             IOException {
         doWithSession(sessionId, (ThrowingFunction<MTImhotepLocalMultiSession, Void, IOException>) session -> {
-            final FTGSIterator merger = session.getFTGSIterator(params);
-            return sendFTGSIterator(merger, os);
+            final FTGSIterator iterator = session.getFTGSIterator(params);
+            return sendFTGSIterator(iterator, os);
         });
     }
 
     @Override
     public void handleGetSubsetFTGSIterator(final String sessionId, final Map<String, long[]> intFields, final Map<String, String[]> stringFields, final OutputStream os) throws IOException {
         doWithSession(sessionId, (ThrowingFunction<MTImhotepLocalMultiSession, Void, IOException>) session -> {
-            final FTGSIterator merger = session.getSubsetFTGSIterator(intFields, stringFields);
-            return sendFTGSIterator(merger, os);
+            final FTGSIterator iterator = session.getSubsetFTGSIterator(intFields, stringFields);
+            return sendFTGSIterator(iterator, os);
         });
     }
 
-    private Void sendFTGSIterator(final FTGSIterator merger, final OutputStream os) throws IOException {
-        final ImhotepResponse.Builder responseBuilder =
-                ImhotepResponse.newBuilder()
-                        .setNumStats(merger.getNumStats())
-                        .setNumGroups(merger.getNumGroups());
-        log.debug("sending FTGS response");
-        ImhotepProtobufShipping.sendProtobufNoFlush(responseBuilder.build(), os);
-        writeFTGSIteratorToOutputStream(merger, os);
-        os.flush();
-        log.debug("FTGS response sent");
-
-        return null;
+    private Void sendFTGSIterator(@WillClose final FTGSIterator iterator, final OutputStream os) throws IOException {
+        try (final SilentCloseable ignored = iterator) {
+            final ImhotepResponse.Builder responseBuilder =
+                    ImhotepResponse.newBuilder()
+                            .setNumStats(iterator.getNumStats())
+                            .setNumGroups(iterator.getNumGroups());
+            log.debug("sending FTGS response");
+            ImhotepProtobufShipping.sendProtobufNoFlush(responseBuilder.build(), os);
+            writeFTGSIteratorToOutputStream(iterator, os);
+            os.flush();
+            log.debug("FTGS response sent");
+            return null;
+        }
     }
 
-    private void writeFTGSIteratorToOutputStream(final FTGSIterator merger, final OutputStream os) throws IOException {
+    private void writeFTGSIteratorToOutputStream(final FTGSIterator iterator, final OutputStream os) throws IOException {
         final Future<?> future = ftgsExecutor.submit((Callable<Void>) () -> {
             try {
                 // TODO: lock cpu, release on socket write by wrapping the socketstream and using a circular buffer,
                 // or use nonblocking IO (NIO2) and only release when blocks
-                FTGSIteratorUtil.writeFtgsIteratorToStream(merger, os);
+                FTGSIteratorUtil.writeFtgsIteratorToStream(iterator, os);
             } finally {
-                Closeables2.closeQuietly(merger, log);
+                Closeables2.closeQuietly(iterator, log);
             }
             return null;
         });
@@ -216,18 +219,19 @@ public abstract class AbstractImhotepServiceCore
         }
     }
 
-    private Void sendFTGAIterator(final FTGAIterator iterator, final OutputStream os) throws IOException {
-        final ImhotepResponse.Builder responseBuilder =
-                ImhotepResponse.newBuilder()
-                        .setNumStats(iterator.getNumStats())
-                        .setNumGroups(iterator.getNumGroups());
-        log.debug("sending FTGA response");
-        ImhotepProtobufShipping.sendProtobufNoFlush(responseBuilder.build(), os);
-        writeFTGAIteratorToOutputStream(iterator, os);
-        os.flush();
-        log.debug("FTGA response sent");
-
-        return null;
+    private Void sendFTGAIterator(@WillClose final FTGAIterator iterator, final OutputStream os) throws IOException {
+        try (final SilentCloseable ignored = iterator) {
+            final ImhotepResponse.Builder responseBuilder =
+                    ImhotepResponse.newBuilder()
+                            .setNumStats(iterator.getNumStats())
+                            .setNumGroups(iterator.getNumGroups());
+            log.debug("sending FTGA response");
+            ImhotepProtobufShipping.sendProtobufNoFlush(responseBuilder.build(), os);
+            writeFTGAIteratorToOutputStream(iterator, os);
+            os.flush();
+            log.debug("FTGA response sent");
+            return null;
+        }
     }
 
     private Void writeFTGAIteratorToOutputStream(final FTGAIterator iterator, final OutputStream os) throws IOException {

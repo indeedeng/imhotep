@@ -46,6 +46,8 @@ import com.indeed.util.core.Either;
 import com.indeed.util.core.io.Closeables2;
 import org.apache.log4j.Logger;
 
+import javax.annotation.WillClose;
+import javax.annotation.WillNotClose;
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -430,11 +432,11 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
             }
         }
 
-        final Closer closer = Closer.create();
+        final Closer closeOnFailCloser = Closer.create();
         try {
-            return parallelDisjointSplitAndMerge(closer, iterators, numLocalSplits);
+            return parallelDisjointSplitAndMerge(closeOnFailCloser, iterators, numLocalSplits);
         } catch (Throwable t) {
-            Closeables2.closeQuietly(closer, log);
+            Closeables2.closeQuietly(closeOnFailCloser, log);
             throw Throwables.propagate(t);
         }
     }
@@ -444,7 +446,7 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
     // and persist to a file. Return all of said files.
     public FTGAIterator[] zipElementWise(
             final FTGSModifiers modifiers,
-            final List<FTGSIterator[]> subIteratorLists,
+            @WillClose final List<FTGSIterator[]> subIteratorLists,
             final Function<MultiFTGSIterator, FTGAIterator> processor
     ) {
         final Closer closer = Closer.create();
@@ -482,7 +484,7 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
     // count the number of terms that pass each filter for each group on each merger,
     // and return a GroupStatsIterator that adds those counts together.
     public GroupStatsIterator mergeMultiDistinct(
-            final List<FTGSIterator[]> subIteratorLists,
+            @WillClose final List<FTGSIterator[]> subIteratorLists,
             final List<AggregateStat> filters
     ) {
         final Closer closer = Closer.create();
@@ -524,7 +526,7 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
      * @param filters one filter per HAVING
      * @return group stats iterator with num stats == filters.size(), corresponding element-wise
      */
-    public static GroupStatsIterator calculateMultiDistinct(final MultiFTGSIterator iterator, final List<AggregateStat> filters) {
+    public static GroupStatsIterator calculateMultiDistinct(@WillNotClose final MultiFTGSIterator iterator, final List<AggregateStat> filters) {
         Preconditions.checkState(iterator.nextField(), "MultiFTGSIterator had no fields, expected exactly 1");
         Preconditions.checkState(iterator.fieldName().equals("magic"), "MultiFTGSIterator has field name \"%s\", expected \"magic\"", iterator.fieldName());
 
@@ -567,7 +569,7 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
         return parallelMergeFTGS(iterators, termLimit, sortStat, sorted);
     }
 
-    private FTGSIterator parallelMergeFTGS(final FTGSIterator[] iterators,
+    private FTGSIterator parallelMergeFTGS(@WillClose final FTGSIterator[] iterators,
                                            final long termLimit,
                                            final int sortStat,
                                            final boolean sorted) {
@@ -593,12 +595,12 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
      * @return the reshuffled FTGSIterator array
      * @throws IOException
      */
-    private FTGSIterator[] parallelDisjointSplitAndMerge(final Closer closer, final FTGSIterator[] iterators) {
+    private FTGSIterator[] parallelDisjointSplitAndMerge(final Closer closer, @WillClose final FTGSIterator[] iterators) {
         final int numSplits = Math.max(1, Runtime.getRuntime().availableProcessors()/2);
         return parallelDisjointSplitAndMerge(closer, iterators, numSplits);
     }
 
-    private FTGSIterator[] parallelDisjointSplitAndMerge(final Closer closer, final FTGSIterator[] iterators, final int numSplits) {
+    private FTGSIterator[] parallelDisjointSplitAndMerge(final Closer closer, @WillClose final FTGSIterator[] iterators, final int numSplits) {
         final FTGSIterator[][] iteratorSplits = new FTGSIterator[iterators.length][];
 
         try {
@@ -611,6 +613,7 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
         } catch (final ExecutionException e) {
             throw newRuntimeException(e);
         } finally {
+            Closeables2.closeAll(log, iterators);
             for (final FTGSIterator[] splits : iteratorSplits) {
                 if (splits != null) {
                     for (final FTGSIterator split : splits) {
@@ -632,11 +635,11 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
         return mergers;
     }
 
-    private FTGSIterator persist(final FTGSIterator iterator) throws IOException {
+    private FTGSIterator persist(@WillClose final FTGSIterator iterator) throws IOException {
         return FTGSIteratorUtil.persist(log, getSessionId(), iterator);
     }
 
-    private FTGAIterator persist(final FTGAIterator iterator) throws IOException {
+    private FTGAIterator persist(@WillClose final FTGAIterator iterator) throws IOException {
         return FTGSIteratorUtil.persist(log, getSessionId(), iterator);
     }
 }
