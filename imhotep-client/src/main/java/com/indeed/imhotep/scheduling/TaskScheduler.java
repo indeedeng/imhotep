@@ -14,11 +14,12 @@
 
 package com.indeed.imhotep.scheduling;
 
+import com.google.common.base.Joiner;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Queues;
-import com.google.common.collect.Sets;
 import com.indeed.imhotep.service.MetricStatsEmitter;
 import com.indeed.util.core.threads.NamedThreadFactory;
+import org.apache.log4j.Logger;
 
 import javax.annotation.Nonnull;
 import java.io.Closeable;
@@ -28,6 +29,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.PriorityQueue;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -37,11 +39,18 @@ import java.util.stream.Collectors;
  * Decides which TaskQueue task should execute next
  */
 public class TaskScheduler {
+    private static final Logger LOGGER = Logger.getLogger(TaskScheduler.class);
+
+    private static final long LONG_RUNNING_TASK_THRESHOLD_MILLIS = TimeUnit.MINUTES.toMillis(5);
+    private static final int DATADOG_STATS_REPORTING_FREQUENCY_MILLIS = 100;
+    private static final int CLEANUP_FREQUENCY_MILLIS = 1000;
+    private static final long LONG_RUNNING_TASK_REPORT_FREQUENCY_MILLIS = TimeUnit.MINUTES.toMillis(1);
+
     // queue of tasks waiting to run
     private final Map<String, TaskQueue> usernameToQueue = Maps.newHashMap();
     // history of consumption of all tasks that ran recently
     private final Map<String, ConsumptionTracker> usernameToConsumptionTracker = Maps.newHashMap();
-    private final Set<ImhotepTask> runningTasks = Sets.newHashSet();
+    private final Set<ImhotepTask> runningTasks = ConcurrentHashMap.newKeySet();
     private final int totalSlots;
     private final long historyLengthNanos;
     private final long batchNanos;
@@ -51,10 +60,9 @@ public class TaskScheduler {
     public static TaskScheduler CPUScheduler = new NoopTaskScheduler();
     public static TaskScheduler RemoteFSIOScheduler = new NoopTaskScheduler();
 
-    private static final int REPORTING_FREQUENCY_MILLIS = 100;
-    private static final int CLEANUP_FREQUENCY_MILLIS = 1000;
-    private ScheduledExecutorService statsReportingExecutor = null;
+    private ScheduledExecutorService datadogStatsReportingExecutor = null;
     private ScheduledExecutorService cleanupExecutor = null;
+    private ScheduledExecutorService longRunningTaskReportingExecutor = null;
 
     public TaskScheduler(int totalSlots, long historyLengthNanos, long batchNanos, SchedulerType schedulerType, MetricStatsEmitter statsEmitter) {
         this.totalSlots = totalSlots;
@@ -66,19 +74,22 @@ public class TaskScheduler {
         initializeSchedulers(schedulerType);
     }
 
-    protected void initializeSchedulers(SchedulerType schedulerType) {
-        statsReportingExecutor = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("schedulerStatsReporter-" + schedulerType));
-        statsReportingExecutor.scheduleAtFixedRate(this::reportStats, REPORTING_FREQUENCY_MILLIS, REPORTING_FREQUENCY_MILLIS, TimeUnit.MILLISECONDS);
+    protected void initializeSchedulers(final SchedulerType schedulerType) {
+        datadogStatsReportingExecutor = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("schedulerDatadogStatsReporter-" + schedulerType));
+        datadogStatsReportingExecutor.scheduleAtFixedRate(this::reportDatadogStats, DATADOG_STATS_REPORTING_FREQUENCY_MILLIS, DATADOG_STATS_REPORTING_FREQUENCY_MILLIS, TimeUnit.MILLISECONDS);
 
         cleanupExecutor = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("schedulerCleanup-" + schedulerType));
         cleanupExecutor.scheduleAtFixedRate(this::cleanup, CLEANUP_FREQUENCY_MILLIS, CLEANUP_FREQUENCY_MILLIS, TimeUnit.MILLISECONDS);
+
+        longRunningTaskReportingExecutor = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("schedulerLongRunningTaskReporter-" + schedulerType));
+        longRunningTaskReportingExecutor.scheduleAtFixedRate(this::reportLongRunningTasks, LONG_RUNNING_TASK_REPORT_FREQUENCY_MILLIS, LONG_RUNNING_TASK_REPORT_FREQUENCY_MILLIS, TimeUnit.MILLISECONDS);
     }
 
     public int getTotalSlots() {
         return totalSlots;
     }
 
-    private void reportStats() {
+    private void reportDatadogStats() {
         long waitingUsersCount = 0;
         long waitingTasksCount = 0;
         long runningTasksCount = 0;
@@ -97,7 +108,7 @@ public class TaskScheduler {
             longestRunningTaskNanos = nowNanos - oldestRunStartTimeNanos;
 
             long minWaitStartTimeNanos = nowNanos;
-            for(TaskQueue taskQueue: usernameToQueue.values()) {
+            for (TaskQueue taskQueue : usernameToQueue.values()) {
                 final ImhotepTask oldestTask = taskQueue.peek();
                 if (oldestTask != null) {
                     minWaitStartTimeNanos = Math.min(minWaitStartTimeNanos, oldestTask.getLastWaitStartTime());
@@ -115,6 +126,26 @@ public class TaskScheduler {
     private void cleanup() {
         usernameToConsumptionTracker.entrySet().removeIf(entry -> !entry.getValue().isActive());
         // TODO: check runningTasks for leaks once in a while
+    }
+
+    private void reportLongRunningTasks() {
+        for (final ImhotepTask runningTask : runningTasks) {
+            final long currentExecutionTime = TimeUnit.NANOSECONDS.toMillis(runningTask.getCurrentExecutionTime().orElse(0));
+            if (currentExecutionTime >= LONG_RUNNING_TASK_THRESHOLD_MILLIS) {
+                final StackTraceElement[] stackTraceElements;
+                try {
+                    stackTraceElements = runningTask.getStackTrace();
+                } catch (final Exception e) {
+                    LOGGER.error("Failed to take the stack trace of " + runningTask);
+                    continue;
+                }
+
+                LOGGER.info(
+                        "Imhotep task " + runningTask + " for schedular " + schedulerType + " running a long time. stack trace:\n  "
+                                + Joiner.on("\n  ").join(stackTraceElements)
+                );
+            }
+        }
     }
 
     /**
@@ -234,11 +265,14 @@ public class TaskScheduler {
     }
 
     public void close() {
-        if(statsReportingExecutor != null) {
-            statsReportingExecutor.shutdown();
+        if (datadogStatsReportingExecutor != null) {
+            datadogStatsReportingExecutor.shutdown();
         }
-        if(cleanupExecutor != null) {
+        if (cleanupExecutor != null) {
             cleanupExecutor.shutdown();
+        }
+        if (longRunningTaskReportingExecutor != null) {
+            longRunningTaskReportingExecutor.shutdown();
         }
     }
 
