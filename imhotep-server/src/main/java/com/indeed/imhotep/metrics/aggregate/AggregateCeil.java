@@ -1,19 +1,22 @@
 package com.indeed.imhotep.metrics.aggregate;
 
 import com.google.common.base.Objects;
+import com.google.common.base.Preconditions;
 
 public class AggregateCeil implements AggregateStat{
     private final AggregateStat value;
-    private final AggregateStat digits;
+    private final int digits;
+    private final double offset;
 
     public AggregateCeil(AggregateStat value, AggregateStat digits) {
+        Preconditions.checkArgument(digits instanceof AggregateConstant);
         this.value = value;
-        this.digits = digits;
+        this.digits = (int)((AggregateConstant) digits).getValue();
+        offset = Math.pow(10, this.digits);
     }
 
     @Override
     public double apply(MultiFTGSIterator multiFTGSIterator) {
-        final double offset = Math.pow(10, digits.apply(multiFTGSIterator));
         return Math.ceil(value.apply(multiFTGSIterator) * offset) / offset;
     }
 
@@ -23,12 +26,12 @@ public class AggregateCeil implements AggregateStat{
         if (o == null || getClass() != o.getClass()) return false;
         AggregateCeil that = (AggregateCeil) o;
         return Objects.equal(value, that.value) &&
-                Objects.equal(digits, that.digits);
+                digits == that.digits;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hashCode(value, digits);
+        return Objects.hashCode(this.getClass().getName(), value, digits);
     }
 
     @Override
