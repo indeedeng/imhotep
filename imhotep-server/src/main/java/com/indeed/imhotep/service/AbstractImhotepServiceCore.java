@@ -14,7 +14,6 @@
  package com.indeed.imhotep.service;
 
 import com.google.common.base.Throwables;
-import com.google.common.io.Closer;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.indeed.flamdex.query.Query;
 import com.indeed.imhotep.AbstractImhotepMultiSession;
@@ -27,6 +26,7 @@ import com.indeed.imhotep.Instrumentation.Keys;
 import com.indeed.imhotep.QueryRemapRule;
 import com.indeed.imhotep.RegroupCondition;
 import com.indeed.imhotep.SortedFTGAInterleaver;
+import com.indeed.imhotep.StrictCloser;
 import com.indeed.imhotep.TermCount;
 import com.indeed.imhotep.UnsortedFTGAIterator;
 import com.indeed.imhotep.api.FTGAIterator;
@@ -49,10 +49,12 @@ import com.indeed.imhotep.protobuf.ImhotepResponse;
 import com.indeed.imhotep.protobuf.MultiFTGSRequest;
 import com.indeed.imhotep.protobuf.ShardNameNumDocsPair;
 import com.indeed.imhotep.scheduling.ImhotepTask;
+import com.indeed.imhotep.scheduling.SilentCloseable;
 import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.core.reference.SharedReference;
 import org.apache.log4j.Logger;
 
+import javax.annotation.WillClose;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.ArrayList;
@@ -158,41 +160,42 @@ public abstract class AbstractImhotepServiceCore
     public void handleGetFTGSIterator(final String sessionId, final FTGSParams params, final OutputStream os) throws
             IOException {
         doWithSession(sessionId, (ThrowingFunction<MTImhotepLocalMultiSession, Void, IOException>) session -> {
-            final FTGSIterator merger = session.getFTGSIterator(params);
-            return sendFTGSIterator(merger, os);
+            final FTGSIterator iterator = session.getFTGSIterator(params);
+            return sendFTGSIterator(iterator, os);
         });
     }
 
     @Override
     public void handleGetSubsetFTGSIterator(final String sessionId, final Map<String, long[]> intFields, final Map<String, String[]> stringFields, final OutputStream os) throws IOException {
         doWithSession(sessionId, (ThrowingFunction<MTImhotepLocalMultiSession, Void, IOException>) session -> {
-            final FTGSIterator merger = session.getSubsetFTGSIterator(intFields, stringFields);
-            return sendFTGSIterator(merger, os);
+            final FTGSIterator iterator = session.getSubsetFTGSIterator(intFields, stringFields);
+            return sendFTGSIterator(iterator, os);
         });
     }
 
-    private Void sendFTGSIterator(final FTGSIterator merger, final OutputStream os) throws IOException {
-        final ImhotepResponse.Builder responseBuilder =
-                ImhotepResponse.newBuilder()
-                        .setNumStats(merger.getNumStats())
-                        .setNumGroups(merger.getNumGroups());
-        log.debug("sending FTGS response");
-        ImhotepProtobufShipping.sendProtobufNoFlush(responseBuilder.build(), os);
-        writeFTGSIteratorToOutputStream(merger, os);
-        os.flush();
-        log.debug("FTGS response sent");
-
-        return null;
+    private Void sendFTGSIterator(@WillClose final FTGSIterator iterator, final OutputStream os) throws IOException {
+        try (final SilentCloseable ignored = iterator) {
+            final ImhotepResponse.Builder responseBuilder =
+                    ImhotepResponse.newBuilder()
+                            .setNumStats(iterator.getNumStats())
+                            .setNumGroups(iterator.getNumGroups());
+            log.debug("sending FTGS response");
+            ImhotepProtobufShipping.sendProtobufNoFlush(responseBuilder.build(), os);
+            writeFTGSIteratorToOutputStream(iterator, os);
+            os.flush();
+            log.debug("FTGS response sent");
+            return null;
+        }
     }
 
-    private void writeFTGSIteratorToOutputStream(final FTGSIterator merger, final OutputStream os) throws IOException {
+    private void writeFTGSIteratorToOutputStream(final FTGSIterator iterator, final OutputStream os) throws IOException {
         final Future<?> future = ftgsExecutor.submit((Callable<Void>) () -> {
             try {
                 // TODO: lock cpu, release on socket write by wrapping the socketstream and using a circular buffer,
                 // or use nonblocking IO (NIO2) and only release when blocks
-                FTGSIteratorUtil.writeFtgsIteratorToStream(merger, os);
+                FTGSIteratorUtil.writeFtgsIteratorToStream(iterator, os);
             } finally {
-                Closeables2.closeQuietly(merger, log);
+                Closeables2.closeQuietly(iterator, log);
             }
             return null;
         });
@@ -216,18 +219,19 @@ public abstract class AbstractImhotepServiceCore
         }
     }
 
-    private Void sendFTGAIterator(final FTGAIterator iterator, final OutputStream os) throws IOException {
-        final ImhotepResponse.Builder responseBuilder =
-                ImhotepResponse.newBuilder()
-                        .setNumStats(iterator.getNumStats())
-                        .setNumGroups(iterator.getNumGroups());
-        log.debug("sending FTGA response");
-        ImhotepProtobufShipping.sendProtobufNoFlush(responseBuilder.build(), os);
-        writeFTGAIteratorToOutputStream(iterator, os);
-        os.flush();
-        log.debug("FTGA response sent");
-
-        return null;
+    private Void sendFTGAIterator(@WillClose final FTGAIterator iterator, final OutputStream os) throws IOException {
+        try (final SilentCloseable ignored = iterator) {
+            final ImhotepResponse.Builder responseBuilder =
+                    ImhotepResponse.newBuilder()
+                            .setNumStats(iterator.getNumStats())
+                            .setNumGroups(iterator.getNumGroups());
+            log.debug("sending FTGA response");
+            ImhotepProtobufShipping.sendProtobufNoFlush(responseBuilder.build(), os);
+            writeFTGAIteratorToOutputStream(iterator, os);
+            os.flush();
+            log.debug("FTGA response sent");
+            return null;
+        }
     }
 
     private Void writeFTGAIteratorToOutputStream(final FTGAIterator iterator, final OutputStream os) throws IOException {
@@ -302,7 +306,7 @@ public abstract class AbstractImhotepServiceCore
     // will be consistent for all elements in the list.
     // Each element in the returned list corresponds to a single input session.
     private List<FTGSIterator[]> getMultiSessionSplitIterators(
-            final Closer closer,
+            final StrictCloser closer,
             final String validLocalSessionId,
             final HostAndPort[] nodes,
             final List<MultiFTGSRequest.MultiFTGSSession> sessionInfoList,
@@ -328,9 +332,7 @@ public abstract class AbstractImhotepServiceCore
                         final FTGSParams ftgsParams = new FTGSParams(intFields, stringFields, termLimit, -1, true);
                         return session.partialMergeFTGSSplit(sessionInfo.getSessionId(), ftgsParams, sessionNodes, splitIndex, nodes.length, numLocalSplits);
                     });
-                    synchronized (closer) {
-                        closer.register(Closeables2.forArray(log, sessionIterators));
-                    }
+                    closer.registerOrClose(Closeables2.forArray(log, sessionIterators));
                     if (numLocalSplits != sessionIterators.length) {
                         throw new IllegalStateException("Did not create the expected number of splits!");
                     }
@@ -382,7 +384,7 @@ public abstract class AbstractImhotepServiceCore
             ParseAggregate.parse(sessionStatsInfos, filters, filter);
         }
 
-        final Closer closer = Closer.create();
+        final StrictCloser closer = new StrictCloser();
         try {
             final boolean useUpstreamTermLimit = (filters.size() == 0) && (request.getSortStat() == -1);
             final long upstreamTermLimit = useUpstreamTermLimit ? request.getTermLimit() : 0L;
@@ -390,13 +392,13 @@ public abstract class AbstractImhotepServiceCore
             final FTGAIterator[] streams = doWithSession(validLocalSessionId, (Function<MTImhotepLocalMultiSession, FTGAIterator[]>) session -> {
                 return session.zipElementWise(modifiers, sessionSplitIterators, x -> new MultiSessionWrapper(x, filters.toList(), selects.toList()));
             });
-            closer.register(Closeables2.forArray(log, streams));
+            closer.registerOrClose(Closeables2.forArray(log, streams));
 
             // If using term limits, then picking the lowest terms from amongst all inputs is required for ensuring that
             // we have the full data for the terms that are chosen.
-            final FTGAIterator interleaver = closer.register((sorted || useUpstreamTermLimit) ? new SortedFTGAInterleaver(streams) : new UnsortedFTGAIterator(streams));
+            final FTGAIterator interleaver = closer.registerOrClose((sorted || useUpstreamTermLimit) ? new SortedFTGAInterleaver(streams) : new UnsortedFTGAIterator(streams));
 
-            sendFTGAIterator(closer.register(modifiers.wrap(interleaver)), os);
+            sendFTGAIterator(closer.registerOrClose(modifiers.wrap(interleaver)), os);
         } catch (Throwable t) {
             throw Throwables.propagate(t);
         } finally {
@@ -421,11 +423,11 @@ public abstract class AbstractImhotepServiceCore
             ParseAggregate.parse(sessionStatsInfos, filters, filter);
         }
 
-        final Closer closeOnFailCloser = Closer.create();
+        final StrictCloser closeOnFailCloser = new StrictCloser();
         try {
             final List<FTGSIterator[]> sessionSplitIterators = getMultiSessionSplitIterators(closeOnFailCloser, validLocalSessionId, nodes, sessionInfoList, isIntField, splitIndex, 0);
             for (final FTGSIterator[] sessionSplitIterator : sessionSplitIterators) {
-                closeOnFailCloser.register(Closeables2.forArray(log, sessionSplitIterator));
+                closeOnFailCloser.registerOrClose(Closeables2.forArray(log, sessionSplitIterator));
             }
             return doWithSession(validLocalSessionId, (Function<MTImhotepLocalMultiSession, GroupStatsIterator>) session -> {
                 return session.mergeMultiDistinct(sessionSplitIterators, filters.toList());

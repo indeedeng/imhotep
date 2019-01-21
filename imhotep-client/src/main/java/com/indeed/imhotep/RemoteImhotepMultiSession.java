@@ -51,6 +51,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 /**
@@ -294,21 +295,34 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
         return Collections.max(Arrays.asList(integerBuf));
     }
 
+    public AbstractImhotepMultiSession<AsynchronousRemoteImhotepSession> toAsync() {
+        final AsynchronousRemoteImhotepSession[] asyncSessions = new AsynchronousRemoteImhotepSession[this.sessions.length];
+        Arrays.setAll(asyncSessions, i -> new AsynchronousRemoteImhotepSession(sessions[i], executor));
+        return new AsynchronousRemoteImhotepMultiSession(asyncSessions, this);
+    }
+
     public static class SessionField {
         private final RemoteImhotepMultiSession session;
+        private final Runnable synchronizeCallback;
         private final String field;
 
         /**
          * This constructor has sharp edges.
          * It takes an ImhotepSession for ease of use because ImhotepClient doesn't return a concrete type
          *
-         * @throws IllegalArgumentException if session is not a RemoteImhotepMultiSession
+         * @throws IllegalArgumentException if session is not a RemoteImhotepMultiSession or AsynchronousRemoteImhotepMultiSession
          */
         public SessionField(final ImhotepSession session, final String field) {
-            if (!(session instanceof RemoteImhotepMultiSession)) {
-                throw new IllegalArgumentException("Can only use RemoteImhotepMultiSession::multiFtgs on RemoteImhotepMultiSession instances.");
+            if (session instanceof AsynchronousRemoteImhotepMultiSession) {
+                final AsynchronousRemoteImhotepMultiSession asyncSession = (AsynchronousRemoteImhotepMultiSession) session;
+                this.session = asyncSession.original;
+                this.synchronizeCallback = asyncSession::synchronizeAll;
+            } else if (session instanceof RemoteImhotepMultiSession) {
+                this.session = (RemoteImhotepMultiSession) session;
+                this.synchronizeCallback = () -> {};
+            } else {
+                throw new IllegalArgumentException("Can only use RemoteImhotepMultiSession::multiFtgs on RemoteImhotepMultiSession/AsynchronousRemoteImhotepMultiSession instances.");
             }
-            this.session = (RemoteImhotepMultiSession) session;
             this.field = field;
         }
     }
@@ -475,6 +489,8 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
         final Set<HostAndPort> allNodes = new HashSet<>();
 
         for (final SessionField sessionField : sessionsWithFields) {
+            sessionField.synchronizeCallback.run();
+
             final RemoteImhotepMultiSession session = sessionField.session;
             remoteSessions.add(session);
             final String fieldName = sessionField.field;
