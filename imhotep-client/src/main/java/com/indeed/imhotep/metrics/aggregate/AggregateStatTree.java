@@ -134,24 +134,24 @@ public class AggregateStatTree {
     }
 
     /**
-     * Floor value
+     * Floor. floor(value, digits)
      */
-    public AggregateStatTree floor() {
-        return unOp(FLOOR, this);
+    public AggregateStatTree floor(final int digits) {
+        return binOp(this, FLOOR, constant(digits));
     }
 
     /**
-     * Ceil value
+     * Ceil. ceil(value, digits)
      */
-    public AggregateStatTree ceil() {
-        return unOp(CEIL, this);
+    public AggregateStatTree ceil(final int digits) {
+        return binOp(this, CEIL, constant(digits));
     }
 
     /**
-     * Round value
+     * Round. round(value, digits)
      */
-    public AggregateStatTree round() {
-        return unOp(ROUND, this);
+    public AggregateStatTree round(final int digits) {
+        return binOp(this, ROUND, constant(digits));
     }
 
     /**

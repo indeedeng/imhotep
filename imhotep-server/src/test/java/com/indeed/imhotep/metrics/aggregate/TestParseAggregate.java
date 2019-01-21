@@ -75,11 +75,11 @@ public class TestParseAggregate {
         testBinop(AggregateLessThanOrEqual::new, "<=");
         testBinop(AggregateEqual::new, "=");
         testBinop(AggregateNotEqual::new, "!=");
+        testBinop(AggregateFloor::new, "floor");
+        testBinop(AggregateCeil::new, "ceil");
+        testBinop(AggregateRound::new, "round");
 
         testUnop(AggregateAbsoluteValue::new, "abs");
-        testUnop(AggregateFloor::new, "floor");
-        testUnop(AggregateCeil::new, "ceil");
-        testUnop(AggregateRound::new, "round");
         testUnop(AggregateLog::new, "log");
         testUnop(AggregateNot::new, "not");
 

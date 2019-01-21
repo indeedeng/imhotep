@@ -3,15 +3,18 @@ package com.indeed.imhotep.metrics.aggregate;
 import com.google.common.base.Objects;
 
 public class AggregateRound implements AggregateStat{
-    private final AggregateStat inner;
+    private final AggregateStat value;
+    private final AggregateStat digits;
 
-    public AggregateRound(AggregateStat inner) {
-        this.inner = inner;
+    public AggregateRound(AggregateStat value, AggregateStat digits) {
+        this.value = value;
+        this.digits = digits;
     }
 
     @Override
     public double apply(MultiFTGSIterator multiFTGSIterator) {
-        return Math.round(inner.apply(multiFTGSIterator));
+        final double offset = Math.pow(10, digits.apply(multiFTGSIterator));
+        return Math.rint(value.apply(multiFTGSIterator) * offset) / offset;
     }
 
     @Override
@@ -19,18 +22,20 @@ public class AggregateRound implements AggregateStat{
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         AggregateRound that = (AggregateRound) o;
-        return Objects.equal(inner, that.inner);
+        return Objects.equal(value, that.value) &&
+                Objects.equal(digits, that.digits);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hashCode(inner);
+        return Objects.hashCode(value, digits);
     }
 
     @Override
     public String toString() {
         return "AggregateRound{" +
-                "inner=" + inner +
+                "value=" + value +
+                "digits=" + digits +
                 '}';
     }
 
