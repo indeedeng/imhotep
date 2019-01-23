@@ -126,12 +126,14 @@ class SqarMetaDataManager {
         if (fileMetadata == null) {
             if (!sqarMetaDataDao.hasShard(shardPath)) {
                 final List<RemoteFileMetadata> fileList;
-                try (Closeable ignore = TaskScheduler.RemoteFSIOScheduler.lockSlot()) {
-                    try (InputStream metadataInputStream = fs.newInputStream(SqarMetaDataUtil.getMetadataPath(shardPath), 0, -1)) {
-                        fileList = readMetadata(metadataInputStream);
-                    } catch (final NoSuchFileException | FileNotFoundException e) {
-                        // when the metadata file doesn't exist, there is nothing to return
-                        return null;
+                try (final Closeable ignored = TaskScheduler.CPUScheduler.temporaryUnlock()) {
+                    try (final Closeable ignored2 = TaskScheduler.RemoteFSIOScheduler.lockSlot()) {
+                        try (InputStream metadataInputStream = fs.newInputStream(SqarMetaDataUtil.getMetadataPath(shardPath), 0, -1)) {
+                            fileList = readMetadata(metadataInputStream);
+                        } catch (final NoSuchFileException | FileNotFoundException e) {
+                            // when the metadata file doesn't exist, there is nothing to return
+                            return null;
+                        }
                     }
                 }
                 cacheMetadata(shardPath, fileList);
