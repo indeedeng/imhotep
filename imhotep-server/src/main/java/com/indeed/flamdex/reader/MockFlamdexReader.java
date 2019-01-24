@@ -197,6 +197,11 @@ public class MockFlamdexReader implements FlamdexReader {
         }
 
         @Override
+        public int commonPrefixLengthWithPrevious() {
+            return 0;
+        }
+
+        @Override
         public boolean next() {
             if (bufferNext) {
                 bufferNext = false;
@@ -266,6 +271,11 @@ public class MockFlamdexReader implements FlamdexReader {
 
         @Override
         public int termStringLength() {
+            return 0;
+        }
+
+        @Override
+        public int commonPrefixLengthWithPrevious() {
             return 0;
         }
     }

@@ -737,6 +737,11 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
                     }
 
                     @Override
+                    public int commonPrefixLengthWithPrevious() {
+                        return 0;
+                    }
+
+                    @Override
                     public boolean next() {
                         if (termIndex >= numTerms) {
                             return false;
@@ -956,6 +961,11 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
         @Override
         public int termStringLength() {
             return termStringBytes().length;
+        }
+
+        @Override
+        public int commonPrefixLengthWithPrevious() {
+            return 0;
         }
 
         @Override
