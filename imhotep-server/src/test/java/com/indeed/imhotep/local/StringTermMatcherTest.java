@@ -1,7 +1,6 @@
 package com.indeed.imhotep.local;
 
 import com.google.common.base.Charsets;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.indeed.flamdex.api.StringTermIterator;
 import org.junit.Test;
@@ -10,7 +9,9 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Random;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static org.hamcrest.CoreMatchers.instanceOf;
@@ -20,12 +21,12 @@ import static org.junit.Assert.assertThat;
 
 public class StringTermMatcherTest {
     private static class MockStringTermIterator implements StringTermIterator {
-        private final boolean returnZeroInsteadOfLCP;
+        private final Function<Integer, Integer> lcpTransform;
         private final List<String> terms;
         private int currentPos = 0;
 
-        private MockStringTermIterator(final boolean returnZeroInsteadOfLCP, final Collection<String> terms) {
-            this.returnZeroInsteadOfLCP = returnZeroInsteadOfLCP;
+        private MockStringTermIterator(final Function<Integer, Integer> lcpTransform, final Collection<String> terms) {
+            this.lcpTransform = lcpTransform;
             this.terms = terms.stream().sorted().collect(Collectors.toList());
         }
 
@@ -56,17 +57,17 @@ public class StringTermMatcherTest {
 
         @Override
         public int commonPrefixLengthWithPrevious() {
-            if ((currentPos == 0) || returnZeroInsteadOfLCP) {
-                return 0;
+            if (currentPos == 0) {
+                return lcpTransform.apply(0);
             } else {
                 final byte[] previous = terms.get(currentPos - 1).getBytes(Charsets.UTF_8);
                 final byte[] current = termStringBytes();
                 for (int i = 0; (i < previous.length) && (i < current.length); ++i) {
                     if (current[i] != previous[i]) {
-                        return i;
+                        return lcpTransform.apply(i);
                     }
                 }
-                return previous.length;
+                return lcpTransform.apply(previous.length);
             }
         }
 
@@ -86,20 +87,26 @@ public class StringTermMatcherTest {
         }
     }
 
-    private static Set<String> getAllMatch(final StringTermMatcher stringTermMatcher, final Set<String> terms) {
-        final Set<String> runEachIndividually = terms.stream().filter(stringTermMatcher::matches).collect(Collectors.toSet());
-        try (
-                final MockStringTermIterator iterator = new MockStringTermIterator(false, terms);
-                final MockStringTermIterator iteratorWithZeroLCP = new MockStringTermIterator(true, terms);
-        ) {
-            final Set<String> actualForIterator = new HashSet<>();
-            stringTermMatcher.run(iterator, it -> actualForIterator.add(it.term()));
-            final Set<String> actualForIteratorWithZeroLCP = new HashSet<>();
-            stringTermMatcher.run(iteratorWithZeroLCP, it -> actualForIteratorWithZeroLCP.add(it.term()));
+    private static Set<String> runMatcher(final StringTermMatcher stringTermMatcher, final StringTermIterator iterator) {
+        final Set<String> result = new HashSet<>();
+        stringTermMatcher.run(iterator, it -> result.add(it.term()));
+        return result;
+    }
 
-            assertEquals(runEachIndividually, actualForIterator);
-            assertEquals(runEachIndividually, actualForIteratorWithZeroLCP);
-            return actualForIterator;
+    private static void validateMatcher(final Set<String> expected, final StringTermMatcher stringTermMatcher, final Set<String> terms) {
+        assertEquals(expected, terms.stream().filter(stringTermMatcher::matches).collect(Collectors.toSet()));
+        try (final MockStringTermIterator iterator = new MockStringTermIterator(Function.identity(), terms)) {
+            assertEquals(expected, runMatcher(stringTermMatcher, iterator));
+        }
+        try (final MockStringTermIterator iterator = new MockStringTermIterator(ignored -> 0, terms)) {
+            assertEquals(expected, runMatcher(stringTermMatcher, iterator));
+        }
+        try (final MockStringTermIterator iterator = new MockStringTermIterator(x -> x / 2, terms)) {
+            assertEquals(expected, runMatcher(stringTermMatcher, iterator));
+        }
+        final Random random = new Random(0);
+        try (final MockStringTermIterator iterator = new MockStringTermIterator(x -> random.nextInt(x + 1), terms)) {
+            assertEquals(expected, runMatcher(stringTermMatcher, iterator));
         }
     }
 
@@ -194,79 +201,43 @@ public class StringTermMatcherTest {
 
     @Test
     public void testPrefixMatch() {
-        assertEquals(
-                ImmutableSet.of(
-                        "prefix", "prefixed"
-                ),
-                getAllMatch(
-                        new StringTermMatcher.PrefixStringTermMatcher("prefix"),
-                        ImmutableSet.of(
-                                "", "p", "prefix", "prefixed", "prepared", "query", "this is a prefix"
-                        )
-                )
+        validateMatcher(
+                ImmutableSet.of("prefix", "prefixed"),
+                new StringTermMatcher.PrefixStringTermMatcher("prefix"),
+                ImmutableSet.of("", "p", "prefix", "prefixed", "prepared", "query", "this is a prefix")
         );
-        assertEquals(
-                ImmutableSet.of(
-                        "prefixed", "prefixed by prefix"
-                ),
-                getAllMatch(
-                        new StringTermMatcher.PrefixStringTermMatcher("prefix"),
-                        ImmutableSet.of(
-                                "", "p", "prefixed", "prefixed by prefix", "prepared", "query", "this is a prefix"
-                        )
-                )
+        validateMatcher(
+                ImmutableSet.of("prefixed", "prefixed by prefix"),
+                new StringTermMatcher.PrefixStringTermMatcher("prefix"),
+                ImmutableSet.of("", "p", "prefixed", "prefixed by prefix", "prepared", "query", "this is a prefix")
         );
     }
 
     @Test
     public void testSuffixMatch() {
-        assertEquals(
-                ImmutableSet.of(
-                        "suffix", "suffix of this string is suffix"
-                ),
-                getAllMatch(
-                        new StringTermMatcher.SuffixStringTermMatcher("suffix"),
-                        ImmutableSet.of(
-                                "", "prefix", "s", "suffix", "suffix of this string is suffix", "prefix", "query"
-                        )
-                )
+        validateMatcher(
+                ImmutableSet.of("suffix", "suffix of this string is suffix"),
+                new StringTermMatcher.SuffixStringTermMatcher("suffix"),
+                ImmutableSet.of("", "prefix", "s", "suffix", "suffix of this string is suffix", "prefix", "query")
         );
-        assertEquals(
-                ImmutableSet.of(
-                        "suffix of this string is suffix"
-                ),
-                getAllMatch(
-                        new StringTermMatcher.SuffixStringTermMatcher("suffix"),
-                        ImmutableSet.of(
-                                "", "prefix", "s", "suffix of this string is suffix", "prefix", "query"
-                        )
-                )
+        validateMatcher(
+                ImmutableSet.of("suffix of this string is suffix"),
+                new StringTermMatcher.SuffixStringTermMatcher("suffix"),
+                ImmutableSet.of("", "prefix", "s", "suffix of this string is suffix", "prefix", "query")
         );
     }
 
     @Test
     public void testIncludeMatch() {
-        assertEquals(
-                ImmutableSet.of(
-                        "target", "target is prefix", "contains target inside", "suffixed by target"
-                ),
-                getAllMatch(
-                        new StringTermMatcher.IncludeStringTermMatcher("target"),
-                        ImmutableSet.of(
-                                "", "whatever", "suffixed by target", "target is prefix", "contains target inside", "target"
-                        )
-                )
+        validateMatcher(
+                ImmutableSet.of("target", "target is prefix", "contains target inside", "suffixed by target"),
+                new StringTermMatcher.IncludeStringTermMatcher("target"),
+                ImmutableSet.of("", "whatever", "suffixed by target", "target is prefix", "contains target inside", "target")
         );
-        assertEquals(
-                ImmutableSet.of(
-                        "target is prefix", "contains target inside", "suffixed by target", "target target target"
-                ),
-                getAllMatch(
-                        new StringTermMatcher.IncludeStringTermMatcher("target"),
-                        ImmutableSet.of(
-                                "", "whatever", "suffixed by target", "target is prefix", "contains target inside", "target target target"
-                        )
-                )
+        validateMatcher(
+                ImmutableSet.of("target is prefix", "contains target inside", "suffixed by target", "target target target"),
+                new StringTermMatcher.IncludeStringTermMatcher("target"),
+                ImmutableSet.of("", "whatever", "suffixed by target", "target is prefix", "contains target inside", "target target target")
         );
     }
 }
