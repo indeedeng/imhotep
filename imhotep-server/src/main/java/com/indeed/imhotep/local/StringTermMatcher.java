@@ -2,6 +2,7 @@ package com.indeed.imhotep.local;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
+import com.google.common.base.Preconditions;
 import com.indeed.flamdex.api.StringTermIterator;
 import com.indeed.imhotep.automaton.Automaton;
 import com.indeed.imhotep.automaton.RegExp;
@@ -13,10 +14,10 @@ import java.util.regex.Pattern;
 
 public abstract class StringTermMatcher {
     private static final String ANY_STRING_PATTERN = "\\.\\*";
-    private static final String CAPTURED_NON_SPECIAL_STRING = "([-_,a-zA-Z0-9]+)";
-    private static final Pattern PREFIX_MATCH = Pattern.compile(CAPTURED_NON_SPECIAL_STRING + ANY_STRING_PATTERN);
-    private static final Pattern SUFFIX_MATCH = Pattern.compile(ANY_STRING_PATTERN + CAPTURED_NON_SPECIAL_STRING);
-    private static final Pattern INCLUDE_MATCH = Pattern.compile(ANY_STRING_PATTERN + CAPTURED_NON_SPECIAL_STRING + ANY_STRING_PATTERN);
+    private static final String CAPTURED_NON_SPECIAL_NONEMPTY_STRING = "([-_,a-zA-Z0-9]+)";
+    private static final Pattern PREFIX_MATCH = Pattern.compile(CAPTURED_NON_SPECIAL_NONEMPTY_STRING + ANY_STRING_PATTERN);
+    private static final Pattern SUFFIX_MATCH = Pattern.compile(ANY_STRING_PATTERN + CAPTURED_NON_SPECIAL_NONEMPTY_STRING);
+    private static final Pattern INCLUDE_MATCH = Pattern.compile(ANY_STRING_PATTERN + CAPTURED_NON_SPECIAL_NONEMPTY_STRING + ANY_STRING_PATTERN);
 
     /**
      * Returns true iff the given term matches to the pattern
@@ -56,6 +57,7 @@ public abstract class StringTermMatcher {
      */
     @VisibleForTesting
     static int[] buildKMPTable(final byte[] pattern) {
+        Preconditions.checkArgument(pattern.length > 0);
         final int[] table = new int[pattern.length + 1];
         table[0] = -1;
         int failureLink = 0;
@@ -80,6 +82,7 @@ public abstract class StringTermMatcher {
         private final byte[] pattern;
 
         PrefixStringTermMatcher(final String pattern) {
+            Preconditions.checkArgument(!pattern.isEmpty());
             this.patternString = pattern;
             this.pattern = pattern.getBytes(Charsets.UTF_8);
         }
@@ -121,6 +124,7 @@ public abstract class StringTermMatcher {
         private final int[] kmpTable;
 
         SuffixStringTermMatcher(final String pattern) {
+            Preconditions.checkArgument(!pattern.isEmpty());
             this.patternString = pattern;
             this.pattern = pattern.getBytes(Charsets.UTF_8);
             this.kmpTable = StringTermMatcher.buildKMPTable(this.pattern);
@@ -177,6 +181,7 @@ public abstract class StringTermMatcher {
         private final int[] kmpTable;
 
         IncludeStringTermMatcher(final String pattern) {
+            Preconditions.checkArgument(!pattern.isEmpty());
             this.patternString = pattern;
             this.pattern = pattern.getBytes(Charsets.UTF_8);
             this.kmpTable = StringTermMatcher.buildKMPTable(this.pattern);
