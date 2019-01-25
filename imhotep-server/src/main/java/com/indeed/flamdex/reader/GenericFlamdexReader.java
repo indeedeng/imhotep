@@ -30,6 +30,8 @@ import java.nio.file.Path;
 // But now it is used only for FlamdexReader opening,
 // so all except opening is deleted.
 public class GenericFlamdexReader {
+    private static String INDEX_NAME_SUFFIX_PATTERN = "\\.sqar$";
+
     private GenericFlamdexReader() {
     }
 
@@ -38,8 +40,7 @@ public class GenericFlamdexReader {
     }
 
     public static FlamdexReader open(final Path directory, final int numDocs) throws IOException {
-        final boolean isDynamicIndex = DynamicIndexSubshardDirnameUtil.isValidDynamicIndexName(directory.getFileName().toString());
-        final FlamdexFormatVersion formatVersion = isDynamicIndex ? FlamdexFormatVersion.DYNAMIC : FlamdexFormatVersion.SIMPLE;
+        final FlamdexFormatVersion formatVersion = getFormatVersionFromDirectory(directory);
         final FlamdexReader r = numDocs < 0 ?
                 internalOpen(directory, formatVersion) :
                 internalOpen(directory, formatVersion, numDocs);
@@ -60,5 +61,12 @@ public class GenericFlamdexReader {
         return formatVersion == FlamdexFormatVersion.SIMPLE ?
                 SimpleFlamdexReader.open(directory, numDocs) :
                 new DynamicFlamdexReader(directory);
+    }
+
+    private static FlamdexFormatVersion getFormatVersionFromDirectory(final Path directory) {
+        final String dirWithoutSuffix = directory.getFileName().toString().replaceAll(INDEX_NAME_SUFFIX_PATTERN, "");
+        return DynamicIndexSubshardDirnameUtil.isValidDynamicIndexName(dirWithoutSuffix) ?
+                FlamdexFormatVersion.DYNAMIC :
+                FlamdexFormatVersion.SIMPLE;
     }
 }
