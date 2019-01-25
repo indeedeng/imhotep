@@ -15,10 +15,6 @@
 package com.indeed.imhotep.service;
 
 import com.google.common.base.Throwables;
-import com.indeed.flamdex.api.FlamdexReader;
-import com.indeed.flamdex.dynamic.DynamicFlamdexReader;
-import com.indeed.flamdex.simple.SimpleFlamdexReader;
-import com.indeed.imhotep.DynamicIndexSubshardDirnameUtil;
 import com.indeed.imhotep.MemoryReservationContext;
 import com.indeed.imhotep.MemoryReserver;
 import com.indeed.imhotep.scheduling.ImhotepTask;
@@ -121,7 +117,7 @@ public class ConcurrentFlamdexReaderFactory {
             try {
             // TODO: enable locking
 //            try (final Closeable ignored = TaskScheduler.CPUScheduler.lockSlot()) {
-                reader = createFlamdexReader(shardPath);
+                reader = createFlamdexReader(shardPath, createRequest.numDocs);
             } catch (final Exception ex) {
                 log.warn("unable to create reader for: " + shardPath, ex);
                 throw Throwables.propagate(ex);
@@ -132,11 +128,12 @@ public class ConcurrentFlamdexReaderFactory {
             return null;
         }
 
-        private SharedReference<CachedFlamdexReader> createFlamdexReader(final Path path) throws IOException {
-            final FlamdexReader reader = DynamicIndexSubshardDirnameUtil.isValidDynamicIndexName(path.getFileName().toString()) ?
-                    new DynamicFlamdexReader(path) :
-                    SimpleFlamdexReader.open(path);
-            return SharedReference.create(new CachedFlamdexReader(new MemoryReservationContext(memory), reader));
+        private SharedReference<CachedFlamdexReader> createFlamdexReader(final Path path, final int numDocs) throws IOException {
+            if (numDocs <= 0) {
+                return SharedReference.create(new CachedFlamdexReader(new MemoryReservationContext(memory), factory.openReader(path)));
+            } else {
+                return SharedReference.create(new CachedFlamdexReader(new MemoryReservationContext(memory), factory.openReader(path, numDocs)));
+            }
         }
     }
 
