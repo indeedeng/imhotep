@@ -139,15 +139,15 @@ public class StringTermMatcherTest {
         );
         assertThat(
                 StringTermMatcher.forRegex("\u307b\u3052.*"),
-                instanceOf(StringTermMatcher.PrefixStringTermMatcher.class)
+                instanceOf(StringTermMatcher.AutomatonStringTermMatcher.class)
         );
         assertThat(
                 StringTermMatcher.forRegex(".*\u307b\u3052"),
-                instanceOf(StringTermMatcher.SuffixStringTermMatcher.class)
+                instanceOf(StringTermMatcher.AutomatonStringTermMatcher.class)
         );
         assertThat(
                 StringTermMatcher.forRegex(".*\u307b\u3052.*"),
-                instanceOf(StringTermMatcher.IncludeStringTermMatcher.class)
+                instanceOf(StringTermMatcher.AutomatonStringTermMatcher.class)
         );
         assertThat(
                 StringTermMatcher.forRegex(".*foo|bar.*"),
