@@ -24,8 +24,7 @@ import com.indeed.flamdex.datastruct.MMapFastBitSet;
 import com.indeed.flamdex.fieldcache.LongArrayIntValueLookup;
 import com.indeed.flamdex.fieldcache.UnsortedIntTermDocIterator;
 import com.indeed.flamdex.fieldcache.UnsortedIntTermDocIteratorImpl;
-import com.indeed.imhotep.automaton.Automaton;
-import com.indeed.imhotep.automaton.RegExp;
+import com.indeed.imhotep.local.StringTermMatcher;
 import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.core.threads.ThreadSafeBitSet;
 import com.indeed.util.io.VIntUtils;
@@ -45,8 +44,6 @@ import java.io.OutputStream;
 import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -650,12 +647,12 @@ public class FlamdexUtils {
     }
 
     public static ThreadSafeBitSet cacheRegex(final String field, final String regex, final FlamdexReader reader) {
-        final Automaton automaton = new RegExp(regex).toAutomaton();
+        final StringTermMatcher stringTermMatcher = StringTermMatcher.forRegex(regex);
         final ThreadSafeBitSet ret = new ThreadSafeBitSet(reader.getNumDocs());
         if (reader.getIntFields().contains(field)) {
-            cacheIntFieldRegex(field, reader, automaton, ret);
+            cacheIntFieldRegex(field, reader, stringTermMatcher, ret);
         } else if (reader.getStringFields().contains(field)) {
-            cacheStringFieldRegex(field, reader, automaton, ret);
+            cacheStringFieldRegex(field, reader, stringTermMatcher, ret);
         } else {
             // No exception on unknown field because fields can be added and queries can legitimately cross boundaries
             // where the field isn't defined. Instead, just return an empty bitset.
@@ -666,12 +663,12 @@ public class FlamdexUtils {
     private static void cacheIntFieldRegex(
             final String field,
             final FlamdexReader reader,
-            final Automaton automaton,
+            final StringTermMatcher matcher,
             final ThreadSafeBitSet ret) {
         try (final IntTermIterator iter = reader.getUnsortedIntTermIterator(field);
              final DocIdStream dis = reader.getDocIdStream()) {
             while (iter.next()) {
-                if (automaton.run(String.valueOf(iter.term()))) {
+                if (matcher.matches(String.valueOf(iter.term()))) {
                     dis.reset(iter);
                     fillBitSet(dis, ret);
                 }
@@ -679,20 +676,17 @@ public class FlamdexUtils {
         }
     }
 
-    // TODO: Use automaton.getCommonPrefix() to reset to a start point and short circuit after that prefix?
     private static void cacheStringFieldRegex(
             final String field,
             final FlamdexReader reader,
-            final Automaton automaton,
+            final StringTermMatcher matcher,
             final ThreadSafeBitSet ret) {
         try (final StringTermIterator iter = reader.getStringTermIterator(field);
              final DocIdStream dis = reader.getDocIdStream()) {
-            while (iter.next()) {
-                if (automaton.run(iter.term())) {
-                    dis.reset(iter);
-                    fillBitSet(dis, ret);
-                }
-            }
+            matcher.run(iter, it -> {
+                dis.reset(it);
+                fillBitSet(dis, ret);
+            });
         }
     }
 
