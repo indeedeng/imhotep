@@ -15,6 +15,7 @@ import java.util.regex.Pattern;
 public abstract class StringTermMatcher {
     private static final String ANY_STRING_PATTERN = "\\.\\*";
     private static final String CAPTURED_NON_SPECIAL_NONEMPTY_STRING = "([^|&?*+{}~\\[\\].#@\"()<>\\\\^$]+)";
+    private static final String ALL_MATCH = ".*";
     private static final Pattern PREFIX_MATCH = Pattern.compile(CAPTURED_NON_SPECIAL_NONEMPTY_STRING + ANY_STRING_PATTERN);
     private static final Pattern SUFFIX_MATCH = Pattern.compile(ANY_STRING_PATTERN + CAPTURED_NON_SPECIAL_NONEMPTY_STRING);
     private static final Pattern INCLUDE_MATCH = Pattern.compile(ANY_STRING_PATTERN + CAPTURED_NON_SPECIAL_NONEMPTY_STRING + ANY_STRING_PATTERN);
@@ -35,6 +36,10 @@ public abstract class StringTermMatcher {
      * possibly that of optimized version compared to the fallback implementation using {@link Automaton}.
      */
     public static StringTermMatcher forRegex(final String regex) {
+        if (ALL_MATCH.equals(regex)) {
+            return new AllMatchStringTermMatcher();
+        }
+
         Matcher matcher;
 
         matcher = PREFIX_MATCH.matcher(regex);
@@ -74,6 +79,21 @@ public abstract class StringTermMatcher {
         }
         table[pattern.length] = failureLink;
         return table;
+    }
+
+    @VisibleForTesting
+    static class AllMatchStringTermMatcher extends StringTermMatcher {
+        @Override
+        public boolean matches(final String term) {
+            return true;
+        }
+
+        @Override
+        public void run(final StringTermIterator termIterator, final Consumer<StringTermIterator> onMatch) {
+            while (termIterator.next()) {
+                onMatch.accept(termIterator);
+            }
+        }
     }
 
     @VisibleForTesting

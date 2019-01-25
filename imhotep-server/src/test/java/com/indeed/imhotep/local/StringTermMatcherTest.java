@@ -2,11 +2,13 @@ package com.indeed.imhotep.local;
 
 import com.google.common.base.Charsets;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.primitives.UnsignedBytes;
 import com.indeed.flamdex.api.StringTermIterator;
 import org.junit.Test;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
@@ -23,11 +25,18 @@ public class StringTermMatcherTest {
     private static class MockStringTermIterator implements StringTermIterator {
         private final Function<Integer, Integer> lcpTransform;
         private final List<String> terms;
-        private int currentPos = 0;
+        private int currentPos = -1;
 
         private MockStringTermIterator(final Function<Integer, Integer> lcpTransform, final Collection<String> terms) {
             this.lcpTransform = lcpTransform;
-            this.terms = terms.stream().sorted().collect(Collectors.toList());
+            this.terms = terms.stream()
+                    .sorted(
+                            Comparator.comparing(
+                                    str -> str.getBytes(Charsets.UTF_8),
+                                    UnsignedBytes.lexicographicalComparator()
+                            )
+                    )
+                    .collect(Collectors.toList());
         }
 
         @Override
@@ -113,6 +122,10 @@ public class StringTermMatcherTest {
     @Test
     public void testAlterImplementation() {
         assertThat(
+                StringTermMatcher.forRegex(".*"),
+                instanceOf(StringTermMatcher.AllMatchStringTermMatcher.class)
+        );
+        assertThat(
                 StringTermMatcher.forRegex("foo.*"),
                 instanceOf(StringTermMatcher.PrefixStringTermMatcher.class)
         );
@@ -125,6 +138,18 @@ public class StringTermMatcherTest {
                 instanceOf(StringTermMatcher.IncludeStringTermMatcher.class)
         );
         assertThat(
+                StringTermMatcher.forRegex("\u307b\u3052.*"),
+                instanceOf(StringTermMatcher.PrefixStringTermMatcher.class)
+        );
+        assertThat(
+                StringTermMatcher.forRegex(".*\u307b\u3052"),
+                instanceOf(StringTermMatcher.SuffixStringTermMatcher.class)
+        );
+        assertThat(
+                StringTermMatcher.forRegex(".*\u307b\u3052.*"),
+                instanceOf(StringTermMatcher.IncludeStringTermMatcher.class)
+        );
+        assertThat(
                 StringTermMatcher.forRegex(".*foo|bar.*"),
                 instanceOf(StringTermMatcher.AutomatonStringTermMatcher.class)
         );
@@ -133,19 +158,15 @@ public class StringTermMatcherTest {
                 instanceOf(StringTermMatcher.AutomatonStringTermMatcher.class)
         );
         assertThat(
+                StringTermMatcher.forRegex("a.*b"),
+                instanceOf(StringTermMatcher.AutomatonStringTermMatcher.class)
+        );
+        assertThat(
                 StringTermMatcher.forRegex("f.o.*"),
                 instanceOf(StringTermMatcher.AutomatonStringTermMatcher.class)
         );
         assertThat(
-                StringTermMatcher.forRegex(".*"),
-                instanceOf(StringTermMatcher.AutomatonStringTermMatcher.class)
-        );
-        assertThat(
                 StringTermMatcher.forRegex(".*.*"),
-                instanceOf(StringTermMatcher.AutomatonStringTermMatcher.class)
-        );
-        assertThat(
-                StringTermMatcher.forRegex(".*"),
                 instanceOf(StringTermMatcher.AutomatonStringTermMatcher.class)
         );
         assertThat(
@@ -196,6 +217,15 @@ public class StringTermMatcherTest {
         assertArrayEquals(
                 new int[]{-1, 0, 0, 0, 0, 0, 0, -1, 0, 2, 0, 0, 0, 0, 0, -1, 0, 0, 3, 0, 0, 0, 0, 0, 0},
                 StringTermMatcher.buildKMPTable("PARTICIPATE IN PARACHUTE".getBytes(Charsets.UTF_8))
+        );
+    }
+
+    @Test
+    public void testAllMatch() {
+        validateMatcher(
+                ImmutableSet.of("foo", "bar", "\u307b\u3052"),
+                new StringTermMatcher.AllMatchStringTermMatcher(),
+                ImmutableSet.of("foo", "bar", "\u307b\u3052")
         );
     }
 
