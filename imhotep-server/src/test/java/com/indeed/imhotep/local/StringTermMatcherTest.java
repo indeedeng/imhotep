@@ -138,6 +138,18 @@ public class StringTermMatcherTest {
                 instanceOf(StringTermMatcher.IncludeStringTermMatcher.class)
         );
         assertThat(
+                StringTermMatcher.forRegex("f oo.*"),
+                instanceOf(StringTermMatcher.PrefixStringTermMatcher.class)
+        );
+        assertThat(
+                StringTermMatcher.forRegex(".*foo "),
+                instanceOf(StringTermMatcher.SuffixStringTermMatcher.class)
+        );
+        assertThat(
+                StringTermMatcher.forRegex(".*f oo.*"),
+                instanceOf(StringTermMatcher.IncludeStringTermMatcher.class)
+        );
+        assertThat(
                 StringTermMatcher.forRegex("\u307b\u3052.*"),
                 instanceOf(StringTermMatcher.AutomatonStringTermMatcher.class)
         );

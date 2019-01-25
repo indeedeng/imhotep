@@ -14,7 +14,7 @@ import java.util.regex.Pattern;
 
 public abstract class StringTermMatcher {
     private static final String ANY_STRING_PATTERN = "\\.\\*";
-    private static final String CAPTURED_NON_SPECIAL_NONEMPTY_STRING = "([-`!%':;,=/_0-9a-zA-Z]+)";
+    private static final String CAPTURED_NON_SPECIAL_NONEMPTY_STRING = "([-`!%':;,=/_0-9a-zA-Z ]+)";
     private static final String ALL_MATCH = ".*";
     private static final Pattern PREFIX_MATCH = Pattern.compile(CAPTURED_NON_SPECIAL_NONEMPTY_STRING + ANY_STRING_PATTERN);
     private static final Pattern SUFFIX_MATCH = Pattern.compile(ANY_STRING_PATTERN + CAPTURED_NON_SPECIAL_NONEMPTY_STRING);
