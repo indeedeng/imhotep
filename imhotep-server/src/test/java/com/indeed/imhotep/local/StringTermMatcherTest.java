@@ -269,6 +269,16 @@ public class StringTermMatcherTest {
                 new StringTermMatcher.PrefixStringTermMatcher("prefix"),
                 ImmutableSet.of("", "p", "prefixed", "prefixed by prefix", "prepared", "query", "this is a prefix")
         );
+        validateMatcher(
+                ImmutableSet.of(),
+                new StringTermMatcher.PrefixStringTermMatcher("prefix"),
+                ImmutableSet.of("", "p", "prop")
+        );
+        validateMatcher(
+                ImmutableSet.of("prefix", "prefixed"),
+                new StringTermMatcher.PrefixStringTermMatcher("prefix"),
+                ImmutableSet.of("", "p", "prefix", "prefixed")
+        );
     }
 
     @Test
@@ -296,6 +306,15 @@ public class StringTermMatcherTest {
                 ImmutableSet.of("target is prefix", "contains target inside", "suffixed by target", "target target target"),
                 new StringTermMatcher.IncludeStringTermMatcher("target"),
                 ImmutableSet.of("", "whatever", "suffixed by target", "target is prefix", "contains target inside", "target target target")
+        );
+    }
+
+    @Test
+    public void testRegexMatch() {
+        validateMatcher(
+                ImmutableSet.of("foobar", "foofoobarbar"),
+                new StringTermMatcher.AutomatonStringTermMatcher("foo.*bar"),
+                ImmutableSet.of("foobar", "fizzbuzz", "foofoobarbar")
         );
     }
 }
