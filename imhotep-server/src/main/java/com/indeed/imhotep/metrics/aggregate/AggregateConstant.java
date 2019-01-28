@@ -25,6 +25,10 @@ public class AggregateConstant implements AggregateStat {
         return Double.compare(that.value, value) == 0;
     }
 
+    public double getValue() {
+        return value;
+    }
+
     @Override
     public int hashCode() {
         return Objects.hashCode(value);

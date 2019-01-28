@@ -10,8 +10,10 @@ import java.util.stream.Collectors;
 
 import static com.indeed.imhotep.metrics.aggregate.AggregateStatConstants.ABS;
 import static com.indeed.imhotep.metrics.aggregate.AggregateStatConstants.AND;
+import static com.indeed.imhotep.metrics.aggregate.AggregateStatConstants.CEIL;
 import static com.indeed.imhotep.metrics.aggregate.AggregateStatConstants.DIVIDE;
 import static com.indeed.imhotep.metrics.aggregate.AggregateStatConstants.EQ;
+import static com.indeed.imhotep.metrics.aggregate.AggregateStatConstants.FLOOR;
 import static com.indeed.imhotep.metrics.aggregate.AggregateStatConstants.GT;
 import static com.indeed.imhotep.metrics.aggregate.AggregateStatConstants.GTE;
 import static com.indeed.imhotep.metrics.aggregate.AggregateStatConstants.IF_THEN_ELSE;
@@ -28,6 +30,7 @@ import static com.indeed.imhotep.metrics.aggregate.AggregateStatConstants.NOT;
 import static com.indeed.imhotep.metrics.aggregate.AggregateStatConstants.OR;
 import static com.indeed.imhotep.metrics.aggregate.AggregateStatConstants.PLUS;
 import static com.indeed.imhotep.metrics.aggregate.AggregateStatConstants.POWER;
+import static com.indeed.imhotep.metrics.aggregate.AggregateStatConstants.ROUND;
 import static com.indeed.imhotep.metrics.aggregate.AggregateStatConstants.TERM_EQUALS_;
 import static com.indeed.imhotep.metrics.aggregate.AggregateStatConstants.TERM_REGEX_;
 
@@ -128,6 +131,27 @@ public class AggregateStatTree {
      */
     public AggregateStatTree abs() {
         return unOp(ABS, this);
+    }
+
+    /**
+     * Floor. floor(value, digits)
+     */
+    public AggregateStatTree floor(final int digits) {
+        return binOp(this, FLOOR, constant(digits));
+    }
+
+    /**
+     * Ceil. ceil(value, digits)
+     */
+    public AggregateStatTree ceil(final int digits) {
+        return binOp(this, CEIL, constant(digits));
+    }
+
+    /**
+     * Round. round(value, digits)
+     */
+    public AggregateStatTree round(final int digits) {
+        return binOp(this, ROUND, constant(digits));
     }
 
     /**

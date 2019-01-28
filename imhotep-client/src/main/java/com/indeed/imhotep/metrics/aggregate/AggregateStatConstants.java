@@ -7,6 +7,9 @@ public class AggregateStatConstants {
     public static final String TERM_EQUALS_ = "term_equals ";
     public static final String TERM_REGEX_ = "term_regex ";
     public static final String ABS = "abs";
+    public static final String FLOOR = "floor";
+    public static final String CEIL = "ceil";
+    public static final String ROUND = "round";
     public static final String LOG = "log";
     public static final String NOT = "not";
     public static final String AND = "and";

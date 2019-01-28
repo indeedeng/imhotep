@@ -41,6 +41,9 @@ public class ParseAggregate {
         binopsBuilder.put(LTE, AggregateLessThanOrEqual::new);
         binopsBuilder.put(EQ, AggregateEqual::new);
         binopsBuilder.put(NEQ, AggregateNotEqual::new);
+        binopsBuilder.put(FLOOR, AggregateFloor::new);
+        binopsBuilder.put(CEIL, AggregateCeil::new);
+        binopsBuilder.put(ROUND, AggregateRound::new);
         BINOPS = binopsBuilder.build();
     }
 
