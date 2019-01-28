@@ -8,13 +8,17 @@ import com.indeed.imhotep.automaton.Automaton;
 import com.indeed.imhotep.automaton.RegExp;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 
+import java.nio.CharBuffer;
+import java.nio.charset.CharacterCodingException;
+import java.nio.charset.Charset;
+import java.nio.charset.CodingErrorAction;
 import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public abstract class StringTermMatcher {
     private static final String ANY_STRING_PATTERN = "\\.\\*";
-    private static final String CAPTURED_NON_SPECIAL_NONEMPTY_STRING = "([-`!%':;,=/_0-9a-zA-Z ]+)";
+    private static final String CAPTURED_NON_SPECIAL_NONEMPTY_STRING = "([^|&?*+{}~\\[\\].#@\"()<>\\\\^$]+)";
     private static final String ALL_MATCH = ".*";
     private static final Pattern PREFIX_MATCH = Pattern.compile(CAPTURED_NON_SPECIAL_NONEMPTY_STRING + ANY_STRING_PATTERN);
     private static final Pattern SUFFIX_MATCH = Pattern.compile(ANY_STRING_PATTERN + CAPTURED_NON_SPECIAL_NONEMPTY_STRING);
@@ -40,21 +44,40 @@ public abstract class StringTermMatcher {
             return new AllMatchStringTermMatcher();
         }
 
-        Matcher matcher;
+        if (isWellFormedString(Charsets.UTF_8, regex)) {
+            Matcher matcher;
 
-        matcher = PREFIX_MATCH.matcher(regex);
-        if (matcher.matches()) {
-            return new PrefixStringTermMatcher(matcher.group(1));
-        }
-        matcher = SUFFIX_MATCH.matcher(regex);
-        if (matcher.matches()) {
-            return new SuffixStringTermMatcher(matcher.group(1));
-        }
-        matcher = INCLUDE_MATCH.matcher(regex);
-        if (matcher.matches()) {
-            return new IncludeStringTermMatcher(matcher.group(1));
+            matcher = PREFIX_MATCH.matcher(regex);
+            if (matcher.matches()) {
+                return new PrefixStringTermMatcher(matcher.group(1));
+            }
+            matcher = SUFFIX_MATCH.matcher(regex);
+            if (matcher.matches()) {
+                return new SuffixStringTermMatcher(matcher.group(1));
+            }
+            matcher = INCLUDE_MATCH.matcher(regex);
+            if (matcher.matches()) {
+                return new IncludeStringTermMatcher(matcher.group(1));
+            }
         }
         return new AutomatonStringTermMatcher(regex);
+    }
+
+    /**
+     * Returns true iff {@code str} is well-formed and can be converted to {@code charset} without anything weird.
+     * For example, stray surrogate pair.
+     */
+    private static boolean isWellFormedString(final Charset charset, final String str) {
+        try {
+            charset
+                    .newEncoder()
+                    .onMalformedInput(CodingErrorAction.REPORT)
+                    .encode(CharBuffer.wrap(str));
+            return true;
+        } catch (final CharacterCodingException e) {
+            return false;
+        }
+
     }
 
     /**

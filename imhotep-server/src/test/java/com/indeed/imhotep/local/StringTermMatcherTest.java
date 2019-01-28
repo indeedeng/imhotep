@@ -150,16 +150,32 @@ public class StringTermMatcherTest {
                 instanceOf(StringTermMatcher.IncludeStringTermMatcher.class)
         );
         assertThat(
-                StringTermMatcher.forRegex("\u307b\u3052.*"),
+                StringTermMatcher.forRegex(".*" + Character.MIN_LOW_SURROGATE), // stray low surrogate
                 instanceOf(StringTermMatcher.AutomatonStringTermMatcher.class)
+        );
+        assertThat(
+                StringTermMatcher.forRegex(".*" + Character.MIN_HIGH_SURROGATE), // stray high surrogate
+                instanceOf(StringTermMatcher.AutomatonStringTermMatcher.class)
+        );
+        assertThat(
+                StringTermMatcher.forRegex(".*" + Character.MIN_LOW_SURROGATE + Character.MIN_HIGH_SURROGATE), // misordered surrogate pair
+                instanceOf(StringTermMatcher.AutomatonStringTermMatcher.class)
+        );
+        assertThat(
+                StringTermMatcher.forRegex(".*" + Character.MIN_HIGH_SURROGATE + Character.MIN_LOW_SURROGATE), // Correct surrogate pair
+                instanceOf(StringTermMatcher.SuffixStringTermMatcher.class)
+        );
+        assertThat(
+                StringTermMatcher.forRegex("\u307b\u3052.*"),
+                instanceOf(StringTermMatcher.PrefixStringTermMatcher.class)
         );
         assertThat(
                 StringTermMatcher.forRegex(".*\u307b\u3052"),
-                instanceOf(StringTermMatcher.AutomatonStringTermMatcher.class)
+                instanceOf(StringTermMatcher.SuffixStringTermMatcher.class)
         );
         assertThat(
                 StringTermMatcher.forRegex(".*\u307b\u3052.*"),
-                instanceOf(StringTermMatcher.AutomatonStringTermMatcher.class)
+                instanceOf(StringTermMatcher.IncludeStringTermMatcher.class)
         );
         assertThat(
                 StringTermMatcher.forRegex(".*foo|bar.*"),
