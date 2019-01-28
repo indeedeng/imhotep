@@ -18,6 +18,7 @@ import com.indeed.flamdex.dynamic.DynamicFlamdexReader;
 import com.indeed.flamdex.ramses.RamsesFlamdexWrapper;
 import com.indeed.flamdex.simple.SimpleFlamdexReader;
 import com.indeed.imhotep.DynamicIndexSubshardDirnameUtil;
+import org.apache.commons.lang.StringUtils;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -30,8 +31,7 @@ import java.nio.file.Path;
 // But now it is used only for FlamdexReader opening,
 // so all except opening is deleted.
 public class GenericFlamdexReader {
-    private static String INDEX_NAME_SUFFIX_PATTERN = "\\.sqar$";
-
+    
     private GenericFlamdexReader() {
     }
 
@@ -64,7 +64,7 @@ public class GenericFlamdexReader {
     }
 
     private static FlamdexFormatVersion getFormatVersionFromDirectory(final Path directory) {
-        final String dirWithoutSuffix = directory.getFileName().toString().replaceAll(INDEX_NAME_SUFFIX_PATTERN, "");
+        final String dirWithoutSuffix = StringUtils.removeEnd(directory.getFileName().toString(), ".sqar");
         return DynamicIndexSubshardDirnameUtil.isValidDynamicIndexName(dirWithoutSuffix) ?
                 FlamdexFormatVersion.DYNAMIC :
                 FlamdexFormatVersion.SIMPLE;
