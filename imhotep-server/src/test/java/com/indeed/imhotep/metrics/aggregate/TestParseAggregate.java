@@ -53,6 +53,24 @@ public class TestParseAggregate {
         Assert.assertFalse(constructor.apply(rhs, lhs).equals(result));
     }
 
+    private void testBinopConstant(
+            final BiFunction<AggregateStat, AggregateStat, AggregateStat> constructor,
+            final String operation)
+    {
+        final Opaque lhs = new Opaque();
+        final AggregateStat rhs = new AggregateConstant(1);
+        final AggregateStatStack stack = new AggregateStatStack();
+        stack.push(lhs);
+        stack.push(rhs);
+        final com.indeed.imhotep.protobuf.AggregateStat.Builder proto = com.indeed.imhotep.protobuf.AggregateStat.newBuilder();
+        proto.setStatType(com.indeed.imhotep.protobuf.AggregateStat.StatType.OPERATION);
+        proto.setOperation(operation);
+        ParseAggregate.parse(null, stack, proto.build());
+        Assert.assertEquals(1, stack.size());
+        final AggregateStat result = stack.pop();
+        Assert.assertEquals(constructor.apply(lhs, rhs), result);
+    }
+
     @Test
     public void testParseOperations() {
         // TODO: term_equals
@@ -75,9 +93,10 @@ public class TestParseAggregate {
         testBinop(AggregateLessThanOrEqual::new, "<=");
         testBinop(AggregateEqual::new, "=");
         testBinop(AggregateNotEqual::new, "!=");
-        testBinop(AggregateFloor::new, "floor");
-        testBinop(AggregateCeil::new, "ceil");
-        testBinop(AggregateRound::new, "round");
+
+        testBinopConstant(AggregateFloor::new, "floor");
+        testBinopConstant(AggregateCeil::new, "ceil");
+        testBinopConstant(AggregateRound::new, "round");
 
         testUnop(AggregateAbsoluteValue::new, "abs");
         testUnop(AggregateLog::new, "log");
