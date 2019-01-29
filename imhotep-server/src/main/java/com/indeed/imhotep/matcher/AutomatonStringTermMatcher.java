@@ -22,7 +22,7 @@ class AutomatonStringTermMatcher implements StringTermMatcher {
     @Override
     public void run(final StringTermIterator termIterator, final Consumer<StringTermIterator> onMatch) {
         // TODO: Automaton#getCommonPrefix and reset termIterator.
-        // TODO: Do something similar to stateStack.
+        // TODO: Do something similar to what we do with stateStack in IncludeStringTermMatcher / SuffixStringTermMatcher.
         // TODO: Determine sink state and eagerly stop evaluating automaton.
         while (termIterator.next()) {
             final String term = termIterator.term();
