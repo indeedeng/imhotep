@@ -4,7 +4,7 @@ import com.indeed.flamdex.api.StringTermIterator;
 
 import java.util.function.Consumer;
 
-class AllMatchStringTermMatcher extends StringTermMatcher {
+class AllMatchStringTermMatcher implements StringTermMatcher {
     @Override
     public boolean matches(final String term) {
         return true;

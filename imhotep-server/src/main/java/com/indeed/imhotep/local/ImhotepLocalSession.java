@@ -64,6 +64,7 @@ import com.indeed.imhotep.group.IterativeHasher;
 import com.indeed.imhotep.group.IterativeHasherUtils;
 import com.indeed.imhotep.marshal.ImhotepDaemonMarshaller;
 import com.indeed.imhotep.matcher.StringTermMatcher;
+import com.indeed.imhotep.matcher.StringTermMatchers;
 import com.indeed.imhotep.metrics.AbsoluteValue;
 import com.indeed.imhotep.metrics.Addition;
 import com.indeed.imhotep.metrics.CachedInterleavedMetrics;
@@ -836,7 +837,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                 final StringTermIterator iter = flamdexReader.getStringTermIterator(field);
                 final DocIdStream docIdStream = flamdexReader.getDocIdStream()
             ) {
-                final StringTermMatcher stringTermMatcher = StringTermMatcher.forRegex(regex);
+                final StringTermMatcher stringTermMatcher = StringTermMatchers.forRegex(regex);
                 stringTermMatcher.run(iter, matchedIt -> {
                     docIdStream.reset(matchedIt);
                     remapPositiveDocs(docIdStream, docRemapped, targetGroup, positiveGroup);

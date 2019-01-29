@@ -6,7 +6,7 @@ import com.indeed.flamdex.api.StringTermIterator;
 
 import java.util.function.Consumer;
 
-class PrefixStringTermMatcher extends StringTermMatcher {
+class PrefixStringTermMatcher implements StringTermMatcher {
     private final String patternString;
     private final byte[] pattern;
 

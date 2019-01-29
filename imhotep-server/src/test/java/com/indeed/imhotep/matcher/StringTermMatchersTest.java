@@ -20,7 +20,7 @@ import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
-public class StringTermMatcherTest {
+public class StringTermMatchersTest {
     private static class MockStringTermIterator implements StringTermIterator {
         private final Function<Integer, Integer> lcpTransform;
         private final List<String> terms;
@@ -121,107 +121,107 @@ public class StringTermMatcherTest {
     @Test
     public void testAlterImplementation() {
         assertThat(
-                StringTermMatcher.forRegex(".*"),
+                StringTermMatchers.forRegex(".*"),
                 instanceOf(AllMatchStringTermMatcher.class)
         );
         assertThat(
-                StringTermMatcher.forRegex("foo.*"),
+                StringTermMatchers.forRegex("foo.*"),
                 instanceOf(PrefixStringTermMatcher.class)
         );
         assertThat(
-                StringTermMatcher.forRegex(".*foo"),
+                StringTermMatchers.forRegex(".*foo"),
                 instanceOf(SuffixStringTermMatcher.class)
         );
         assertThat(
-                StringTermMatcher.forRegex(".*foo.*"),
+                StringTermMatchers.forRegex(".*foo.*"),
                 instanceOf(IncludeStringTermMatcher.class)
         );
         assertThat(
-                StringTermMatcher.forRegex("f oo.*"),
+                StringTermMatchers.forRegex("f oo.*"),
                 instanceOf(PrefixStringTermMatcher.class)
         );
         assertThat(
-                StringTermMatcher.forRegex(".*foo "),
+                StringTermMatchers.forRegex(".*foo "),
                 instanceOf(SuffixStringTermMatcher.class)
         );
         assertThat(
-                StringTermMatcher.forRegex(".*f oo.*"),
+                StringTermMatchers.forRegex(".*f oo.*"),
                 instanceOf(IncludeStringTermMatcher.class)
         );
         assertThat(
-                StringTermMatcher.forRegex(".*" + Character.MIN_LOW_SURROGATE), // stray low surrogate
+                StringTermMatchers.forRegex(".*" + Character.MIN_LOW_SURROGATE), // stray low surrogate
                 instanceOf(AutomatonStringTermMatcher.class)
         );
         assertThat(
-                StringTermMatcher.forRegex(".*" + Character.MIN_HIGH_SURROGATE), // stray high surrogate
+                StringTermMatchers.forRegex(".*" + Character.MIN_HIGH_SURROGATE), // stray high surrogate
                 instanceOf(AutomatonStringTermMatcher.class)
         );
         assertThat(
-                StringTermMatcher.forRegex(".*" + Character.MIN_LOW_SURROGATE + Character.MIN_HIGH_SURROGATE), // misordered surrogate pair
+                StringTermMatchers.forRegex(".*" + Character.MIN_LOW_SURROGATE + Character.MIN_HIGH_SURROGATE), // misordered surrogate pair
                 instanceOf(AutomatonStringTermMatcher.class)
         );
         assertThat(
-                StringTermMatcher.forRegex(".*" + Character.MIN_HIGH_SURROGATE + Character.MIN_LOW_SURROGATE), // Correct surrogate pair
+                StringTermMatchers.forRegex(".*" + Character.MIN_HIGH_SURROGATE + Character.MIN_LOW_SURROGATE), // Correct surrogate pair
                 instanceOf(SuffixStringTermMatcher.class)
         );
         assertThat(
-                StringTermMatcher.forRegex("\u307b\u3052.*"),
+                StringTermMatchers.forRegex("\u307b\u3052.*"),
                 instanceOf(PrefixStringTermMatcher.class)
         );
         assertThat(
-                StringTermMatcher.forRegex(".*\u307b\u3052"),
+                StringTermMatchers.forRegex(".*\u307b\u3052"),
                 instanceOf(SuffixStringTermMatcher.class)
         );
         assertThat(
-                StringTermMatcher.forRegex(".*\u307b\u3052.*"),
+                StringTermMatchers.forRegex(".*\u307b\u3052.*"),
                 instanceOf(IncludeStringTermMatcher.class)
         );
         assertThat(
-                StringTermMatcher.forRegex(".*foo|bar.*"),
+                StringTermMatchers.forRegex(".*foo|bar.*"),
                 instanceOf(AutomatonStringTermMatcher.class)
         );
         assertThat(
-                StringTermMatcher.forRegex("[f]oobar.*"),
+                StringTermMatchers.forRegex("[f]oobar.*"),
                 instanceOf(AutomatonStringTermMatcher.class)
         );
         assertThat(
-                StringTermMatcher.forRegex("a.*b"),
+                StringTermMatchers.forRegex("a.*b"),
                 instanceOf(AutomatonStringTermMatcher.class)
         );
         assertThat(
-                StringTermMatcher.forRegex("f.o.*"),
+                StringTermMatchers.forRegex("f.o.*"),
                 instanceOf(AutomatonStringTermMatcher.class)
         );
         assertThat(
-                StringTermMatcher.forRegex(".*.*"),
+                StringTermMatchers.forRegex(".*.*"),
                 instanceOf(AutomatonStringTermMatcher.class)
         );
         assertThat(
-                StringTermMatcher.forRegex("fo+.*"),
+                StringTermMatchers.forRegex("fo+.*"),
                 instanceOf(AutomatonStringTermMatcher.class)
         );
         assertThat(
-                StringTermMatcher.forRegex("fo{1,2}.*"),
+                StringTermMatchers.forRegex("fo{1,2}.*"),
                 instanceOf(AutomatonStringTermMatcher.class)
         );
         assertThat(
-                StringTermMatcher.forRegex("foo?.*"),
+                StringTermMatchers.forRegex("foo?.*"),
                 instanceOf(AutomatonStringTermMatcher.class)
         );
         assertThat(
-                StringTermMatcher.forRegex("foo&bar.*"),
+                StringTermMatchers.forRegex("foo&bar.*"),
                 instanceOf(AutomatonStringTermMatcher.class)
         );
         assertThat(
-                StringTermMatcher.forRegex("foo~a.*"),
+                StringTermMatchers.forRegex("foo~a.*"),
                 instanceOf(AutomatonStringTermMatcher.class)
         );
         assertThat(
-                StringTermMatcher.forRegex("[.].*"),
+                StringTermMatchers.forRegex("[.].*"),
                 instanceOf(AutomatonStringTermMatcher.class)
         );
         assertThat(
-                StringTermMatcher.forRegex("<1-3>.*"),
+                StringTermMatchers.forRegex("<1-3>.*"),
                 instanceOf(AutomatonStringTermMatcher.class)
         );
     }

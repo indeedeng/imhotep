@@ -25,6 +25,7 @@ import com.indeed.flamdex.fieldcache.LongArrayIntValueLookup;
 import com.indeed.flamdex.fieldcache.UnsortedIntTermDocIterator;
 import com.indeed.flamdex.fieldcache.UnsortedIntTermDocIteratorImpl;
 import com.indeed.imhotep.matcher.StringTermMatcher;
+import com.indeed.imhotep.matcher.StringTermMatchers;
 import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.core.threads.ThreadSafeBitSet;
 import com.indeed.util.io.VIntUtils;
@@ -647,7 +648,7 @@ public class FlamdexUtils {
     }
 
     public static ThreadSafeBitSet cacheRegex(final String field, final String regex, final FlamdexReader reader) {
-        final StringTermMatcher stringTermMatcher = StringTermMatcher.forRegex(regex);
+        final StringTermMatcher stringTermMatcher = StringTermMatchers.forRegex(regex);
         final ThreadSafeBitSet ret = new ThreadSafeBitSet(reader.getNumDocs());
         if (reader.getIntFields().contains(field)) {
             cacheIntFieldRegex(field, reader, stringTermMatcher, ret);

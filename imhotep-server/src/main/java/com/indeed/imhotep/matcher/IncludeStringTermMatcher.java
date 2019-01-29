@@ -7,7 +7,7 @@ import it.unimi.dsi.fastutil.ints.IntArrayList;
 
 import java.util.function.Consumer;
 
-class IncludeStringTermMatcher extends StringTermMatcher {
+class IncludeStringTermMatcher implements StringTermMatcher {
     private final String patternString;
     private final byte[] pattern;
     private final int[] kmpTable;

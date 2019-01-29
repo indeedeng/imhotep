@@ -6,7 +6,7 @@ import com.indeed.imhotep.automaton.RegExp;
 
 import java.util.function.Consumer;
 
-class AutomatonStringTermMatcher extends StringTermMatcher {
+class AutomatonStringTermMatcher implements StringTermMatcher {
     private final Automaton automaton;
 
     AutomatonStringTermMatcher(final String regex) {
