@@ -24,7 +24,7 @@ import com.indeed.flamdex.datastruct.MMapFastBitSet;
 import com.indeed.flamdex.fieldcache.LongArrayIntValueLookup;
 import com.indeed.flamdex.fieldcache.UnsortedIntTermDocIterator;
 import com.indeed.flamdex.fieldcache.UnsortedIntTermDocIteratorImpl;
-import com.indeed.imhotep.local.StringTermMatcher;
+import com.indeed.imhotep.matcher.StringTermMatcher;
 import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.core.threads.ThreadSafeBitSet;
 import com.indeed.util.io.VIntUtils;

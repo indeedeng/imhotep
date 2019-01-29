@@ -1,4 +1,4 @@
-package com.indeed.imhotep.local;
+package com.indeed.imhotep.matcher;
 
 import com.google.common.base.Charsets;
 import com.google.common.collect.ImmutableSet;
@@ -123,107 +123,107 @@ public class StringTermMatcherTest {
     public void testAlterImplementation() {
         assertThat(
                 StringTermMatcher.forRegex(".*"),
-                instanceOf(StringTermMatcher.AllMatchStringTermMatcher.class)
+                instanceOf(AllMatchStringTermMatcher.class)
         );
         assertThat(
                 StringTermMatcher.forRegex("foo.*"),
-                instanceOf(StringTermMatcher.PrefixStringTermMatcher.class)
+                instanceOf(PrefixStringTermMatcher.class)
         );
         assertThat(
                 StringTermMatcher.forRegex(".*foo"),
-                instanceOf(StringTermMatcher.SuffixStringTermMatcher.class)
+                instanceOf(SuffixStringTermMatcher.class)
         );
         assertThat(
                 StringTermMatcher.forRegex(".*foo.*"),
-                instanceOf(StringTermMatcher.IncludeStringTermMatcher.class)
+                instanceOf(IncludeStringTermMatcher.class)
         );
         assertThat(
                 StringTermMatcher.forRegex("f oo.*"),
-                instanceOf(StringTermMatcher.PrefixStringTermMatcher.class)
+                instanceOf(PrefixStringTermMatcher.class)
         );
         assertThat(
                 StringTermMatcher.forRegex(".*foo "),
-                instanceOf(StringTermMatcher.SuffixStringTermMatcher.class)
+                instanceOf(SuffixStringTermMatcher.class)
         );
         assertThat(
                 StringTermMatcher.forRegex(".*f oo.*"),
-                instanceOf(StringTermMatcher.IncludeStringTermMatcher.class)
+                instanceOf(IncludeStringTermMatcher.class)
         );
         assertThat(
                 StringTermMatcher.forRegex(".*" + Character.MIN_LOW_SURROGATE), // stray low surrogate
-                instanceOf(StringTermMatcher.AutomatonStringTermMatcher.class)
+                instanceOf(AutomatonStringTermMatcher.class)
         );
         assertThat(
                 StringTermMatcher.forRegex(".*" + Character.MIN_HIGH_SURROGATE), // stray high surrogate
-                instanceOf(StringTermMatcher.AutomatonStringTermMatcher.class)
+                instanceOf(AutomatonStringTermMatcher.class)
         );
         assertThat(
                 StringTermMatcher.forRegex(".*" + Character.MIN_LOW_SURROGATE + Character.MIN_HIGH_SURROGATE), // misordered surrogate pair
-                instanceOf(StringTermMatcher.AutomatonStringTermMatcher.class)
+                instanceOf(AutomatonStringTermMatcher.class)
         );
         assertThat(
                 StringTermMatcher.forRegex(".*" + Character.MIN_HIGH_SURROGATE + Character.MIN_LOW_SURROGATE), // Correct surrogate pair
-                instanceOf(StringTermMatcher.SuffixStringTermMatcher.class)
+                instanceOf(SuffixStringTermMatcher.class)
         );
         assertThat(
                 StringTermMatcher.forRegex("\u307b\u3052.*"),
-                instanceOf(StringTermMatcher.PrefixStringTermMatcher.class)
+                instanceOf(PrefixStringTermMatcher.class)
         );
         assertThat(
                 StringTermMatcher.forRegex(".*\u307b\u3052"),
-                instanceOf(StringTermMatcher.SuffixStringTermMatcher.class)
+                instanceOf(SuffixStringTermMatcher.class)
         );
         assertThat(
                 StringTermMatcher.forRegex(".*\u307b\u3052.*"),
-                instanceOf(StringTermMatcher.IncludeStringTermMatcher.class)
+                instanceOf(IncludeStringTermMatcher.class)
         );
         assertThat(
                 StringTermMatcher.forRegex(".*foo|bar.*"),
-                instanceOf(StringTermMatcher.AutomatonStringTermMatcher.class)
+                instanceOf(AutomatonStringTermMatcher.class)
         );
         assertThat(
                 StringTermMatcher.forRegex("[f]oobar.*"),
-                instanceOf(StringTermMatcher.AutomatonStringTermMatcher.class)
+                instanceOf(AutomatonStringTermMatcher.class)
         );
         assertThat(
                 StringTermMatcher.forRegex("a.*b"),
-                instanceOf(StringTermMatcher.AutomatonStringTermMatcher.class)
+                instanceOf(AutomatonStringTermMatcher.class)
         );
         assertThat(
                 StringTermMatcher.forRegex("f.o.*"),
-                instanceOf(StringTermMatcher.AutomatonStringTermMatcher.class)
+                instanceOf(AutomatonStringTermMatcher.class)
         );
         assertThat(
                 StringTermMatcher.forRegex(".*.*"),
-                instanceOf(StringTermMatcher.AutomatonStringTermMatcher.class)
+                instanceOf(AutomatonStringTermMatcher.class)
         );
         assertThat(
                 StringTermMatcher.forRegex("fo+.*"),
-                instanceOf(StringTermMatcher.AutomatonStringTermMatcher.class)
+                instanceOf(AutomatonStringTermMatcher.class)
         );
         assertThat(
                 StringTermMatcher.forRegex("fo{1,2}.*"),
-                instanceOf(StringTermMatcher.AutomatonStringTermMatcher.class)
+                instanceOf(AutomatonStringTermMatcher.class)
         );
         assertThat(
                 StringTermMatcher.forRegex("foo?.*"),
-                instanceOf(StringTermMatcher.AutomatonStringTermMatcher.class)
+                instanceOf(AutomatonStringTermMatcher.class)
         );
         assertThat(
                 StringTermMatcher.forRegex("foo&bar.*"),
-                instanceOf(StringTermMatcher.AutomatonStringTermMatcher.class)
+                instanceOf(AutomatonStringTermMatcher.class)
         );
         assertThat(
                 StringTermMatcher.forRegex("foo~a.*"),
-                instanceOf(StringTermMatcher.AutomatonStringTermMatcher.class)
+                instanceOf(AutomatonStringTermMatcher.class)
         );
         assertThat(
                 StringTermMatcher.forRegex("[.].*"),
-                instanceOf(StringTermMatcher.AutomatonStringTermMatcher.class)
+                instanceOf(AutomatonStringTermMatcher.class)
         );
         assertThat(
                 StringTermMatcher.forRegex("<1-3>.*"),
-                instanceOf(StringTermMatcher.AutomatonStringTermMatcher.class)
+                instanceOf(AutomatonStringTermMatcher.class)
         );
     }
 
@@ -232,19 +232,19 @@ public class StringTermMatcherTest {
         // Examples from https://en.wikipedia.org/wiki/Knuth–Morris–Pratt_algorithm
         assertArrayEquals(
                 new int[]{-1, 0, 0, 0, -1, 0, 2, 0},
-                StringTermMatcher.buildKMPTable("ABCDABD".getBytes(Charsets.UTF_8))
+                StringMatcherUtil.buildKMPTable("ABCDABD".getBytes(Charsets.UTF_8))
         );
         assertArrayEquals(
                 new int[]{-1, 0, -1, 1, -1, 0, -1, 3, 2, 0},
-                StringTermMatcher.buildKMPTable("ABACABABC".getBytes(Charsets.UTF_8))
+                StringMatcherUtil.buildKMPTable("ABACABABC".getBytes(Charsets.UTF_8))
         );
         assertArrayEquals(
                 new int[]{-1, 0, -1, 1, -1, 0, -1, 3, -1, 3},
-                StringTermMatcher.buildKMPTable("ABACABABA".getBytes(Charsets.UTF_8))
+                StringMatcherUtil.buildKMPTable("ABACABABA".getBytes(Charsets.UTF_8))
         );
         assertArrayEquals(
                 new int[]{-1, 0, 0, 0, 0, 0, 0, -1, 0, 2, 0, 0, 0, 0, 0, -1, 0, 0, 3, 0, 0, 0, 0, 0, 0},
-                StringTermMatcher.buildKMPTable("PARTICIPATE IN PARACHUTE".getBytes(Charsets.UTF_8))
+                StringMatcherUtil.buildKMPTable("PARTICIPATE IN PARACHUTE".getBytes(Charsets.UTF_8))
         );
     }
 
@@ -252,7 +252,7 @@ public class StringTermMatcherTest {
     public void testAllMatch() {
         validateMatcher(
                 ImmutableSet.of("foo", "bar", "\u307b\u3052"),
-                new StringTermMatcher.AllMatchStringTermMatcher(),
+                new AllMatchStringTermMatcher(),
                 ImmutableSet.of("foo", "bar", "\u307b\u3052")
         );
     }
@@ -261,22 +261,22 @@ public class StringTermMatcherTest {
     public void testPrefixMatch() {
         validateMatcher(
                 ImmutableSet.of("prefix", "prefixed"),
-                new StringTermMatcher.PrefixStringTermMatcher("prefix"),
+                new PrefixStringTermMatcher("prefix"),
                 ImmutableSet.of("", "p", "prefix", "prefixed", "prepared", "query", "this is a prefix")
         );
         validateMatcher(
                 ImmutableSet.of("prefixed", "prefixed by prefix"),
-                new StringTermMatcher.PrefixStringTermMatcher("prefix"),
+                new PrefixStringTermMatcher("prefix"),
                 ImmutableSet.of("", "p", "prefixed", "prefixed by prefix", "prepared", "query", "this is a prefix")
         );
         validateMatcher(
                 ImmutableSet.of(),
-                new StringTermMatcher.PrefixStringTermMatcher("prefix"),
+                new PrefixStringTermMatcher("prefix"),
                 ImmutableSet.of("", "p", "prop")
         );
         validateMatcher(
                 ImmutableSet.of("prefix", "prefixed"),
-                new StringTermMatcher.PrefixStringTermMatcher("prefix"),
+                new PrefixStringTermMatcher("prefix"),
                 ImmutableSet.of("", "p", "prefix", "prefixed")
         );
     }
@@ -285,12 +285,12 @@ public class StringTermMatcherTest {
     public void testSuffixMatch() {
         validateMatcher(
                 ImmutableSet.of("suffix", "suffix of this string is suffix"),
-                new StringTermMatcher.SuffixStringTermMatcher("suffix"),
+                new SuffixStringTermMatcher("suffix"),
                 ImmutableSet.of("", "prefix", "s", "suffix", "suffix of this string is suffix", "prefix", "query")
         );
         validateMatcher(
                 ImmutableSet.of("suffix of this string is suffix"),
-                new StringTermMatcher.SuffixStringTermMatcher("suffix"),
+                new SuffixStringTermMatcher("suffix"),
                 ImmutableSet.of("", "prefix", "s", "suffix of this string is suffix", "prefix", "query")
         );
     }
@@ -299,12 +299,12 @@ public class StringTermMatcherTest {
     public void testIncludeMatch() {
         validateMatcher(
                 ImmutableSet.of("target", "target is prefix", "contains target inside", "suffixed by target"),
-                new StringTermMatcher.IncludeStringTermMatcher("target"),
+                new IncludeStringTermMatcher("target"),
                 ImmutableSet.of("", "whatever", "suffixed by target", "target is prefix", "contains target inside", "target")
         );
         validateMatcher(
                 ImmutableSet.of("target is prefix", "contains target inside", "suffixed by target", "target target target"),
-                new StringTermMatcher.IncludeStringTermMatcher("target"),
+                new IncludeStringTermMatcher("target"),
                 ImmutableSet.of("", "whatever", "suffixed by target", "target is prefix", "contains target inside", "target target target")
         );
     }
@@ -313,7 +313,7 @@ public class StringTermMatcherTest {
     public void testRegexMatch() {
         validateMatcher(
                 ImmutableSet.of("foobar", "foofoobarbar"),
-                new StringTermMatcher.AutomatonStringTermMatcher("foo.*bar"),
+                new AutomatonStringTermMatcher("foo.*bar"),
                 ImmutableSet.of("foobar", "fizzbuzz", "foofoobarbar")
         );
     }
