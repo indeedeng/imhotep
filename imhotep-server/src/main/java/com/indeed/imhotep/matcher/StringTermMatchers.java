@@ -10,6 +10,7 @@ public class StringTermMatchers {
     private static final String ANY_STRING_PATTERN = Pattern.quote(".*");
     private static final String CAPTURED_NON_SPECIAL_NONEMPTY_STRING = "([^|&?*+{}~\\[\\].#@\"()<>\\\\^$]+)";
     private static final String ALL_MATCH = ".*";
+    private static final Pattern EXACT_MATCH = Pattern.compile(CAPTURED_NON_SPECIAL_NONEMPTY_STRING);
     private static final Pattern PREFIX_MATCH = Pattern.compile(CAPTURED_NON_SPECIAL_NONEMPTY_STRING + ANY_STRING_PATTERN);
     private static final Pattern SUFFIX_MATCH = Pattern.compile(ANY_STRING_PATTERN + CAPTURED_NON_SPECIAL_NONEMPTY_STRING);
     private static final Pattern INCLUDE_MATCH = Pattern.compile(ANY_STRING_PATTERN + CAPTURED_NON_SPECIAL_NONEMPTY_STRING + ANY_STRING_PATTERN);
@@ -27,6 +28,10 @@ public class StringTermMatchers {
         }
 
         if (StringMatcherUtil.isWellFormedString(Charsets.UTF_8, regex)) {
+            final Matcher exactMatcher = EXACT_MATCH.matcher(regex);
+            if (exactMatcher.matches()) {
+                return new ExactStringTermMatcher(exactMatcher.group(1));
+            }
             final Matcher prefixMatcher = PREFIX_MATCH.matcher(regex);
             if (prefixMatcher.matches()) {
                 return new PrefixStringTermMatcher(prefixMatcher.group(1));

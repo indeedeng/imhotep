@@ -125,6 +125,10 @@ public class StringTermMatchersTest {
                 instanceOf(AllMatchStringTermMatcher.class)
         );
         assertThat(
+                StringTermMatchers.forRegex("foobar"),
+                instanceOf(ExactStringTermMatcher.class)
+        );
+        assertThat(
                 StringTermMatchers.forRegex("foo.*"),
                 instanceOf(PrefixStringTermMatcher.class)
         );
@@ -163,6 +167,10 @@ public class StringTermMatchersTest {
         assertThat(
                 StringTermMatchers.forRegex(".*" + Character.MIN_HIGH_SURROGATE + Character.MIN_LOW_SURROGATE), // Correct surrogate pair
                 instanceOf(SuffixStringTermMatcher.class)
+        );
+        assertThat(
+                StringTermMatchers.forRegex("\u307b\u3052"),
+                instanceOf(ExactStringTermMatcher.class)
         );
         assertThat(
                 StringTermMatchers.forRegex("\u307b\u3052.*"),
@@ -231,6 +239,20 @@ public class StringTermMatchersTest {
         validateMatcher(
                 ImmutableSet.of("foo", "bar", "\u307b\u3052"),
                 new AllMatchStringTermMatcher(),
+                ImmutableSet.of("foo", "bar", "\u307b\u3052")
+        );
+    }
+
+    @Test
+    public void testExactMatch() {
+        validateMatcher(
+                ImmutableSet.of("exact"),
+                new ExactStringTermMatcher("exact"),
+                ImmutableSet.of("foo", "bar", "exact")
+        );
+        validateMatcher(
+                ImmutableSet.of("\u307b\u3052"),
+                new ExactStringTermMatcher("\u307b\u3052"),
                 ImmutableSet.of("foo", "bar", "\u307b\u3052")
         );
     }
