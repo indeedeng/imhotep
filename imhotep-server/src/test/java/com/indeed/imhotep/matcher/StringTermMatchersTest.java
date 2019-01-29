@@ -64,7 +64,7 @@ public class StringTermMatchersTest {
         }
 
         @Override
-        public int commonPrefixLengthWithPrevious() {
+        public int commonPrefixLengthWithPreviousLowerBound() {
             if (currentPos == 0) {
                 return lcpTransform.apply(0);
             } else {

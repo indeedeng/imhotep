@@ -85,7 +85,7 @@ class LuceneStringTermIterator implements StringTermIterator, LuceneTermIterator
     }
 
     @Override
-    public int commonPrefixLengthWithPrevious() {
+    public int commonPrefixLengthWithPreviousLowerBound() {
         return 0;
     }
 

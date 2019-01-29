@@ -737,7 +737,7 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
                     }
 
                     @Override
-                    public int commonPrefixLengthWithPrevious() {
+                    public int commonPrefixLengthWithPreviousLowerBound() {
                         return 0;
                     }
 
@@ -964,7 +964,7 @@ public final class MemoryFlamdex implements FlamdexReader, FlamdexWriter, Flamde
         }
 
         @Override
-        public int commonPrefixLengthWithPrevious() {
+        public int commonPrefixLengthWithPreviousLowerBound() {
             return 0;
         }
 

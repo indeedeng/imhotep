@@ -106,13 +106,13 @@ class MergedStringTermIterator implements MergedTermIterator, StringTermIterator
     }
 
     @Override
-    public int commonPrefixLengthWithPrevious() {
+    public int commonPrefixLengthWithPreviousLowerBound() {
         if (currentMinimums.isEmpty()) {
             return 0;
         }
         int result = Integer.MAX_VALUE;
         for (final int currentMinimum : currentMinimums) {
-            result = Math.min(result, getInnerTermIterator(currentMinimum).commonPrefixLengthWithPrevious());
+            result = Math.min(result, getInnerTermIterator(currentMinimum).commonPrefixLengthWithPreviousLowerBound());
         }
         return result;
     }

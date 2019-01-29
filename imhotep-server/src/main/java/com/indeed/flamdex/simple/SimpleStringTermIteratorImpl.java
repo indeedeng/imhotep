@@ -165,7 +165,7 @@ final class SimpleStringTermIteratorImpl implements SimpleStringTermIterator {
     }
 
     @Override
-    public int commonPrefixLengthWithPrevious() {
+    public int commonPrefixLengthWithPreviousLowerBound() {
         return lastTermCommomPrefixLen;
     }
 

@@ -78,7 +78,7 @@ final class NullStringTermIterator implements SimpleStringTermIterator {
     }
 
     @Override
-    public int commonPrefixLengthWithPrevious() {
+    public int commonPrefixLengthWithPreviousLowerBound() {
         return 0;
     }
 }

@@ -31,9 +31,9 @@ class PrefixStringTermMatcher implements StringTermMatcher {
                 return;
             }
 
-            matchLength = Math.min(matchLength, termIterator.commonPrefixLengthWithPrevious());
+            matchLength = Math.min(matchLength, termIterator.commonPrefixLengthWithPreviousLowerBound());
             final byte[] term = termIterator.termStringBytes();
-            // In case termIterator.commonPrefixLengthWithPrevious returned a number smaller than the actual common prefix length.
+            // In case termIterator.commonPrefixLengthWithPreviousLowerBound returned a number smaller than the actual common prefix length.
             while (matchLength < pattern.length) {
                 if (term[matchLength] == pattern[matchLength]) {
                     matchLength++;

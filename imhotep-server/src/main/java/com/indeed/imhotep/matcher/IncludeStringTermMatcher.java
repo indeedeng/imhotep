@@ -35,7 +35,7 @@ class IncludeStringTermMatcher implements StringTermMatcher {
         while (termIterator.next()) {
             final int termLength = termIterator.termStringLength();
             final byte[] term = termIterator.termStringBytes();
-            int pos = termIterator.commonPrefixLengthWithPrevious();
+            int pos = termIterator.commonPrefixLengthWithPreviousLowerBound();
             pos = Math.min(pos, stateStack.size() - 1);
 
             // stateStack[0 <= i <= pos] is also valid for this term.

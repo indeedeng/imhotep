@@ -35,7 +35,7 @@ class SuffixStringTermMatcher implements StringTermMatcher {
 
             final int termLength = termIterator.termStringLength();
             final byte[] term = termIterator.termStringBytes();
-            int pos = termIterator.commonPrefixLengthWithPrevious();
+            int pos = termIterator.commonPrefixLengthWithPreviousLowerBound();
 
             int state = stateStack.getInt(pos);
 

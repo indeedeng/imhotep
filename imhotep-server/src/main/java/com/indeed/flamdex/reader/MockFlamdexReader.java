@@ -197,7 +197,7 @@ public class MockFlamdexReader implements FlamdexReader {
         }
 
         @Override
-        public int commonPrefixLengthWithPrevious() {
+        public int commonPrefixLengthWithPreviousLowerBound() {
             return 0;
         }
 
@@ -275,7 +275,7 @@ public class MockFlamdexReader implements FlamdexReader {
         }
 
         @Override
-        public int commonPrefixLengthWithPrevious() {
+        public int commonPrefixLengthWithPreviousLowerBound() {
             return 0;
         }
     }
