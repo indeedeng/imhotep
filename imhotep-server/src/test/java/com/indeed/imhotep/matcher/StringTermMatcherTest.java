@@ -17,7 +17,6 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static org.hamcrest.CoreMatchers.instanceOf;
-import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
@@ -224,27 +223,6 @@ public class StringTermMatcherTest {
         assertThat(
                 StringTermMatcher.forRegex("<1-3>.*"),
                 instanceOf(AutomatonStringTermMatcher.class)
-        );
-    }
-
-    @Test
-    public void testKMPTable() {
-        // Examples from https://en.wikipedia.org/wiki/Knuth–Morris–Pratt_algorithm
-        assertArrayEquals(
-                new int[]{-1, 0, 0, 0, -1, 0, 2, 0},
-                StringMatcherUtil.buildKMPTable("ABCDABD".getBytes(Charsets.UTF_8))
-        );
-        assertArrayEquals(
-                new int[]{-1, 0, -1, 1, -1, 0, -1, 3, 2, 0},
-                StringMatcherUtil.buildKMPTable("ABACABABC".getBytes(Charsets.UTF_8))
-        );
-        assertArrayEquals(
-                new int[]{-1, 0, -1, 1, -1, 0, -1, 3, -1, 3},
-                StringMatcherUtil.buildKMPTable("ABACABABA".getBytes(Charsets.UTF_8))
-        );
-        assertArrayEquals(
-                new int[]{-1, 0, 0, 0, 0, 0, 0, -1, 0, 2, 0, 0, 0, 0, 0, -1, 0, 0, 3, 0, 0, 0, 0, 0, 0},
-                StringMatcherUtil.buildKMPTable("PARTICIPATE IN PARACHUTE".getBytes(Charsets.UTF_8))
         );
     }
 
