@@ -42,7 +42,7 @@ public interface StringTermIterator extends TermIterator {
     /**
      * Lower bound of the number (in bytes) of the common prefix of this term and the previous term.
      * Estimated means the returned number could be lower than the actual.
-     * It's safe to return 0 if you're implementation isn't optimized for this.
+     * It's safe to return 0 if your implementation isn't optimized for this.
      * This method should return 0 for the first term, but can return positive number after reset().
      *
      * @return a non-negative number no larger than the common prefix length with the previous term.
