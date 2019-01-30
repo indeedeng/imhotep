@@ -31,7 +31,6 @@ import com.indeed.flamdex.api.IntTermIterator;
 import com.indeed.flamdex.api.IntValueLookup;
 import com.indeed.flamdex.api.StringTermDocIterator;
 import com.indeed.flamdex.api.StringTermIterator;
-import com.indeed.flamdex.api.TermDocIterator;
 import com.indeed.flamdex.api.TermIterator;
 import com.indeed.flamdex.datastruct.FastBitSet;
 import com.indeed.flamdex.datastruct.FastBitSetPooler;
@@ -61,11 +60,11 @@ import com.indeed.imhotep.api.FTGSParams;
 import com.indeed.imhotep.api.GroupStatsIterator;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.PerformanceStats;
-import com.indeed.imhotep.automaton.Automaton;
-import com.indeed.imhotep.automaton.RegExp;
 import com.indeed.imhotep.group.IterativeHasher;
 import com.indeed.imhotep.group.IterativeHasherUtils;
 import com.indeed.imhotep.marshal.ImhotepDaemonMarshaller;
+import com.indeed.imhotep.matcher.StringTermMatcher;
+import com.indeed.imhotep.matcher.StringTermMatchers;
 import com.indeed.imhotep.metrics.AbsoluteValue;
 import com.indeed.imhotep.metrics.Addition;
 import com.indeed.imhotep.metrics.CachedInterleavedMetrics;
@@ -838,16 +837,11 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                 final StringTermIterator iter = flamdexReader.getStringTermIterator(field);
                 final DocIdStream docIdStream = flamdexReader.getDocIdStream()
             ) {
-                final Automaton automaton = new RegExp(regex).toAutomaton();
-
-                while (iter.next()) {
-                    final String term = iter.term();
-
-                    if (automaton.run(term)) {
-                        docIdStream.reset(iter);
-                        remapPositiveDocs(docIdStream, docRemapped, targetGroup, positiveGroup);
-                    }
-                }
+                final StringTermMatcher stringTermMatcher = StringTermMatchers.forRegex(regex);
+                stringTermMatcher.run(iter, matchedIt -> {
+                    docIdStream.reset(matchedIt);
+                    remapPositiveDocs(docIdStream, docRemapped, targetGroup, positiveGroup);
+                });
             }
             remapNegativeDocs(docRemapped, targetGroup, negativeGroup);
         } finally {

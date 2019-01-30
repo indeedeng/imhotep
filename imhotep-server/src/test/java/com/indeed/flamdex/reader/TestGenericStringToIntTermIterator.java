@@ -92,6 +92,11 @@ public class TestGenericStringToIntTermIterator {
         public int termStringLength() {
             return termStringBytes().length;
         }
+
+        @Override
+        public int commonPrefixLengthWithPreviousLowerBound() {
+            return 0;
+        }
     }
 
     private GenericStringToIntTermIterator<DirectStringTermIterator> createStringToIntTermIterator(final List<Pair<String, Integer>> strTerms) {
