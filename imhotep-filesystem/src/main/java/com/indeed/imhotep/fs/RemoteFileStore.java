@@ -14,6 +14,8 @@
 
 package com.indeed.imhotep.fs;
 
+import com.indeed.imhotep.service.MetricStatsEmitter;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.FileStore;
@@ -91,6 +93,11 @@ abstract class RemoteFileStore extends FileStore {
                                         long startOffset,
                                         long length) throws IOException;
 
+    protected static void reportFileDownload(final MetricStatsEmitter statsEmitter, long size) {
+        statsEmitter.count("file.cache.newly.downloaded.size", size);
+        statsEmitter.count("file.cache.newly.downloaded.files", 1);
+    }
+
     static class RemoteFileAttributes {
         private final RemoteCachingPath path;
         private final long size;
@@ -121,6 +128,6 @@ abstract class RemoteFileStore extends FileStore {
     }
 
     public interface Factory {
-        RemoteFileStore create(Map<String, ?> configuration);
+        RemoteFileStore create(Map<String, ?> configuration, final MetricStatsEmitter statsEmitter);
     }
 }

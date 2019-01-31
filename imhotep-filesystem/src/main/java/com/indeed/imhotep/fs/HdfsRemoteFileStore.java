@@ -16,11 +16,13 @@ package com.indeed.imhotep.fs;
 
 import com.indeed.imhotep.hadoopcommon.HDFSUtils;
 import com.indeed.imhotep.hadoopcommon.KerberosUtils;
+import com.indeed.imhotep.service.MetricStatsEmitter;
 import com.indeed.util.core.io.Closeables2;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsAction;
 import org.apache.log4j.Logger;
@@ -30,6 +32,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.NotDirectoryException;
 import java.util.ArrayList;
@@ -46,8 +49,10 @@ class HdfsRemoteFileStore extends RemoteFileStore {
 
     private final Path hdfsShardBasePath;
     private final FileSystem fs;
+    private final MetricStatsEmitter statsEmitter;
 
-    private HdfsRemoteFileStore(final Map<String, ?> configuration) throws IOException, URISyntaxException {
+    private HdfsRemoteFileStore(final Map<String, ?> configuration, final MetricStatsEmitter statsEmitter) throws IOException, URISyntaxException {
+        this.statsEmitter = statsEmitter;
         final String basePath = (String) configuration.get("imhotep.fs.filestore.hdfs.root.uri");
 
         if (basePath != null) {
@@ -110,7 +115,11 @@ class HdfsRemoteFileStore extends RemoteFileStore {
     @Override
     public void downloadFile(final RemoteCachingPath srcPath, final java.nio.file.Path destPath) throws IOException {
         final Path hdfsPath = getHdfsPath(srcPath);
-        fs.copyToLocalFile(hdfsPath, new Path(destPath.toUri()));
+        // below 2 lines replicate fs.copyToLocalFile(hdfsPath, new Path(destPath.toUri())) while giving us access to file size
+        final FileStatus fileStatus = fs.getFileStatus(hdfsPath);
+        FileUtil.copy(fs, fileStatus, FileSystem.getLocal(fs.getConf()), new Path(destPath.toUri()), false, true, fs.getConf());
+        final long fileSize = fileStatus.getLen();
+        reportFileDownload(statsEmitter, fileSize);
     }
 
     @Override
@@ -123,6 +132,7 @@ class HdfsRemoteFileStore extends RemoteFileStore {
             Closeables2.closeQuietly(stream, LOGGER);
             throw new IOException("Failed to open " + path + " with offset " + startOffset, e);
         }
+        reportFileDownload(statsEmitter, length);
         return stream;
     }
 
@@ -133,9 +143,9 @@ class HdfsRemoteFileStore extends RemoteFileStore {
 
     static class Factory implements RemoteFileStore.Factory {
         @Override
-        public RemoteFileStore create(final Map<String, ?> configuration) {
+        public RemoteFileStore create(final Map<String, ?> configuration, final MetricStatsEmitter statsEmitter) {
             try {
-                return new HdfsRemoteFileStore(configuration);
+                return new HdfsRemoteFileStore(configuration, statsEmitter);
             } catch (final IOException|URISyntaxException e) {
                 throw new IllegalArgumentException("Failed to initialize HDFS file store", e);
             }
