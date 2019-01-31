@@ -16,6 +16,7 @@ package com.indeed.imhotep.fs;
 
 import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
+import com.indeed.imhotep.service.MetricStatsEmitter;
 import com.indeed.util.core.io.Closeables2;
 import org.apache.log4j.Logger;
 
@@ -114,9 +115,9 @@ class LocalFileStore extends RemoteFileStore {
 
     static class Factory implements RemoteFileStore.Factory {
         @Override
-        public RemoteFileStore create(final Map<String, ?> configuration) {
+        public RemoteFileStore create(final Map<String, ?> configuration, final MetricStatsEmitter statsEmitter) {
             try {
-                return new LocalFileStore(configuration);
+                return new LocalFileStore(configuration); // not reporting stats
             } catch (final URISyntaxException e) {
                 throw new IllegalArgumentException("Failed to initialize local file store", e);
             }

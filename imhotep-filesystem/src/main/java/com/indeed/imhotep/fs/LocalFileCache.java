@@ -121,9 +121,6 @@ class LocalFileCache {
                         referencedFilesCacheSize.addAndGet(fileSize);
                         unusedFilesCache.cleanUp();
 
-                        statsEmitter.count("file.cache.newly.downloaded.size", fileSize);
-                        statsEmitter.count("file.cache.newly.downloaded.files", 1);
-
                         return new FileCacheEntry(
                                 cachePath,
                                 fileSize,
