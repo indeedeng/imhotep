@@ -60,6 +60,7 @@ import com.indeed.imhotep.api.FTGSParams;
 import com.indeed.imhotep.api.GroupStatsIterator;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.PerformanceStats;
+import com.indeed.imhotep.exceptions.MultiValuedFieldStringLenException;
 import com.indeed.imhotep.group.IterativeHasher;
 import com.indeed.imhotep.group.IterativeHasherUtils;
 import com.indeed.imhotep.marshal.ImhotepDaemonMarshaller;
@@ -3097,7 +3098,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                         final int doc = docIdBuf[i];
                         if (result[doc] != 0) {
                             memory.releaseMemory(memoryUsage);
-                            throw newIllegalArgumentException("String len operator is not supported for multi-valued fields");
+                            throw new MultiValuedFieldStringLenException(createMessageWithSessionId("String len operator is not supported for multi-valued fields"));
                         }
                         result[doc] = len;
                     }
