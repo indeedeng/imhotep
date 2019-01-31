@@ -2,13 +2,11 @@ package com.indeed.imhotep.matcher;
 
 import com.google.common.base.Charsets;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.primitives.UnsignedBytes;
 import com.indeed.flamdex.api.StringTermIterator;
 import org.junit.Test;
 
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
@@ -29,12 +27,7 @@ public class StringTermMatchersTest {
         private MockStringTermIterator(final Function<Integer, Integer> lcpTransform, final Collection<String> terms) {
             this.lcpTransform = lcpTransform;
             this.terms = terms.stream()
-                    .sorted(
-                            Comparator.comparing(
-                                    str -> str.getBytes(Charsets.UTF_8),
-                                    UnsignedBytes.lexicographicalComparator()
-                            )
-                    )
+                    .sorted()
                     .collect(Collectors.toList());
         }
 

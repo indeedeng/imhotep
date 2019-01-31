@@ -23,6 +23,16 @@ class PrefixStringTermMatcher implements StringTermMatcher {
 
     @Override
     public void run(final StringTermIterator termIterator, final Consumer<StringTermIterator> onMatch) {
+        // NOTE:
+        // StringTermIterator iterates over UTF-8 byte arrays,
+        // but where they're sorted as UTF-16 code unit array (i.e. String#compareTo).
+        // Though, the binary relation "isPrefixOf" won't change by UTF-8 / UTF-16 / UTF-32 (=UnicodeScalarSequence),
+        // i.e. if there are (valid) Unicode Scalar sequences S and T,
+        // isPrefixOf(S, T) = isPrefixOf(S.encode(UTF-8), T.encode(UTF-8)) = isPrefixOf(S.encode(UTF-16), T.encode(UTF-16)).
+        //
+        // This means that the the string terms those have `pattern` as a prefix are in a contiguous range of
+        // the term iterator.
+
         termIterator.reset(patternString);
         int matchLength = 0;
         while (termIterator.next()) {
