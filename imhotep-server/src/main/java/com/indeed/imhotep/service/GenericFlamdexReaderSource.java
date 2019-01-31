@@ -30,6 +30,6 @@ public class GenericFlamdexReaderSource implements FlamdexReaderSource {
 
     @Override
     public FlamdexReader openReader(Path directory, int numDocs) throws IOException {
-        return openReader(directory);
+        return GenericFlamdexReader.open(directory, numDocs);
     }
 }
