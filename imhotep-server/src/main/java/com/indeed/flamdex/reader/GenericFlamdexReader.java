@@ -15,13 +15,12 @@ package com.indeed.flamdex.reader;
 
 import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.dynamic.DynamicFlamdexReader;
-import com.indeed.flamdex.lucene.LuceneFlamdexReader;
 import com.indeed.flamdex.ramses.RamsesFlamdexWrapper;
 import com.indeed.flamdex.simple.SimpleFlamdexReader;
+import com.indeed.imhotep.DynamicIndexSubshardDirnameUtil;
+import org.apache.commons.lang.StringUtils;
 
-import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
@@ -32,48 +31,42 @@ import java.nio.file.Path;
 // But now it is used only for FlamdexReader opening,
 // so all except opening is deleted.
 public class GenericFlamdexReader {
+    
     private GenericFlamdexReader() {
     }
 
     public static FlamdexReader open(final Path directory) throws IOException {
-        final FlamdexReader r = internalOpen(directory);
+        return open(directory, -1);
+    }
+
+    public static FlamdexReader open(final Path directory, final int numDocs) throws IOException {
+        final FlamdexFormatVersion formatVersion = getFormatVersionFromDirectory(directory);
+        final FlamdexReader r = numDocs < 0 ?
+                internalOpen(directory, formatVersion) :
+                internalOpen(directory, formatVersion, numDocs);
+
         if (RamsesFlamdexWrapper.ramsesFilesExist(directory)) {
             return new RamsesFlamdexWrapper(r, directory);
         }
         return r;
     }
 
-    private static FlamdexReader internalOpen(final Path directory) throws IOException {
-        final Path metadataPath = directory.resolve("metadata.txt");
+    private static FlamdexReader internalOpen(final Path directory, final FlamdexFormatVersion formatVersion) throws IOException {
+        return formatVersion == FlamdexFormatVersion.SIMPLE ?
+                SimpleFlamdexReader.open(directory) :
+                new DynamicFlamdexReader(directory);
+    }
 
-        if (Files.notExists(directory)) {
-            throw new FileNotFoundException(directory + " does not exist");
-        }
+    private static FlamdexReader internalOpen(final Path directory, final FlamdexFormatVersion formatVersion, final int numDocs) throws IOException {
+        return formatVersion == FlamdexFormatVersion.SIMPLE ?
+                SimpleFlamdexReader.open(directory, numDocs) :
+                new DynamicFlamdexReader(directory);
+    }
 
-        if (!Files.isDirectory(directory)) {
-            throw new FileNotFoundException(directory + " is not a directory");
-        }
-
-        if (Files.notExists(metadataPath)) {
-            return new LuceneFlamdexReader(directory);
-        }
-
-        final FlamdexMetadata metadata = FlamdexMetadata.readMetadata(directory);
-
-        switch (metadata.getFlamdexFormatVersion()) {
-            case SIMPLE:
-                return SimpleFlamdexReader.open(directory);
-            case PFORDELTA:
-                throw new UnsupportedOperationException("pfordelta is no longer supported");
-            case LUCENE:
-                return new LuceneFlamdexReader(directory,
-                        metadata.getIntFields(),
-                        metadata.getStringFields());
-            case DYNAMIC:
-                return new DynamicFlamdexReader(directory);
-            default:
-                throw new IllegalArgumentException(
-                        "GenericFlamdexReader doesn't support " + metadata.getFlamdexFormatVersion().toString() + ".");
-        }
+    private static FlamdexFormatVersion getFormatVersionFromDirectory(final Path directory) {
+        final String dirWithoutSuffix = StringUtils.removeEnd(directory.getFileName().toString(), ".sqar");
+        return DynamicIndexSubshardDirnameUtil.isValidDynamicIndexName(dirWithoutSuffix) ?
+                FlamdexFormatVersion.DYNAMIC :
+                FlamdexFormatVersion.SIMPLE;
     }
 }
