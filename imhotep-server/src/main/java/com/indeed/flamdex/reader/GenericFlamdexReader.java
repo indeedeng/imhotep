@@ -40,7 +40,7 @@ public class GenericFlamdexReader {
     }
 
     public static FlamdexReader open(final Path directory, final int numDocs) throws IOException {
-        final FlamdexFormatVersion formatVersion = getFormatVersionFromDirectory(directory);
+        final FlamdexFormatVersion formatVersion = getFlamdexFormatVersion(directory);
         final FlamdexReader r = numDocs < 0 ?
                 internalOpen(directory, formatVersion) :
                 internalOpen(directory, formatVersion, numDocs);
@@ -63,10 +63,14 @@ public class GenericFlamdexReader {
                 new DynamicFlamdexReader(directory);
     }
 
-    private static FlamdexFormatVersion getFormatVersionFromDirectory(final Path directory) {
+    private static FlamdexFormatVersion getFlamdexFormatVersion(final Path directory) throws IOException{
         final String dirWithoutSuffix = StringUtils.removeEnd(directory.getFileName().toString(), ".sqar");
-        return DynamicIndexSubshardDirnameUtil.isValidDynamicIndexName(dirWithoutSuffix) ?
-                FlamdexFormatVersion.DYNAMIC :
-                FlamdexFormatVersion.SIMPLE;
+        if (!DynamicIndexSubshardDirnameUtil.isValidDynamicIndexName(dirWithoutSuffix)) {
+            return FlamdexFormatVersion.SIMPLE;
+        }
+
+        // handle the case there are only simpleFlamdexIndex under the DynamicFlamdex dir without Segments.
+        final FlamdexMetadata metadata = FlamdexMetadata.readMetadata(directory);
+        return metadata.getFlamdexFormatVersion();
     }
 }

@@ -29,9 +29,9 @@ import com.indeed.flamdex.api.StringValueLookup;
 import com.indeed.flamdex.api.TermIterator;
 import com.indeed.flamdex.datastruct.FastBitSet;
 import com.indeed.flamdex.query.Query;
-import com.indeed.flamdex.reader.GenericFlamdexReader;
 import com.indeed.flamdex.reader.GenericStringToIntTermIterator;
 import com.indeed.flamdex.search.FlamdexSearcher;
+import com.indeed.flamdex.simple.SimpleFlamdexReader;
 import com.indeed.util.core.io.Closeables2;
 import it.unimi.dsi.fastutil.ints.AbstractIntIterator;
 import it.unimi.dsi.fastutil.ints.IntIterator;
@@ -57,7 +57,7 @@ public class SegmentReader implements FlamdexReader {
     private final FastBitSet tombstoneSet;
 
     SegmentReader(@Nonnull final Path segmentDirectory) throws IOException {
-        this.flamdexReader = GenericFlamdexReader.open(segmentDirectory);
+        this.flamdexReader = SimpleFlamdexReader.open(segmentDirectory);
         this.tombstoneSet = DynamicFlamdexSegmentUtil.readTombstoneSet(segmentDirectory).orNull();
     }
 
