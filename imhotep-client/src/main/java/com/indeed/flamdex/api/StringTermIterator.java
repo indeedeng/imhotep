@@ -13,6 +13,10 @@
  */
  package com.indeed.flamdex.api;
 
+/**
+ * Iterator over string terms, where iteration order is based on lexicographical order of UTF-16 code unit sequence,
+ * i.e. {@link String#compareTo(String)}.
+ */
 public interface StringTermIterator extends TermIterator {
     /**
      * Resets this iterator, so that the next time next() is called it will be positioned at the first term that is &gt;= provided term.  The iterator is
