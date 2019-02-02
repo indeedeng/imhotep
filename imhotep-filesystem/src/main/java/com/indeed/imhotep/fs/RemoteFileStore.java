@@ -94,7 +94,11 @@ abstract class RemoteFileStore extends FileStore {
                                         long length) throws IOException;
 
     protected static void reportFileDownload(final MetricStatsEmitter statsEmitter, long size) {
-        statsEmitter.count("file.cache.newly.downloaded.size", size);
+        // When getting an unbounded InputStream we don't know how big it is ahead of time
+        // but it's only currently used for metadata.txt files which are usually small and get cached for a long time
+        if (size >= 0) {
+            statsEmitter.count("file.cache.newly.downloaded.size", size);
+        }
         statsEmitter.count("file.cache.newly.downloaded.files", 1);
     }
 
