@@ -50,6 +50,11 @@ public class ImhotepErrorResolver {
                     "multi-valued field. Grouping by a multi-valued field only works if it's the last group by and percentile/distinct are not used.", e);
         }
 
+        if (error.contains(MultiValuedFieldStringLenException.class.getSimpleName())) {
+            return new MultiValuedFieldStringLenException("Query failed trying to do string length calculation on a " +
+                    "multi-valued field. String length only works on fields with 0 or 1 values.");
+        }
+
         if (error.contains(RegexTooComplexException.class.getSimpleName())) {
             return new RegexTooComplexException("The provided regex is too complex. " +
                     "Please replace expressions like '.*A.*|.*B.*|.*C.*' with '.*(A|B|C).*'", e);
