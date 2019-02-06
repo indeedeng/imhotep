@@ -22,7 +22,7 @@ public abstract class AbstractDisjointFTGSMerger extends AbstractDisjointFTGMerg
     }
 
     @Override
-    public final void groupStats(final long[] stats) {
-        currentIterator().groupStats(stats);
+    public final void groupStats(final long[] stats, final int offset) {
+        currentIterator().groupStats(stats, offset);
     }
 }

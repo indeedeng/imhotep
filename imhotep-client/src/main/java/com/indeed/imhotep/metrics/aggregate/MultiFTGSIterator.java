@@ -7,5 +7,12 @@ import com.indeed.imhotep.api.FTGIterator;
  */
 public interface MultiFTGSIterator extends FTGIterator {
     long groupStat(int sessionIndex, int statIndex);
-    void groupStats(int sessionIndex, long[] stats);
+
+    default void groupStats(final int sessionIndex, final long[] stats) {
+        groupStats(sessionIndex, stats, 0);
+    }
+
+    void groupStats(int sessionIndex, long[] stats, int offset);
+
+    int[] numStats();
 }

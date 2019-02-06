@@ -14,7 +14,7 @@ import java.util.List;
 public class MultiSessionMerger extends AbstractBatchedFTGMerger implements MultiFTGSIterator {
     private final GSVector accumulatedVec;
 
-    public MultiSessionMerger(List<? extends FTGSIterator> sessionIterators, @Nullable Closeable doneCallback) {
+    public MultiSessionMerger(final List<? extends FTGSIterator> sessionIterators, @Nullable final Closeable doneCallback) {
         super(sessionIterators, doneCallback, true);
         accumulatedVec = new GSVector(sessionIterators);
     }
@@ -65,12 +65,19 @@ public class MultiSessionMerger extends AbstractBatchedFTGMerger implements Mult
     }
 
     @Override
-    public void groupStats(int sessionIndex, long[] stats) {
-        accumulatedVec.groupStats(sessionIndex, stats);
+    public void groupStats(final int sessionIndex, final long[] stats, final int offset) {
+        accumulatedVec.groupStats(sessionIndex, stats, offset);
     }
 
     @Override
-    public long groupStat(int sessionIndex, int statIndex) {
+    public int[] numStats() {
+        final int[] iteratorNumStats = new int[iterators.length];
+        Arrays.setAll(iteratorNumStats, i -> iterators[i].getNumStats());
+        return iteratorNumStats;
+    }
+
+    @Override
+    public long groupStat(final int sessionIndex, final int statIndex) {
         return accumulatedVec.groupStat(sessionIndex, statIndex);
     }
 
@@ -185,13 +192,13 @@ public class MultiSessionMerger extends AbstractBatchedFTGMerger implements Mult
             return group;
         }
 
-        public void groupStats(final int sessionIndex, final long[] buf) {
+        public void groupStats(final int sessionIndex, final long[] buf, final int offset) {
             final int sessionOffset = statOffsets[sessionIndex];
             final int sessionNumStats = numStats[sessionIndex];
-            System.arraycopy(metrics, (group - baseGroup) * totalNumStats + sessionOffset, buf, 0, sessionNumStats);
+            System.arraycopy(metrics, (group - baseGroup) * totalNumStats + sessionOffset, buf, offset, sessionNumStats);
         }
 
-        long groupStat(int sessionIndex, int statIndex) {
+        long groupStat(final int sessionIndex, final int statIndex) {
             final int sessionOffset = statOffsets[sessionIndex];
             return metrics[(group - baseGroup) * totalNumStats + sessionOffset + statIndex];
         }

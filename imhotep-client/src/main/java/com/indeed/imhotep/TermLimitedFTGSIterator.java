@@ -38,7 +38,7 @@ public class TermLimitedFTGSIterator extends TermLimitedFTGIterator<FTGSIterator
     }
 
     @Override
-    public void groupStats(final long[] stats) {
-        wrapped.groupStats(stats);
+    public void groupStats(final long[] stats, final int offset) {
+        wrapped.groupStats(stats, offset);
     }
 }

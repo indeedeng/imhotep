@@ -84,8 +84,8 @@ public class FTGSMerger extends AbstractBatchedFTGMerger implements FTGSIterator
     }
 
     @Override
-    public final void groupStats(final long[] stats) {
-        accumulatedVec.groupStats(stats);
+    public final void groupStats(final long[] stats, final int offset) {
+        accumulatedVec.groupStats(stats, offset);
     }
 
 
@@ -180,8 +180,8 @@ public class FTGSMerger extends AbstractBatchedFTGMerger implements FTGSIterator
             return group;
         }
 
-        public void groupStats(final long[] buf) {
-            System.arraycopy(metrics, (group - baseGroup) * numStats, buf, 0, numStats);
+        public void groupStats(final long[] buf, final int offset) {
+            System.arraycopy(metrics, (group - baseGroup) * numStats, buf, offset, numStats);
         }
     }
 }

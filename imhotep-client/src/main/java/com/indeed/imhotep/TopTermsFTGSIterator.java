@@ -36,10 +36,10 @@ public class TopTermsFTGSIterator extends TopTermsFTGIterator<long[]> implements
     }
 
     @Override
-    public void groupStats(final long[] stats) {
+    public void groupStats(final long[] stats, final int offset) {
         if (currentGroup == null) {
             throw new IllegalStateException("Invoked while not positioned in group");
         }
-        System.arraycopy(currentGroup.groupStats, 0, stats, 0, currentGroup.groupStats.length);
+        System.arraycopy(currentGroup.groupStats, 0, stats, offset, currentGroup.groupStats.length);
     }
 }

@@ -655,8 +655,8 @@ public abstract class AbstractFTGSMergerCase {
             }
 
             @Override
-            public void groupStats(final long[] stats) {
-                System.arraycopy(groupStats[fieldIndex][termIndex][groupIndex], 0, stats, 0, numStats);
+            public void groupStats(final long[] stats, final int offset) {
+                System.arraycopy(groupStats[fieldIndex][termIndex][groupIndex], 0, stats, offset, numStats);
             }
 
             @Override
@@ -764,8 +764,8 @@ public abstract class AbstractFTGSMergerCase {
             }
 
             @Override
-            public void groupStats(final long[] stats) {
-                System.arraycopy(groupStats[fieldIndex][termIndex][groupIndex], 0, stats, 0, 2);
+            public void groupStats(final long[] stats, final int offset) {
+                System.arraycopy(groupStats[fieldIndex][termIndex][groupIndex], 0, stats, offset, 2);
             }
 
             @Override
@@ -869,8 +869,8 @@ public abstract class AbstractFTGSMergerCase {
             }
 
             @Override
-            public void groupStats(final long[] stats) {
-                System.arraycopy(groupStats[fieldIndex][termIndex][groupIndex], 0, stats, 0, 2);
+            public void groupStats(final long[] stats, final int offset) {
+                System.arraycopy(groupStats[fieldIndex][termIndex][groupIndex], 0, stats, offset, 2);
             }
 
             @Override
