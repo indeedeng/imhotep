@@ -15,8 +15,6 @@ package com.indeed.flamdex.reader;
 
 import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.dynamic.DynamicFlamdexReader;
-import com.indeed.flamdex.lucene.LuceneFlamdexReader;
-import com.indeed.flamdex.ramses.RamsesFlamdexWrapper;
 import com.indeed.flamdex.simple.SimpleFlamdexReader;
 
 import java.io.FileNotFoundException;
@@ -36,26 +34,12 @@ public class GenericFlamdexReader {
     }
 
     public static FlamdexReader open(final Path directory) throws IOException {
-        final FlamdexReader r = internalOpen(directory);
-        if (RamsesFlamdexWrapper.ramsesFilesExist(directory)) {
-            return new RamsesFlamdexWrapper(r, directory);
-        }
-        return r;
-    }
-
-    private static FlamdexReader internalOpen(final Path directory) throws IOException {
-        final Path metadataPath = directory.resolve("metadata.txt");
-
         if (Files.notExists(directory)) {
             throw new FileNotFoundException(directory + " does not exist");
         }
 
         if (!Files.isDirectory(directory)) {
             throw new FileNotFoundException(directory + " is not a directory");
-        }
-
-        if (Files.notExists(metadataPath)) {
-            return new LuceneFlamdexReader(directory);
         }
 
         final FlamdexMetadata metadata = FlamdexMetadata.readMetadata(directory);
@@ -65,10 +49,6 @@ public class GenericFlamdexReader {
                 return SimpleFlamdexReader.open(directory);
             case PFORDELTA:
                 throw new UnsupportedOperationException("pfordelta is no longer supported");
-            case LUCENE:
-                return new LuceneFlamdexReader(directory,
-                        metadata.getIntFields(),
-                        metadata.getStringFields());
             case DYNAMIC:
                 return new DynamicFlamdexReader(directory);
             default:

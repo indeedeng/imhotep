@@ -17,8 +17,6 @@ import com.indeed.flamdex.MemoryFlamdex;
 import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.dynamic.DynamicFlamdexReader;
 import com.indeed.flamdex.dynamic.SegmentReader;
-import com.indeed.flamdex.lucene.LuceneFlamdexReader;
-import com.indeed.flamdex.ramses.RamsesFlamdexWrapper;
 import com.indeed.flamdex.reader.MockFlamdexReader;
 import com.indeed.flamdex.simple.SimpleFlamdexReader;
 import com.indeed.imhotep.BitTree;
@@ -366,11 +364,9 @@ public abstract class AbstractFlamdexFTGSIterator implements FTGSIterator {
     // Check if we can trust terms frequency and documents count information from flamdex.
     private static boolean isCountMethodsReliable(final FlamdexReader reader) {
         // These classes we trust.
-        if ((reader instanceof LuceneFlamdexReader)
-                || (reader instanceof SimpleFlamdexReader)
+        if ((reader instanceof SimpleFlamdexReader)
                 || (reader instanceof MemoryFlamdex)
-                || (reader instanceof MockFlamdexReader)
-                || (reader instanceof RamsesFlamdexWrapper)) {
+                || (reader instanceof MockFlamdexReader)) {
             return true;
         }
 
