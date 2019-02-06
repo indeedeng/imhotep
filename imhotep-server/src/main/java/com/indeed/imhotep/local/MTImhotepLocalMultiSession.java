@@ -578,7 +578,10 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
         }
 
         final int numFilters = filters.size();
-        final int numGroups = iterator.getNumGroups();
+        // Can't use the iterator max group because we need to share the global view of numGroups to
+        // make the windows fully cover what they need to.
+        // We receive the global view from the parentGroups parameter passed to us.
+        final int numGroups = parentGroups.length;
 
         final List<DistinctWindowFilterInfo> filterInfos = new ArrayList<>();
         for (int i = 0; i < numFilters; i++) {
