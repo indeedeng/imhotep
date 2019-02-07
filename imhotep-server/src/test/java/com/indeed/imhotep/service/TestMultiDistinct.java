@@ -542,6 +542,8 @@ public class TestMultiDistinct {
 
     @Test
     public void testWindowedDistinct() throws IOException, TimeoutException, InterruptedException, ImhotepOutOfMemoryException {
+        final String dataset = "windowDistinctDataset";
+
         final Map<String, int[]> countries = ImmutableMap.of(
                 "AQ", new int[]{1,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0},
                 "AU", new int[]{0,0,0,0,1,1,1,1,0,1,1,1,0,0,0,0,0,0,0,0,1,1,1,0},
@@ -559,9 +561,13 @@ public class TestMultiDistinct {
                 new long[] {0, 4,3,3,3,2,2,2,2,2,3,3,3,1,1,1,1,1,2,2,2,4,3,3,2};
         final long[] distinctWindow2 =
                 new long[] {0, 4,4,3,4,4,2,2,2,3,3,3,3,3,1,1,1,1,2,3,2,4,4,3,3};
+        final long[] distinctWindow2NoonGap =
+                new long[] {0, 4,4,3,4,4,2,2,2,3,3,3,3,1,1,1,1,1,2,3,2,4,4,3,3};
         // How many countries show up at least twice in a rolling window of size 5
         final long[] rollingTwoOfFive =
                 new long[] {0, 0,3,3,4,4,4,3,2,2,3,3,3,3,3,3,1,1,1,1,2,2,3,3,3};
+        final long[] rollingTwoOfFiveNoonGap =
+                new long[] {0, 0,3,3,4,4,4,3,2,2,3,3,3,0,1,1,1,1,1,1,2,2,3,3,3};
 
         for (final int[] ints : countries.values()) {
             Preconditions.checkState(ints.length == 24);
@@ -579,7 +585,7 @@ public class TestMultiDistinct {
                     memoryFlamdex.addDocument(makeDoc.apply(entry.getKey()));
                 }
             }
-            clusterRunner.createHourlyShard(DATASET, hourStart, memoryFlamdex);
+            clusterRunner.createHourlyShard(dataset, hourStart, memoryFlamdex);
         }
 
         for (int i = 0; i < numServers; i++) {
@@ -587,21 +593,42 @@ public class TestMultiDistinct {
         }
 
         try (ImhotepClient client = clusterRunner.createClient();
-             ImhotepSession session = client.sessionBuilder(DATASET, TODAY, TODAY.plusDays(1)).build()) {
+             ImhotepSession session = client.sessionBuilder(dataset, TODAY, TODAY.plusDays(1)).build()) {
 
             session.pushStat("unixtime");
             session.metricRegroup(0, TODAY.getMillis() / 1000, TODAY.plusDays(1).getMillis() / 1000, 3600);
             session.popStat();
 
+            final List<SessionField> sessionField = Collections.singletonList(new SessionField(session, "country"));
+            final int[] parentGroups = {0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+
             // GROUP BY TIME(1h) SELECT DISTINCT_WINDOW(1, country)
-            testTimeWindow(rawDistincts, Collections.singletonList(new SessionField(session, "country")), Collections.singletonList(constant(true)), Collections.singletonList(1));
+            testIntDistinctWindow(
+                    rawDistincts,
+                    sessionField,
+                    Collections.singletonList(constant(true)),
+                    Collections.singletonList(1),
+                    parentGroups
+            );
             // GROUP BY TIME(1h) SELECT DISTINCT_WINDOW(2, country)
-            testTimeWindow(distinctWindow2, Collections.singletonList(new SessionField(session, "country")), Collections.singletonList(constant(true)), Collections.singletonList(2));
+            testIntDistinctWindow(
+                    distinctWindow2,
+                    sessionField,
+                    Collections.singletonList(constant(true)),
+                    Collections.singletonList(2),
+                    parentGroups
+            );
 
             session.pushStat("count()");
             // GROUP BY TIME(1h) SELECT DISTINCT_WINDOW(5, country having count() >= 2)
             final AggregateStatTree countGte2 = AggregateStatTree.stat(session, 0).gte(AggregateStatTree.constant(2));
-            testTimeWindow(rollingTwoOfFive, Collections.singletonList(new SessionField(session, "country")), Collections.singletonList(countGte2), Collections.singletonList(5));
+            testIntDistinctWindow(
+                    rollingTwoOfFive,
+                    sessionField,
+                    Collections.singletonList(countGte2),
+                    Collections.singletonList(5),
+                    parentGroups
+            );
 
             final LongArrayList interleaved = new LongArrayList();
             for (int i = 0; i < rawDistincts.length; i++) {
@@ -619,25 +646,119 @@ public class TestMultiDistinct {
             //  DISTINCT_WINDOW(1, country),
             //  DISTINCT_WINDOW(2, country),
             //  DISTINCT_WINDOW(5, country HAVING COUNT() >= 2)
-            testTimeWindow(
+            testIntDistinctWindow(
                     interleaved.toLongArray(),
-                    Collections.singletonList(new SessionField(session, "country")), Arrays.asList(constant(true), constant(true), countGte2),
-                    Arrays.asList(1, 2, 5)
+                    sessionField,
+                    Arrays.asList(constant(true), constant(true), countGte2),
+                    Arrays.asList(1, 2, 5),
+                    parentGroups
+            );
+
+            // GROUP BY time < noon, time(1h) SELECT DISTINCT_WINDOW(2, country),
+            final int[] noonSplitParentGroups = {0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2};
+            // GROUP BY TIME(1h) SELECT DISTINCT_WINDOW(2, country)
+            testIntDistinctWindow(
+                    distinctWindow2NoonGap,
+                    sessionField,
+                    Collections.singletonList(constant(true)),
+                    Collections.singletonList(2),
+                    noonSplitParentGroups
+            );
+
+            // GROUP BY time < noon, TIME(1h) SELECT DISTINCT_WINDOW(5, country having count() >= 2)
+            testIntDistinctWindow(
+                    rollingTwoOfFiveNoonGap,
+                    sessionField,
+                    Collections.singletonList(countGte2),
+                    Collections.singletonList(5),
+                    noonSplitParentGroups
             );
         }
-
-        // TODO: Test multiple datasets
-        // TODO: Multiple stats
-        // TODO: parent group separation
     }
 
-    private void testTimeWindow(final long[] expected, final List<SessionField> sessions, final List<AggregateStatTree> filters, final List<Integer> windowSizes) throws IOException {
-        try (GroupStatsIterator statsIterator = RemoteImhotepMultiSession.aggregateDistinct(
+    @Test
+    public void testWindowDistinctMultiDatasets() throws IOException, TimeoutException, InterruptedException, ImhotepOutOfMemoryException {
+        final String dataset1 = "windowDistinctDataset2_1";
+        final String dataset2 = "windowDistinctDataset2_2";
+
+        final int[] counts1     = new int[]   {5,2,0,2,7,1,0};
+        // WINDOW(2):                         {5,7,2,2,9,8,1}
+        final int[] counts2     = new int[]   {1,2,1,3,1,1,1};
+        // WINDOW(2):                         {1,3,3,4,4,2,2}
+        final long[] window2GT1 = new long[]{0,0,0,1,1,0,0,1};
+
+        for (int i = 0; i < 7; i++) {
+            final MemoryFlamdex memoryFlamdex1 = new MemoryFlamdex();
+            final MemoryFlamdex memoryFlamdex2 = new MemoryFlamdex();
+            final DateTime dayStart = TODAY.plusDays(i);
+            final FlamdexDocument document = new FlamdexDocument.Builder()
+                    .addStringTerm("country", "US")
+                    .addIntTerm("unixtime", dayStart.getMillis() / 1000)
+                    .build();
+            for (int j = 0; j < counts1[i]; j++) {
+                memoryFlamdex1.addDocument(document);
+            }
+            for (int j = 0; j < counts2[i]; j++) {
+                memoryFlamdex2.addDocument(document);
+            }
+            clusterRunner.createDailyShard(dataset1, dayStart, memoryFlamdex1);
+            clusterRunner.createDailyShard(dataset2, dayStart, memoryFlamdex2);
+        }
+
+        for (int i = 0; i < numServers; i++) {
+            clusterRunner.startDaemon();
+        }
+
+        try (final ImhotepClient client = clusterRunner.createClient();
+             final ImhotepSession session1 = client.sessionBuilder(dataset1, TODAY, TODAY.plusDays(8)).build();
+             final ImhotepSession session2 = client.sessionBuilder(dataset2, TODAY, TODAY.plusDays(8)).build();
+        ) {
+            session1.pushStat("unixtime");
+            session1.metricRegroup(0, TODAY.getMillis() / 1000, TODAY.plusDays(8).getMillis() / 1000, 3600 * 24);
+            session1.popStat();
+
+            session2.pushStat("unixtime");
+            session2.metricRegroup(0, TODAY.getMillis() / 1000, TODAY.plusDays(8).getMillis() / 1000, 3600 * 24);
+            session2.popStat();
+
+            final AggregateStatTree count1 = AggregateStatTree.stat(session1, session1.pushStat("count()") - 1);
+            final AggregateStatTree count2 = AggregateStatTree.stat(session2, session2.pushStat("count()") - 1);
+
+            final List<SessionField> sessionFields = Lists.newArrayList(
+                    new SessionField(session1, "country"),
+                    new SessionField(session2, "country")
+            );
+            final int[] parentGroups = {0, 1, 1, 1, 1, 1, 1, 1};
+
+            testIntDistinctWindow(
+                    window2GT1,
+                    sessionFields,
+                    Collections.singletonList(count2.gt(count1)),
+                    Collections.singletonList(2),
+                    parentGroups
+            );
+
+            final AggregateStatTree count1_2 = AggregateStatTree.stat(session1, session1.pushStat("count()") - 1);
+            final AggregateStatTree zero1 = AggregateStatTree.stat(session1, session1.pushStat("0") - 1);
+
+            // same thing but using (count() + count() + [0]) / 2 to push multiple stats to one of the sessions.
+            testIntDistinctWindow(
+                    window2GT1,
+                    sessionFields,
+                    Collections.singletonList(count2.gt(count1.plus(count1_2).plus(zero1).divide(AggregateStatTree.constant(2)))),
+                    Collections.singletonList(2),
+                    parentGroups
+            );
+        }
+    }
+
+    private void testIntDistinctWindow(final long[] expected, final List<SessionField> sessions, final List<AggregateStatTree> filters, final List<Integer> windowSizes, final int[] parentGroups) throws IOException {
+        try (final GroupStatsIterator statsIterator = RemoteImhotepMultiSession.aggregateDistinct(
                 sessions,
                 filters,
                 windowSizes,
                 false,
-                new int[]{0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1}
+                parentGroups
         )) {
             final long[] stats = new long[statsIterator.getNumGroups()];
             for (int i = 0; i < stats.length; i++) {
