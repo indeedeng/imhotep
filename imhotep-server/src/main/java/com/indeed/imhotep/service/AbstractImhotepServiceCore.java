@@ -441,12 +441,7 @@ public abstract class AbstractImhotepServiceCore
         final ByteString protoParentGroups = request.getParentGroups();
         final int[] parentGroups;
         if (!protoParentGroups.isEmpty()) {
-            Preconditions.checkArgument((protoParentGroups.size() % 4) == 0, "Expected a multiple of 4 bytes for parent groups");
-            parentGroups = new int[protoParentGroups.size() / 4];
-            final ByteBuffer byteBuffer = protoParentGroups.asReadOnlyByteBuffer();
-            for (int i = 0; i < parentGroups.length; i++) {
-                parentGroups[i] = byteBuffer.getInt();
-            }
+            parentGroups = ImhotepProtobufShipping.runLengthDecodeIntArray(protoParentGroups.toByteArray());
         } else {
             parentGroups = null;
         }

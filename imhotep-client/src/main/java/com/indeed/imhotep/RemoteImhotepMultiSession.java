@@ -26,6 +26,7 @@ import com.indeed.imhotep.api.HasSessionId;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.api.PerformanceStats;
+import com.indeed.imhotep.io.ImhotepProtobufShipping;
 import com.indeed.imhotep.io.RequestTools;
 import com.indeed.imhotep.io.RequestTools.GroupMultiRemapRuleSender;
 import com.indeed.imhotep.io.RequestTools.ImhotepRequestSender;
@@ -41,9 +42,10 @@ import org.apache.log4j.Logger;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import java.io.ByteArrayOutputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -54,7 +56,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 /**
@@ -364,12 +365,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
         final Pair<Integer, HostAndPort>[] indexedServers = multiFtgsIndexedServers(builder);
         builder.addAllWindowSize(windowSizes);
         if (parentGroups != null) {
-            final ByteBuffer parentGroupsByteBuffer = ByteBuffer.allocateDirect(parentGroups.length * Integer.BYTES);
-            for (final int parentGroup : parentGroups) {
-                parentGroupsByteBuffer.putInt(parentGroup);
-            }
-            parentGroupsByteBuffer.position(0);
-            builder.setParentGroups(ByteString.copyFrom(parentGroupsByteBuffer));
+            builder.setParentGroups(ByteString.copyFrom(ImhotepProtobufShipping.runLengthEncode(parentGroups)));
         }
         final MultiFTGSRequest baseRequest = builder.build();
 
