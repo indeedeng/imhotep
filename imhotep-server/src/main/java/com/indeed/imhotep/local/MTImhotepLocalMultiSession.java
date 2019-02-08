@@ -600,7 +600,7 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
         final int numIterators = numStats.length;
         final int totalNumStats = Arrays.stream(numStats).sum();
 
-        final long claimedMemory = totalNumStats * numGroups * 8L;
+        final long claimedMemory = totalNumStats * numGroups * Long.BYTES;
         if (!memory.claimMemory(claimedMemory)) {
             throw newImhotepOutOfMemoryException();
         }
