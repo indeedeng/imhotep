@@ -103,8 +103,6 @@ public final class ImhotepProtobufShipping {
                 daos.writeInt(count);
                 daos.writeInt(value);
             }
-            daos.writeInt(0);
-            daos.writeInt(0);
         } catch (final IOException e) {
             throw new RuntimeException("Writing to ByteArrayOutputStream should not throw IOException!", e);
         }
@@ -120,13 +118,13 @@ public final class ImhotepProtobufShipping {
                 final int count = dais.readInt();
                 final int value = dais.readInt();
 
-                if (count == 0) {
-                    return values;
-                }
-
                 for (int i = 0; i < count; i++) {
                     values[valueIndex] = value;
                     valueIndex += 1;
+                }
+
+                if (valueIndex == numValues) {
+                    return values;
                 }
             }
         } catch (final IOException e) {
