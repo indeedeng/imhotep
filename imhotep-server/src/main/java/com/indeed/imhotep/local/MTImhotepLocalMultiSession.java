@@ -46,6 +46,7 @@ import com.indeed.util.core.Either;
 import com.indeed.util.core.io.Closeables2;
 import org.apache.log4j.Logger;
 
+import javax.annotation.Nullable;
 import javax.annotation.WillClose;
 import javax.annotation.WillNotClose;
 import java.io.Closeable;
@@ -488,7 +489,7 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
             @WillClose final List<FTGSIterator[]> subIteratorLists,
             final List<AggregateStat> filters,
             final List<Integer> windowSizes,
-            final int[] parentGroups) {
+            @Nullable final int[] parentGroups) {
         final Closer closer = Closer.create();
         final Closer closeOnFailCloser = Closer.create();
         try {
@@ -570,12 +571,14 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
             @WillNotClose final MultiFTGSIterator iterator,
             final List<AggregateStat> filters,
             final List<Integer> windowSizes,
-            final int[] parentGroups) throws ImhotepOutOfMemoryException {
+            @Nullable final int[] parentGroups) throws ImhotepOutOfMemoryException {
         Preconditions.checkArgument(filters.size() == windowSizes.size(), "filters.size() must match windowSizes.size()");
 
         if (windowSizes.stream().allMatch(x -> x == 1)) {
             return calculateMultiDistinctSimple(iterator, filters);
         }
+
+        Preconditions.checkNotNull(parentGroups, "Parent groups must be non-null for windowed multi distinct");
 
         final int numFilters = filters.size();
         // Can't use the iterator max group because we need to share the global view of numGroups to
