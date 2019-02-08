@@ -364,7 +364,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
         final Pair<Integer, HostAndPort>[] indexedServers = multiFtgsIndexedServers(builder);
         builder.addAllWindowSize(windowSizes);
         if (parentGroups != null) {
-            final ByteBuffer parentGroupsByteBuffer = ByteBuffer.allocateDirect(parentGroups.length * 4);
+            final ByteBuffer parentGroupsByteBuffer = ByteBuffer.allocateDirect(parentGroups.length * Integer.BYTES);
             for (final int parentGroup : parentGroups) {
                 parentGroupsByteBuffer.putInt(parentGroup);
             }
