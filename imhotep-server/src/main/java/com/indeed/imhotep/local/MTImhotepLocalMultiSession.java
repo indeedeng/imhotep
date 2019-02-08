@@ -529,7 +529,7 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
      * @param filters one filter per HAVING
      * @return group stats iterator with num stats == filters.size(), corresponding element-wise
      */
-    public GroupStatsIterator calculateMultiDistinctSimple(@WillNotClose final MultiFTGSIterator iterator, final List<AggregateStat> filters) {
+    public static GroupStatsIterator calculateMultiDistinctSimple(@WillNotClose final MultiFTGSIterator iterator, final List<AggregateStat> filters) {
         Preconditions.checkState(iterator.nextField(), "MultiFTGSIterator had no fields, expected exactly 1");
         Preconditions.checkState("magic".equals(iterator.fieldName()), "MultiFTGSIterator has field name \"%s\", expected \"magic\"", iterator.fieldName());
 
