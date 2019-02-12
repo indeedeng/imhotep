@@ -29,12 +29,12 @@ import com.indeed.imhotep.api.GroupStatsIterator;
 import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.scheduling.SilentCloseable;
 import com.indeed.imhotep.service.FTGSOutputStreamWriter;
+import com.indeed.imhotep.utils.BoundedPriorityQueue;
 import com.indeed.util.core.Pair;
 import com.indeed.util.core.Throwables2;
 import com.indeed.util.core.io.Closeables2;
 import gnu.trove.map.hash.TIntObjectHashMap;
 import gnu.trove.procedure.TIntObjectProcedure;
-import gnu.trove.procedure.TObjectProcedure;
 import org.apache.commons.lang.mutable.MutableInt;
 import org.apache.log4j.Logger;
 
@@ -54,7 +54,6 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
-import java.util.PriorityQueue;
 
 /**
  * @author kenh
@@ -272,7 +271,7 @@ public class FTGSIteratorUtil {
             if (iterator.fieldIsIntType()) {
                 return iterator.termIntVal() < termStat.intTerm;
             } else {
-                return iterator.termStringVal().compareTo(termStat.strTerm) < 0;
+                return TermStat.stringTermBytesCompareTo(iterator.termStringBytes(), iterator.termStringLength(), termStat.strTermBytes) < 0;
             }
         }
 
@@ -280,9 +279,12 @@ public class FTGSIteratorUtil {
         public TermStat<long[]> extract(@WillNotClose FTGSIterator iterator) {
             final boolean fieldIsIntType = iterator.fieldIsIntType();
             final long termIntVal = fieldIsIntType ? iterator.termIntVal() : 0;
-            final String termStringVal = fieldIsIntType ? null : iterator.termStringVal();
+            byte[] termStringBytes = fieldIsIntType ? null : new byte[iterator.termStringLength()];
+            if (!fieldIsIntType) {
+                System.arraycopy(iterator.termStringBytes(), 0, termStringBytes, 0, iterator.termStringLength());
+            }
             final long termDocFreq = iterator.termDocFreq();
-            return new TermStat<>(fieldIsIntType, termIntVal, termStringVal, termDocFreq, iterator.group(), statsBuf.clone());
+            return new TermStat<>(fieldIsIntType, termIntVal, termStringBytes, termDocFreq, iterator.group(), statsBuf.clone());
         }
 
         @Override
@@ -299,7 +301,7 @@ public class FTGSIteratorUtil {
                         if (x.fieldIsIntType) {
                             return Longs.compare(y.intTerm, x.intTerm);
                         } else {
-                            return y.strTerm.compareTo(x.strTerm);
+                            return TermStat.stringTermBytesCompareTo(y.strTermBytes, x.strTermBytes);
                         }
                     }
                     return ret;
@@ -334,7 +336,7 @@ public class FTGSIteratorUtil {
             if (iterator.fieldIsIntType()) {
                 return iterator.termIntVal() < termStat.intTerm;
             } else {
-                return iterator.termStringVal().compareTo(termStat.strTerm) < 0;
+                return TermStat.stringTermBytesCompareTo(iterator.termStringBytes(), iterator.termStringLength(), termStat.strTermBytes) < 0;
             }
         }
 
@@ -342,9 +344,12 @@ public class FTGSIteratorUtil {
         public TermStat<double[]> extract(@WillNotClose final FTGAIterator iterator) {
             final boolean fieldIsIntType = iterator.fieldIsIntType();
             final long termIntVal = fieldIsIntType ? iterator.termIntVal() : 0;
-            final String termStringVal = fieldIsIntType ? null : iterator.termStringVal();
+            byte[] termStringBytes = fieldIsIntType ? null : new byte[iterator.termStringLength()];
+            if (!fieldIsIntType) {
+                System.arraycopy(iterator.termStringBytes(), 0, termStringBytes, 0, iterator.termStringLength());
+            }
             final long termDocFreq = iterator.termDocFreq();
-            return new TermStat<>(fieldIsIntType, termIntVal, termStringVal, termDocFreq, iterator.group(), statsBuf.clone());
+            return new TermStat<>(fieldIsIntType, termIntVal, termStringBytes, termDocFreq, iterator.group(), statsBuf.clone());
         }
 
         @Override
@@ -361,7 +366,7 @@ public class FTGSIteratorUtil {
                         if (x.fieldIsIntType) {
                             return Longs.compare(y.intTerm, x.intTerm);
                         } else {
-                            return y.strTerm.compareTo(x.strTerm);
+                            return TermStat.stringTermBytesCompareTo(y.strTermBytes, x.strTermBytes);
                         }
                     }
                     return ret;
@@ -382,45 +387,35 @@ public class FTGSIteratorUtil {
             final String fieldName = iterator.fieldName();
             final boolean fieldIsIntType = iterator.fieldIsIntType();
 
-            final TIntObjectHashMap<PriorityQueue<TermStat<S>>> topTermsByGroup = new TIntObjectHashMap<>();
+            final TIntObjectHashMap<BoundedPriorityQueue<TermStat<S>>> topTermsByGroup = new TIntObjectHashMap<>();
 
             while (iterator.nextTerm()) {
                 while (iterator.nextGroup()) {
-                    PriorityQueue<TermStat<S>> topTerms = topTermsByGroup.get(iterator.group());
+                    BoundedPriorityQueue<TermStat<S>> topTerms = topTermsByGroup.get(iterator.group());
                     if (topTerms == null) {
-                        topTerms = new PriorityQueue<>(10, comparator);
+                        // TODO: How to handle the case termLimit is larger than INT_MAX
+                        topTerms = new BoundedPriorityQueue<>(comparator, (int)termLimit);
                         topTermsByGroup.put(iterator.group(), topTerms);
                     }
 
                     extractor.advance(iterator);
-
-                    if (topTerms.size() >= termLimit) {
-                        if (extractor.itIsBetterThan(iterator, topTerms.peek())) {
-                            topTerms.poll();
-                            topTerms.offer(extractor.extract(iterator));
-                        }
-                    } else {
-                        topTerms.offer(extractor.extract(iterator));
-                    }
+                    topTerms.offer(extractor.extract(iterator));
                 }
             }
 
             final MutableInt termsAndGroups = new MutableInt(0);
-            topTermsByGroup.forEachValue(new TObjectProcedure<PriorityQueue<TermStat<S>>>() {
-                @Override
-                public boolean execute(final PriorityQueue<TermStat<S>> topTerms) {
-                    termsAndGroups.add(topTerms.size());
-                    return true;
-                }
+            topTermsByGroup.forEachValue(topTerms -> {
+                termsAndGroups.add(topTerms.size());
+                return true;
             });
 
             final TermStat<S>[] topTermsArray = new TermStat[termsAndGroups.intValue()];
 
-            topTermsByGroup.forEachEntry(new TIntObjectProcedure<PriorityQueue<TermStat<S>>>() {
+            topTermsByGroup.forEachEntry(new TIntObjectProcedure<BoundedPriorityQueue<TermStat<S>>>() {
                 private int i = 0;
 
                 @Override
-                public boolean execute(final int group, final PriorityQueue<TermStat<S>> topTerms) {
+                public boolean execute(final int group, final BoundedPriorityQueue<TermStat<S>> topTerms) {
                     for (final TermStat<S> term : topTerms) {
                         topTermsArray[i++] = term;
                     }
@@ -437,15 +432,16 @@ public class FTGSIteratorUtil {
     static class TermStat<S> {
         final boolean fieldIsIntType;
         final long intTerm;
-        final String strTerm;
+        // valid stringTerm bytes in the range [0, termStringLength)
+        final byte[] strTermBytes;
         final long termDocFreq;
         final int group;
         final S groupStats;
 
-        TermStat(final boolean fieldIsIntType, final long intTerm, final String strTerm, final long termDocFreq, final int group, final S groupStats) {
+        TermStat(final boolean fieldIsIntType, final long intTerm, final byte[] strTermBytes, final long termDocFreq, final int group, final S groupStats) {
             this.fieldIsIntType = fieldIsIntType;
             this.intTerm = intTerm;
-            this.strTerm = strTerm;
+            this.strTermBytes = strTermBytes;
             this.termDocFreq = termDocFreq;
             this.group = group;
             this.groupStats = groupStats;
@@ -453,7 +449,25 @@ public class FTGSIteratorUtil {
 
         boolean haveSameTerm(final FTGSIteratorUtil.TermStat other) {
             return (fieldIsIntType == other.fieldIsIntType)
-                    && (fieldIsIntType ? (intTerm == other.intTerm) : (strTerm.compareTo(other.strTerm) == 0));
+                    && (fieldIsIntType ? (intTerm == other.intTerm) : (stringTermBytesCompareTo(strTermBytes, other.strTermBytes) == 0));
+        }
+
+        public static int stringTermBytesCompareTo(final byte[] lhs, final int lhsLen, final byte[] rhs) {
+            return AbstractBatchedFTGMerger.compareBytes(
+                    lhs,
+                    lhsLen,
+                    rhs,
+                    rhs == null ? 0 : rhs.length
+            );
+        }
+
+        public static int stringTermBytesCompareTo(final byte[] lhs, final byte[] rhs) {
+            return AbstractBatchedFTGMerger.compareBytes(
+                    lhs,
+                    lhs == null ? 0 : lhs.length,
+                    rhs,
+                    rhs == null ? 0 : rhs.length
+            );
         }
 
         private static class TermGroupComparator implements Comparator<TermStat> {
@@ -463,7 +477,7 @@ public class FTGSIteratorUtil {
                 if (x.fieldIsIntType) {
                     ret = Longs.compare(x.intTerm, y.intTerm);
                 } else {
-                    ret = x.strTerm.compareTo(y.strTerm);
+                    ret = stringTermBytesCompareTo(x.strTermBytes, y.strTermBytes);
                 }
 
                 if (ret != 0) {

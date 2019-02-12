@@ -8,9 +8,9 @@ import java.util.Iterator;
 import java.util.stream.IntStream;
 
 /**
- * A priority queue with bounded capacity and optimizes the offer method. In the case that queue is full,
- * new offered element will replace with peek element and notify the queue to adjust itself, rather than
- * poll + offer with two operations.
+ * A priority queue with bounded capacity optimizes the offer method. In the case that queue is full,
+ * new offered element will be replaced with peek element and notify the queue to adjust itself, rather
+ * than poll + offer with two operations.
  * @param <E>
  */
 public class BoundedPriorityQueue<E> extends AbstractQueue<E> {
@@ -22,7 +22,7 @@ public class BoundedPriorityQueue<E> extends AbstractQueue<E> {
     private E[] elementRefArray;
 
     // the array to store all avaliable locations in
-    private final int[] avaliableSlots;
+    private final int[] availableSlots;
     private int slotIndex;
 
     public BoundedPriorityQueue(final Comparator<? super E> comparator, final int maxCapacity) {
@@ -32,7 +32,7 @@ public class BoundedPriorityQueue<E> extends AbstractQueue<E> {
         elementRefArray = (E [])new Object[maxCapacity];
         pq = new ObjectHeapIndirectPriorityQueue<E>(elementRefArray, comparator);
 
-        avaliableSlots = IntStream.range(0, maxCapacity).toArray();
+        availableSlots = IntStream.range(0, maxCapacity).toArray();
         slotIndex = maxCapacity;
     }
 
@@ -44,7 +44,7 @@ public class BoundedPriorityQueue<E> extends AbstractQueue<E> {
     @Override
     public boolean offer(final E e) {
         if (pq.size() < maxCapacity) {
-            final int emptySlot = avaliableSlots[--slotIndex];
+            final int emptySlot = availableSlots[--slotIndex];
             elementRefArray[emptySlot] = e;
             pq.enqueue(emptySlot);
             return true;
@@ -63,7 +63,7 @@ public class BoundedPriorityQueue<E> extends AbstractQueue<E> {
     public E poll() {
         final E e = peek();
         final int first = pq.dequeue();
-        avaliableSlots[slotIndex++] = first;
+        availableSlots[slotIndex++] = first;
         return e;
     }
 
