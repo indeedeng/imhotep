@@ -271,7 +271,7 @@ public class FTGSIteratorUtil {
             if (iterator.fieldIsIntType()) {
                 return iterator.termIntVal() < termStat.intTerm;
             } else {
-                return TermStat.stringTermBytesCompareTo(iterator.termStringBytes(), iterator.termStringLength(), termStat.strTermBytes) < 0;
+                return stringTermBytesCompareTo(iterator.termStringBytes(), iterator.termStringLength(), termStat.strTermBytes) < 0;
             }
         }
 
@@ -279,10 +279,7 @@ public class FTGSIteratorUtil {
         public TermStat<long[]> extract(@WillNotClose FTGSIterator iterator) {
             final boolean fieldIsIntType = iterator.fieldIsIntType();
             final long termIntVal = fieldIsIntType ? iterator.termIntVal() : 0;
-            byte[] termStringBytes = fieldIsIntType ? null : new byte[iterator.termStringLength()];
-            if (!fieldIsIntType) {
-                System.arraycopy(iterator.termStringBytes(), 0, termStringBytes, 0, iterator.termStringLength());
-            }
+            byte[] termStringBytes = fieldIsIntType ? null : Arrays.copyOf(iterator.termStringBytes(), iterator.termStringLength());
             final long termDocFreq = iterator.termDocFreq();
             return new TermStat<>(fieldIsIntType, termIntVal, termStringBytes, termDocFreq, iterator.group(), statsBuf.clone());
         }
@@ -301,7 +298,7 @@ public class FTGSIteratorUtil {
                         if (x.fieldIsIntType) {
                             return Longs.compare(y.intTerm, x.intTerm);
                         } else {
-                            return TermStat.stringTermBytesCompareTo(y.strTermBytes, x.strTermBytes);
+                            return stringTermBytesCompareTo(y.strTermBytes, x.strTermBytes);
                         }
                     }
                     return ret;
@@ -336,7 +333,7 @@ public class FTGSIteratorUtil {
             if (iterator.fieldIsIntType()) {
                 return iterator.termIntVal() < termStat.intTerm;
             } else {
-                return TermStat.stringTermBytesCompareTo(iterator.termStringBytes(), iterator.termStringLength(), termStat.strTermBytes) < 0;
+                return stringTermBytesCompareTo(iterator.termStringBytes(), iterator.termStringLength(), termStat.strTermBytes) < 0;
             }
         }
 
@@ -344,10 +341,7 @@ public class FTGSIteratorUtil {
         public TermStat<double[]> extract(@WillNotClose final FTGAIterator iterator) {
             final boolean fieldIsIntType = iterator.fieldIsIntType();
             final long termIntVal = fieldIsIntType ? iterator.termIntVal() : 0;
-            byte[] termStringBytes = fieldIsIntType ? null : new byte[iterator.termStringLength()];
-            if (!fieldIsIntType) {
-                System.arraycopy(iterator.termStringBytes(), 0, termStringBytes, 0, iterator.termStringLength());
-            }
+            byte[] termStringBytes = fieldIsIntType ? null : Arrays.copyOf(iterator.termStringBytes(), iterator.termStringLength());
             final long termDocFreq = iterator.termDocFreq();
             return new TermStat<>(fieldIsIntType, termIntVal, termStringBytes, termDocFreq, iterator.group(), statsBuf.clone());
         }
@@ -366,7 +360,7 @@ public class FTGSIteratorUtil {
                         if (x.fieldIsIntType) {
                             return Longs.compare(y.intTerm, x.intTerm);
                         } else {
-                            return TermStat.stringTermBytesCompareTo(y.strTermBytes, x.strTermBytes);
+                            return stringTermBytesCompareTo(y.strTermBytes, x.strTermBytes);
                         }
                     }
                     return ret;
@@ -393,8 +387,7 @@ public class FTGSIteratorUtil {
                 while (iterator.nextGroup()) {
                     BoundedPriorityQueue<TermStat<S>> topTerms = topTermsByGroup.get(iterator.group());
                     if (topTerms == null) {
-                        // TODO: How to handle the case termLimit is larger than INT_MAX
-                        topTerms = new BoundedPriorityQueue<>(comparator, (int)termLimit);
+                        topTerms = new BoundedPriorityQueue<>((int)termLimit, comparator);
                         topTermsByGroup.put(iterator.group(), topTerms);
                     }
 
@@ -416,8 +409,8 @@ public class FTGSIteratorUtil {
 
                 @Override
                 public boolean execute(final int group, final BoundedPriorityQueue<TermStat<S>> topTerms) {
-                    for (final TermStat<S> term : topTerms) {
-                        topTermsArray[i++] = term;
+                    while (!topTerms.isEmpty()) {
+                        topTermsArray[i++] = topTerms.poll();
                     }
                     return true;
                 }
@@ -450,24 +443,6 @@ public class FTGSIteratorUtil {
         boolean haveSameTerm(final FTGSIteratorUtil.TermStat other) {
             return (fieldIsIntType == other.fieldIsIntType)
                     && (fieldIsIntType ? (intTerm == other.intTerm) : (stringTermBytesCompareTo(strTermBytes, other.strTermBytes) == 0));
-        }
-
-        public static int stringTermBytesCompareTo(final byte[] lhs, final int lhsLen, final byte[] rhs) {
-            return AbstractBatchedFTGMerger.compareBytes(
-                    lhs,
-                    lhsLen,
-                    rhs,
-                    rhs == null ? 0 : rhs.length
-            );
-        }
-
-        public static int stringTermBytesCompareTo(final byte[] lhs, final byte[] rhs) {
-            return AbstractBatchedFTGMerger.compareBytes(
-                    lhs,
-                    lhs == null ? 0 : lhs.length,
-                    rhs,
-                    rhs == null ? 0 : rhs.length
-            );
         }
 
         private static class TermGroupComparator implements Comparator<TermStat> {
@@ -767,5 +742,23 @@ public class FTGSIteratorUtil {
         out.flush();
 
         return resultStats;
+    }
+
+    private static int stringTermBytesCompareTo(final byte[] lhs, final int lhsLen, final byte[] rhs) {
+        return AbstractBatchedFTGMerger.compareBytes(
+                lhs,
+                lhsLen,
+                rhs,
+                rhs == null ? 0 : rhs.length
+        );
+    }
+
+    private static int stringTermBytesCompareTo(final byte[] lhs, final byte[] rhs) {
+        return AbstractBatchedFTGMerger.compareBytes(
+                lhs,
+                lhs == null ? 0 : lhs.length,
+                rhs,
+                rhs == null ? 0 : rhs.length
+        );
     }
 }

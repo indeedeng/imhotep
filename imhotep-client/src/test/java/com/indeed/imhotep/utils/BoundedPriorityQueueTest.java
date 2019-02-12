@@ -17,7 +17,7 @@ public class BoundedPriorityQueueTest {
         final List<Integer> inputList = ImmutableList.of(10, 15, 23, 13, 4, 12 ,-1, 14, 17, 1, 2, 12, 6, 3, 8, 10);
         final List<Integer> expected = ImmutableList.of(10, 12, 12, 13, 14, 15, 17, 23);
 
-        final BoundedPriorityQueue<Integer> pq = new BoundedPriorityQueue<>(Integer::compareTo, 8);
+        final BoundedPriorityQueue<Integer> pq = new BoundedPriorityQueue<>(8, Integer::compareTo);
         for (final Integer i : inputList) {
             pq.offer(i);
         }
@@ -32,7 +32,7 @@ public class BoundedPriorityQueueTest {
 
     @Test
     public void testPeek() {
-        final BoundedPriorityQueue<Integer> pq = new BoundedPriorityQueue<>(Integer::compareTo, 8);
+        final BoundedPriorityQueue<Integer> pq = new BoundedPriorityQueue<>(8, Integer::compareTo);
         final List<Integer> inputList = ImmutableList.of(10, 15, 23, 13, 4, 12 ,-1, 14, 17, 1, 2, 12, 6, 3, 8, 10);
         final List<Integer> expected = ImmutableList.of(10, 10, 10, 10, 4, 4, -1, -1, 4, 4, 4, 10, 10, 10, 10, 10);
 
@@ -46,7 +46,7 @@ public class BoundedPriorityQueueTest {
 
     @Test
     public void testSize() {
-        final BoundedPriorityQueue<Integer> pq = new BoundedPriorityQueue<>(Integer::compareTo, 8);
+        final BoundedPriorityQueue<Integer> pq = new BoundedPriorityQueue<>(8, Integer::compareTo);
 
         pq.offer(1);
         pq.offer(2);
@@ -66,30 +66,11 @@ public class BoundedPriorityQueueTest {
     }
 
     @Test
-    public void testIterator() {
-        final List<Integer> inputList = ImmutableList.of(10, 15, 23, 13, 4, 12 ,-1, 14, 17, 1, 2, 12, 6, 3, 8, 10);
-        final List<Integer> expected = ImmutableList.of(10, 12, 12, 13, 14, 15, 17, 23);
-
-        final BoundedPriorityQueue<Integer> pq = new BoundedPriorityQueue<>(Integer::compareTo, 8);
-        for (final Integer i : inputList) {
-            pq.offer(i);
-        }
-        Iterator<Integer> it = pq.iterator();
-
-        List<Integer> output = new ArrayList<>(8);
-        while (it.hasNext()) {
-            output.add(it.next());
-        }
-
-        assertEquals(expected, output);
-    }
-
-    @Test
     public void testOfferReverse() {
         final List<Integer> inputList = ImmutableList.of(10, 15, 23, 13, 4, 12 ,-1, 14, 17, 1, 2, 12, 6, 3, 8, 10);
         final List<Integer> expected = ImmutableList.of(10, 8, 6, 4, 3, 2, 1, -1);
 
-        final BoundedPriorityQueue<Integer> pq = new BoundedPriorityQueue<>(Comparator.reverseOrder(), 8);
+        final BoundedPriorityQueue<Integer> pq = new BoundedPriorityQueue<>(8, Comparator.reverseOrder());
         for (final Integer i : inputList) {
             pq.offer(i);
         }
