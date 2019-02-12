@@ -90,7 +90,7 @@ public class EmptyFTGSIterator implements FTGSIterator {
     }
 
     @Override
-    public void groupStats(final long[] stats) {
+    public void groupStats(final long[] stats, final int offset) {
         throw new IllegalStateException("Should not call this method!");
     }
 

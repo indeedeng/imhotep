@@ -24,5 +24,14 @@ public interface FTGSIterator extends FTGIterator, Closeable {
     /**
      * @param stats array in which to store the stats associated with the current group
      */
-    void groupStats(long[] stats);
+    default void groupStats(long[] stats) {
+        groupStats(stats, 0);
+    }
+
+    /**
+     * @param stats array in which to store the stats associated with the current group
+     * @param offset at which to place the stats
+     * @throws ArrayIndexOutOfBoundsException if stats.length < offset + getNumStats()
+     */
+    void groupStats(long[] stats, int offset);
 }

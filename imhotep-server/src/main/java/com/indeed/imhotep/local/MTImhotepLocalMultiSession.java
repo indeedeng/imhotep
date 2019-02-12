@@ -46,6 +46,7 @@ import com.indeed.util.core.Either;
 import com.indeed.util.core.io.Closeables2;
 import org.apache.log4j.Logger;
 
+import javax.annotation.Nullable;
 import javax.annotation.WillClose;
 import javax.annotation.WillNotClose;
 import java.io.Closeable;
@@ -53,6 +54,7 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.BitSet;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -485,8 +487,9 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
     // and return a GroupStatsIterator that adds those counts together.
     public GroupStatsIterator mergeMultiDistinct(
             @WillClose final List<FTGSIterator[]> subIteratorLists,
-            final List<AggregateStat> filters
-    ) {
+            final List<AggregateStat> filters,
+            final List<Integer> windowSizes,
+            @Nullable final int[] parentGroups) {
         final Closer closer = Closer.create();
         final Closer closeOnFailCloser = Closer.create();
         try {
@@ -510,7 +513,7 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
 
             final GroupStatsIterator[] threadCounts = new GroupStatsIterator[numSplits];
             closeOnFailCloser.register(Closeables2.forArray(log, threadCounts));
-            execute(threadCounts, splitEntries, true, x -> calculateMultiDistinct(x, filters));
+            execute(threadCounts, splitEntries, true, x -> calculateMultiDistinct(x, filters, windowSizes, parentGroups));
             return new GroupStatsIteratorCombiner(threadCounts);
         } catch (ExecutionException e) {
             Closeables2.closeQuietly(closeOnFailCloser, log);
@@ -526,26 +529,183 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
      * @param filters one filter per HAVING
      * @return group stats iterator with num stats == filters.size(), corresponding element-wise
      */
-    public static GroupStatsIterator calculateMultiDistinct(@WillNotClose final MultiFTGSIterator iterator, final List<AggregateStat> filters) {
+    public static GroupStatsIterator calculateMultiDistinctSimple(@WillNotClose final MultiFTGSIterator iterator, final List<AggregateStat> filters) {
         Preconditions.checkState(iterator.nextField(), "MultiFTGSIterator had no fields, expected exactly 1");
-        Preconditions.checkState(iterator.fieldName().equals("magic"), "MultiFTGSIterator has field name \"%s\", expected \"magic\"", iterator.fieldName());
+        Preconditions.checkState("magic".equals(iterator.fieldName()), "MultiFTGSIterator has field name \"%s\", expected \"magic\"", iterator.fieldName());
 
-        final int numStats = filters.size();
+        final int numFilters = filters.size();
         // Layout is group0 f0, group0 f1, group 0 f2, group1 f0, group1 f1, group1 f2, ...
-        final long[] data = new long[iterator.getNumGroups() * numStats];
+        final long[] data = new long[iterator.getNumGroups() * numFilters];
         while (iterator.nextTerm()) {
             while (iterator.nextGroup()) {
                 final int group = iterator.group();
-                for (int i = 0; i < numStats; i++) {
+                for (int i = 0; i < numFilters; i++) {
                     final AggregateStat filter = filters.get(i);
                     if (AggregateStat.truthy(filter.apply(iterator))) {
-                        data[group * numStats + i] += 1;
+                        data[(group * numFilters) + i] += 1;
                     }
                 }
             }
         }
 
         Preconditions.checkState(!iterator.nextField(), "MultiFTGSIterator had more than 1 field, expected exactly 1");
+
+        return new GroupStatsDummyIterator(data);
+    }
+
+    private static class DistinctWindowFilterInfo {
+        private final int windowSize;
+        private final AggregateStat filter;
+        private final int originalIndex;
+        private final long[] groupCounts;
+
+        private DistinctWindowFilterInfo(final int windowSize, final AggregateStat filter, final int originalIndex, final int numGroups) {
+            this.windowSize = windowSize;
+            this.filter = filter;
+            this.originalIndex = originalIndex;
+            this.groupCounts = new long[numGroups];
+        }
+    }
+
+    public GroupStatsIterator calculateMultiDistinct(
+            @WillNotClose final MultiFTGSIterator iterator,
+            final List<AggregateStat> filters,
+            final List<Integer> windowSizes,
+            @Nullable final int[] parentGroups) throws ImhotepOutOfMemoryException {
+        Preconditions.checkArgument(filters.size() == windowSizes.size(), "filters.size() must match windowSizes.size()");
+
+        if (windowSizes.stream().allMatch(x -> x == 1)) {
+            return calculateMultiDistinctSimple(iterator, filters);
+        }
+
+        Preconditions.checkNotNull(parentGroups, "Parent groups must be non-null for windowed multi distinct");
+
+        final int numFilters = filters.size();
+        // Can't use the iterator max group because we need to share the global view of numGroups to
+        // make the windows fully cover what they need to.
+        // We receive the global view from the parentGroups parameter passed to us.
+        final int numGroups = parentGroups.length;
+
+        final List<DistinctWindowFilterInfo> filterInfos = new ArrayList<>();
+        for (int i = 0; i < numFilters; i++) {
+            filterInfos.add(new DistinctWindowFilterInfo(windowSizes.get(i), filters.get(i), i, numGroups));
+        }
+
+        final List<List<DistinctWindowFilterInfo>> groupedByWindowSize = Lists.newArrayList(
+                filterInfos.stream()
+                .collect(Collectors.groupingBy(x -> x.windowSize, Collectors.toList()))
+                .values());
+
+        final int[] numStats = iterator.numStats();
+        final int numIterators = numStats.length;
+        final int totalNumStats = Arrays.stream(numStats).sum();
+
+        final long claimedMemory = totalNumStats * numGroups * Long.BYTES;
+        if (!memory.claimMemory(claimedMemory)) {
+            throw newImhotepOutOfMemoryException();
+        }
+        try {
+            // g = group
+            // s = stat
+            // Layout: { g0s0, g0s1, g1s0, g1s1, ... }
+            final long[] groupStatValues = new long[totalNumStats * numGroups];
+            final BitSet groupsSeen = new BitSet(numGroups);
+
+            final int[] iteratorOffsets = new int[numStats.length];
+            for (int i = 1; i < iteratorOffsets.length; i++) {
+                iteratorOffsets[i] = iteratorOffsets[i - 1] + numStats[i];
+            }
+
+            final long[] tmpRollingSumsBuffer = new long[totalNumStats];
+
+            //noinspection IOResourceOpenedButNotSafelyClosed
+            final FrozenGroupStatsMultiFTGSIterator frozenGroupStatsMultiFTGSIterator = new FrozenGroupStatsMultiFTGSIterator(tmpRollingSumsBuffer, iteratorOffsets, iterator);
+
+            Preconditions.checkState(iterator.nextField(), "MultiFTGSIterator had no fields, expected exactly 1");
+            Preconditions.checkState("magic".equals(iterator.fieldName()), "MultiFTGSIterator has field name \"%s\", expected \"magic\"", iterator.fieldName());
+
+            while (iterator.nextTerm()) {
+                // Collect all of the stats for all of the groups
+                while (iterator.nextGroup()) {
+                    final int group = iterator.group();
+                    groupsSeen.set(group);
+                    final int groupOffset = group * totalNumStats;
+                    for (int i = 0; i < numIterators; i++) {
+                        iterator.groupStats(i, groupStatValues, groupOffset + iteratorOffsets[i]);
+                    }
+                }
+
+                for (final List<DistinctWindowFilterInfo> singleWindowSize : groupedByWindowSize) {
+                    final int windowSize = singleWindowSize.get(0).windowSize;
+
+                    int maxGroupExcl = 0;
+                    int group = 0;
+
+                    while (true) {
+                        group = groupsSeen.nextSetBit(group);
+                        if (group == -1) {
+                            break;
+                        }
+                        frozenGroupStatsMultiFTGSIterator.setGroup(group);
+
+                        final int startGroup = group;
+                        final int parentGroup = parentGroups[group];
+                        // No need to look backwards because any values that weren't in the bitset also won't have stats set.
+                        System.arraycopy(groupStatValues, group * totalNumStats, tmpRollingSumsBuffer, 0, totalNumStats);
+
+                        // Process all values at this group and moving forward until we hit the end of the parent group
+                        // or a place not covered by the union of the windows.
+                        while (true) {
+                            if (groupsSeen.get(group)) {
+                                maxGroupExcl = group + windowSize;
+                            }
+
+                            for (final DistinctWindowFilterInfo filterInfo : singleWindowSize) {
+                                if (AggregateStat.truthy(filterInfo.filter.apply(frozenGroupStatsMultiFTGSIterator))) {
+                                    filterInfo.groupCounts[group] += 1;
+                                }
+                            }
+
+                            group += 1;
+                            frozenGroupStatsMultiFTGSIterator.setGroup(group);
+
+                            if ((group >= numGroups) || (group >= maxGroupExcl) || (parentGroups[group] != parentGroup)) {
+                                break;
+                            } else {
+                                final int subtractedGroup = group - windowSize;
+                                // Subtract out `group - windowSize` if necessary
+                                if (subtractedGroup >= startGroup) {
+                                    for (int stat = 0; stat < totalNumStats; stat++) {
+                                        tmpRollingSumsBuffer[stat] -= groupStatValues[(subtractedGroup * totalNumStats) + stat];
+                                    }
+                                }
+
+                                // Add in new `group`
+                                for (int stat = 0; stat < totalNumStats; stat++) {
+                                    tmpRollingSumsBuffer[stat] += groupStatValues[(group * totalNumStats) + stat];
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Arrays.fill(groupStatValues, 0L);
+                groupsSeen.clear();
+            }
+        } finally {
+            memory.releaseMemory(claimedMemory);
+        }
+
+        Preconditions.checkState(!iterator.nextField(), "MultiFTGSIterator had more than 1 field, expected exactly 1");
+
+        // Layout is group0 f0, group0 f1, group 0 f2, group1 f0, group1 f1, group1 f2, ...
+        final long[] data = new long[numGroups * numFilters];
+
+        for (final DistinctWindowFilterInfo filterInfo : filterInfos) {
+            for (int group = 0; group < numGroups; group++) {
+                data[(group * numFilters) + filterInfo.originalIndex] = filterInfo.groupCounts[group];
+            }
+        }
 
         return new GroupStatsDummyIterator(data);
     }

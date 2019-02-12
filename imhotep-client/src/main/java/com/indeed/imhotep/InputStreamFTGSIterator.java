@@ -63,7 +63,7 @@ public class InputStreamFTGSIterator extends AbstractInputStreamFTGXIterator imp
     }
 
     @Override
-    public final void groupStats(final long[] stats) {
-        System.arraycopy(statsBuf, 0, stats, 0, statsBuf.length);
+    public final void groupStats(final long[] stats, final int offset) {
+        System.arraycopy(statsBuf, 0, stats, offset, statsBuf.length);
     }
 }

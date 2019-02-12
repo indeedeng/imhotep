@@ -347,6 +347,11 @@ message MultiFTGSRequest {
   // Stat value of 0.0 is treated as false.
   // Stat value of anything else is treated as true.
   repeated AggregateStat filter = 3;
+  // For windowed aggregate distinct
+  repeated int32 windowSize = 10;
+  // For windowed aggregate distinct
+  // big endian encoded ints because ArrayList<Integer> is horrible
+  optional bytes parentGroups = 11;
 
   optional bool isIntField = 4;
 

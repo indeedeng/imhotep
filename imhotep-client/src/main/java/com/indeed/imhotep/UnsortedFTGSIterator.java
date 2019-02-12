@@ -17,7 +17,7 @@ public final class UnsortedFTGSIterator extends UnsortedFTGIterator<FTGSIterator
     }
 
     @Override
-    public void groupStats(long[] stats) {
-        currentIterator().groupStats(stats);
+    public void groupStats(long[] stats, int offset) {
+        currentIterator().groupStats(stats, offset);
     }
 }

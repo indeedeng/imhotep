@@ -211,10 +211,10 @@ public abstract class AbstractFlamdexFTGSIterator implements FTGSIterator {
     }
 
     @Override
-    public final void groupStats(final long[] stats) {
+    public final void groupStats(final long[] stats, final int offset) {
         final int group = group();
         for (int i = 0; i < session.numStats; i++) {
-            stats[i] = termGrpStats[i][group];
+            stats[offset + i] = termGrpStats[i][group];
         }
     }
 

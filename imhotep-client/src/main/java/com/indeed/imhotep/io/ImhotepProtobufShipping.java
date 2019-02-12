@@ -21,7 +21,11 @@ import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
 import com.indeed.imhotep.protobuf.GroupRemapMessage;
 import com.indeed.imhotep.protobuf.ImhotepRequest;
 import com.indeed.imhotep.protobuf.ImhotepResponse;
+import it.unimi.dsi.fastutil.ints.IntArrayList;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -82,5 +86,49 @@ public final class ImhotepProtobufShipping {
         final int payloadLength = Bytes.bytesToInt(payloadLengthBytes);
 
         return ByteStreams.limit(is, payloadLength);
+    }
+
+
+    public static byte[] runLengthEncode(final int[] values) {
+        final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        try (final DataOutputStream daos = new DataOutputStream(baos)) {
+            daos.writeInt(values.length);
+            for (int i = 0; i < values.length; i++) {
+                final int value = values[i];
+                int count = 1;
+                while (((i + 1) < values.length) && (values[i + 1] == value)) {
+                    i += 1;
+                    count += 1;
+                }
+                daos.writeInt(count);
+                daos.writeInt(value);
+            }
+        } catch (final IOException e) {
+            throw new RuntimeException("Writing to ByteArrayOutputStream should not throw IOException!", e);
+        }
+        return baos.toByteArray();
+    }
+
+    public static int[] runLengthDecodeIntArray(final byte[] bytes) {
+        try (final DataInputStream dais = new DataInputStream(new ByteArrayInputStream(bytes))) {
+            final int numValues = dais.readInt();
+            int valueIndex = 0;
+            final int[] values = new int[numValues];
+            while (true) {
+                final int count = dais.readInt();
+                final int value = dais.readInt();
+
+                for (int i = 0; i < count; i++) {
+                    values[valueIndex] = value;
+                    valueIndex += 1;
+                }
+
+                if (valueIndex == numValues) {
+                    return values;
+                }
+            }
+        } catch (final IOException e) {
+            throw new RuntimeException("Writing from ByteArrayInputStream should not throw IOException!", e);
+        }
     }
 }

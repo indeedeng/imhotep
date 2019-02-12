@@ -13,8 +13,11 @@
  */
  package com.indeed.imhotep.service;
 
+import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
+import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import com.google.protobuf.ByteString;
 import com.indeed.flamdex.query.Query;
 import com.indeed.imhotep.AbstractImhotepMultiSession;
 import com.indeed.imhotep.FTGSIteratorUtil;
@@ -55,10 +58,13 @@ import com.indeed.util.core.reference.SharedReference;
 import org.apache.log4j.Logger;
 
 import javax.annotation.WillClose;
+import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -423,6 +429,23 @@ public abstract class AbstractImhotepServiceCore
             ParseAggregate.parse(sessionStatsInfos, filters, filter);
         }
 
+
+        // Support requests from before windowSize was a thing
+        final List<Integer> windowSizes;
+        if ((request.getWindowSizeCount() == 0) && (filters.size() > 0)) {
+            windowSizes = Collections.nCopies(filters.size(), 1);
+        } else {
+            windowSizes = request.getWindowSizeList();
+        }
+
+        final ByteString protoParentGroups = request.getParentGroups();
+        final int[] parentGroups;
+        if (!protoParentGroups.isEmpty()) {
+            parentGroups = ImhotepProtobufShipping.runLengthDecodeIntArray(protoParentGroups.toByteArray());
+        } else {
+            parentGroups = null;
+        }
+
         final StrictCloser closeOnFailCloser = new StrictCloser();
         try {
             final List<FTGSIterator[]> sessionSplitIterators = getMultiSessionSplitIterators(closeOnFailCloser, validLocalSessionId, nodes, sessionInfoList, isIntField, splitIndex, 0);
@@ -430,7 +453,7 @@ public abstract class AbstractImhotepServiceCore
                 closeOnFailCloser.registerOrClose(Closeables2.forArray(log, sessionSplitIterator));
             }
             return doWithSession(validLocalSessionId, (Function<MTImhotepLocalMultiSession, GroupStatsIterator>) session -> {
-                return session.mergeMultiDistinct(sessionSplitIterators, filters.toList());
+                return session.mergeMultiDistinct(sessionSplitIterators, filters.toList(), windowSizes, parentGroups);
             });
         } catch (Throwable t) {
             Closeables2.closeQuietly(closeOnFailCloser, log);
