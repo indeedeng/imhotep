@@ -1,4 +1,4 @@
-package com.indeed.flamdex.reader;
+package com.indeed.imhotep.service;
 
 import com.google.common.primitives.Longs;
 import com.indeed.flamdex.api.FlamdexReader;
@@ -13,12 +13,15 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.util.Arrays;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
-public class GenericFlamdexReaderTest {
+public class GenericFlamdexReaderSourceTest {
     private Path tempIndexDir;
 
     @Before
@@ -39,8 +42,16 @@ public class GenericFlamdexReaderTest {
         final Path metadataPath = tempIndexDir.resolve("metadata.txt");
         assertTrue(metadataPath.toFile().delete());
 
-        try (final FlamdexReader reader = GenericFlamdexReader.open(tempIndexDir, 4)) {
+        final FlamdexReaderSource readerSource = new GenericFlamdexReaderSource();
+        try (final FlamdexReader reader = readerSource.openReader(tempIndexDir, 4)) {
             assertTrue(reader instanceof SimpleFlamdexReader);
+        }
+
+        // exception case
+        try (final FlamdexReader reader = readerSource.openReader(tempIndexDir, -1)) {
+            fail("Should read metadata.txt");
+        } catch (final NoSuchFileException e) {
+
         }
     }
 
