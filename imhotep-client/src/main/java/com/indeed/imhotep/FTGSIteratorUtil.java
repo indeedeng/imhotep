@@ -279,7 +279,7 @@ public class FTGSIteratorUtil {
         public TermStat<long[]> extract(@WillNotClose FTGSIterator iterator) {
             final boolean fieldIsIntType = iterator.fieldIsIntType();
             final long termIntVal = fieldIsIntType ? iterator.termIntVal() : 0;
-            byte[] termStringBytes = fieldIsIntType ? null : Arrays.copyOf(iterator.termStringBytes(), iterator.termStringLength());
+            final byte[] termStringBytes = fieldIsIntType ? null : Arrays.copyOf(iterator.termStringBytes(), iterator.termStringLength());
             final long termDocFreq = iterator.termDocFreq();
             return new TermStat<>(fieldIsIntType, termIntVal, termStringBytes, termDocFreq, iterator.group(), statsBuf.clone());
         }
@@ -341,7 +341,7 @@ public class FTGSIteratorUtil {
         public TermStat<double[]> extract(@WillNotClose final FTGAIterator iterator) {
             final boolean fieldIsIntType = iterator.fieldIsIntType();
             final long termIntVal = fieldIsIntType ? iterator.termIntVal() : 0;
-            byte[] termStringBytes = fieldIsIntType ? null : Arrays.copyOf(iterator.termStringBytes(), iterator.termStringLength());
+            final byte[] termStringBytes = fieldIsIntType ? null : Arrays.copyOf(iterator.termStringBytes(), iterator.termStringLength());
             final long termDocFreq = iterator.termDocFreq();
             return new TermStat<>(fieldIsIntType, termIntVal, termStringBytes, termDocFreq, iterator.group(), statsBuf.clone());
         }
@@ -374,6 +374,10 @@ public class FTGSIteratorUtil {
             @WillNotClose final IT iterator,
             final StatExtractor<S, IT> extractor
     ) {
+        if (termLimit > Integer.MAX_VALUE) {
+            throw new IllegalArgumentException("termLimit is over limit, it should be a valid integer");
+        }
+
         final TopTermsStatsByField<S> topTermsFTGS = new TopTermsStatsByField<>();
         final Comparator<TermStat<S>> comparator = extractor.comparator();
 

@@ -5,7 +5,6 @@ import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.Iterator;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
@@ -16,10 +15,11 @@ public class BoundedPriorityQueueTest {
     public void testOffer() {
         final List<Integer> inputList = ImmutableList.of(10, 15, 23, 13, 4, 12 ,-1, 14, 17, 1, 2, 12, 6, 3, 8, 10);
         final List<Integer> expected = ImmutableList.of(10, 12, 12, 13, 14, 15, 17, 23);
+        final List<Boolean> offerResult = ImmutableList.of(true, true, true, true, true, true, true, true, true, false, false, true, false, false, false, true);
 
         final BoundedPriorityQueue<Integer> pq = new BoundedPriorityQueue<>(8, Integer::compareTo);
-        for (final Integer i : inputList) {
-            pq.offer(i);
+        for (int i = 0; i < inputList.size(); i++) {
+            assertEquals(offerResult.get(i), pq.offer(inputList.get(i)));
         }
 
         List<Integer> output = new ArrayList<>(10);
@@ -61,7 +61,7 @@ public class BoundedPriorityQueueTest {
         pq.offer(9);
         assertEquals(pq.size(), 8);
 
-        pq.poll();
+        assertEquals(2, pq.poll().intValue());
         assertEquals(pq.size(), 7);
     }
 

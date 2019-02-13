@@ -33,13 +33,14 @@ public class BoundedPriorityQueue<E> extends AbstractQueue<E> {
     public boolean offer(final E e) {
         if (size < maxCapacity) {
             internalOffer(e);
-        } else {
-            if (comparator.compare(e, peek()) >= 0) {
-                heap[0] = e;
-                ObjectHeaps.downHeap(heap, size, 0, comparator);
-            }
+            return true;
         }
-        return true;
+        if (comparator.compare(e, peek()) >= 0) {
+            heap[0] = e;
+            ObjectHeaps.downHeap(heap, size, 0, comparator);
+            return true;
+        }
+        return false;
     }
 
     private void internalOffer(final E e) {
@@ -58,7 +59,7 @@ public class BoundedPriorityQueue<E> extends AbstractQueue<E> {
             throw new NoSuchElementException();
         }
 
-        E e = heap[0];
+        final E e = heap[0];
         heap[0] = heap[--size];
         heap[size] = null;
         if (size != 0) {
