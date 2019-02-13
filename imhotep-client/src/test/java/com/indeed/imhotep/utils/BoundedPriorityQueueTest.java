@@ -4,6 +4,7 @@ import com.google.common.collect.ImmutableList;
 import org.junit.Test;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 
@@ -81,5 +82,20 @@ public class BoundedPriorityQueueTest {
         }
 
         assertEquals(expected, output);
+    }
+
+    @Test
+    public void testGetTopK() {
+        final BoundedPriorityQueue<Integer> pq = new BoundedPriorityQueue<>(8, Integer::compareTo);
+        final List<Integer> inputList = ImmutableList.of(10, 15, 23, 13, 4, 12 ,-1, 14, 17, 1, 2, 12, 6, 3, 8, 10);
+        final List<Integer> expected = ImmutableList.of(10, 12, 12, 13, 14, 15, 17, 23);
+
+        for (final Integer i : inputList) {
+            pq.offer(i);
+        }
+
+        final Integer[] result = new Integer[8];
+        pq.getTopK(result, 0);
+        assertEquals(expected, Arrays.asList(result));
     }
 }

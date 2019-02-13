@@ -34,7 +34,7 @@ import com.indeed.util.core.Pair;
 import com.indeed.util.core.Throwables2;
 import com.indeed.util.core.io.Closeables2;
 import gnu.trove.map.hash.TIntObjectHashMap;
-import gnu.trove.procedure.TIntObjectProcedure;
+import gnu.trove.procedure.TObjectProcedure;
 import org.apache.commons.lang.mutable.MutableInt;
 import org.apache.log4j.Logger;
 
@@ -271,7 +271,11 @@ public class FTGSIteratorUtil {
             if (iterator.fieldIsIntType()) {
                 return iterator.termIntVal() < termStat.intTerm;
             } else {
-                return stringTermBytesCompareTo(iterator.termStringBytes(), iterator.termStringLength(), termStat.strTermBytes) < 0;
+                return AbstractBatchedFTGMerger.compareBytes(
+                        iterator.termStringBytes(),
+                        iterator.termStringLength(),
+                        termStat.strTermBytes,
+                        termStat.strTermBytes.length) < 0;
             }
         }
 
@@ -333,7 +337,11 @@ public class FTGSIteratorUtil {
             if (iterator.fieldIsIntType()) {
                 return iterator.termIntVal() < termStat.intTerm;
             } else {
-                return stringTermBytesCompareTo(iterator.termStringBytes(), iterator.termStringLength(), termStat.strTermBytes) < 0;
+                return AbstractBatchedFTGMerger.compareBytes(
+                        iterator.termStringBytes(),
+                        iterator.termStringLength(),
+                        termStat.strTermBytes,
+                        termStat.strTermBytes.length) < 0;
             }
         }
 
@@ -408,14 +416,12 @@ public class FTGSIteratorUtil {
 
             final TermStat<S>[] topTermsArray = new TermStat[termsAndGroups.intValue()];
 
-            topTermsByGroup.forEachEntry(new TIntObjectProcedure<BoundedPriorityQueue<TermStat<S>>>() {
+            topTermsByGroup.forEachValue(new TObjectProcedure<BoundedPriorityQueue<TermStat<S>>>() {
                 private int i = 0;
-
                 @Override
-                public boolean execute(final int group, final BoundedPriorityQueue<TermStat<S>> topTerms) {
-                    while (!topTerms.isEmpty()) {
-                        topTermsArray[i++] = topTerms.poll();
-                    }
+                public boolean execute(final BoundedPriorityQueue<TermStat<S>> topTerms) {
+                    topTerms.getTopK(topTermsArray, i);
+                    i += topTerms.size();
                     return true;
                 }
             });
@@ -748,21 +754,12 @@ public class FTGSIteratorUtil {
         return resultStats;
     }
 
-    private static int stringTermBytesCompareTo(final byte[] lhs, final int lhsLen, final byte[] rhs) {
-        return AbstractBatchedFTGMerger.compareBytes(
-                lhs,
-                lhsLen,
-                rhs,
-                rhs == null ? 0 : rhs.length
-        );
-    }
-
     private static int stringTermBytesCompareTo(final byte[] lhs, final byte[] rhs) {
         return AbstractBatchedFTGMerger.compareBytes(
                 lhs,
-                lhs == null ? 0 : lhs.length,
+                lhs.length,
                 rhs,
-                rhs == null ? 0 : rhs.length
+                rhs.length
         );
     }
 }

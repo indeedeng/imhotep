@@ -52,6 +52,13 @@ public class BoundedPriorityQueue<E> extends AbstractQueue<E> {
         ObjectHeaps.upHeap(heap, size, size - 1, comparator);
     }
 
+    /**
+     * Get all sorted elements and store in the dest array starting from startIndex
+     */
+    public void getTopK(final E[] dest, final int startIndex) {
+        System.arraycopy(heap, 0, dest, startIndex, size);
+        ObjectArrays.quickSort(dest, startIndex, startIndex + size, comparator);
+    }
 
     @Override
     public E poll() {
