@@ -25,6 +25,7 @@ import com.indeed.imhotep.metrics.Count;
 import com.indeed.imhotep.service.CachedFlamdexReader;
 import com.indeed.imhotep.service.CachedFlamdexReaderReference;
 import com.indeed.imhotep.service.InstrumentedFlamdexReader;
+import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.core.reference.SharedReference;
 import org.apache.log4j.Logger;
 
@@ -39,6 +40,7 @@ public abstract class AbstractFlamdexFTGSIterator implements FTGSIterator {
      *
      */
     protected final ImhotepLocalSession session;
+    private final ImhotepLocalSession.MetricStack stack;
 
     protected final int[] groupsSeen;
     protected final BitTree bitTree;
@@ -61,21 +63,30 @@ public abstract class AbstractFlamdexFTGSIterator implements FTGSIterator {
     private int groupsSeenCount;
     protected boolean resetGroupStats = false;
     private final TermGroupStatsCalculator calculator;
+    private final long reservedMemory;
+
+    private boolean closed = false;
 
     public AbstractFlamdexFTGSIterator(
             final ImhotepLocalSession imhotepLocalSession,
-            final SharedReference<FlamdexReader> flamdexReader) {
+            final SharedReference<FlamdexReader> flamdexReader,
+            final ImhotepLocalSession.MetricStack stack) {
         this.session = imhotepLocalSession;
-        this.termGrpStats = new long[session.numStats][session.docIdToGroup.getNumGroups()];
+
+        reservedMemory = Long.BYTES * stack.getNumStats() * session.docIdToGroup.getNumGroups();
+        session.memory.claimMemory(reservedMemory);
+
+        this.termGrpStats = new long[stack.getNumStats()][session.docIdToGroup.getNumGroups()];
         this.groupsSeen = new int[session.docIdToGroup.getNumGroups()];
         this.bitTree = new BitTree(session.docIdToGroup.getNumGroups());
         this.flamdexReader = flamdexReader;
+        this.stack = stack;
         this.calculator = getCalculator();
     }
 
     @Override
     public int getNumStats() {
-        return session.numStats;
+        return stack.getNumStats();
     }
 
     @Override
@@ -88,7 +99,14 @@ public abstract class AbstractFlamdexFTGSIterator implements FTGSIterator {
 
     @Override
     public void close() {
-        calculator.close();
+        if (!closed) {
+            try {
+                Closeables2.closeAll(log, calculator, stack);
+            } finally {
+                session.memory.releaseMemory(reservedMemory);
+            }
+        }
+        closed = true;
     }
 
     @Override
@@ -169,7 +187,7 @@ public abstract class AbstractFlamdexFTGSIterator implements FTGSIterator {
                         docsTime += System.nanoTime();
                         lookupsTime -= System.nanoTime();
                     }
-                    session.docIdToGroup.nextGroupCallback(n, termGrpStats, bitTree, docIdBuf, valBuf, docGroupBuf);
+                    session.docIdToGroup.nextGroupCallback(n, termGrpStats, bitTree, docIdBuf, valBuf, docGroupBuf, stack);
 
                     if (ImhotepLocalSession.logTiming) {
                         lookupsTime += System.nanoTime();
@@ -213,7 +231,7 @@ public abstract class AbstractFlamdexFTGSIterator implements FTGSIterator {
     @Override
     public final void groupStats(final long[] stats, final int offset) {
         final int group = group();
-        for (int i = 0; i < session.numStats; i++) {
+        for (int i = 0; i < stack.getNumStats(); i++) {
             stats[offset + i] = termGrpStats[i][group];
         }
     }
@@ -225,11 +243,11 @@ public abstract class AbstractFlamdexFTGSIterator implements FTGSIterator {
         private final boolean saveStat;
         private ConstGroupCalculator(final int group) {
             this.group = group;
-            if ((session.numStats > 1)
-                    || ((session.numStats == 1) && !(session.statLookup.get(0) instanceof Count)) ) {
+            if ((stack.getNumStats() > 1)
+                    || ((stack.getNumStats() == 1) && !(stack.get(0) instanceof Count)) ) {
                 throw new IllegalStateException("Only no stats or Count() stat is expected");
             }
-            this.saveStat = session.numStats == 1;
+            this.saveStat = stack.getNumStats() == 1;
             // only one group can appear in result.
             // filling it here and managing existence of group with groupsSeenCount = 0 or 1
             groupsSeen[0] = group;
@@ -303,7 +321,7 @@ public abstract class AbstractFlamdexFTGSIterator implements FTGSIterator {
                         docsTime += System.nanoTime();
                         lookupsTime -= System.nanoTime();
                     }
-                    final int processed = session.docIdToGroup.nextGroupCallback(n, termGrpStats, bitTree, docIdBuf, valBuf, docGroupBuf);
+                    final int processed = session.docIdToGroup.nextGroupCallback(n, termGrpStats, bitTree, docIdBuf, valBuf, docGroupBuf, stack);
 
                     if (ImhotepLocalSession.logTiming) {
                         lookupsTime += System.nanoTime();
@@ -343,8 +361,8 @@ public abstract class AbstractFlamdexFTGSIterator implements FTGSIterator {
     // choose calculator based on groups and stats
     private TermGroupStatsCalculator getCalculator() {
         if (session.docIdToGroup instanceof ConstantGroupLookup) {
-            if ((session.numStats == 0)
-                    || ((session.numStats == 1) && (session.statLookup.get(0) instanceof Count))) {
+            if ((stack.getNumStats() == 0)
+                    || ((stack.getNumStats() == 1) && (stack.get(0) instanceof Count))) {
                 if (isCountMethodsReliable(flamdexReader.get())) {
                     final int group = ((ConstantGroupLookup) session.docIdToGroup).getConstantGroup();
                     return new ConstGroupCalculator(group);
@@ -353,7 +371,7 @@ public abstract class AbstractFlamdexFTGSIterator implements FTGSIterator {
         }
 
         if (session.docIdToGroup instanceof BitSetGroupLookup) {
-            if(session.numStats == 0) {
+            if(stack.getNumStats() == 0) {
                 return new BitSetGroupNoStatsCalculator(1);
             }
         }

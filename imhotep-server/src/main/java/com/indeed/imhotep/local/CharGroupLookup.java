@@ -21,14 +21,9 @@ import com.indeed.util.core.threads.ThreadSafeBitSet;
 import java.util.Arrays;
 
 final class CharGroupLookup extends GroupLookup implements ArrayBasedGroupLookup {
-    /**
-     *
-     */
-    private final ImhotepLocalSession session;
     private final char[] docIdToGroup;
 
-    CharGroupLookup(final ImhotepLocalSession imhotepLocalSession, final int size) {
-        session = imhotepLocalSession;
+    CharGroupLookup(final int size) {
         docIdToGroup = new char[size];
     }
 
@@ -40,7 +35,8 @@ final class CharGroupLookup extends GroupLookup implements ArrayBasedGroupLookup
                                  final BitTree groupsSeen,
                                  final int[] docIdBuf,
                                  final long[] valBuf,
-                                 final int[] docGroupBuffer) {
+                                 final int[] docGroupBuffer,
+                                 final ImhotepLocalSession.MetricStack metricStack) {
         int rewriteHead = 0;
         // remap groups and filter out useless docids (ones with group = 0), keep track of groups that were found
         for (int i = 0; i < n; i++) {
@@ -57,8 +53,8 @@ final class CharGroupLookup extends GroupLookup implements ArrayBasedGroupLookup
         groupsSeen.set(docGroupBuffer, rewriteHead);
 
         if (rewriteHead > 0) {
-            for (int statIndex = 0; statIndex < session.numStats; statIndex++) {
-                ImhotepJavaLocalSession.updateGroupStatsDocIdBuf(session.statLookup.get(statIndex), termGrpStats[statIndex], docGroupBuffer, docIdBuf, valBuf, rewriteHead);
+            for (int statIndex = 0; statIndex < metricStack.getNumStats(); statIndex++) {
+                ImhotepJavaLocalSession.updateGroupStatsDocIdBuf(metricStack.get(statIndex), termGrpStats[statIndex], docGroupBuffer, docIdBuf, valBuf, rewriteHead);
             }
         }
 
@@ -206,10 +202,5 @@ final class CharGroupLookup extends GroupLookup implements ArrayBasedGroupLookup
 
     public static long calcMemUsageForSize(final int sz) {
         return sz * 2;
-    }
-
-    @Override
-    public ImhotepLocalSession getSession() {
-        return this.session;
     }
 }

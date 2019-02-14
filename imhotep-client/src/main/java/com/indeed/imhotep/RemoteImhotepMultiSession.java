@@ -31,6 +31,7 @@ import com.indeed.imhotep.io.RequestTools;
 import com.indeed.imhotep.io.RequestTools.GroupMultiRemapRuleSender;
 import com.indeed.imhotep.io.RequestTools.ImhotepRequestSender;
 import com.indeed.imhotep.metrics.aggregate.AggregateStatTree;
+import com.indeed.imhotep.protobuf.DocStat;
 import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
 import com.indeed.imhotep.protobuf.HostAndPort;
 import com.indeed.imhotep.protobuf.ImhotepRequest;
@@ -42,8 +43,6 @@ import org.apache.log4j.Logger;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import java.io.ByteArrayOutputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
@@ -82,7 +81,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
     }
 
     @Override
-    public long[] getGroupStats(final int stat) {
+    public long[] getGroupStats(final List<String> stat) {
         try(final GroupStatsIterator it = getGroupStatsIterator(stat)) {
             return LongIterators.unwrap(it, it.getNumGroups());
         } catch (final IOException e) {
@@ -91,7 +90,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
     }
 
     @Override
-    public GroupStatsIterator getGroupStatsIterator(final int stat) {
+    public GroupStatsIterator getGroupStatsIterator(final List<String> stat) {
         // there is two ways to create GroupStatsIterator in multisession:
         // create iterator over result of getGroupStats method or create merger for iterators.
         // In case of remote multisession we creating readers over socket streams.
@@ -127,12 +126,12 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
         return interleaver;
     }
 
-    public FTGSIterator[] getFTGSIteratorSplits(final String[] intFields, final String[] stringFields, final long termLimit) {
+    public FTGSIterator[] getFTGSIteratorSplits(final String[] intFields, final String[] stringFields, final long termLimit) throws ImhotepOutOfMemoryException {
         if (sessions.length == 1) {
-            final FTGSIterator result = sessions[0].getFTGSIterator(intFields, stringFields, termLimit);
+            final FTGSIterator result = sessions[0].getFTGSIterator(intFields, stringFields, termLimit, null);
             return new FTGSIterator[] {result};
         }
-        return getFTGSIteratorSplits(new FTGSParams(intFields, stringFields, termLimit, -1, true));
+        return getFTGSIteratorSplits(new FTGSParams(intFields, stringFields, termLimit, -1, true, null));
     }
 
     private FTGSIterator[] getFTGSIteratorSplits(final FTGSParams params) {
@@ -163,15 +162,15 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
     }
 
     @Override
-    public FTGSIterator getSubsetFTGSIterator(final Map<String, long[]> intFields, final Map<String, String[]> stringFields) {
+    public FTGSIterator getSubsetFTGSIterator(final Map<String, long[]> intFields, final Map<String, String[]> stringFields, @Nullable final List<List<String>> stats) throws ImhotepOutOfMemoryException {
         if (sessions.length == 1) {
-            return sessions[0].getSubsetFTGSIterator(intFields, stringFields);
+            return sessions[0].getSubsetFTGSIterator(intFields, stringFields, stats);
         }
-        final FTGSIterator[] mergers = getSubsetFTGSIteratorSplits(intFields, stringFields);
+        final FTGSIterator[] mergers = getSubsetFTGSIteratorSplits(intFields, stringFields, stats);
         return new SortedFTGSInterleaver(mergers);
     }
 
-    private FTGSIterator[] getSubsetFTGSIteratorSplits(final Map<String, long[]> intFields, final Map<String, String[]> stringFields) {
+    private FTGSIterator[] getSubsetFTGSIteratorSplits(final Map<String, long[]> intFields, final Map<String, String[]> stringFields, final List<List<String>> stats) {
         final Pair<Integer, ImhotepRemoteSession>[] indexesAndSessions = new Pair[sessions.length];
         for (int i = 0; i < sessions.length; i++) {
             indexesAndSessions[i] = Pair.of(i, sessions[i]);
@@ -184,7 +183,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
                 public FTGSIterator apply(final Pair<Integer, ImhotepRemoteSession> indexSessionPair) {
                     final ImhotepRemoteSession session = indexSessionPair.getSecond();
                     final int index = indexSessionPair.getFirst();
-                    return session.mergeSubsetFTGSSplit(intFields, stringFields, nodes, index);
+                    return session.mergeSubsetFTGSSplit(intFields, stringFields, stats, nodes, index);
                 }
             });
         } catch (final Throwable t) {
@@ -309,6 +308,8 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
         private final RemoteImhotepMultiSession session;
         private final Runnable synchronizeCallback;
         private final String field;
+        @Nullable
+        private final List<List<String>> stats;
 
         /**
          * This constructor has sharp edges.
@@ -316,7 +317,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
          *
          * @throws IllegalArgumentException if session is not a RemoteImhotepMultiSession or AsynchronousRemoteImhotepMultiSession
          */
-        public SessionField(final ImhotepSession session, final String field) {
+        public SessionField(final ImhotepSession session, final String field, @Nullable final List<List<String>> stats) {
             if (session instanceof AsynchronousRemoteImhotepMultiSession) {
                 final AsynchronousRemoteImhotepMultiSession asyncSession = (AsynchronousRemoteImhotepMultiSession) session;
                 this.session = asyncSession.original;
@@ -328,6 +329,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
                 throw new IllegalArgumentException("Can only use RemoteImhotepMultiSession::multiFtgs on RemoteImhotepMultiSession/AsynchronousRemoteImhotepMultiSession instances.");
             }
             this.field = field;
+            this.stats = stats;
         }
     }
 
@@ -524,10 +526,15 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
                             .build()
             ).collect(Collectors.toList());
             allNodes.addAll(nodes);
-            builder.addSessionInfoBuilder()
+            final MultiFTGSRequest.MultiFTGSSession.Builder sessionBuilder = builder.addSessionInfoBuilder()
                     .setSessionId(session.getSessionId())
                     .addAllNodes(nodes)
                     .setField(fieldName);
+
+            if (sessionField.stats != null) {
+                sessionBuilder.addAllStats(sessionField.stats.stream().map(x -> DocStat.newBuilder().addAllStat(x).build()).collect(Collectors.toList()));
+                sessionBuilder.setHasStats(true);
+            }
         }
 
         final List<HostAndPort> allNodesList = Lists.newArrayList(allNodes);

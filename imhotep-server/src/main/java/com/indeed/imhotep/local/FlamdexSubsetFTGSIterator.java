@@ -40,8 +40,9 @@ class FlamdexSubsetFTGSIterator extends AbstractFlamdexFTGSIterator {
             final ImhotepLocalSession imhotepLocalSession,
             final SharedReference<FlamdexReader> flamdexReader,
             final Map<String, long[]> intFieldToTerms,
-            final Map<String, String[]> stringFieldToTerms) {
-        super(imhotepLocalSession, flamdexReader);
+            final Map<String, String[]> stringFieldToTerms,
+            final ImhotepLocalSession.MetricStack stack) {
+        super(imhotepLocalSession, flamdexReader, stack);
         this.intFieldToTermsIterator = intFieldToTerms.entrySet().iterator();
         this.stringFieldToTermsIterator = stringFieldToTerms.entrySet().iterator();
         docIdStream = flamdexReader.get().getDocIdStream();

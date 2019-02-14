@@ -7,6 +7,8 @@ import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.io.RequestTools;
 import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
 
+import javax.annotation.Nullable;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -30,21 +32,21 @@ public class AsynchronousRemoteImhotepMultiSession extends AbstractImhotepMultiS
     //       the per-session result, and then waited for the combined future
 
     @Override
-    public long[] getGroupStats(final int stat) {
+    public long[] getGroupStats(final List<String> stat) {
         synchronizeAll();
         return original.getGroupStats(stat);
     }
 
     @Override
-    public GroupStatsIterator getGroupStatsIterator(final int stat) {
+    public GroupStatsIterator getGroupStatsIterator(final List<String> stat) {
         synchronizeAll();
         return original.getGroupStatsIterator(stat);
     }
 
     @Override
-    public FTGSIterator getSubsetFTGSIterator(final Map<String, long[]> intFields, final Map<String, String[]> stringFields) {
+    public FTGSIterator getSubsetFTGSIterator(final Map<String, long[]> intFields, final Map<String, String[]> stringFields, @Nullable final List<List<String>> stats) throws ImhotepOutOfMemoryException {
         synchronizeAll();
-        return original.getSubsetFTGSIterator(intFields, stringFields);
+        return original.getSubsetFTGSIterator(intFields, stringFields, stats);
     }
 
     @Override

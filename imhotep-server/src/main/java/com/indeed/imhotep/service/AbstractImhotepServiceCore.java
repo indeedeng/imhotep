@@ -13,7 +13,6 @@
  */
  package com.indeed.imhotep.service;
 
-import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -58,10 +57,8 @@ import com.indeed.util.core.reference.SharedReference;
 import org.apache.log4j.Logger;
 
 import javax.annotation.WillClose;
-import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -78,6 +75,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * @author jplaisance
@@ -144,7 +142,7 @@ public abstract class AbstractImhotepServiceCore
     }
 
     @Override
-    public GroupStatsIterator handleGetGroupStats(final String sessionId, final int stat) {
+    public GroupStatsIterator handleGetGroupStats(final String sessionId, final List<String> stat) {
         return doWithSession(sessionId, (Function<MTImhotepLocalMultiSession, GroupStatsIterator>) session -> session.getGroupStatsIterator(stat));
     }
 
@@ -172,10 +170,15 @@ public abstract class AbstractImhotepServiceCore
     }
 
     @Override
-    public void handleGetSubsetFTGSIterator(final String sessionId, final Map<String, long[]> intFields, final Map<String, String[]> stringFields, final OutputStream os) throws IOException {
+    public void handleGetSubsetFTGSIterator(final String sessionId, final Map<String, long[]> intFields, final Map<String, String[]> stringFields, final List<List<String>> stats, final OutputStream os) throws IOException {
         doWithSession(sessionId, (ThrowingFunction<MTImhotepLocalMultiSession, Void, IOException>) session -> {
-            final FTGSIterator iterator = session.getSubsetFTGSIterator(intFields, stringFields);
-            return sendFTGSIterator(iterator, os);
+            try {
+                final FTGSIterator iterator = session.getSubsetFTGSIterator(intFields, stringFields, stats);
+                return sendFTGSIterator(iterator, os);
+            } catch (final ImhotepOutOfMemoryException e) {
+                // TODO: Is there some other way we can handle this exception?
+                throw Throwables.propagate(e);
+            }
         });
     }
 
@@ -273,17 +276,17 @@ public abstract class AbstractImhotepServiceCore
     }
 
     @Override
-    public void handleGetFTGSIteratorSplit(final String sessionId, final String[] intFields, final String[] stringFields, final OutputStream os, final int splitIndex, final int numSplits, final long termLimit) throws IOException {
+    public void handleGetFTGSIteratorSplit(final String sessionId, final String[] intFields, final String[] stringFields, final OutputStream os, final int splitIndex, final int numSplits, final long termLimit, final List<List<String>> stats) throws IOException {
         doWithSession(sessionId, (ThrowingFunction<MTImhotepLocalMultiSession, Void, IOException>) session -> {
-            final FTGSIterator merger = session.getFTGSIteratorSplit(intFields, stringFields, splitIndex, numSplits, termLimit);
+            final FTGSIterator merger = session.getFTGSIteratorSplit(intFields, stringFields, splitIndex, numSplits, termLimit, stats);
             return sendFTGSIterator(merger, os);
         });
     }
 
     @Override
-    public void handleGetSubsetFTGSIteratorSplit(final String sessionId, final Map<String, long[]> intFields, final Map<String, String[]> stringFields, final OutputStream os, final int splitIndex, final int numSplits) throws IOException {
+    public void handleGetSubsetFTGSIteratorSplit(final String sessionId, final Map<String, long[]> intFields, final Map<String, String[]> stringFields, final List<List<String>> stats, final OutputStream os, final int splitIndex, final int numSplits) throws IOException {
         doWithSession(sessionId, (ThrowingFunction<MTImhotepLocalMultiSession, Void, IOException>) session -> {
-            final FTGSIterator merger = session.getSubsetFTGSIteratorSplit(intFields, stringFields, splitIndex, numSplits);
+            final FTGSIterator merger = session.getSubsetFTGSIteratorSplit(intFields, stringFields, stats, splitIndex, numSplits);
             return sendFTGSIterator(merger, os);
         });
     }
@@ -301,9 +304,9 @@ public abstract class AbstractImhotepServiceCore
     }
 
     @Override
-    public void handleMergeSubsetFTGSIteratorSplit(final String sessionId, final Map<String, long[]> intFields, final Map<String, String[]> stringFields, final OutputStream os, final HostAndPort[] nodes, final int splitIndex) throws IOException {
+    public void handleMergeSubsetFTGSIteratorSplit(final String sessionId, final Map<String, long[]> intFields, final Map<String, String[]> stringFields, final List<List<String>> stats, final OutputStream os, final HostAndPort[] nodes, final int splitIndex) throws IOException {
         doWithSession(sessionId, (ThrowingFunction<MTImhotepLocalMultiSession, Void, IOException>) session -> {
-            final FTGSIterator merger = session.mergeSubsetFTGSSplit(intFields, stringFields, nodes, splitIndex);
+            final FTGSIterator merger = session.mergeSubsetFTGSSplit(intFields, stringFields, stats, nodes, splitIndex);
             return sendFTGSIterator(merger, os);
         });
     }
@@ -326,6 +329,15 @@ public abstract class AbstractImhotepServiceCore
         final List<Future<FTGSIterator[]>> splitRemoteIteratorFutures = new ArrayList<>();
 
         for (final MultiFTGSRequest.MultiFTGSSession sessionInfo : sessionInfoList) {
+            final List<List<String>> stats;
+            if (sessionInfo.getHasStats()) {
+                stats = sessionInfo.getStatsList()
+                        .stream()
+                        .map(docStat -> Lists.newArrayList(docStat.getStatList()))
+                        .collect(Collectors.toList());
+            } else {
+                stats = null;
+            }
             // This executor is fine because no real intensive work happens in these threads.
             final Future<FTGSIterator[]> future = multiFtgsExecutor.submit(new Callable<FTGSIterator[]>() {
                 @Override
@@ -335,7 +347,7 @@ public abstract class AbstractImhotepServiceCore
                     final FTGSIterator[] sessionIterators = doWithSession(localSessionChoice, (ThrowingFunction<MTImhotepLocalMultiSession, FTGSIterator[], IOException>) session -> {
                         final String[] intFields = isIntField ? new String[]{sessionInfo.getField()} : new String[0];
                         final String[] stringFields = isIntField ? new String[0] : new String[]{sessionInfo.getField()};
-                        final FTGSParams ftgsParams = new FTGSParams(intFields, stringFields, termLimit, -1, true);
+                        final FTGSParams ftgsParams = new FTGSParams(intFields, stringFields, termLimit, -1, true, stats);
                         return session.partialMergeFTGSSplit(sessionInfo.getSessionId(), ftgsParams, sessionNodes, splitIndex, nodes.length, numLocalSplits);
                     });
                     closer.registerOrClose(Closeables2.forArray(log, sessionIterators));
@@ -553,7 +565,7 @@ public abstract class AbstractImhotepServiceCore
 
     @Override
     public void handleRandomMetricRegroup(final String sessionId,
-                                          final int stat,
+                                          final List<String> stat,
                                           final String salt,
                                           final double p,
                                           final int targetGroup,
@@ -567,7 +579,7 @@ public abstract class AbstractImhotepServiceCore
 
     @Override
     public void handleRandomMetricMultiRegroup(final String sessionId,
-                                               final int stat,
+                                               final List<String> stat,
                                                final String salt,
                                                final int targetGroup,
                                                final double[] percentages,
@@ -587,13 +599,8 @@ public abstract class AbstractImhotepServiceCore
     }
 
     @Override
-    public int handleMetricRegroup(final String sessionId, final int stat, final long min, final long max, final long intervalSize, final boolean noGutters) throws ImhotepOutOfMemoryException {
+    public int handleMetricRegroup(final String sessionId, final List<String> stat, final long min, final long max, final long intervalSize, final boolean noGutters) throws ImhotepOutOfMemoryException {
         return doWithSession(sessionId, (ThrowingFunction<MTImhotepLocalMultiSession, Integer, ImhotepOutOfMemoryException>) session -> session.metricRegroup(stat, min, max, intervalSize, noGutters));
-    }
-
-    @Override
-    public int handleMetricRegroup2D(final String sessionId, final int xStat, final long xMin, final long xMax, final long xIntervalSize, final int yStat, final long yMin, final long yMax, final long yIntervalSize) throws ImhotepOutOfMemoryException {
-        return doWithSession(sessionId, (ThrowingFunction<MTImhotepLocalMultiSession, Integer, ImhotepOutOfMemoryException>) session -> session.metricRegroup2D(xStat, xMin, xMax, xIntervalSize, yStat, yMin, yMax, yIntervalSize));
     }
 
     @Override
@@ -608,7 +615,7 @@ public abstract class AbstractImhotepServiceCore
 
     public int handleMetricFilter(
             final String sessionId,
-            final int stat,
+            final List<String> stat,
             final long min,
             final long max,
             final boolean negate) throws ImhotepOutOfMemoryException {
@@ -618,7 +625,7 @@ public abstract class AbstractImhotepServiceCore
     @Override
     public int handleMetricFilter(
             final String sessionId,
-            final int stat,
+            final List<String> stat,
             final long min,
             final long max,
             final int targetGroup,

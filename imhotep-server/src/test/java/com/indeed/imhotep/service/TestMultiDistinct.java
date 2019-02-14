@@ -42,7 +42,6 @@ import org.junit.runners.Parameterized.Parameters;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeoutException;
@@ -51,6 +50,7 @@ import java.util.function.Function;
 
 import static com.indeed.imhotep.metrics.aggregate.AggregateStatTree.constant;
 import static com.indeed.imhotep.metrics.aggregate.AggregateStatTree.stat;
+import static java.util.Collections.singletonList;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -182,11 +182,13 @@ public class TestMultiDistinct {
             clusterRunner.startDaemon();
         }
 
+        final List<List<String>> stats = new ArrayList<>();
+
         try (ImhotepClient client = clusterRunner.createClient();
              ImhotepSession session = client.sessionBuilder(DATASET, TODAY.minusDays(2), TODAY).build()) {
             // SELECT DISTINCT(country)
             try (GroupStatsIterator statsIterator = RemoteImhotepMultiSession.aggregateDistinct(
-                    Collections.singletonList(new SessionField(session, "country")),
+                    singletonList(new SessionField(session, "country", stats)),
                     Lists.newArrayList(constant(true)),
                     false
             )) {
@@ -198,12 +200,12 @@ public class TestMultiDistinct {
                 assertFalse(statsIterator.hasNext());
             }
 
-            final int countIndex = session.pushStat("count()") - 1;
-            final AggregateStatTree countStat = stat(session, countIndex);
+            stats.add(singletonList("count()"));
+            final AggregateStatTree countStat = stat(session, stats.size() - 1);
 
             // SELECT DISTINCT(country HAVING count() > 2)
             try (GroupStatsIterator statsIterator = RemoteImhotepMultiSession.aggregateDistinct(
-                    Collections.singletonList(new SessionField(session, "country")),
+                    singletonList(new SessionField(session, "country", stats)),
                     Lists.newArrayList(countStat.gt(constant(2))),
                     false
             )) {
@@ -217,7 +219,7 @@ public class TestMultiDistinct {
 
             // SELECT DISTINCT(country HAVING count() > 100)
             try (GroupStatsIterator statsIterator = RemoteImhotepMultiSession.aggregateDistinct(
-                    Collections.singletonList(new SessionField(session, "country")),
+                    singletonList(new SessionField(session, "country", stats)),
                     Lists.newArrayList(countStat.gt(constant(100))),
                     false
             )) {
@@ -231,7 +233,7 @@ public class TestMultiDistinct {
             //        DISTINCT(country HAVING count() > 2),
             //        DISTINCT(country HAVING count() > 100)
             try (GroupStatsIterator statsIterator = RemoteImhotepMultiSession.aggregateDistinct(
-                    Collections.singletonList(new SessionField(session, "country")),
+                    singletonList(new SessionField(session, "country", stats)),
                     Lists.newArrayList(
                             constant(true),
                             countStat.gt(constant(2)),
@@ -257,15 +259,14 @@ public class TestMultiDistinct {
             }
 
             // deliberately don't pop to have unused stats on the stack to test
-            final int clicksIndex = session.pushStat("clicks") - 1;
-            final int impressionsIndex = session.pushStat("impressions") - 1;
-
-            final AggregateStatTree clickStat = stat(session, clicksIndex);
-            final AggregateStatTree impressionsStat = stat(session, impressionsIndex);
+            stats.add(singletonList("clicks"));
+            final AggregateStatTree clickStat = stat(session, stats.size() - 1);
+            stats.add(singletonList("impressions"));
+            final AggregateStatTree impressionsStat = stat(session, stats.size() - 1);
 
             // SELECT DISTINCT(q HAVING clicks / impressions >= 0.25)
             try (GroupStatsIterator statsIterator = RemoteImhotepMultiSession.aggregateDistinct(
-                    Collections.singletonList(new SessionField(session, "q")),
+                    singletonList(new SessionField(session, "q", stats)),
                     Lists.newArrayList(clickStat.divide(impressionsStat).gte(constant(0.25))),
                     false
             )) {
@@ -371,6 +372,9 @@ public class TestMultiDistinct {
             clusterRunner.startDaemon();
         }
 
+        final List<List<String>> stats1 = new ArrayList<>();
+        final List<List<String>> stats2 = new ArrayList<>();
+
         try (ImhotepClient client = clusterRunner.createClient();
              ImhotepSession session1 = client.sessionBuilder(dataset1, TODAY.minusDays(2), TODAY).build();
              ImhotepSession session2 = client.sessionBuilder(dataset2, TODAY.minusDays(2), TODAY).build()
@@ -378,8 +382,8 @@ public class TestMultiDistinct {
             // SELECT DISTINCT(country)
             try (GroupStatsIterator statsIterator = RemoteImhotepMultiSession.aggregateDistinct(
                     Lists.newArrayList(
-                            new SessionField(session1, "country"),
-                            new SessionField(session2, "country")
+                            new SessionField(session1, "country", stats1),
+                            new SessionField(session2, "country", stats2)
                     ),
                     Lists.newArrayList(constant(true)),
                     false
@@ -392,8 +396,8 @@ public class TestMultiDistinct {
                 assertFalse(statsIterator.hasNext());
             }
 
-            session1.pushStat("count()");
-            session2.pushStat("count()");
+            stats1.add(singletonList("count()"));
+            stats2.add(singletonList("count()"));
 
             final AggregateStatTree count1 = stat(session1, 0);
             final AggregateStatTree count2 = stat(session2, 0);
@@ -401,8 +405,8 @@ public class TestMultiDistinct {
             // SELECT DISTINCT(country) HAVING dataset1.count() > dataset2.count()
             try (GroupStatsIterator statsIterator = RemoteImhotepMultiSession.aggregateDistinct(
                     Lists.newArrayList(
-                            new SessionField(session1, "country"),
-                            new SessionField(session2, "country")
+                            new SessionField(session1, "country", stats1),
+                            new SessionField(session2, "country", stats2)
                     ),
                     Lists.newArrayList(count1.gt(count2)),
                     false
@@ -435,8 +439,8 @@ public class TestMultiDistinct {
             // GROUP BY country in ("AU", "GB", "JP", "US") SELECT DISTINCT(clicks)
             try (GroupStatsIterator statsIterator = RemoteImhotepMultiSession.aggregateDistinct(
                     Lists.newArrayList(
-                            new SessionField(session1, ds1clicks),
-                            new SessionField(session2, ds2clicks)
+                            new SessionField(session1, ds1clicks, stats1),
+                            new SessionField(session2, ds2clicks, stats2)
                     ),
                     Lists.newArrayList(constant(true)),
                     true
@@ -471,8 +475,8 @@ public class TestMultiDistinct {
             //        DISTINCT(clicks having count() = 30)
             try (GroupStatsIterator statsIterator = RemoteImhotepMultiSession.aggregateDistinct(
                     Lists.newArrayList(
-                            new SessionField(session1, ds1clicks),
-                            new SessionField(session2, ds2clicks)
+                            new SessionField(session1, ds1clicks, stats1),
+                            new SessionField(session2, ds2clicks, stats2)
                     ),
                     Lists.newArrayList(
                             constant(true),
@@ -592,41 +596,42 @@ public class TestMultiDistinct {
             clusterRunner.startDaemon();
         }
 
+        final List<List<String>> stats = new ArrayList<>();
+
         try (ImhotepClient client = clusterRunner.createClient();
              ImhotepSession session = client.sessionBuilder(dataset, TODAY, TODAY.plusDays(1)).build()) {
 
-            session.pushStat("unixtime");
-            session.metricRegroup(0, TODAY.getMillis() / 1000, TODAY.plusDays(1).getMillis() / 1000, 3600);
-            session.popStat();
+            session.metricRegroup(singletonList("unixtime"), TODAY.getMillis() / 1000, TODAY.plusDays(1).getMillis() / 1000, (long) 3600);
 
-            final List<SessionField> sessionField = Collections.singletonList(new SessionField(session, "country"));
+            final List<SessionField> sessionField = singletonList(new SessionField(session, "country", stats));
             final int[] parentGroups = {0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
 
             // GROUP BY TIME(1h) SELECT DISTINCT_WINDOW(1, country)
             testIntDistinctWindow(
                     rawDistincts,
                     sessionField,
-                    Collections.singletonList(constant(true)),
-                    Collections.singletonList(1),
+                    singletonList(constant(true)),
+                    singletonList(1),
                     parentGroups
             );
             // GROUP BY TIME(1h) SELECT DISTINCT_WINDOW(2, country)
             testIntDistinctWindow(
                     distinctWindow2,
                     sessionField,
-                    Collections.singletonList(constant(true)),
-                    Collections.singletonList(2),
+                    singletonList(constant(true)),
+                    singletonList(2),
                     parentGroups
             );
 
-            session.pushStat("count()");
+            stats.add(singletonList("count()"));
+
             // GROUP BY TIME(1h) SELECT DISTINCT_WINDOW(5, country having count() >= 2)
             final AggregateStatTree countGte2 = AggregateStatTree.stat(session, 0).gte(AggregateStatTree.constant(2));
             testIntDistinctWindow(
                     rollingTwoOfFive,
                     sessionField,
-                    Collections.singletonList(countGte2),
-                    Collections.singletonList(5),
+                    singletonList(countGte2),
+                    singletonList(5),
                     parentGroups
             );
 
@@ -660,8 +665,8 @@ public class TestMultiDistinct {
             testIntDistinctWindow(
                     distinctWindow2NoonGap,
                     sessionField,
-                    Collections.singletonList(constant(true)),
-                    Collections.singletonList(2),
+                    singletonList(constant(true)),
+                    singletonList(2),
                     noonSplitParentGroups
             );
 
@@ -669,8 +674,8 @@ public class TestMultiDistinct {
             testIntDistinctWindow(
                     rollingTwoOfFiveNoonGap,
                     sessionField,
-                    Collections.singletonList(countGte2),
-                    Collections.singletonList(5),
+                    singletonList(countGte2),
+                    singletonList(5),
                     noonSplitParentGroups
             );
         }
@@ -709,44 +714,46 @@ public class TestMultiDistinct {
             clusterRunner.startDaemon();
         }
 
+        final List<List<String>> stats1 = new ArrayList<>();
+        final List<List<String>> stats2 = new ArrayList<>();
+
         try (final ImhotepClient client = clusterRunner.createClient();
              final ImhotepSession session1 = client.sessionBuilder(dataset1, TODAY, TODAY.plusDays(8)).build();
              final ImhotepSession session2 = client.sessionBuilder(dataset2, TODAY, TODAY.plusDays(8)).build();
         ) {
-            session1.pushStat("unixtime");
-            session1.metricRegroup(0, TODAY.getMillis() / 1000, TODAY.plusDays(8).getMillis() / 1000, 3600 * 24);
-            session1.popStat();
+            session1.metricRegroup(singletonList("unixtime"), TODAY.getMillis() / 1000, TODAY.plusDays(8).getMillis() / 1000, (long) (3600 * 24));
+            session2.metricRegroup(singletonList("unixtime"), TODAY.getMillis() / 1000, TODAY.plusDays(8).getMillis() / 1000, (long) (3600 * 24));
 
-            session2.pushStat("unixtime");
-            session2.metricRegroup(0, TODAY.getMillis() / 1000, TODAY.plusDays(8).getMillis() / 1000, 3600 * 24);
-            session2.popStat();
-
-            final AggregateStatTree count1 = AggregateStatTree.stat(session1, session1.pushStat("count()") - 1);
-            final AggregateStatTree count2 = AggregateStatTree.stat(session2, session2.pushStat("count()") - 1);
+            stats1.add(singletonList("count()"));
+            final AggregateStatTree count1 = AggregateStatTree.stat(session1, stats1.size() - 1);
+            stats2.add(singletonList("count()"));
+            final AggregateStatTree count2 = AggregateStatTree.stat(session2, stats2.size() - 1);
 
             final List<SessionField> sessionFields = Lists.newArrayList(
-                    new SessionField(session1, "country"),
-                    new SessionField(session2, "country")
+                    new SessionField(session1, "country", stats1),
+                    new SessionField(session2, "country", stats2)
             );
             final int[] parentGroups = {0, 1, 1, 1, 1, 1, 1, 1};
 
             testIntDistinctWindow(
                     window2GT1,
                     sessionFields,
-                    Collections.singletonList(count2.gt(count1)),
-                    Collections.singletonList(2),
+                    singletonList(count2.gt(count1)),
+                    singletonList(2),
                     parentGroups
             );
 
-            final AggregateStatTree count1_2 = AggregateStatTree.stat(session1, session1.pushStat("count()") - 1);
-            final AggregateStatTree zero1 = AggregateStatTree.stat(session1, session1.pushStat("0") - 1);
+            stats1.add(singletonList("count()"));
+            final AggregateStatTree count1_2 = AggregateStatTree.stat(session1, stats1.size() - 1);
+            stats1.add(singletonList("0"));
+            final AggregateStatTree zero1 = AggregateStatTree.stat(session1, stats1.size() - 1);
 
             // same thing but using (count() + count() + [0]) / 2 to push multiple stats to one of the sessions.
             testIntDistinctWindow(
                     window2GT1,
                     sessionFields,
-                    Collections.singletonList(count2.gt(count1.plus(count1_2).plus(zero1).divide(AggregateStatTree.constant(2)))),
-                    Collections.singletonList(2),
+                    singletonList(count2.gt(count1.plus(count1_2).plus(zero1).divide(AggregateStatTree.constant(2)))),
+                    singletonList(2),
                     parentGroups
             );
         }

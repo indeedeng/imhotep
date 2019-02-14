@@ -22,8 +22,10 @@ import com.indeed.imhotep.RegroupCondition;
 import com.indeed.imhotep.TermCount;
 import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
 
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.io.Closeable;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -31,6 +33,10 @@ import java.util.Map;
 @NotThreadSafe
 public interface ImhotepSession
     extends Closeable, Instrumentation.Provider {
+
+    static List<String> stackStat(final int stat) {
+        return Collections.singletonList("global_stack " + stat);
+    }
 
     String getSessionId();
 
@@ -45,18 +51,24 @@ public interface ImhotepSession
     /**
      * get the current total of a given metric for each group
      * Trailing groups with 0 values can cause the returned array to be shorter than the total number of groups.
-     * @param stat the index of the metric
+     * @param stat the metric
      * @return an array with the metric values, indexed by group
      */
-    long[] getGroupStats(int stat);
+    long[] getGroupStats(List<String> stat) throws ImhotepOutOfMemoryException;
+
+    // TODO:
+    // long[][] getGroupStats(List<List<String>> stats) throws ImhotepOutOfMemoryException;
 
     /**
      * get the current total of a given metric for each group
      * Trailing groups with 0 values can cause the returned array to be shorter than the total number of groups.
-     * @param stat the index of the metric
+     * @param stat the metric
      * @return an iterator with the metric values, indexed by group
      */
-    GroupStatsIterator getGroupStatsIterator(int stat);
+    GroupStatsIterator getGroupStatsIterator(List<String> stat) throws ImhotepOutOfMemoryException;
+
+    // TODO:
+    // GroupStatsIterator getGroupStatsIterator(List<List<String>> stats) throws ImhotepOutOfMemoryException;
 
     /**
      * get an iterator over all (field, term, group, stat) tuples for the given fields
@@ -65,7 +77,7 @@ public interface ImhotepSession
      * @return an iterator. result is the same as after calling
      *          getFTGSIterator(new FTGSParams(intFields, stringFields, 0, -1, true));
      */
-    FTGSIterator getFTGSIterator(String[] intFields, String[] stringFields);
+    FTGSIterator getFTGSIterator(String[] intFields, String[] stringFields, @Nullable List<List<String>> stats) throws ImhotepOutOfMemoryException;
 
     /**
      * get an iterator over up to termLimit (field, term, group, stat) tuples for the given fields
@@ -75,7 +87,7 @@ public interface ImhotepSession
      * @return an iterator. result is the same as after calling
      *          getFTGSIterator(new FTGSParams(intFields, stringFields, termLimit, -1, true));
      */
-    FTGSIterator getFTGSIterator(String[] intFields, String[] stringFields, long termLimit);
+    FTGSIterator getFTGSIterator(String[] intFields, String[] stringFields, long termLimit, @Nullable List<List<String>> stats) throws ImhotepOutOfMemoryException;
 
     /**
      * get an iterator over (field, term, group, stat) tuples for the top termLimit terms sorted by stats in sortStat for the given fields
@@ -86,9 +98,9 @@ public interface ImhotepSession
      * @return an iterator. result is the same as after calling
      *          getFTGSIterator(new FTGSParams(intFields, stringFields, termLimit, sortStat, true));
      */
-    FTGSIterator getFTGSIterator(String[] intFields, String[] stringFields, long termLimit, int sortStat);
+    FTGSIterator getFTGSIterator(String[] intFields, String[] stringFields, long termLimit, int sortStat, @Nullable List<List<String>> stats) throws ImhotepOutOfMemoryException;
 
-    FTGSIterator getSubsetFTGSIterator(Map<String, long[]> intFields, Map<String, String[]> stringFields);
+    FTGSIterator getSubsetFTGSIterator(Map<String, long[]> intFields, Map<String, String[]> stringFields, @Nullable List<List<String>> stats) throws ImhotepOutOfMemoryException;
 
     /**
      * get an iterator over some subset (maybe all) of (field, term, group, stat) tuples for the given fields
@@ -122,7 +134,7 @@ public interface ImhotepSession
      * @param params params for resulting iterator
      * @return an iterator
      */
-    FTGSIterator getFTGSIterator(FTGSParams params);
+    FTGSIterator getFTGSIterator(FTGSParams params) throws ImhotepOutOfMemoryException;
 
     /**
      * Get distinct terms count per group.
@@ -300,7 +312,7 @@ public interface ImhotepSession
      * @param positiveGroup the group where terms with values &gt;= p will go
      * @throws ImhotepOutOfMemoryException if performing this operation would cause imhotep to go out of memory
      */
-    void randomMetricRegroup(int stat, String salt, double p, int targetGroup, int negativeGroup, int positiveGroup) throws ImhotepOutOfMemoryException;
+    void randomMetricRegroup(List<String> stat, String salt, double p, int targetGroup, int negativeGroup, int positiveGroup) throws ImhotepOutOfMemoryException;
 
     /**
      * Same as <code>randomMultiRegroup</code> but regrouping is based on metric value
@@ -311,14 +323,11 @@ public interface ImhotepSession
      * @param resultGroups The groups to regroup into, works together with percentages
      * @throws ImhotepOutOfMemoryException if performing this operation would cause imhotep to go out of memory
      */
-    void randomMetricMultiRegroup(int stat, String salt, int targetGroup, double[] percentages, int[] resultGroups) throws ImhotepOutOfMemoryException;
+    void randomMetricMultiRegroup(List<String> stat, String salt, int targetGroup, double[] percentages, int[] resultGroups) throws ImhotepOutOfMemoryException;
 
-    int metricRegroup(int stat, long min, long max, long intervalSize) throws ImhotepOutOfMemoryException;
+    int metricRegroup(List<String> stat, long min, long max, long intervalSize) throws ImhotepOutOfMemoryException;
 
-    int metricRegroup(int stat, long min, long max, long intervalSize, boolean noGutters) throws ImhotepOutOfMemoryException;
-
-    int metricRegroup2D(int xStat, long xMin, long xMax, long xIntervalSize,
-                        int yStat, long yMin, long yMax, long yIntervalSize) throws ImhotepOutOfMemoryException;
+    int metricRegroup(List<String> stat, long min, long max, long intervalSize, boolean noGutters) throws ImhotepOutOfMemoryException;
 
     /**
      * Unconditional remapping from one groups to another groups.
@@ -350,7 +359,7 @@ public interface ImhotepSession
      * @return the number of groups after applying the regroup
      * @throws ImhotepOutOfMemoryException if performing this operation would cause imhotep to run out of memory
      */
-    int metricFilter(int stat, long min, long max, boolean negate) throws ImhotepOutOfMemoryException;
+    int metricFilter(List<String> stat, long min, long max, boolean negate) throws ImhotepOutOfMemoryException;
 
     /**
      * Move documents based on whether or not the given stat is within the specified range.
@@ -364,7 +373,7 @@ public interface ImhotepSession
      * @return the number of groups after applying the regroup
      * @throws ImhotepOutOfMemoryException if performing this operation would cause imhotep to run out of memory
      */
-    int metricFilter(int stat, long min, long max, int targetGroup, int negativeGroup, int positiveGroup) throws ImhotepOutOfMemoryException;
+    int metricFilter(List<String> stat, long min, long max, int targetGroup, int negativeGroup, int positiveGroup) throws ImhotepOutOfMemoryException;
 
     /**
      * Return a list of the top k terms for a field, sorted by document frequency descending.
@@ -387,6 +396,7 @@ public interface ImhotepSession
      * @return the number of stats after pushing this metric
      * @throws ImhotepOutOfMemoryException if performing this operation would cause imhotep to run out of memory
      */
+    @Deprecated
     int pushStat(String statName) throws ImhotepOutOfMemoryException;
 
     /**
@@ -395,12 +405,14 @@ public interface ImhotepSession
      * @return the number of stats after pushing the last metric
      * @throws ImhotepOutOfMemoryException if performing this operation would cause imhotep to run out of memory
      */
+    @Deprecated
     int pushStats(List<String> statNames) throws ImhotepOutOfMemoryException;
 
     /**
      * pop the most recently-added metric
      * @return the number of stats after popping the metric
      */
+    @Deprecated
     int popStat();
 
     /**

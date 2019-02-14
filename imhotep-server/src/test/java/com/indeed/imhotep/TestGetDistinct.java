@@ -18,6 +18,7 @@ import org.junit.Test;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Collections;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
 
@@ -86,9 +87,7 @@ public class TestGetDistinct {
 
         final ImhotepClient client = clusterRunner.createClient();
         final ImhotepSession session = client.sessionBuilder(dataset, date, date.plusDays(duration)).build();
-        session.pushStat("shardId");
-        session.metricRegroup(0, 1, 1 + duration, 1, true);
-        session.popStat();
+        session.metricRegroup(Collections.singletonList("shardId"), (long) 1, (long) (1 + duration), (long) 1, true);
         final GroupStatsIterator result = session.getDistinct("if1", true);
         assertTrue(result.hasNext());
         assertEquals(0, result.nextLong());

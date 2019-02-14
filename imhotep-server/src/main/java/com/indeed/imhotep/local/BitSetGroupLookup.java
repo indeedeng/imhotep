@@ -21,15 +21,10 @@ import com.indeed.util.core.threads.ThreadSafeBitSet;
 import java.util.Arrays;
 
 final class BitSetGroupLookup extends GroupLookup {
-    /**
-     *
-     */
-    private final ImhotepLocalSession session;
     private final FastBitSet bitSet;
     private final int size;
 
-    BitSetGroupLookup(final ImhotepLocalSession imhotepLocalSession, final int size) {
-        this.session = imhotepLocalSession;
+    BitSetGroupLookup(final int size) {
         this.size = size;
         this.bitSet = new FastBitSet(size);
     }
@@ -40,7 +35,8 @@ final class BitSetGroupLookup extends GroupLookup {
                                  final BitTree groupsSeen,
                                  final int[] docIdBuf,
                                  final long[] valBuf,
-                                 final int[] docGroupBuffer) {
+                                 final int[] docGroupBuffer,
+                                 final ImhotepLocalSession.MetricStack metricStack) {
         int rewriteHead = 0;
         // remap groups and filter out useless docids (ones with group = 0), keep track of groups that were found
         for (int i = 0; i < n; i++) {
@@ -55,10 +51,10 @@ final class BitSetGroupLookup extends GroupLookup {
 
         if (rewriteHead > 0) {
             groupsSeen.set(1);
-            if (session.numStats > 0) {
+            if (metricStack.getNumStats() > 0) {
                 Arrays.fill(docGroupBuffer, 0, rewriteHead, 1);
-                for (int statIndex = 0; statIndex < session.numStats; statIndex++) {
-                    ImhotepJavaLocalSession.updateGroupStatsDocIdBuf(session.statLookup.get(statIndex), termGrpStats[statIndex], docGroupBuffer, docIdBuf, valBuf, rewriteHead);
+                for (int statIndex = 0; statIndex < metricStack.getNumStats(); statIndex++) {
+                    ImhotepJavaLocalSession.updateGroupStatsDocIdBuf(metricStack.get(statIndex), termGrpStats[statIndex], docGroupBuffer, docIdBuf, valBuf, rewriteHead);
                 }
             }
         }
@@ -216,10 +212,5 @@ final class BitSetGroupLookup extends GroupLookup {
 
     public static long calcMemUsageForSize(final int sz) {
         return 8L * ((sz + 64) >> 6);
-    }
-
-    @Override
-    public ImhotepLocalSession getSession() {
-        return this.session;
     }
 }

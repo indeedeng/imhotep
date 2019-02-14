@@ -34,8 +34,9 @@ class FlamdexFTGSIterator extends AbstractFlamdexFTGSIterator {
             final ImhotepLocalSession imhotepLocalSession,
             final SharedReference<FlamdexReader> flamdexReader,
             final String[] intFields,
-            final String[] stringFields) {
-        super(imhotepLocalSession, flamdexReader);
+            final String[] stringFields,
+            final ImhotepLocalSession.MetricStack stack) {
+        super(imhotepLocalSession, flamdexReader, stack);
         this.intFields = intFields;
         this.stringFields = stringFields;
     }
