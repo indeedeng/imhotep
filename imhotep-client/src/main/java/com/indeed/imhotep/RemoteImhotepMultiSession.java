@@ -16,6 +16,7 @@
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
+import com.google.protobuf.ByteString;
 import com.indeed.imhotep.api.FTGAIterator;
 import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.api.FTGSModifiers;
@@ -25,6 +26,7 @@ import com.indeed.imhotep.api.HasSessionId;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.api.PerformanceStats;
+import com.indeed.imhotep.io.ImhotepProtobufShipping;
 import com.indeed.imhotep.io.RequestTools;
 import com.indeed.imhotep.io.RequestTools.GroupMultiRemapRuleSender;
 import com.indeed.imhotep.io.RequestTools.ImhotepRequestSender;
@@ -39,6 +41,9 @@ import it.unimi.dsi.fastutil.longs.LongIterators;
 import org.apache.log4j.Logger;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import java.io.ByteArrayOutputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
@@ -51,7 +56,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 /**
@@ -337,6 +341,21 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
             final List<AggregateStatTree> filters,
             final boolean isIntField
     ) {
+        return aggregateDistinct(sessionsWithFields, filters, Collections.nCopies(filters.size(), 1), isIntField, null);
+    }
+
+    /**
+     * The data in the returned GroupStatsIterator is laid out as
+     * (group = g, filter = f, assuming 3 filters)
+     * g0 f0, g0 f1, g0 f2, g1 f0, g1 f1, g1 f2, ...
+     */
+    public static GroupStatsIterator aggregateDistinct(
+            final List<SessionField> sessionsWithFields,
+            final List<AggregateStatTree> filters,
+            final List<Integer> windowSizes,
+            final boolean isIntField,
+            @Nullable final int[] parentGroups
+    ) {
         final MultiFTGSRequest.Builder builder = MultiFTGSRequest.newBuilder();
         final List<RemoteImhotepMultiSession> remoteSessions = processSessionFields(sessionsWithFields, builder);
         builder
@@ -344,6 +363,10 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
                 .setIsIntField(isIntField);
 
         final Pair<Integer, HostAndPort>[] indexedServers = multiFtgsIndexedServers(builder);
+        builder.addAllWindowSize(windowSizes);
+        if (parentGroups != null) {
+            builder.setParentGroups(ByteString.copyFrom(ImhotepProtobufShipping.runLengthEncode(parentGroups)));
+        }
         final MultiFTGSRequest baseRequest = builder.build();
 
         final Closer closeOnFailCloser = Closer.create();

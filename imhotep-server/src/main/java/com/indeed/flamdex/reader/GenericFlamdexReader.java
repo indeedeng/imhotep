@@ -15,7 +15,6 @@ package com.indeed.flamdex.reader;
 
 import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.dynamic.DynamicFlamdexReader;
-import com.indeed.flamdex.ramses.RamsesFlamdexWrapper;
 import com.indeed.flamdex.simple.SimpleFlamdexReader;
 import com.indeed.imhotep.DynamicIndexSubshardDirnameUtil;
 import org.apache.commons.lang.StringUtils;
@@ -41,14 +40,9 @@ public class GenericFlamdexReader {
 
     public static FlamdexReader open(final Path directory, final int numDocs) throws IOException {
         final FlamdexFormatVersion formatVersion = getFlamdexFormatVersion(directory);
-        final FlamdexReader r = numDocs < 0 ?
+        return numDocs < 0 ?
                 internalOpen(directory, formatVersion) :
                 internalOpen(directory, formatVersion, numDocs);
-
-        if (RamsesFlamdexWrapper.ramsesFilesExist(directory)) {
-            return new RamsesFlamdexWrapper(r, directory);
-        }
-        return r;
     }
 
     private static FlamdexReader internalOpen(final Path directory, final FlamdexFormatVersion formatVersion) throws IOException {

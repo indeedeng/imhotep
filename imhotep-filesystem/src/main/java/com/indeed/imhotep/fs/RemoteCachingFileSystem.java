@@ -59,7 +59,7 @@ class RemoteCachingFileSystem extends FileSystem {
         this.provider = provider;
 
         final RemoteFileStore backingFileStore = RemoteFileStoreType.fromName((String) configuration.get("imhotep.fs.store.type"))
-                .getFactory().create(configuration);
+                .getFactory().create(configuration, statsEmitter);
 
         fileStore = new SqarRemoteFileStore(backingFileStore, configuration);
 

@@ -19,9 +19,8 @@ import com.indeed.imhotep.archive.FileMetadata;
 import com.indeed.imhotep.archive.SquallArchiveReader;
 import org.apache.commons.io.IOUtils;
 import org.apache.hadoop.fs.FSDataInputStream;
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.LocatedFileStatus;
-import org.apache.hadoop.fs.RemoteIterator;
 import org.yaml.snakeyaml.DumperOptions;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.CustomClassLoaderConstructor;
@@ -135,11 +134,9 @@ public class FlamdexMetadata {
             IOUtils.copy(input, out);
             final String metadataContent = out.toString();
             final FlamdexMetadata metadata = loader.loadAs(metadataContent, FlamdexMetadata.class);
-            final RemoteIterator<LocatedFileStatus> locatedFileStatusRemoteIterator = hadoopFilesystem.listFiles(hadoopPath, false);
             final List<Path> paths = new ArrayList<>();
-            while (locatedFileStatusRemoteIterator.hasNext()) {
-                final LocatedFileStatus next = locatedFileStatusRemoteIterator.next();
-                paths.add(Paths.get(next.getPath().toString()));
+            for (final FileStatus fileStatus : hadoopFilesystem.listStatus(hadoopPath)) {
+                paths.add(Paths.get(fileStatus.getPath().toString()));
             }
             setIntAndStringFields(metadata, paths);
             return metadata;

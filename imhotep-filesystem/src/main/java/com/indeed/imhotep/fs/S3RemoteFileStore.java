@@ -19,9 +19,11 @@ import com.amazonaws.services.s3.model.AmazonS3Exception;
 import com.amazonaws.services.s3.model.GetObjectRequest;
 import com.amazonaws.services.s3.model.ListObjectsRequest;
 import com.amazonaws.services.s3.model.ObjectListing;
+import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import com.indeed.imhotep.service.MetricStatsEmitter;
 
 import javax.annotation.Nullable;
 import java.io.IOException;
@@ -38,11 +40,13 @@ class S3RemoteFileStore extends RemoteFileStore {
 
     private final String s3bucket;
     private final String s3prefix;
+    private final MetricStatsEmitter statsEmitter;
     private final AmazonS3Client client;
 
-    private S3RemoteFileStore(final Map<String, ?> settings) {
+    private S3RemoteFileStore(final Map<String, ?> settings, final MetricStatsEmitter statsEmitter) {
         s3bucket = (String) settings.get("imhotep.fs.filestore.s3.bucket");
         s3prefix = Strings.nullToEmpty((String) settings.get("imhotep.fs.filestore.s3.prefix")).trim();
+        this.statsEmitter = statsEmitter;
         final String s3key = (String) settings.get("imhotep.fs.filestore.s3.key");
         final String s3secret = (String) settings.get("imhotep.fs.filestore.s3.secret");
         final BasicAWSCredentials cred = new BasicAWSCredentials(s3key, s3secret);
@@ -161,7 +165,9 @@ class S3RemoteFileStore extends RemoteFileStore {
         final String s3path = getS3path(srcPath);
 
         try {
-            client.getObject(new GetObjectRequest(s3bucket, s3path), destPath.toFile());
+            final ObjectMetadata metadata = client.getObject(new GetObjectRequest(s3bucket, s3path), destPath.toFile());
+            final long fileSize = metadata.getContentLength();  // not tested
+            reportFileDownload(statsEmitter, fileSize);
         } catch (final AmazonS3Exception e) {
             throw new IOException("Failed to download file " + srcPath, e);
         }
@@ -178,6 +184,8 @@ class S3RemoteFileStore extends RemoteFileStore {
         } else {
             request.setRange(startOffset, startOffset + length);
         }
+
+        reportFileDownload(statsEmitter, length);
 
         try {
             return client.getObject(request).getObjectContent();
@@ -197,8 +205,8 @@ class S3RemoteFileStore extends RemoteFileStore {
 
     static class Factory implements RemoteFileStore.Factory {
         @Override
-        public RemoteFileStore create(final Map<String, ?> configuration) {
-            return new S3RemoteFileStore(configuration);
+        public RemoteFileStore create(final Map<String, ?> configuration, final MetricStatsEmitter statsEmitter) {
+            return new S3RemoteFileStore(configuration, statsEmitter);
         }
     }
 }

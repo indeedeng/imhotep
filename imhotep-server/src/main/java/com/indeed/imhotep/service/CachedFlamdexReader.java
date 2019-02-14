@@ -23,8 +23,6 @@ import com.indeed.flamdex.api.IntValueLookup;
 import com.indeed.flamdex.api.StringTermDocIterator;
 import com.indeed.flamdex.api.StringTermIterator;
 import com.indeed.flamdex.api.StringValueLookup;
-import com.indeed.flamdex.lucene.LuceneFlamdexReader;
-import com.indeed.flamdex.ramses.RamsesFlamdexWrapper;
 import com.indeed.imhotep.ImhotepStatusDump;
 import com.indeed.imhotep.MemoryReservationContext;
 import com.indeed.util.core.io.Closeables2;
@@ -33,9 +31,6 @@ import it.unimi.dsi.fastutil.ints.IntIterator;
 import org.apache.log4j.Logger;
 
 import javax.annotation.Nullable;
-import java.io.IOException;
-import java.nio.file.DirectoryStream;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
@@ -54,8 +49,6 @@ public class CachedFlamdexReader implements FlamdexReader, MetricCache {
     @Nullable
     private final MemoryReservationContext memory;
 
-    private final int memoryReservedForIndex;
-
     private final FlamdexReader wrapped;
 
     private final MetricCache metricCache;
@@ -68,12 +61,6 @@ public class CachedFlamdexReader implements FlamdexReader, MetricCache {
         //closer will free these in the opposite order that they are added
         this.memory = memory;
         this.wrapped = wrapped;
-        if (wrapped instanceof LuceneFlamdexReader || wrapped instanceof RamsesFlamdexWrapper) {
-            memoryReservedForIndex = getMemoryUsedForLuceneIndex(wrapped.getDirectory());
-            memory.claimMemory(memoryReservedForIndex);
-        } else {
-            memoryReservedForIndex = 0;
-        }
         metricCache = new MetricCacheImpl(
                 metric -> {
                     final long memoryUsed = wrapped.memoryRequired(metric);
@@ -222,9 +209,6 @@ public class CachedFlamdexReader implements FlamdexReader, MetricCache {
             if (memory == null) {
                 return;
             }
-            if (memoryReservedForIndex > 0) {
-                memory.releaseMemory(memoryReservedForIndex);
-            }
             if (memory.usedMemory() > 0) {
                 log.error("CachedFlamdexReader is leaking! memory reserved after all memory has been freed: " + memory.usedMemory());
             }
@@ -234,27 +218,5 @@ public class CachedFlamdexReader implements FlamdexReader, MetricCache {
 
     public FlamdexReader getWrapped() {
         return this.wrapped;
-    }
-
-    private static int getMemoryUsedForLuceneIndex(final Path shardDirectory) {
-        if (!Files.exists(shardDirectory)) {
-            return 0;
-        }
-
-        int memoryNeeded = 0;
-        try (DirectoryStream<Path> files = Files.newDirectoryStream(shardDirectory, new DirectoryStream.Filter<Path>() {
-            @Override
-            public boolean accept(final Path entry) throws IOException {
-                return entry.getFileName().toString().endsWith(".tii");
-            }
-        })) {
-            for (final Path tii : files) {
-                memoryNeeded += 4 * Files.size(tii); // reserve 4 times the index file size to account for decompression
-            }
-        } catch (final IOException e) {
-            throw new IllegalStateException("Could not get memory used for lucene index", e);
-        }
-
-        return memoryNeeded;
     }
 }

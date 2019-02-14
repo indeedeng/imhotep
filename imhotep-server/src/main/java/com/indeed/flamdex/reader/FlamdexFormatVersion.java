@@ -20,7 +20,7 @@ package com.indeed.flamdex.reader;
 public enum FlamdexFormatVersion {
     SIMPLE(0),
     @Deprecated PFORDELTA(1),
-    LUCENE(2),
+    @Deprecated LUCENE(2),
     DYNAMIC(3);
 
     private final int version;

@@ -11,15 +11,18 @@
  * express or implied. See the License for the specific language governing permissions and
  * limitations under the License.
  */
- package com.indeed.flamdex.lucene;
+ package com.indeed.imhotep.exceptions;
 
-import java.io.IOException;
-
-class LuceneUtils {
-    private LuceneUtils() {
+public class MultiValuedFieldStringLenException extends ImhotepKnownException {
+    public MultiValuedFieldStringLenException() {
+        super();
     }
 
-    static RuntimeException ioRuntimeException(final IOException e) {
-        return new RuntimeException("IOException in underlying lucene layer", e);
+    public MultiValuedFieldStringLenException(final String s) {
+        super(s);
+    }
+
+    public MultiValuedFieldStringLenException(final String message, final Throwable cause) {
+        super(message, cause);
     }
 }
