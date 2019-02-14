@@ -45,11 +45,11 @@ public class BoundedPriorityQueue<E> extends AbstractQueue<E> {
 
     private void internalOffer(final E e) {
         if (size == heap.length) {
-            heap = ObjectArrays.grow(heap, size * 2);
+            heap = ObjectArrays.grow(heap, size+1);
         }
 
         heap[size++] = e;
-        ObjectHeaps.upHeap(heap, size, size - 1, comparator);
+        ObjectHeaps.upHeap(heap, size, size-1, comparator);
     }
 
     /**
