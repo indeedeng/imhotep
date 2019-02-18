@@ -17,6 +17,7 @@ import com.indeed.flamdex.api.DocIdStream;
 import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.api.IntTermIterator;
 import com.indeed.flamdex.api.StringTermIterator;
+import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.core.reference.SharedReference;
 
@@ -41,7 +42,7 @@ class FlamdexSubsetFTGSIterator extends AbstractFlamdexFTGSIterator {
             final SharedReference<FlamdexReader> flamdexReader,
             final Map<String, long[]> intFieldToTerms,
             final Map<String, String[]> stringFieldToTerms,
-            final ImhotepLocalSession.MetricStack stack) {
+            final ImhotepLocalSession.MetricStack stack) throws ImhotepOutOfMemoryException {
         super(imhotepLocalSession, flamdexReader, stack);
         this.intFieldToTermsIterator = intFieldToTerms.entrySet().iterator();
         this.stringFieldToTermsIterator = stringFieldToTerms.entrySet().iterator();

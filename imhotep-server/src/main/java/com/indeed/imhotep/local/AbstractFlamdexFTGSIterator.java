@@ -21,6 +21,7 @@ import com.indeed.flamdex.reader.MockFlamdexReader;
 import com.indeed.flamdex.simple.SimpleFlamdexReader;
 import com.indeed.imhotep.BitTree;
 import com.indeed.imhotep.api.FTGSIterator;
+import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.metrics.Count;
 import com.indeed.imhotep.service.CachedFlamdexReader;
 import com.indeed.imhotep.service.CachedFlamdexReaderReference;
@@ -70,11 +71,13 @@ public abstract class AbstractFlamdexFTGSIterator implements FTGSIterator {
     public AbstractFlamdexFTGSIterator(
             final ImhotepLocalSession imhotepLocalSession,
             final SharedReference<FlamdexReader> flamdexReader,
-            final ImhotepLocalSession.MetricStack stack) {
+            final ImhotepLocalSession.MetricStack stack) throws ImhotepOutOfMemoryException {
         this.session = imhotepLocalSession;
 
         reservedMemory = Long.BYTES * stack.getNumStats() * session.docIdToGroup.getNumGroups();
-        session.memory.claimMemory(reservedMemory);
+        if (!session.memory.claimMemory(reservedMemory)) {
+            throw session.newImhotepOutOfMemoryException();
+        }
 
         this.termGrpStats = new long[stack.getNumStats()][session.docIdToGroup.getNumGroups()];
         this.groupsSeen = new int[session.docIdToGroup.getNumGroups()];
