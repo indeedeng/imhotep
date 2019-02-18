@@ -1203,12 +1203,12 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                                           final long max,
                                           final long intervalSize,
                                           final boolean noGutters) throws ImhotepOutOfMemoryException {
+        if (isFilteredOut()) {
+            return docIdToGroup.getNumGroups();
+        }
+
         try (final MetricStack stack = new MetricStack()) {
             final IntValueLookup lookup = stack.push(stat);
-
-            if (isFilteredOut()) {
-                return docIdToGroup.getNumGroups();
-            }
 
             final int numBuckets = (int) (((max - 1) - min) / intervalSize + 1);
             final int newMaxGroup = (docIdToGroup.getNumGroups()-1)*(noGutters ? numBuckets : numBuckets+2);
@@ -1426,12 +1426,12 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     }
 
     public synchronized int metricFilter(final List<String> stat, final long min, final long max, final boolean negate) throws ImhotepOutOfMemoryException {
+        if (isFilteredOut()) {
+            return docIdToGroup.getNumGroups();
+        }
+
         try (MetricStack stack = new MetricStack()) {
             final IntValueLookup lookup = stack.push(stat);
-
-            if (isFilteredOut()) {
-                return docIdToGroup.getNumGroups();
-            }
 
             docIdToGroup = GroupLookupFactory.resize(docIdToGroup, docIdToGroup.getNumGroups(), memory);
 
@@ -1483,12 +1483,12 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
 
     @Override
     public synchronized int metricFilter(final List<String> stat, final long min, final long max, final int targetGroup, final int negativeGroup, final int positiveGroup) throws ImhotepOutOfMemoryException {
+        if (isFilteredOut() || (targetGroup >= docIdToGroup.getNumGroups())) {
+            return docIdToGroup.getNumGroups();
+        }
+
         try (MetricStack stack = new MetricStack()) {
             final IntValueLookup lookup = stack.push(stat);
-
-            if (isFilteredOut() || (targetGroup >= docIdToGroup.getNumGroups())) {
-                return docIdToGroup.getNumGroups();
-            }
 
             final int newMaxGroup = Math.max(docIdToGroup.getNumGroups(), Math.max(positiveGroup, negativeGroup));
             docIdToGroup = GroupLookupFactory.resize(docIdToGroup, newMaxGroup, memory);
