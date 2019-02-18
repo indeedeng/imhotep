@@ -1249,7 +1249,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
         if (request.getXStatDocstat().getStatCount() > 0) {
             stat = request.getXStatDocstat().getStatList();
         } else {
-            stat = ImhotepSession.stackStat(request.getXStat());
+            stat = ImhotepSession.stackStat(request.getDeletedXStat());
         }
         return stat;
     }
