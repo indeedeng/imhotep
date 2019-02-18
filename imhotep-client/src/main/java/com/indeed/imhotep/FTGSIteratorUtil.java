@@ -181,7 +181,7 @@ public class FTGSIteratorUtil {
     // Use this only in tests with small iterators
     @VisibleForTesting
     public static FTGSIterator sortFTGSIterator(@WillClose final FTGSIterator originalIterator) {
-        return getTopTermsFTGSIteratorInternal(originalIterator, Long.MAX_VALUE, -1);
+        return getTopTermsFTGSIteratorInternal(originalIterator, Integer.MAX_VALUE, -1);
     }
 
     // Consume iterator, sort by terms and return sorted.
@@ -189,7 +189,7 @@ public class FTGSIteratorUtil {
     // Use this only in tests with small iterators
     @VisibleForTesting
     public static FTGAIterator sortFTGSIterator(@WillClose final FTGAIterator originalIterator) {
-        return getTopTermsFTGSIteratorInternal(originalIterator, Long.MAX_VALUE, -1);
+        return getTopTermsFTGSIteratorInternal(originalIterator, Integer.MAX_VALUE, -1);
     }
 
     // Returns top terms iterator.
