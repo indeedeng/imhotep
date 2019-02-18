@@ -506,8 +506,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
         }
 
         private Pair<ImhotepResponse, GroupStatsIterator> getStreamingGroupStats(final ImhotepRequest request,
-                                                            final ImhotepResponse.Builder builder)
-        {
+                                                            final ImhotepResponse.Builder builder) throws ImhotepOutOfMemoryException {
             final List<String> stat = getSingleStat(request);
             final GroupStatsIterator groupStats =
                 service.handleGetGroupStats(
@@ -542,7 +541,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             return Pair.of(builder.build(), groupStats);
         }
 
-        private Pair<ImhotepResponse, GroupStatsIterator> mergeMultiDistinctSplit(final ImhotepRequest request, final ImhotepResponse.Builder builder) {
+        private Pair<ImhotepResponse, GroupStatsIterator> mergeMultiDistinctSplit(final ImhotepRequest request, final ImhotepResponse.Builder builder) throws ImhotepOutOfMemoryException {
             final MultiFTGSRequest multiFtgsRequest = request.getMultiFtgsRequest();
 
             final String localSessionId = chooseMultiFtgsLocalSessionId(multiFtgsRequest);
@@ -574,7 +573,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 final ImhotepRequest          request,
                 final ImhotepResponse.Builder builder,
                 final OutputStream            os)
-            throws IOException {
+                throws IOException, ImhotepOutOfMemoryException {
             checkSessionValidity(request);
             service.handleGetFTGSIterator(request.getSessionId(),
                                           getFTGSParams(request),
@@ -634,7 +633,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 final ImhotepRequest          request,
                 final ImhotepResponse.Builder builder,
                 final OutputStream            os)
-            throws IOException {
+                throws IOException, ImhotepOutOfMemoryException {
             checkSessionValidity(request);
             final HostAndPort[] nodes = request.getNodesList().toArray(new HostAndPort[0]);
             final FTGSParams params = getFTGSParams(request);
@@ -662,7 +661,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
         private void mergeMultiFTGSSplit(
                 final ImhotepRequest request,
                 final OutputStream os
-        ) {
+        ) throws IOException, ImhotepOutOfMemoryException {
             final MultiFTGSRequest multiFtgsRequest = request.getMultiFtgsRequest();
             final HostAndPort[] nodes = multiFtgsRequest.getNodesList().toArray(new HostAndPort[0]);
             service.handleMergeMultiFTGSSplit(

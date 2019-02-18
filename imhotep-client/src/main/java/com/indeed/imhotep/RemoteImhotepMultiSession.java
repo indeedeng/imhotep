@@ -54,6 +54,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
@@ -81,7 +82,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
     }
 
     @Override
-    public long[] getGroupStats(final List<String> stat) {
+    public long[] getGroupStats(final List<String> stat) throws ImhotepOutOfMemoryException {
         try(final GroupStatsIterator it = getGroupStatsIterator(stat)) {
             return LongIterators.unwrap(it, it.getNumGroups());
         } catch (final IOException e) {
@@ -90,16 +91,16 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
     }
 
     @Override
-    public GroupStatsIterator getGroupStatsIterator(final List<String> stat) {
+    public GroupStatsIterator getGroupStatsIterator(final List<String> stat) throws ImhotepOutOfMemoryException {
         // there is two ways to create GroupStatsIterator in multisession:
         // create iterator over result of getGroupStats method or create merger for iterators.
         // In case of remote multisession we creating readers over socket streams.
         // It could be an issue if client is not reading stats till end.
         // But now, nobody uses this method (IQL uses getGroupStats(..))
         final GroupStatsIterator[] statsBuffer = new GroupStatsIterator[sessions.length];
-        executeRuntimeException(statsBuffer, new ThrowingFunction<ImhotepRemoteSession, GroupStatsIterator>() {
+        executeMemoryException(statsBuffer, new ThrowingFunction<ImhotepRemoteSession, GroupStatsIterator>() {
             @Override
-            public GroupStatsIterator apply(final ImhotepRemoteSession session) {
+            public GroupStatsIterator apply(final ImhotepRemoteSession session) throws ImhotepOutOfMemoryException {
                 return session.getGroupStatsIterator(stat);
             }
         });
@@ -112,7 +113,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
     }
 
     @Override
-    public FTGSIterator getFTGSIterator(final FTGSParams params) {
+    public FTGSIterator getFTGSIterator(final FTGSParams params) throws ImhotepOutOfMemoryException {
         if (sessions.length == 1) {
             return sessions[0].getFTGSIterator(params);
         }
@@ -134,7 +135,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
         return getFTGSIteratorSplits(new FTGSParams(intFields, stringFields, termLimit, -1, true, null));
     }
 
-    private FTGSIterator[] getFTGSIteratorSplits(final FTGSParams params) {
+    private FTGSIterator[] getFTGSIteratorSplits(final FTGSParams params) throws ImhotepOutOfMemoryException {
         checkSplitParams(sessions.length);
         final Pair<Integer, ImhotepRemoteSession>[] indexesAndSessions = new Pair[sessions.length];
         for (int i = 0; i < sessions.length; i++) {
@@ -148,12 +149,15 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
             // in FTGSIteratorUtil.getTopTermsFTGSIterator anyway
             final FTGSParams perSplitParams = params.isTopTerms() ? params.unsortedCopy() : params.copy();
             execute(mergers, indexesAndSessions, false, new ThrowingFunction<Pair<Integer, ImhotepRemoteSession>, FTGSIterator>() {
-                public FTGSIterator apply(final Pair<Integer, ImhotepRemoteSession> indexSessionPair) {
+                public FTGSIterator apply(final Pair<Integer, ImhotepRemoteSession> indexSessionPair) throws ImhotepOutOfMemoryException {
                     final ImhotepRemoteSession session = indexSessionPair.getSecond();
                     final int index = indexSessionPair.getFirst();
                     return session.mergeFTGSSplit(perSplitParams, nodes, index);
                 }
             });
+        } catch (final ExecutionException e) {
+            Throwables.propagateIfInstanceOf(e.getCause(), ImhotepOutOfMemoryException.class);
+            throw Throwables.propagate(e);
         } catch (final Throwable t) {
             Closeables2.closeQuietly(closer, log);
             throw Throwables.propagate(t);
@@ -170,7 +174,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
         return new SortedFTGSInterleaver(mergers);
     }
 
-    private FTGSIterator[] getSubsetFTGSIteratorSplits(final Map<String, long[]> intFields, final Map<String, String[]> stringFields, final List<List<String>> stats) {
+    private FTGSIterator[] getSubsetFTGSIteratorSplits(final Map<String, long[]> intFields, final Map<String, String[]> stringFields, final List<List<String>> stats) throws ImhotepOutOfMemoryException {
         final Pair<Integer, ImhotepRemoteSession>[] indexesAndSessions = new Pair[sessions.length];
         for (int i = 0; i < sessions.length; i++) {
             indexesAndSessions[i] = Pair.of(i, sessions[i]);
@@ -180,12 +184,15 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
         closer.register(Closeables2.forArray(log, mergers));
         try {
             execute(mergers, indexesAndSessions, false, new ThrowingFunction<Pair<Integer, ImhotepRemoteSession>, FTGSIterator>() {
-                public FTGSIterator apply(final Pair<Integer, ImhotepRemoteSession> indexSessionPair) {
+                public FTGSIterator apply(final Pair<Integer, ImhotepRemoteSession> indexSessionPair) throws ImhotepOutOfMemoryException {
                     final ImhotepRemoteSession session = indexSessionPair.getSecond();
                     final int index = indexSessionPair.getFirst();
                     return session.mergeSubsetFTGSSplit(intFields, stringFields, stats, nodes, index);
                 }
             });
+        } catch (final ExecutionException e) {
+            Throwables.propagateIfInstanceOf(e.getCause(), ImhotepOutOfMemoryException.class);
+            throw Throwables.propagate(e);
         } catch (final Throwable t) {
             Closeables2.closeQuietly(closer, log);
             throw Throwables.propagate(t);

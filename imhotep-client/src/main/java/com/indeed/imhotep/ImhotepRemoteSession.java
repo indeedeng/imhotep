@@ -299,7 +299,7 @@ public class ImhotepRemoteSession
     }
 
     @Override
-    public long[] getGroupStats(final List<String> stat) {
+    public long[] getGroupStats(final List<String> stat) throws ImhotepOutOfMemoryException {
         try (final GroupStatsIterator reader = getGroupStatsIterator(stat)) {
             return LongIterators.unwrap(reader, reader.getNumGroups());
         } catch(final IOException e) {
@@ -308,7 +308,7 @@ public class ImhotepRemoteSession
     }
 
     @Override
-    public GroupStatsIterator getGroupStatsIterator(final List<String> stat) {
+    public GroupStatsIterator getGroupStatsIterator(final List<String> stat) throws ImhotepOutOfMemoryException {
         final Timer timer = new Timer();
         final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.STREAMING_GET_GROUP_STATS)
                 .setSessionId(getSessionId())
@@ -319,7 +319,7 @@ public class ImhotepRemoteSession
     }
 
     @Override
-    public FTGSIterator getFTGSIterator(final FTGSParams params) {
+    public FTGSIterator getFTGSIterator(final FTGSParams params) throws ImhotepOutOfMemoryException {
         final Timer timer = new Timer();
         final ImhotepRequest.Builder requestBuilder = getBuilderForType(ImhotepRequest.RequestType.GET_FTGS_ITERATOR)
                 .setSessionId(getSessionId())
@@ -342,7 +342,7 @@ public class ImhotepRemoteSession
         return result;
     }
 
-    FTGAIterator multiFTGS(MultiFTGSRequest proto) {
+    FTGAIterator multiFTGS(final MultiFTGSRequest proto) throws ImhotepOutOfMemoryException {
         final Timer timer = new Timer();
 
         final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.MERGE_MULTI_FTGS_SPLIT)
@@ -360,7 +360,7 @@ public class ImhotepRemoteSession
         }
     }
 
-    GroupStatsIterator aggregateDistinct(MultiFTGSRequest proto) {
+    GroupStatsIterator aggregateDistinct(final MultiFTGSRequest proto) throws ImhotepOutOfMemoryException {
         final Timer timer = new Timer();
         final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.MERGE_MULTI_DISTINCT_SPLIT)
                 .setMultiFtgsRequest(proto)
@@ -403,7 +403,7 @@ public class ImhotepRemoteSession
         }
     }
 
-    public FTGSIterator getFTGSIteratorSplit(final String[] intFields, final String[] stringFields, @Nullable final List<List<String>> stats, final int splitIndex, final int numSplits, final long termLimit) {
+    public FTGSIterator getFTGSIteratorSplit(final String[] intFields, final String[] stringFields, @Nullable final List<List<String>> stats, final int splitIndex, final int numSplits, final long termLimit) throws ImhotepOutOfMemoryException {
         checkSplitParams(splitIndex, numSplits);
         // TODO: disable timer to reduce logrepo logging volume of SubmitRequestEvent?
         final Timer timer = new Timer();
@@ -432,7 +432,7 @@ public class ImhotepRemoteSession
             final Map<String, String[]> stringFields,
             @Nullable final List<List<String>> stats,
             final int splitIndex,
-            final int numSplits) {
+            final int numSplits) throws ImhotepOutOfMemoryException {
         checkSplitParams(splitIndex, numSplits);
         final Timer timer = new Timer();
         final ImhotepRequest.Builder requestBuilder = getBuilderForType(ImhotepRequest.RequestType.GET_SUBSET_FTGS_SPLIT)
@@ -454,7 +454,7 @@ public class ImhotepRemoteSession
     public FTGSIterator mergeFTGSSplit(
             final FTGSParams params,
             final InetSocketAddress[] nodes,
-            final int splitIndex) {
+            final int splitIndex) throws ImhotepOutOfMemoryException {
         checkSplitParams(splitIndex, nodes.length);
         final Timer timer = new Timer();
         final ImhotepRequest.Builder requestBuilder = getBuilderForType(ImhotepRequest.RequestType.MERGE_FTGS_SPLIT)
@@ -496,10 +496,14 @@ public class ImhotepRemoteSession
                 .setSplitIndex(splitIndex)
                 .addAllNodes(Iterables.transform(Arrays.asList(nodes), input -> HostAndPort.newBuilder().setHost(input.getHostName()).setPort(input.getPort()).build()))
                 .build();
-        return sendGroupStatsIteratorRequest(request, timer);
+        try {
+            return sendGroupStatsIteratorRequest(request, timer);
+        } catch (final ImhotepOutOfMemoryException e) {
+            throw new RuntimeException("mergeDistinct expected to use no stats but threw IOOME", e);
+        }
     }
 
-    private GroupStatsIterator sendGroupStatsIteratorRequest(final ImhotepRequest request, final Timer timer) {
+    private GroupStatsIterator sendGroupStatsIteratorRequest(final ImhotepRequest request, final Timer timer) throws ImhotepOutOfMemoryException {
         try {
             final Pair<ImhotepResponse, InputStream> responceAndFile = sendRequestAndSaveResponseToFile(request, "groupStatsIterator");
             timer.complete(request);
@@ -517,7 +521,7 @@ public class ImhotepRemoteSession
             final Map<String, String[]> stringFields,
             @Nullable final List<List<String>> stats,
             final InetSocketAddress[] nodes,
-            final int splitIndex) {
+            final int splitIndex) throws ImhotepOutOfMemoryException {
         checkSplitParams(splitIndex, nodes.length);
         final Timer timer = new Timer();
         final ImhotepRequest.Builder requestBuilder = getBuilderForType(ImhotepRequest.RequestType.MERGE_SUBSET_FTGS_SPLIT)
@@ -549,10 +553,14 @@ public class ImhotepRemoteSession
                 .setField(field)
                 .setIsIntField(isIntField)
                 .build();
-        return sendGroupStatsIteratorRequest(request, timer);
+        try {
+            return sendGroupStatsIteratorRequest(request, timer);
+        } catch (final ImhotepOutOfMemoryException e) {
+            throw new RuntimeException("getDistinct should use no memory but threw ImhotepOutOfMemoryException", e);
+        }
     }
 
-    private FTGSIterator fileBufferedFTGSRequest(final ImhotepRequest request) {
+    private FTGSIterator fileBufferedFTGSRequest(final ImhotepRequest request) throws ImhotepOutOfMemoryException {
         try {
             final Pair<ImhotepResponse, InputStream> responseAndFile = sendRequestAndSaveResponseToFile(request, "ftgs");
             final int numStats = responseAndFile.getFirst().getNumStats();
@@ -565,14 +573,14 @@ public class ImhotepRemoteSession
 
     private Pair<ImhotepResponse, InputStream> sendRequestAndSaveResponseToFile(
             final ImhotepRequest request,
-            final String tempFilePrefix) throws IOException {
+            final String tempFilePrefix) throws IOException, ImhotepOutOfMemoryException {
         final Socket socket = newSocket(host, port, socketTimeout);
         final InputStream is = Streams.newBufferedInputStream(socket.getInputStream());
         final OutputStream os = Streams.newBufferedOutputStream(socket.getOutputStream());
         final ImhotepResponse response;
         Path tmp = null;
         try {
-            response = sendRequest(createSender(request), is, os, host, port);
+            response = checkMemoryException(getSessionId(), sendRequest(createSender(request), is, os, host, port));
             tmp = Files.createTempFile(tempFilePrefix, ".tmp");
             final long start = System.currentTimeMillis();
             try (final OutputStream out = new LimitedBufferedOutputStream(Files.newOutputStream(tmp), tempFileSizeBytesLeft)) {
@@ -1313,18 +1321,21 @@ public class ImhotepRemoteSession
         }
     }
 
+    private static ImhotepResponse checkMemoryException(@Nullable final String sessionId, final ImhotepResponse response) throws ImhotepOutOfMemoryException {
+        if (response.getResponseCode() == ImhotepResponse.ResponseCode.OUT_OF_MEMORY) {
+            throw new ImhotepOutOfMemoryException(createMessageWithSessionId("OutOfMemory error", sessionId));
+        } else {
+            return response;
+        }
+    }
+
     private static ImhotepResponse sendRequestWithMemoryException(
             final ImhotepRequest request,
             final String host,
             final int port,
             final int socketTimeout) throws IOException, ImhotepOutOfMemoryException {
         final ImhotepResponse response = sendRequest(request, host, port, socketTimeout);
-        if (response.getResponseCode() == ImhotepResponse.ResponseCode.OUT_OF_MEMORY) {
-            final String sessionId = request.hasSessionId() ? request.getSessionId() : null;
-            throw new ImhotepOutOfMemoryException(createMessageWithSessionId("OutOfMemory error", sessionId));
-        } else {
-            return response;
-        }
+        return checkMemoryException(request.getSessionId(), response);
     }
 
     private static ImhotepResponse sendRequest(

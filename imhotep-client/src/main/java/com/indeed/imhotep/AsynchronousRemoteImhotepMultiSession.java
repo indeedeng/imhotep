@@ -32,13 +32,13 @@ public class AsynchronousRemoteImhotepMultiSession extends AbstractImhotepMultiS
     //       the per-session result, and then waited for the combined future
 
     @Override
-    public long[] getGroupStats(final List<String> stat) {
+    public long[] getGroupStats(final List<String> stat) throws ImhotepOutOfMemoryException {
         synchronizeAll();
         return original.getGroupStats(stat);
     }
 
     @Override
-    public GroupStatsIterator getGroupStatsIterator(final List<String> stat) {
+    public GroupStatsIterator getGroupStatsIterator(final List<String> stat) throws ImhotepOutOfMemoryException {
         synchronizeAll();
         return original.getGroupStatsIterator(stat);
     }
@@ -50,7 +50,7 @@ public class AsynchronousRemoteImhotepMultiSession extends AbstractImhotepMultiS
     }
 
     @Override
-    public FTGSIterator getFTGSIterator(final FTGSParams params) {
+    public FTGSIterator getFTGSIterator(final FTGSParams params) throws ImhotepOutOfMemoryException {
         synchronizeAll();
         return original.getFTGSIterator(params);
     }
