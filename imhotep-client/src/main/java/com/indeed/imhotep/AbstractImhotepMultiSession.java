@@ -437,27 +437,6 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
         return Collections.max(Arrays.asList(integerBuf));
     }
 
-    public long getLowerBound(final int stat) {
-        executeRuntimeException(longBuf, new ThrowingFunction<ImhotepSession, Long>() {
-            @Override
-            public Long apply(final ImhotepSession session) {
-                return session.getLowerBound(stat);
-            }
-        });
-        return Collections.min(Arrays.asList(longBuf));
-    }
-
-    @Override
-    public long getUpperBound(final int stat) {
-        executeRuntimeException(longBuf, new ThrowingFunction<ImhotepSession, Long>() {
-            @Override
-            public Long apply(final ImhotepSession session) {
-                return session.getUpperBound(stat);
-            }
-        });
-        return Collections.max(Arrays.asList(longBuf));
-    }
-
     @Override
     public void createDynamicMetric(final String name) throws ImhotepOutOfMemoryException {
         executeRuntimeException(nullBuf, new ThrowingFunction<ImhotepSession, Object>() {

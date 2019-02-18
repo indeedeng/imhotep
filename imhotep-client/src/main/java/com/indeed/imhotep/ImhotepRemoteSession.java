@@ -1045,15 +1045,6 @@ public class ImhotepRemoteSession
         }
     }
 
-    public long getLowerBound(final int stat) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public long getUpperBound(final int stat) {
-        throw new UnsupportedOperationException();
-    }
-
     @Override
     public void createDynamicMetric(final String name) throws ImhotepOutOfMemoryException {
         final Timer timer = new Timer();

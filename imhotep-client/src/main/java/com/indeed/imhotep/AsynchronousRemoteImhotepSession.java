@@ -289,16 +289,6 @@ public class AsynchronousRemoteImhotepSession extends AbstractImhotepSession {
     }
 
     @Override
-    public long getLowerBound(final int stat) {
-        return extractFromSession(session -> session.getLowerBound(stat));
-    }
-
-    @Override
-    public long getUpperBound(final int stat) {
-        return extractFromSession(session -> session.getUpperBound(stat));
-    }
-
-    @Override
     public void createDynamicMetric(final String name) {
         doIt(session -> session.createDynamicMetric(name));
     }

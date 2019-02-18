@@ -2069,17 +2069,6 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         return metricStack.getNumStats();
     }
 
-
-    @Override
-    public long getLowerBound(final int stat) {
-        return metricStack.get(stat).getMin();
-    }
-
-    @Override
-    public long getUpperBound(final int stat) {
-        return metricStack.get(stat).getMax();
-    }
-
     @Override
     public int getNumGroups() {
         return docIdToGroup.getNumGroups();
