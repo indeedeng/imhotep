@@ -107,11 +107,6 @@ public class AsynchronousRemoteImhotepSession extends AbstractImhotepSession {
     }
 
     @Override
-    public FTGSIterator getFTGSIterator(final String[] intFields, final String[] stringFields, final long termLimit, final int sortStat) {
-        return extractFromSession(session -> session.getFTGSIterator(intFields, stringFields, termLimit, sortStat));
-    }
-
-    @Override
     public FTGSIterator getSubsetFTGSIterator(final Map<String, long[]> intFields, final Map<String, String[]> stringFields) {
         return extractFromSession(session -> session.getSubsetFTGSIterator(intFields, stringFields));
     }

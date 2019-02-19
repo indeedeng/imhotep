@@ -718,7 +718,7 @@ public class TestMultiFTGS {
                     false,
                     1,
                     0,
-                    SortOrder.UNDEFINED
+                    SortOrder.ASCENDING
             )) {
                 assertTrue(iterator.nextField());
                 assertEquals("magic", iterator.fieldName());
@@ -741,7 +741,7 @@ public class TestMultiFTGS {
                     false,
                     1,
                     0,
-                    SortOrder.UNDEFINED
+                    SortOrder.ASCENDING
             )) {
                 assertTrue(iterator.nextField());
                 assertEquals("magic", iterator.fieldName());
@@ -764,7 +764,7 @@ public class TestMultiFTGS {
                     false,
                     2,
                     1,
-                    SortOrder.UNDEFINED
+                    SortOrder.ASCENDING
             )) {
                 assertTrue(iterator.nextField());
                 assertEquals("magic", iterator.fieldName());
@@ -790,7 +790,7 @@ public class TestMultiFTGS {
                     false,
                     1,
                     0,
-                    SortOrder.UNDEFINED
+                    SortOrder.ASCENDING
             )) {
                 assertTrue(iterator.nextField());
                 assertEquals("magic", iterator.fieldName());

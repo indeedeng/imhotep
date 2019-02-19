@@ -75,17 +75,7 @@ public abstract class AbstractImhotepSession implements ImhotepSession {
 
     @Override
     public FTGSIterator getFTGSIterator(final String[] intFields, final String[] stringFields, final long termLimit) {
-        return getFTGSIterator(intFields, stringFields, termLimit, -1);
-    }
-
-    @Override
-    public FTGSIterator getFTGSIterator(
-            final String[] intFields,
-            final String[] stringFields,
-            final long termLimit,
-            final int sortStat) {
-        final FTGSParams params = new FTGSParams(intFields, stringFields, termLimit, sortStat, true, SortOrder.UNDEFINED);
-        return getFTGSIterator(params);
+        return getFTGSIterator(intFields, stringFields, termLimit, -1, SortOrder.UNDEFINED);
     }
 
     @Override

@@ -159,8 +159,8 @@ public class FTGSIteratorUtil {
             final int sortStat,
             final SortOrder sortOrder) {
         try (final SilentCloseable ignored = originalIterator) {
-            if ((termLimit <= 0) || (sortStat < 0) || (sortStat >= originalIterator.getNumStats())) {
-                throw new IllegalArgumentException("TopTerms expect positive termLimit and valid sortStat index");
+            if ((termLimit <= 0) || (sortStat < 0) || (sortStat >= originalIterator.getNumStats() || sortOrder == SortOrder.UNDEFINED)) {
+                throw new IllegalArgumentException("TopTerms expect positive termLimit, valid sortStat index and ASCENDING/DESCENDING sortorder");
             }
             return getTopTermsFTGSIteratorInternal(originalIterator, termLimit, sortStat, sortOrder);
         }
@@ -172,8 +172,8 @@ public class FTGSIteratorUtil {
             final int sortStat,
             final SortOrder sortOrder) {
         try (final SilentCloseable ignored = originalIterator) {
-            if ((termLimit <= 0) || (sortStat < 0) || (sortStat >= originalIterator.getNumStats())) {
-                throw new IllegalArgumentException("TopTerms expect positive termLimit and valid sortStat index");
+            if ((termLimit <= 0) || (sortStat < 0) || (sortStat >= originalIterator.getNumStats()) || sortOrder == SortOrder.UNDEFINED) {
+                throw new IllegalArgumentException("TopTerms expect positive termLimit, valid sortStat index and ASCENDING/DESCENDING sortorder");
             }
             return getTopTermsFTGSIteratorInternal(originalIterator, termLimit, sortStat, sortOrder);
         }
