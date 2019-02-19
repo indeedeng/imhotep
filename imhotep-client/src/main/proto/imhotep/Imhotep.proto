@@ -96,7 +96,7 @@ message ShardNameNumDocsPair {
 }
 
 enum SortOrder {
-  UNDEFINED = 1; // No sorting WRT stats/terms
+  UNDEFINED = 1; // No sorting with respect to stats/terms
   ASCENDING = 2;
   DESCENDING = 3;
 }
