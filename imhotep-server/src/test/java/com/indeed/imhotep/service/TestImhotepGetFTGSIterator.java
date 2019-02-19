@@ -26,6 +26,7 @@ import com.indeed.imhotep.api.FTGSParams;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.client.ImhotepClient;
+import com.indeed.imhotep.protobuf.SortOrder;
 import org.apache.log4j.Logger;
 import org.joda.time.DateTime;
 import org.junit.After;
@@ -598,7 +599,7 @@ public class TestImhotepGetFTGSIterator {
                         dataset.getFTGSIterator(
                                 new FTGSParams(
                                         new String[]{"if1", "if2", "metric"},
-                                        new String[]{"sf1", "sf2"}, 15, -1, false)));
+                                        new String[]{"sf1", "sf2"}, 15, -1, false, SortOrder.UNDEFINED)));
 
                 // Maybe we need better testing for unsorted here
                 // Now we just check that fields are in the same order,
@@ -1079,7 +1080,7 @@ public class TestImhotepGetFTGSIterator {
                                          final String[] stringFields,
                                          final long termLimit,
                                          final int sortStat) {
-        FTGSIterator iterator = session.getFTGSIterator(new FTGSParams(intFields, stringFields, termLimit, sortStat, sortedFTGS));
+        FTGSIterator iterator = session.getFTGSIterator(new FTGSParams(intFields, stringFields, termLimit, sortStat, sortedFTGS, SortOrder.ASCENDING));
         if (!sortedFTGS) {
             iterator = FTGSIteratorUtil.sortFTGSIterator(iterator);
         }

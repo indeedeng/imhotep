@@ -19,6 +19,7 @@ import com.google.common.base.Objects;
 import com.google.common.collect.Lists;
 import com.indeed.imhotep.FTGSBinaryFormat.FieldStat;
 import com.indeed.imhotep.api.FTGSIterator;
+import com.indeed.imhotep.protobuf.SortOrder;
 import com.indeed.imhotep.service.FTGSOutputStreamWriter;
 import com.indeed.util.core.Pair;
 import org.apache.log4j.Logger;
@@ -365,7 +366,7 @@ public class FTGSIteratorUtilTest {
 
         {
             final TopTermsFTGSIterator iter = FTGSIteratorUtil.getTopTermsFTGSIterator(
-                    InputStreamFTGSIterators.create(fileAndStats, numStats, numGroups), 2, 0);
+                    InputStreamFTGSIterators.create(fileAndStats, numStats, numGroups), 2, 0, SortOrder.ASCENDING);
 
             expectIntField(iter, "a");
 
@@ -412,7 +413,7 @@ public class FTGSIteratorUtilTest {
 
         {
             final TopTermsFTGSIterator iter = FTGSIteratorUtil.getTopTermsFTGSIterator(
-                    InputStreamFTGSIterators.create(fileAndStats, numStats, numGroups), 2, 1);
+                    InputStreamFTGSIterators.create(fileAndStats, numStats, numGroups), 2, 1, SortOrder.ASCENDING);
 
             expectIntField(iter, "a");
 
@@ -465,7 +466,7 @@ public class FTGSIteratorUtilTest {
 
         {
             final TopTermsFTGSIterator iter = FTGSIteratorUtil.getTopTermsFTGSIterator(
-                    InputStreamFTGSIterators.create(fileAndStats, numStats, numGroups), 2, 2);
+                    InputStreamFTGSIterators.create(fileAndStats, numStats, numGroups), 2, 2, SortOrder.ASCENDING);
 
             expectIntField(iter, "a");
 
@@ -651,7 +652,7 @@ public class FTGSIteratorUtilTest {
 
         {
             final TopTermsFTGSIterator iter = FTGSIteratorUtil.getTopTermsFTGSIterator(
-                    InputStreamFTGSIterators.create(fileAndStats, numStats, numGroups), 2, 0);
+                    InputStreamFTGSIterators.create(fileAndStats, numStats, numGroups), 2, 0, SortOrder.ASCENDING);
 
             expectIntField(iter, "a");
 
@@ -700,7 +701,7 @@ public class FTGSIteratorUtilTest {
 
     @Test
     public void testStatExtractors() {
-        final FTGSIteratorUtil.LongStatExtractor longStatExtractor = new FTGSIteratorUtil.LongStatExtractor(1, 0);
+        final FTGSIteratorUtil.LongStatExtractor longStatExtractor = new FTGSIteratorUtil.LongStatExtractor(1, 0, SortOrder.ASCENDING);
         final Comparator<FTGSIteratorUtil.TermStat<long[]>> comparator = longStatExtractor.comparator();
 
         final FTGSIterator iter = FTGSIteratorTestUtils.frozen("a", 1, 1234, 1, new long[]{0});

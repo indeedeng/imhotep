@@ -21,6 +21,7 @@ import com.indeed.imhotep.exceptions.GenericImhotepKnownException;
 import com.indeed.imhotep.exceptions.ImhotepKnownException;
 import com.indeed.imhotep.exceptions.QueryCancelledException;
 import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
+import com.indeed.imhotep.protobuf.SortOrder;
 
 import javax.annotation.Nullable;
 import java.nio.channels.ClosedByInterruptException;
@@ -83,7 +84,18 @@ public abstract class AbstractImhotepSession implements ImhotepSession {
             final String[] stringFields,
             final long termLimit,
             final int sortStat) {
-        final FTGSParams params = new FTGSParams(intFields, stringFields, termLimit, sortStat, true);
+        final FTGSParams params = new FTGSParams(intFields, stringFields, termLimit, sortStat, true, SortOrder.UNDEFINED);
+        return getFTGSIterator(params);
+    }
+
+    @Override
+    public FTGSIterator getFTGSIterator(
+            final String[] intFields,
+            final String[] stringFields,
+            final long termLimit,
+            final int sortStat,
+            final SortOrder sortOrder) {
+        final FTGSParams params = new FTGSParams(intFields, stringFields, termLimit, sortStat, true, sortOrder);
         return getFTGSIterator(params);
     }
 

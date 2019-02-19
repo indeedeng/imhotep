@@ -3,6 +3,7 @@ package com.indeed.imhotep.api;
 import com.indeed.imhotep.FTGSIteratorUtil;
 import com.indeed.imhotep.TermLimitedFTGAIterator;
 import com.indeed.imhotep.TermLimitedFTGSIterator;
+import com.indeed.imhotep.protobuf.SortOrder;
 import com.indeed.imhotep.scheduling.SilentCloseable;
 import com.indeed.imhotep.scheduling.TaskScheduler;
 
@@ -16,6 +17,7 @@ public class FTGSModifiers {
     public final long termLimit;
     public final int sortStat;
     public final boolean sorted;
+    public final SortOrder sortOrder;
 
     /**
      * @param termLimit - see {@link ImhotepSession#getFTGSIterator(FTGSParams)} for details
@@ -25,7 +27,8 @@ public class FTGSModifiers {
     public FTGSModifiers(
             final long termLimit,
             final int sortStat,
-            final boolean sorted
+            final boolean sorted,
+            final SortOrder sortOrder
     ){
         if (termLimit < 0) {
             throw new IllegalArgumentException("termLimit must be non-negative");
@@ -34,6 +37,7 @@ public class FTGSModifiers {
         this.termLimit = termLimit;
         this.sortStat = sortStat;
         this.sorted = sorted;
+        this.sortOrder = sortOrder;
     }
 
     public boolean isTopTerms() {
@@ -45,26 +49,26 @@ public class FTGSModifiers {
     }
 
     public FTGSModifiers copy() {
-        return new FTGSModifiers(termLimit, sortStat, sorted);
+        return new FTGSModifiers(termLimit, sortStat, sorted, sortOrder);
     }
 
     public FTGSModifiers sortedCopy() {
-        return new FTGSModifiers(termLimit, sortStat, true);
+        return new FTGSModifiers(termLimit, sortStat, true, sortOrder);
     }
 
     public FTGSModifiers unsortedCopy() {
-        return new FTGSModifiers(termLimit, sortStat, false);
+        return new FTGSModifiers(termLimit, sortStat, false, sortOrder);
     }
 
     public FTGSModifiers unlimitedCopy() {
-        return new FTGSModifiers(0, -1, sorted);
+        return new FTGSModifiers(0, -1, sorted, sortOrder);
     }
 
     public FTGSIterator wrap(FTGSIterator iterator) throws IOException {
         if (termLimit > 0) {
             if (sortStat >= 0) {
                 try(final Closeable ignored = TaskScheduler.CPUScheduler.lockSlot()) {
-                    return FTGSIteratorUtil.getTopTermsFTGSIterator(iterator, termLimit, sortStat);
+                    return FTGSIteratorUtil.getTopTermsFTGSIterator(iterator, termLimit, sortStat, sortOrder);
                 }
             } else {
                 return new TermLimitedFTGSIterator(iterator, termLimit);
@@ -78,7 +82,7 @@ public class FTGSModifiers {
         if (termLimit > 0) {
             if (sortStat >= 0) {
                 try(final SilentCloseable ignored = TaskScheduler.CPUScheduler.lockSlot()) {
-                    return FTGSIteratorUtil.getTopTermsFTGSIterator(iterator, termLimit, sortStat);
+                    return FTGSIteratorUtil.getTopTermsFTGSIterator(iterator, termLimit, sortStat, sortOrder);
                 }
             } else {
                 return new TermLimitedFTGAIterator(iterator, termLimit);

@@ -35,6 +35,7 @@ import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
 import com.indeed.imhotep.protobuf.HostAndPort;
 import com.indeed.imhotep.protobuf.ImhotepRequest;
 import com.indeed.imhotep.protobuf.MultiFTGSRequest;
+import com.indeed.imhotep.protobuf.SortOrder;
 import com.indeed.util.core.Pair;
 import com.indeed.util.core.io.Closeables2;
 import it.unimi.dsi.fastutil.longs.LongIterators;
@@ -120,7 +121,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
         final FTGSIterator[] mergers = getFTGSIteratorSplits(params);
         FTGSIterator interleaver = params.sorted ? new SortedFTGSInterleaver(mergers) : new UnsortedFTGSIterator(mergers);
         if (params.isTopTerms()) {
-            interleaver = FTGSIteratorUtil.getTopTermsFTGSIterator(interleaver, params.termLimit, params.sortStat);
+            interleaver = FTGSIteratorUtil.getTopTermsFTGSIterator(interleaver, params.termLimit, params.sortStat, params.sortOrder);
         } else if (params.isTermLimit()) {
             interleaver = new TermLimitedFTGSIterator(interleaver, params.termLimit);
         }
@@ -132,7 +133,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
             final FTGSIterator result = sessions[0].getFTGSIterator(intFields, stringFields, termLimit);
             return new FTGSIterator[] {result};
         }
-        return getFTGSIteratorSplits(new FTGSParams(intFields, stringFields, termLimit, -1, true));
+        return getFTGSIteratorSplits(new FTGSParams(intFields, stringFields, termLimit, -1, true, SortOrder.ASCENDING));
     }
 
     private FTGSIterator[] getFTGSIteratorSplits(final FTGSParams params) {
@@ -415,8 +416,9 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
             final boolean isIntField,
             final long termLimit,
             final int sortStat,
-            final boolean sorted
-    ) {
+            final boolean sorted,
+            final SortOrder sortOrder
+            ) {
         final MultiFTGSRequest.Builder builder = MultiFTGSRequest.newBuilder();
         final List<RemoteImhotepMultiSession> remoteSessions = processSessionFields(sessionsWithFields, builder);
 
@@ -426,7 +428,8 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
                 .setIsIntField(isIntField)
                 .setTermLimit(termLimit)
                 .setSortStat(sortStat)
-                .setSortedFTGS(sorted);
+                .setSortedFTGS(sorted)
+                .setSortOrder(sortOrder);
 
         final Pair<Integer, HostAndPort>[] indexedServers = multiFtgsIndexedServers(builder);
 
@@ -457,7 +460,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
             throw Throwables.propagate(t);
         }
 
-        final FTGSModifiers modifiers = new FTGSModifiers(termLimit, sortStat, sorted);
+        final FTGSModifiers modifiers = new FTGSModifiers(termLimit, sortStat, sorted, sortOrder);
 
         final FTGAIterator interleaver;
         if (sorted) {

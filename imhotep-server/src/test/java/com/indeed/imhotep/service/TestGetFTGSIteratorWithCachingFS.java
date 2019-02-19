@@ -27,6 +27,7 @@ import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.client.ImhotepClient;
 import com.indeed.imhotep.fs.RemoteCachingFileSystemTestContext;
+import com.indeed.imhotep.protobuf.SortOrder;
 import org.joda.time.DateTime;
 import org.junit.After;
 import org.junit.Before;
@@ -488,7 +489,7 @@ public class TestGetFTGSIteratorWithCachingFS {
                                          final String[] stringFields,
                                          final long termLimit,
                                          final int sortStat) {
-        FTGSIterator iterator = session.getFTGSIterator(new FTGSParams(intFields, stringFields, termLimit, sortStat, sortedFTGS));
+        FTGSIterator iterator = session.getFTGSIterator(new FTGSParams(intFields, stringFields, termLimit, sortStat, sortedFTGS, SortOrder.ASCENDING));
         if (!sortedFTGS) {
             iterator = FTGSIteratorUtil.sortFTGSIterator(iterator);
         }

@@ -27,6 +27,7 @@ import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.api.PerformanceStats;
 import com.indeed.imhotep.client.ImhotepClient;
 import com.indeed.imhotep.metrics.aggregate.AggregateStatTree;
+import com.indeed.imhotep.protobuf.SortOrder;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import org.joda.time.DateTime;
 import org.junit.After;
@@ -202,7 +203,8 @@ public class TestMultiFTGS {
                     Lists.newArrayList(),
                     false,
                     0,
-                    -1
+                    -1,
+                    SortOrder.UNDEFINED
             )) {
                 assertTrue(iterator.nextField());
                 assertEquals("magic", iterator.fieldName());
@@ -225,7 +227,8 @@ public class TestMultiFTGS {
                     Lists.newArrayList(count.gt(constant(2.0))),
                     false,
                     0,
-                    -1
+                    -1,
+                    SortOrder.UNDEFINED
             )) {
                 assertTrue(iterator.nextField());
                 assertEquals("magic", iterator.fieldName());
@@ -246,7 +249,8 @@ public class TestMultiFTGS {
                     Lists.newArrayList(count.gt(constant(2.0))),
                     false,
                     0,
-                    -1
+                    -1,
+                    SortOrder.UNDEFINED
             )) {
                 assertTrue(iterator.nextField());
                 assertEquals("magic", iterator.fieldName());
@@ -265,7 +269,8 @@ public class TestMultiFTGS {
                     Lists.newArrayList(count.gt(constant(100.0))),
                     false,
                     0,
-                    -1
+                    -1,
+                    SortOrder.UNDEFINED
             )) {
                 assertTrue(iterator.nextField());
                 assertEquals("magic", iterator.fieldName());
@@ -281,7 +286,8 @@ public class TestMultiFTGS {
                     Lists.newArrayList(count.gte(constant(2.0))),
                     false,
                     0,
-                    -1
+                    -1,
+                    SortOrder.UNDEFINED
             )) {
                 assertTrue(iterator.nextField());
                 assertEquals("magic", iterator.fieldName());
@@ -313,7 +319,8 @@ public class TestMultiFTGS {
                     Lists.newArrayList(),
                     false,
                     0,
-                    -1
+                    -1,
+                    SortOrder.UNDEFINED
             )) {
                 assertTrue(iterator.nextField());
                 assertEquals("magic", iterator.fieldName());
@@ -345,7 +352,8 @@ public class TestMultiFTGS {
                     Lists.newArrayList(clicks.divide(impressions).gte(constant(0.25))),
                     false,
                     0,
-                    -1
+                    -1,
+                    SortOrder.UNDEFINED
             )) {
                 assertTrue(iterator.nextField());
                 assertEquals("magic", iterator.fieldName());
@@ -475,7 +483,8 @@ public class TestMultiFTGS {
                     Lists.newArrayList(),
                     false,
                     0,
-                    -1
+                    -1,
+                    SortOrder.UNDEFINED
             )) {
                 assertTrue(iterator.nextField());
                 assertEquals("magic", iterator.fieldName());
@@ -509,7 +518,8 @@ public class TestMultiFTGS {
                     Lists.newArrayList(),
                     false,
                     0,
-                    -1
+                    -1,
+                    SortOrder.UNDEFINED
             )) {
                 assertTrue(iterator.nextField());
                 assertEquals("magic", iterator.fieldName());
@@ -537,7 +547,8 @@ public class TestMultiFTGS {
                     Lists.newArrayList(count1.gt(count2)),
                     false,
                     0,
-                    -1
+                    -1,
+                    SortOrder.UNDEFINED
             )) {
                 assertTrue(iterator.nextField());
                 assertEquals("magic", iterator.fieldName());
@@ -561,7 +572,8 @@ public class TestMultiFTGS {
                     Lists.newArrayList(),
                     false,
                     1,
-                    -1
+                    -1,
+                    SortOrder.UNDEFINED
             )) {
                 assertTrue(iterator.nextField());
                 assertEquals("magic", iterator.fieldName());
@@ -592,7 +604,8 @@ public class TestMultiFTGS {
                     false,
                     3,
                     -1,
-                    sortedFTGS
+                    sortedFTGS,
+                    SortOrder.UNDEFINED
             )) {
                 assertTrue(iterator.nextField());
                 assertEquals("magic", iterator.fieldName());
@@ -631,7 +644,8 @@ public class TestMultiFTGS {
                     false,
                     100,
                     -1,
-                    sortedFTGS
+                    sortedFTGS,
+                    SortOrder.UNDEFINED
             )) {
                 assertTrue(iterator.nextField());
                 assertEquals("magic", iterator.fieldName());
@@ -671,7 +685,8 @@ public class TestMultiFTGS {
                     Lists.newArrayList(count1.plus(count2).gt(constant(10.0))),
                     false,
                     1,
-                    -1
+                    -1,
+                    SortOrder.UNDEFINED
             )) {
                 assertTrue(iterator.nextField());
                 assertEquals("magic", iterator.fieldName());
@@ -702,7 +717,8 @@ public class TestMultiFTGS {
                     Lists.newArrayList(),
                     false,
                     1,
-                    0
+                    0,
+                    SortOrder.UNDEFINED
             )) {
                 assertTrue(iterator.nextField());
                 assertEquals("magic", iterator.fieldName());
@@ -724,7 +740,8 @@ public class TestMultiFTGS {
                     Lists.newArrayList(),
                     false,
                     1,
-                    0
+                    0,
+                    SortOrder.UNDEFINED
             )) {
                 assertTrue(iterator.nextField());
                 assertEquals("magic", iterator.fieldName());
@@ -746,7 +763,8 @@ public class TestMultiFTGS {
                     Lists.newArrayList(),
                     false,
                     2,
-                    1
+                    1,
+                    SortOrder.UNDEFINED
             )) {
                 assertTrue(iterator.nextField());
                 assertEquals("magic", iterator.fieldName());
@@ -771,7 +789,8 @@ public class TestMultiFTGS {
                     Lists.newArrayList(count1.lte(constant(20))),
                     false,
                     1,
-                    0
+                    0,
+                    SortOrder.UNDEFINED
             )) {
                 assertTrue(iterator.nextField());
                 assertEquals("magic", iterator.fieldName());
@@ -796,7 +815,8 @@ public class TestMultiFTGS {
                     Lists.newArrayList(),
                     false,
                     0,
-                    -1
+                    -1,
+                    SortOrder.UNDEFINED
             )) {
                 assertTrue(iterator.nextField());
                 assertEquals("magic", iterator.fieldName());
@@ -822,7 +842,8 @@ public class TestMultiFTGS {
             final List<AggregateStatTree> filters,
             final boolean isIntField,
             final long termLimit,
-            final int sortStat
+            final int sortStat,
+            final SortOrder sortOrder
     ) {
         FTGAIterator iterator = RemoteImhotepMultiSession.multiFtgs(
                 sessionsWithFields,
@@ -831,7 +852,8 @@ public class TestMultiFTGS {
                 isIntField,
                 termLimit,
                 sortStat,
-                sortedFTGS
+                sortedFTGS,
+                sortOrder
         );
 
         if (!sortedFTGS) {
@@ -936,7 +958,8 @@ public class TestMultiFTGS {
                 false,
                 termLimit,
                 -1,
-                sortedFTGS
+                sortedFTGS,
+                SortOrder.UNDEFINED
         );
     }
 }

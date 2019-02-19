@@ -561,7 +561,8 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                     getStringFields(request),
                     request.getTermLimit(),
                     request.getSortStat(),
-                    request.getSortedFTGS()
+                    request.getSortedFTGS(),
+                    request.getSortOrder()
                     );
         }
 

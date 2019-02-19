@@ -21,6 +21,7 @@ import com.indeed.imhotep.QueryRemapRule;
 import com.indeed.imhotep.RegroupCondition;
 import com.indeed.imhotep.TermCount;
 import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
+import com.indeed.imhotep.protobuf.SortOrder;
 
 import javax.annotation.concurrent.NotThreadSafe;
 import java.io.Closeable;
@@ -63,7 +64,7 @@ public interface ImhotepSession
      * @param intFields list of int fields
      * @param stringFields list of string fields
      * @return an iterator. result is the same as after calling
-     *          getFTGSIterator(new FTGSParams(intFields, stringFields, 0, -1, true));
+     *          getFTGSIterator(new FTGSParams(intFields, stringFields, 0, -1, true, SortOrder.UNDEFINED));
      */
     FTGSIterator getFTGSIterator(String[] intFields, String[] stringFields);
 
@@ -73,7 +74,7 @@ public interface ImhotepSession
      * @param stringFields list of string fields
      * @param termLimit maximum number of terms that can be returned. 0 means no limit
      * @return an iterator. result is the same as after calling
-     *          getFTGSIterator(new FTGSParams(intFields, stringFields, termLimit, -1, true));
+     *          getFTGSIterator(new FTGSParams(intFields, stringFields, termLimit, -1, true, SortOrder.UNDEFINED));
      */
     FTGSIterator getFTGSIterator(String[] intFields, String[] stringFields, long termLimit);
 
@@ -84,9 +85,20 @@ public interface ImhotepSession
      * @param termLimit maximum number of terms that can be returned. 0 means no limit
      * @param sortStat the index of stats to get the top terms. No sorting is done if the value is negative
      * @return an iterator. result is the same as after calling
-     *          getFTGSIterator(new FTGSParams(intFields, stringFields, termLimit, sortStat, true));
+     *          getFTGSIterator(new FTGSParams(intFields, stringFields, termLimit, sortStat, true, SortOrder.ASCENDING));
      */
     FTGSIterator getFTGSIterator(String[] intFields, String[] stringFields, long termLimit, int sortStat);
+
+    /**
+     * get an iterator over (field, term, group, stat) for top termLimit terms sorted by stats in sortStat in order given in sortOrder
+     * @param intFields list of int fields
+     * @param stringFields list of string fields
+     * @param termLimit maximum numbers of terms that can be returned. 0 means no limit
+     * @param sortStat the index of stats to get the top terms. No sorting is done if the value is negative
+     * @param sortOrder the order (Ascending/Descending) of stats. Ties within terms are resolved in the same order ( same as in SortOrder )
+     * @return an iterator, result is same as after calling
+     */
+    FTGSIterator getFTGSIterator(String[] intFields, String[] stringFields, long termLimit, int sortStat, SortOrder sortOrder);
 
     FTGSIterator getSubsetFTGSIterator(Map<String, long[]> intFields, Map<String, String[]> stringFields);
 

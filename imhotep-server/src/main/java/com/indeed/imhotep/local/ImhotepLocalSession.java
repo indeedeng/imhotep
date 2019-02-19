@@ -93,6 +93,7 @@ import com.indeed.imhotep.metrics.ShiftLeft;
 import com.indeed.imhotep.metrics.ShiftRight;
 import com.indeed.imhotep.metrics.Subtraction;
 import com.indeed.imhotep.pool.BuffersPool;
+import com.indeed.imhotep.protobuf.SortOrder;
 import com.indeed.imhotep.protobuf.QueryMessage;
 import com.indeed.imhotep.service.InstrumentedFlamdexReader;
 import com.indeed.util.core.Pair;
@@ -392,7 +393,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                 params.stringFields);
 
         if (params.isTopTerms()) {
-            iterator = FTGSIteratorUtil.getTopTermsFTGSIterator(iterator, params.termLimit, params.sortStat);
+            iterator = FTGSIteratorUtil.getTopTermsFTGSIterator(iterator, params.termLimit, params.sortStat, params.sortOrder);
         } else if (params.isTermLimit()) {
             iterator = new TermLimitedFTGSIterator(iterator, params.termLimit);
         }
@@ -456,7 +457,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             // it's a hack
             // let's pretend we have no stats. FTGS will be faster.
             numStats = 0;
-            final FTGSParams params = new FTGSParams(intFields, strFields, 0, -1, false);
+            final FTGSParams params = new FTGSParams(intFields, strFields, 0, -1, false, SortOrder.UNDEFINED);
             final FTGSIterator iterator = getFTGSIterator(params);
             result = FTGSIteratorUtil.calculateDistinct(iterator);
         } finally {

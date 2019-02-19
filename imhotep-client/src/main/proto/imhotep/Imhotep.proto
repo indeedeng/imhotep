@@ -95,6 +95,12 @@ message ShardNameNumDocsPair {
     required string shard_name = 2;
 }
 
+enum SortOrder {
+  UNDEFINED = 1; // No sorting WRT stats/terms
+  ASCENDING = 2;
+  DESCENDING = 3;
+}
+
 message ImhotepRequest {
   enum RequestType {
     REGROUP = 1;
@@ -308,6 +314,9 @@ message ImhotepRequest {
 
   // for MERGE_MULTI_FTGS_SPLIT and MERGE_MULTI_DISTINCT_SPLIT
   optional MultiFTGSRequest multiFtgsRequest = 69;
+
+  // for topK and bottomK 
+  optional SortOrder sortOrder = 70;
 }
 
 message AggregateStat {
@@ -360,7 +369,7 @@ message MultiFTGSRequest {
   optional int64 termLimit = 7 [default = 0];
   optional int32 sortStat = 8 [default = -1];
   optional bool sortedFTGS = 9 [default = true];
-
+  optional SortOrder sortOrder = 12;
 }
 
 message ImhotepResponse {
