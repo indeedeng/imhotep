@@ -133,7 +133,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
             final FTGSIterator result = sessions[0].getFTGSIterator(intFields, stringFields, termLimit);
             return new FTGSIterator[] {result};
         }
-        return getFTGSIteratorSplits(new FTGSParams(intFields, stringFields, termLimit, -1, true, SortOrder.ASCENDING));
+        return getFTGSIteratorSplits(new FTGSParams(intFields, stringFields, termLimit, -1, true, SortOrder.UNDEFINED));
     }
 
     private FTGSIterator[] getFTGSIteratorSplits(final FTGSParams params) {
