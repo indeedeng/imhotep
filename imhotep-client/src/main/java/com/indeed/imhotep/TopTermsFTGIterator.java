@@ -29,7 +29,7 @@ public class TopTermsFTGIterator<S> implements FTGIterator {
     private FTGSIteratorUtil.TopTermsStatsByField.FieldAndTermStats<S> currentField;
     private int currentTGSIdx;
     private FTGSIteratorUtil.TermStat<S> currentTerm;
-    private String currentTermVal;
+    private byte[] currentTermBytes;
     protected FTGSIteratorUtil.TermStat<S> currentGroup;
 
     public TopTermsFTGIterator(final FTGSIteratorUtil.TopTermsStatsByField<S> topTermFTGS,
@@ -49,7 +49,7 @@ public class TopTermsFTGIterator<S> implements FTGIterator {
             currentField = currentFieldIt.next();
             currentTGSIdx = 0;
             currentTerm = null;
-            currentTermVal = null;
+            currentTermBytes = null;
             currentGroup = null;
 
             return true;
@@ -84,7 +84,7 @@ public class TopTermsFTGIterator<S> implements FTGIterator {
             final FTGSIteratorUtil.TermStat nextTerm = currentField.termStats[currentTGSIdx];
             if ((currentTerm == null) || !currentTerm.haveSameTerm(nextTerm)) {
                 currentTerm = nextTerm;
-                currentTermVal = null;
+                currentTermBytes = null;
                 break;
             }
         }
@@ -110,18 +110,18 @@ public class TopTermsFTGIterator<S> implements FTGIterator {
 
     @Override
     public String termStringVal() {
-        if (currentTermVal == null) {
-            currentTermVal = new String(termStringBytes(), Charsets.UTF_8);
+        if (currentTerm == null) {
+            throw new IllegalStateException("Invoked while not positioned in term");
         }
-        return currentTermVal;
+        return currentTerm.strTerm;
     }
 
     @Override
     public byte[] termStringBytes() {
-        if (currentTerm == null) {
-            throw new IllegalStateException("Invoked while not positioned in term");
+        if (currentTermBytes == null) {
+            currentTermBytes = termStringVal().getBytes(Charsets.UTF_8);
         }
-        return currentTerm.strTermBytes;
+        return currentTermBytes;
     }
 
     @Override

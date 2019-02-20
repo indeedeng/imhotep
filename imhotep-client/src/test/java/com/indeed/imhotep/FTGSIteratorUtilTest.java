@@ -14,7 +14,6 @@
 
 package com.indeed.imhotep;
 
-import com.google.common.base.Charsets;
 import com.google.common.base.Objects;
 import com.google.common.collect.Lists;
 import com.indeed.imhotep.FTGSBinaryFormat.FieldStat;
@@ -694,7 +693,7 @@ public class FTGSIteratorUtilTest {
                s1.intTerm == s2.intTerm &&
                s1.termDocFreq == s2.termDocFreq &&
                s1.group == s2.group &&
-               Objects.equal(s1.strTermBytes, s2.strTermBytes) &&
+               Objects.equal(s1.strTerm, s2.strTerm) &&
                statsEqual.test(s1.groupStats, s2.groupStats);
    }
 
@@ -713,9 +712,9 @@ public class FTGSIteratorUtilTest {
         ));
 
         final List<FTGSIteratorUtil.TermStat<long[]>> termsWorseThan = Lists.newArrayList(
-                new FTGSIteratorUtil.TermStat<>(true, 2, "".getBytes(Charsets.UTF_8), -1L, 1, new long[]{0}),
-                new FTGSIteratorUtil.TermStat<>(true, 1, "".getBytes(Charsets.UTF_8), -1L, 1, new long[]{-1L}),
-                new FTGSIteratorUtil.TermStat<>(true, 1, "".getBytes(Charsets.UTF_8), -1L, 1, new long[]{Long.MIN_VALUE})
+                new FTGSIteratorUtil.TermStat<>(true, 2, "", -1L, 1, new long[]{0}),
+                new FTGSIteratorUtil.TermStat<>(true, 1, "", -1L, 1, new long[]{-1L}),
+                new FTGSIteratorUtil.TermStat<>(true, 1, "", -1L, 1, new long[]{Long.MIN_VALUE})
         );
 
         for (final FTGSIteratorUtil.TermStat<long[]> termStat : termsWorseThan) {
@@ -724,11 +723,11 @@ public class FTGSIteratorUtilTest {
         }
 
         final ArrayList<FTGSIteratorUtil.TermStat<long[]>> termsBetterThan = Lists.newArrayList(
-                new FTGSIteratorUtil.TermStat<>(true, 1, "".getBytes(Charsets.UTF_8), -1L, 1, new long[]{1}),
-                new FTGSIteratorUtil.TermStat<>(true, 1, "".getBytes(Charsets.UTF_8), -1L, 1, new long[]{100}),
-                new FTGSIteratorUtil.TermStat<>(true, -1, "".getBytes(Charsets.UTF_8), -1L, 1, new long[]{1}),
-                new FTGSIteratorUtil.TermStat<>(true, 5, "".getBytes(Charsets.UTF_8), -1L, 1, new long[]{Long.MAX_VALUE}),
-                new FTGSIteratorUtil.TermStat<>(true, 1, "".getBytes(Charsets.UTF_8), -1L, 1, new long[]{0})
+                new FTGSIteratorUtil.TermStat<>(true, 1, "", -1L, 1, new long[]{1}),
+                new FTGSIteratorUtil.TermStat<>(true, 1, "", -1L, 1, new long[]{100}),
+                new FTGSIteratorUtil.TermStat<>(true, -1, "", -1L, 1, new long[]{1}),
+                new FTGSIteratorUtil.TermStat<>(true, 5, "", -1L, 1, new long[]{Long.MAX_VALUE}),
+                new FTGSIteratorUtil.TermStat<>(true, 1, "", -1L, 1, new long[]{0})
         );
 
         for (final FTGSIteratorUtil.TermStat<long[]> termStat : termsBetterThan) {
