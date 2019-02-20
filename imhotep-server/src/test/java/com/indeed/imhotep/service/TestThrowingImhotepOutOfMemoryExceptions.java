@@ -76,8 +76,7 @@ public class TestThrowingImhotepOutOfMemoryExceptions {
     @Test(expected = ImhotepOutOfMemoryException.class)
     public void testGetGroupStats() throws ImhotepOutOfMemoryException {
         try (final ImhotepSession session = client.sessionBuilder(DATASET, START, END).build()) {
-            final long[] result = session.getGroupStats(STAT);
-            System.out.println("result = " + Arrays.toString(result));
+            session.getGroupStats(STAT);
         }
     }
 
