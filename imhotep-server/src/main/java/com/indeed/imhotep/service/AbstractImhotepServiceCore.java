@@ -339,7 +339,7 @@ public abstract class AbstractImhotepServiceCore
                 public FTGSIterator[] call() throws Exception {
                     final HostAndPort[] sessionNodes = sessionInfo.getNodesList().toArray(new HostAndPort[0]);
                     final String localSessionChoice = sessionIsValid(sessionInfo.getSessionId()) ? sessionInfo.getSessionId() : validLocalSessionId;
-                    final FTGSIterator[] sessionIterators = doWithSession(localSessionChoice, (ThrowingFunction<MTImhotepLocalMultiSession, FTGSIterator[], IOException>) session -> {
+                    final FTGSIterator[] sessionIterators = doWithSession(localSessionChoice, (IOOrOutOfMemoryFunction<MTImhotepLocalMultiSession, FTGSIterator[]>) session -> {
                         final String[] intFields = isIntField ? new String[]{sessionInfo.getField()} : new String[0];
                         final String[] stringFields = isIntField ? new String[0] : new String[]{sessionInfo.getField()};
                         final FTGSParams ftgsParams = new FTGSParams(intFields, stringFields, termLimit, -1, true, stats);

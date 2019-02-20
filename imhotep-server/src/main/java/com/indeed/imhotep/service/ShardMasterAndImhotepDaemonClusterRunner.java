@@ -45,6 +45,9 @@ public class ShardMasterAndImhotepDaemonClusterRunner {
     final File tempRootDir;
     final ImhotepShardCreator shardCreator;
 
+    @Nullable
+    private Long memoryCapacityOverride;
+
     private static final DateTimeFormatter SHARD_VERSION_FORMAT = DateTimeFormat.forPattern(".yyyyMMddHHmmss");
     @Nullable
     private ShardLocator dynamicShardLocator = null;
@@ -64,6 +67,10 @@ public class ShardMasterAndImhotepDaemonClusterRunner {
     public void setDynamicShardMasterAndLocator(@Nullable final ShardMaster dynamicShardMaster, @Nullable final ShardLocator dynamicShardLocator) {
         this.dynamicShardMaster = dynamicShardMaster;
         this.dynamicShardLocator = dynamicShardLocator;
+    }
+
+    public void setMemoryCapacity(final long memoryCapacity) {
+        this.memoryCapacityOverride = memoryCapacity;
     }
 
     public void createDailyShard(final String dataset, final DateTime dateTime, final FlamdexReader flamdexReader) throws IOException {
@@ -92,6 +99,9 @@ public class ShardMasterAndImhotepDaemonClusterRunner {
                 tempRootDir.toPath().resolve(UUID.randomUUID().toString()),
                 0, new GenericFlamdexReaderSource());
         runner.setConfig(new LocalImhotepServiceConfig().setDynamicShardLocator(dynamicShardLocator));
+        if (memoryCapacityOverride != null) {
+            runner.setMemoryCapacity(memoryCapacityOverride);
+        }
         runner.start();
         daemonRunners.add(runner);
         return runner;

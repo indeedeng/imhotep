@@ -759,7 +759,7 @@ public class TestMultiDistinct {
         }
     }
 
-    private void testIntDistinctWindow(final long[] expected, final List<SessionField> sessions, final List<AggregateStatTree> filters, final List<Integer> windowSizes, final int[] parentGroups) throws IOException {
+    private void testIntDistinctWindow(final long[] expected, final List<SessionField> sessions, final List<AggregateStatTree> filters, final List<Integer> windowSizes, final int[] parentGroups) throws IOException, ImhotepOutOfMemoryException {
         try (final GroupStatsIterator statsIterator = RemoteImhotepMultiSession.aggregateDistinct(
                 sessions,
                 filters,

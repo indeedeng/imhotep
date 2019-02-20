@@ -827,7 +827,7 @@ public class TestMultiFTGS {
             final boolean isIntField,
             final long termLimit,
             final int sortStat
-    ) {
+    ) throws ImhotepOutOfMemoryException {
         FTGAIterator iterator = RemoteImhotepMultiSession.multiFtgs(
                 sessionsWithFields,
                 selects,

@@ -349,7 +349,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
             final List<SessionField> sessionsWithFields,
             final List<AggregateStatTree> filters,
             final boolean isIntField
-    ) {
+    ) throws ImhotepOutOfMemoryException {
         return aggregateDistinct(sessionsWithFields, filters, Collections.nCopies(filters.size(), 1), isIntField, null);
     }
 
@@ -364,7 +364,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
             final List<Integer> windowSizes,
             final boolean isIntField,
             @Nullable final int[] parentGroups
-    ) {
+    ) throws ImhotepOutOfMemoryException {
         final MultiFTGSRequest.Builder builder = MultiFTGSRequest.newBuilder();
         final List<RemoteImhotepMultiSession> remoteSessions = processSessionFields(sessionsWithFields, builder);
         builder
@@ -402,6 +402,9 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
             return new GroupStatsIteratorCombiner(subCounts);
         } catch (Throwable t) {
             Closeables2.closeQuietly(closeOnFailCloser, log);
+            if (t instanceof ExecutionException) {
+                Throwables.propagateIfInstanceOf(t.getCause(), ImhotepOutOfMemoryException.class);
+            }
             throw Throwables.propagate(t);
         }
     }
@@ -425,7 +428,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
             final long termLimit,
             final int sortStat,
             final boolean sorted
-    ) {
+    ) throws ImhotepOutOfMemoryException {
         final MultiFTGSRequest.Builder builder = MultiFTGSRequest.newBuilder();
         final List<RemoteImhotepMultiSession> remoteSessions = processSessionFields(sessionsWithFields, builder);
 
@@ -463,6 +466,9 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
             });
         } catch (Throwable t) {
             Closeables2.closeQuietly(closer, log);
+            if (t instanceof ExecutionException) {
+                Throwables.propagateIfInstanceOf(t.getCause(), ImhotepOutOfMemoryException.class);
+            }
             throw Throwables.propagate(t);
         }
 

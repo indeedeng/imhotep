@@ -155,7 +155,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     final BuffersPool memoryPool = new BuffersPool();
 
     // total size of all buffers (docIdBuf + valBuf + docGroupBuffer)
-    private static final long BUFFERS_TOTAL_SIZE = BUFFER_SIZE * (4 + 8 + 4);
+    public static final long BUFFERS_TOTAL_SIZE = BUFFER_SIZE * (4 + 8 + 4);
 
     // do not close flamdexReader, it is separately refcounted
     protected FlamdexReader flamdexReader;
