@@ -327,6 +327,7 @@ public class ImhotepRemoteSession
                 .setTermLimit(params.termLimit)
                 .setSortStat(params.sortStat)
                 .setSortedFTGS(params.sorted)
+                .setSortOrder(params.sortOrder)
                 .build();
 
         final FTGSIterator result = fileBufferedFTGSRequest(request);
@@ -444,6 +445,7 @@ public class ImhotepRemoteSession
                 .setTermLimit(params.termLimit)
                 .setSortStat(params.sortStat)
                 .setSortedFTGS(params.sorted)
+                .setSortOrder(params.sortOrder)
                 .addAllNodes(Iterables.transform(Arrays.asList(nodes), new Function<InetSocketAddress, HostAndPort>() {
                     public HostAndPort apply(final InetSocketAddress input) {
                         return HostAndPort.newBuilder().setHost(input.getHostName()).setPort(input.getPort()).build();

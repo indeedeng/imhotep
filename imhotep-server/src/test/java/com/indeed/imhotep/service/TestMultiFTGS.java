@@ -730,6 +730,29 @@ public class TestMultiFTGS {
                 expectEnd(iterator);
             }
 
+            // GROUP BY country[BOTTOM 1 BY count()]
+            try (FTGAIterator iterator = multiFtgs(
+                    ImmutableList.of(
+                            new SessionField(session1, "country"),
+                            new SessionField(session2, "country")
+                    ),
+                    Lists.newArrayList(count1.plus(count2)),
+                    Lists.newArrayList(),
+                    false,
+                    1,
+                    0,
+                    SortOrder.DESCENDING
+            )) {
+                assertTrue(iterator.nextField());
+                assertEquals("magic", iterator.fieldName());
+                assertFalse(iterator.fieldIsIntType());
+
+                expectStrTerm(iterator,"GB", 1);
+                expectGroup(iterator, 1, new double[]{1});
+
+                expectEnd(iterator);
+            }
+
             // GROUP BY country[1 BY dataset2.count()]
             try (FTGAIterator iterator = multiFtgs(
                     ImmutableList.of(
@@ -749,6 +772,29 @@ public class TestMultiFTGS {
 
                 expectStrTerm(iterator,"JP", 70);
                 expectGroup(iterator, 1, new double[]{50});
+
+                expectEnd(iterator);
+            }
+
+            // GROUP BY country[BOTTOM 1 BY dataset2.count()]
+            try (FTGAIterator iterator = multiFtgs(
+                    ImmutableList.of(
+                            new SessionField(session1, "country"),
+                            new SessionField(session2, "country")
+                    ),
+                    Lists.newArrayList(count2),
+                    Lists.newArrayList(),
+                    false,
+                    1,
+                    0,
+                    SortOrder.DESCENDING
+            )) {
+                assertTrue(iterator.nextField());
+                assertEquals("magic", iterator.fieldName());
+                assertFalse(iterator.fieldIsIntType());
+
+                expectStrTerm(iterator,"AU", 10);
+                expectGroup(iterator, 1, new double[]{0});
 
                 expectEnd(iterator);
             }
@@ -798,6 +844,29 @@ public class TestMultiFTGS {
 
                 expectStrTerm(iterator,"JP", 70);
                 expectGroup(iterator, 1, new double[]{70});
+
+                expectEnd(iterator);
+            }
+
+            // GROUP BY country[BOTTOM 1 BY count()] HAVING dataset1.count() <= 20
+            try (FTGAIterator iterator = multiFtgs(
+                    ImmutableList.of(
+                            new SessionField(session1, "country"),
+                            new SessionField(session2, "country")
+                    ),
+                    Lists.newArrayList(count1.plus(count2)),
+                    Lists.newArrayList(count1.lte(constant(20))),
+                    false,
+                    1,
+                    0,
+                    SortOrder.DESCENDING
+            )) {
+                assertTrue(iterator.nextField());
+                assertEquals("magic", iterator.fieldName());
+                assertFalse(iterator.fieldIsIntType());
+
+                expectStrTerm(iterator,"GB", 1);
+                expectGroup(iterator, 1, new double[]{1});
 
                 expectEnd(iterator);
             }

@@ -159,7 +159,7 @@ public class FTGSIteratorUtil {
             final int sortStat,
             final SortOrder sortOrder) {
         try (final SilentCloseable ignored = originalIterator) {
-            if ((termLimit <= 0) || (sortStat < 0) || (sortStat >= originalIterator.getNumStats() || sortOrder == SortOrder.UNDEFINED)) {
+            if ((termLimit <= 0) || (sortStat < 0) || (sortStat >= originalIterator.getNumStats()) || (sortOrder == SortOrder.UNDEFINED)) {
                 throw new IllegalArgumentException("TopTerms expect positive termLimit, valid sortStat index and ASCENDING/DESCENDING sortorder");
             }
             return getTopTermsFTGSIteratorInternal(originalIterator, termLimit, sortStat, sortOrder);
@@ -172,7 +172,7 @@ public class FTGSIteratorUtil {
             final int sortStat,
             final SortOrder sortOrder) {
         try (final SilentCloseable ignored = originalIterator) {
-            if ((termLimit <= 0) || (sortStat < 0) || (sortStat >= originalIterator.getNumStats()) || sortOrder == SortOrder.UNDEFINED) {
+            if ((termLimit <= 0) || (sortStat < 0) || (sortStat >= originalIterator.getNumStats()) || (sortOrder == SortOrder.UNDEFINED)) {
                 throw new IllegalArgumentException("TopTerms expect positive termLimit, valid sortStat index and ASCENDING/DESCENDING sortorder");
             }
             return getTopTermsFTGSIteratorInternal(originalIterator, termLimit, sortStat, sortOrder);
@@ -184,7 +184,7 @@ public class FTGSIteratorUtil {
     // Use this only in tests with small iterators
     @VisibleForTesting
     public static FTGSIterator sortFTGSIterator(@WillClose final FTGSIterator originalIterator) {
-        return getTopTermsFTGSIteratorInternal(originalIterator, Integer.MAX_VALUE, -1, SortOrder.UNDEFINED);
+        return getTopTermsFTGSIteratorInternal(originalIterator, Integer.MAX_VALUE, -1, SortOrder.ASCENDING);
     }
 
     // Consume iterator, sort by terms and return sorted.
@@ -192,7 +192,7 @@ public class FTGSIteratorUtil {
     // Use this only in tests with small iterators
     @VisibleForTesting
     public static FTGAIterator sortFTGSIterator(@WillClose final FTGAIterator originalIterator) {
-        return getTopTermsFTGSIteratorInternal(originalIterator, Integer.MAX_VALUE, -1, SortOrder.UNDEFINED);
+        return getTopTermsFTGSIteratorInternal(originalIterator, Integer.MAX_VALUE, -1, SortOrder.ASCENDING);
     }
 
     // Returns top terms iterator.
@@ -272,10 +272,12 @@ public class FTGSIteratorUtil {
         public boolean itIsBetterThan(FTGSIterator iterator, TermStat<long[]> termStat) {
             final int statCmp = Long.compare(statsBuf[sortStat], termStat.groupStats[sortStat]);
             if (statCmp != 0) {
-                if (sortOrder == SortOrder.DESCENDING)
+                if (sortOrder == SortOrder.DESCENDING) {
                     return statCmp < 0;
-                else
-                    return  statCmp > 0;
+                }
+                else {
+                    return statCmp > 0;
+                }
             }
 
             boolean r;
@@ -305,29 +307,29 @@ public class FTGSIteratorUtil {
 
         @Override
         public Comparator<TermStat<long[]>> comparator() {
-            return new Comparator<TermStat<long[]>>() {
+            Comparator<TermStat<long[]>> termStatComparator = new Comparator<TermStat<long[]>>() {
                 @Override
                 public int compare(final TermStat<long[]> x, final TermStat<long[]> y) {
                     // Support for `sortStat < 0` is solely for unit test usage.
                     // It will only be invoked when max # terms == Long.MAX_VALUE, so does
                     // not need to be supported in itIsBetterThan.
                     // Feel free to remove it and fix broken unit tests if it measurably better.
-                    final int ret = sortStat < 0 ? 0 : (sortOrder == SortOrder.DESCENDING? -1 : 1) * ( Longs.compare(x.groupStats[sortStat], y.groupStats[sortStat]) );
+                    final int ret = sortStat < 0 ? 0 : Longs.compare(x.groupStats[sortStat], y.groupStats[sortStat]);
                     if (ret == 0) {
-                        int r;
                         if (x.fieldIsIntType) {
-                            r = Longs.compare(y.intTerm, x.intTerm);
+                            return Longs.compare(y.intTerm, x.intTerm);
                         } else {
-                            r = stringTermBytesCompareTo(y.strTermBytes, x.strTermBytes);
+                            return stringTermBytesCompareTo(y.strTermBytes, x.strTermBytes);
                         }
-                        if (sortOrder == SortOrder.DESCENDING) {
-                            r = r*(-1);
-                        }
-                        return r;
                     }
                     return ret;
                 }
             };
+            if (sortOrder == SortOrder.DESCENDING) {
+                return termStatComparator.reversed();
+            } else {
+                return termStatComparator;
+            }
         }
     }
 
@@ -386,29 +388,29 @@ public class FTGSIteratorUtil {
 
         @Override
         public Comparator<TermStat<double[]>> comparator() {
-            return new Comparator<TermStat<double[]>>() {
+            Comparator<TermStat<double[]>> termStatComparator =  new Comparator<TermStat<double[]>>() {
                 @Override
                 public int compare(final TermStat<double[]> x, final TermStat<double[]> y) {
                     // Support for `sortStat < 0` is solely for unit test usage.
                     // It will only be invoked when max # terms == Long.MAX_VALUE, so does
                     // not need to be supported in itIsBetterThan.
                     // Feel free to remove it and fix broken unit tests if it measurably better.
-                    final int ret = (sortStat < 0) ? 0 : (sortOrder == SortOrder.DESCENDING ? -1 : 1) * ( Doubles.compare(x.groupStats[sortStat], y.groupStats[sortStat]) );
+                    final int ret = (sortStat < 0) ? 0 : Doubles.compare(x.groupStats[sortStat], y.groupStats[sortStat]);
                     if (ret == 0) {
-                        int r;
                         if (x.fieldIsIntType) {
-                            r = Longs.compare(y.intTerm, x.intTerm);
+                            return Longs.compare(y.intTerm, x.intTerm);
                         } else {
-                            r = stringTermBytesCompareTo(y.strTermBytes, x.strTermBytes);
+                            return stringTermBytesCompareTo(y.strTermBytes, x.strTermBytes);
                         }
-                        if (sortOrder ==  SortOrder.DESCENDING) {
-                            r = r * (-1);
-                        }
-                        return r;
                     }
                     return ret;
                 }
             };
+            if (sortOrder == SortOrder.DESCENDING) {
+                return termStatComparator.reversed();
+            } else {
+                return termStatComparator;
+            }
         }
     }
 
