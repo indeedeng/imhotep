@@ -1,15 +1,11 @@
 package com.indeed.imhotep;
 
-import com.google.common.collect.ImmutableList;
 import com.indeed.imhotep.client.Host;
-import com.sun.deploy.util.SystemUtils;
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.Socket;
 import java.util.HashSet;
 import java.util.List;
@@ -19,20 +15,21 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * @author xweng
  */
 public class ImhotepConnectionPoolManagerTest {
-
     private Host host1;
     private Host host2;
-    private Host host3;
 
     private ImhotepConnectionPoolManager poolManager;
 
@@ -40,7 +37,6 @@ public class ImhotepConnectionPoolManagerTest {
     public void initialize() {
         host1 = new Host("localhost", 22);
         host2 = new Host("localhost", 80);
-        host3 = new Host("localhost", 8081);
         poolManager = ImhotepConnectionPoolManager.getInstance(2);
     }
 
@@ -71,7 +67,7 @@ public class ImhotepConnectionPoolManagerTest {
     }
 
     @Test
-    public void testGetConnectionConcurrently() throws IOException {
+    public void testGetConnectionConcurrently() {
         final Set<Socket> connectionSet1 = new HashSet<>();
         final Set<Socket> connectionSet2 = new HashSet<>();
 
@@ -97,7 +93,7 @@ public class ImhotepConnectionPoolManagerTest {
         }
 
         assertTrue(connectionSet1.size() <= 2 && connectionSet1.size() >= 1);
-        assertTrue(connectionSet2.size() <= 2 && connectionSet1.size() >= 1);
+        assertTrue(connectionSet2.size() <= 2 && connectionSet2.size() >= 1);
         for (final Socket socket : connectionSet1) {
             assertEquals(socket.getInetAddress().getHostName(), host1.getHostname());
             assertEquals(socket.getPort(), host1.getPort());

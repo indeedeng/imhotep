@@ -62,11 +62,11 @@ public class RemoteImhotepConnectionPoolTest {
     @Test
     public void testGetConnectionConcurrently() throws IOException {
         final Set<Socket> connectionSet = new HashSet<>();
-        ExecutorService executor = Executors.newFixedThreadPool(16);
+        final ExecutorService executor = Executors.newFixedThreadPool(16);
         try (final ImhotepConnectionPool pool = new RemoteImhotepConnectionPool(host, 2)) {
-        List<Callable<Socket>> tasks = IntStream.range(0, 16).mapToObj(i -> new Task(pool, i)).collect(Collectors.toList());
+            List<Callable<Socket>> tasks = IntStream.range(0, 16).mapToObj(i -> new Task(pool, i)).collect(Collectors.toList());
             List<Future<Socket>> results = executor.invokeAll(tasks);
-            for (Future<Socket> future : results) {
+            for (final Future<Socket> future : results) {
                 final Socket socket = future.get();
                 if (socket == null) {
                     fail();
@@ -85,7 +85,7 @@ public class RemoteImhotepConnectionPoolTest {
         try(final ImhotepConnectionPool pool = new RemoteImhotepConnectionPool(host, 2)) {
             final Socket socket = pool.getConnection();
             assertNotNull(socket);
-            assertTrue(socket.isConnected());
+            assertFalse(socket.isClosed());
             assertTrue(pool.releaseConnection(socket));
 
             // close the pool
@@ -97,8 +97,8 @@ public class RemoteImhotepConnectionPoolTest {
     }
 
     private static class Task implements Callable<Socket>{
-        private int taskIndex;
-        private ImhotepConnectionPool pool;
+        private final int taskIndex;
+        private final ImhotepConnectionPool pool;
 
         public Task(final ImhotepConnectionPool pool, final int taskIndex) {
             this.pool = pool;

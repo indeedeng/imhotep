@@ -17,23 +17,23 @@ import java.util.concurrent.ConcurrentHashMap;
 public class ImhotepConnectionPoolManager implements Closeable  {
     private static final Logger log = Logger.getLogger(ImhotepConnectionPoolManager.class);
 
-    private static ImhotepConnectionPoolManager INSTANCE_HOLDER;
+    private static volatile ImhotepConnectionPoolManager instanceHolder;
     private static final Object singletonLock = new Object();
 
     public static ImhotepConnectionPoolManager getInstance(final int poolSize) {
-        if (INSTANCE_HOLDER == null) {
+        if (instanceHolder == null) {
             synchronized (singletonLock) {
-                if (INSTANCE_HOLDER == null) {
-                    INSTANCE_HOLDER = new ImhotepConnectionPoolManager(poolSize);
+                if (instanceHolder == null) {
+                    instanceHolder = new ImhotepConnectionPoolManager(poolSize);
                 }
             }
         }
-        return INSTANCE_HOLDER;
+        return instanceHolder;
     }
 
-    private Map<Host, ImhotepConnectionPool> hostConnectionPoolMap;
+    private final Map<Host, ImhotepConnectionPool> hostConnectionPoolMap;
 
-    private int poolSize;
+    private final int poolSize;
 
     private ImhotepConnectionPoolManager(final int poolSize) {
         this.poolSize = poolSize;
@@ -56,7 +56,7 @@ public class ImhotepConnectionPoolManager implements Closeable  {
         try {
             return pool.getConnection();
         } catch (final IOException | InterruptedException e) {
-            log.error("can't get connection for " + host, e);
+            log.error("failed to get connection for host = " + host, e);
             return null;
         }
     }
@@ -68,11 +68,11 @@ public class ImhotepConnectionPoolManager implements Closeable  {
 
     @Override
     public void close() throws IOException {
-        for (Map.Entry<Host, ImhotepConnectionPool> poolEntry : hostConnectionPoolMap.entrySet()) {
+        for (final Map.Entry<Host, ImhotepConnectionPool> poolEntry : hostConnectionPoolMap.entrySet()) {
             try {
                 poolEntry.getValue().close();
             } catch (final IOException e) {
-                log.error("could't close connections for " + poolEntry.getKey(), e);
+                log.error("could't close connection pool for the host = " + poolEntry.getKey(), e);
                 Throwables.propagate(e);
             }
         }

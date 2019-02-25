@@ -3,29 +3,29 @@ package com.indeed.imhotep;
 import com.google.common.collect.Queues;
 import com.google.common.collect.Sets;
 import com.indeed.imhotep.client.Host;
-import org.apache.log4j.Logger;
 
 import java.io.IOException;
 import java.net.Socket;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 /**
  * @author xweng
  */
 public class RemoteImhotepConnectionPool implements ImhotepConnectionPool{
-    private static final Logger log = Logger.getLogger(ImhotepConnectionPool.class);
     private static final int DEFAULT_POOL_SIZE = 8;
+    private static final int DEFAULT_SOCKET_TIMEOUT = (int)TimeUnit.MINUTES.toMillis(10);
 
-    private int poolSize;
-    private Host host;
+    private final int poolSize;
+    private final Host host;
 
     private int created;
-    private BlockingQueue<Socket> avaliableConnections;
+    private final BlockingQueue<Socket> availableConnections;
 
     // totally control of sockets
-    // in case of the repeated release and IO leak caused by users forget to release
-    private Set<Socket> occupiedConnections;
+    // in case of repeated release and IO leak caused by users forget to release
+    private final Set<Socket> occupiedConnections;
 
     public RemoteImhotepConnectionPool(final Host host) {
         this(host, DEFAULT_POOL_SIZE);
@@ -36,13 +36,13 @@ public class RemoteImhotepConnectionPool implements ImhotepConnectionPool{
         this.poolSize = poolSize;
 
         created = 0;
-        avaliableConnections = Queues.newArrayBlockingQueue(poolSize);
+        availableConnections = Queues.newArrayBlockingQueue(poolSize);
         occupiedConnections = Sets.newConcurrentHashSet();
     }
 
     @Override
     public Socket getConnection() throws InterruptedException, IOException {
-        if (!avaliableConnections.isEmpty()) {
+        if (!availableConnections.isEmpty()) {
             return internalGet();
         }
 
@@ -59,13 +59,11 @@ public class RemoteImhotepConnectionPool implements ImhotepConnectionPool{
     }
 
     private Socket internalGet() throws InterruptedException {
-        final Socket socket = avaliableConnections.take();
+        final Socket socket = availableConnections.take();
         occupiedConnections.add(socket);
         return socket;
     }
 
-    // the capacity is always enough, no need to call Synchronized put method
-    // TODO: might need something to avoid repeated release
     @Override
     public boolean releaseConnection(final Socket socket) {
         if (!occupiedConnections.contains(socket)) {
@@ -73,9 +71,9 @@ public class RemoteImhotepConnectionPool implements ImhotepConnectionPool{
         }
 
         occupiedConnections.remove(socket);
-        final boolean result = avaliableConnections.offer(socket);
+        final boolean result = availableConnections.offer(socket);
         if (!result) {
-            occupiedConnections.remove(socket);
+            occupiedConnections.add(socket);
             return false;
         }
         return true;
@@ -84,7 +82,7 @@ public class RemoteImhotepConnectionPool implements ImhotepConnectionPool{
 
     @Override
     public void close() throws IOException {
-        for (Socket socket : avaliableConnections) {
+        for (Socket socket : availableConnections) {
             socket.close();
         }
         for (Socket socket : occupiedConnections) {
@@ -94,6 +92,9 @@ public class RemoteImhotepConnectionPool implements ImhotepConnectionPool{
 
     private Socket createConnection() throws IOException {
         final Socket socket = new Socket(host.hostname, host.port);
+        socket.setSoTimeout(DEFAULT_SOCKET_TIMEOUT);
+        socket.setReceiveBufferSize(65536);
+        socket.setTcpNoDelay(true);
         socket.setKeepAlive(true);
         created++;
         return socket;
@@ -103,15 +104,7 @@ public class RemoteImhotepConnectionPool implements ImhotepConnectionPool{
         return poolSize;
     }
 
-    public void setPoolSize(final int poolSize) {
-        this.poolSize = poolSize;
-    }
-
     public Host getHost() {
         return host;
-    }
-
-    public void setHost(final Host host) {
-        this.host = host;
     }
 }
