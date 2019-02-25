@@ -1,13 +1,11 @@
 package com.indeed.imhotep;
 
-import com.google.common.base.Throwables;
 import com.indeed.imhotep.client.Host;
+import com.indeed.util.core.io.Closeables2;
 import org.apache.log4j.Logger;
 
-import javax.annotation.Nullable;
 import java.io.Closeable;
 import java.io.IOException;
-import java.net.Socket;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -15,7 +13,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * @author xweng
  */
 public class ImhotepConnectionPoolManager implements Closeable  {
-    private static final Logger log = Logger.getLogger(ImhotepConnectionPoolManager.class);
+    private static final Logger logger = Logger.getLogger(ImhotepConnectionPoolManager.class);
 
     private static volatile ImhotepConnectionPoolManager instanceHolder;
     private static final Object singletonLock = new Object();
@@ -40,41 +38,26 @@ public class ImhotepConnectionPoolManager implements Closeable  {
         hostConnectionPoolMap = new ConcurrentHashMap<>();
     }
 
-    public @Nullable Socket getConnection(final Host host) {
-        ImhotepConnectionPool pool = hostConnectionPoolMap.get(host);
-        if (pool == null) {
-            // don't want to block other hosts pool, so synchronize host here
-            synchronized (host) {
-                pool = hostConnectionPoolMap.get(host);
-                if (pool == null) {
-                    pool = new RemoteImhotepConnectionPool(host, poolSize);
-                    hostConnectionPoolMap.put(host, pool);
-                }
-            }
-        }
-
-        try {
-            return pool.getConnection();
-        } catch (final IOException | InterruptedException e) {
-            log.error("failed to get connection for host = " + host, e);
-            return null;
-        }
+    public ImhotepConnection getConnection(final Host host) throws IOException, InterruptedException {
+        final ImhotepConnectionPool pool = hostConnectionPoolMap.computeIfAbsent(
+                host,
+                missingHost -> new RemoteImhotepConnectionPool(missingHost, poolSize)
+        );
+        return pool.getConnection();
     }
 
-    public boolean releaseConnection(final Host host, final Socket socket) {
+    public void releaseConnection(final Host host, final ImhotepConnection connection) {
         final ImhotepConnectionPool pool = hostConnectionPoolMap.get(host);
-        return pool.releaseConnection(socket);
+        pool.releaseConnection(connection);
+    }
+
+    public void discardConnection(final Host host, final ImhotepConnection connection) throws IOException {
+        final ImhotepConnectionPool pool = hostConnectionPoolMap.get(host);
+        pool.discardConnection(connection);
     }
 
     @Override
     public void close() throws IOException {
-        for (final Map.Entry<Host, ImhotepConnectionPool> poolEntry : hostConnectionPoolMap.entrySet()) {
-            try {
-                poolEntry.getValue().close();
-            } catch (final IOException e) {
-                log.error("could't close connection pool for the host = " + poolEntry.getKey(), e);
-                Throwables.propagate(e);
-            }
-        }
+        Closeables2.closeAll(logger, hostConnectionPoolMap.values());
     }
 }

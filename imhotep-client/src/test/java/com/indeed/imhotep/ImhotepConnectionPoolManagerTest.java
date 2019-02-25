@@ -6,6 +6,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.HashSet;
 import java.util.List;
@@ -31,39 +32,70 @@ public class ImhotepConnectionPoolManagerTest {
     private Host host1;
     private Host host2;
 
+    private ServerSocket serverSocket1;
+    private ServerSocket serverSocket2;
+
     private ImhotepConnectionPoolManager poolManager;
 
     @Before
-    public void initialize() {
-        host1 = new Host("localhost", 22);
-        host2 = new Host("localhost", 80);
+    public void initialize() throws IOException {
+        final int serverPort1 = 49152;
+        final int serverPort2 = 49153;
+
+        host1 = new Host("localhost", serverPort1);
+        host2 = new Host("localhost", serverPort2);
+
+        serverSocket1 = new ServerSocket(serverPort1);
+        serverSocket2 = new ServerSocket(serverPort2);
+
         poolManager = ImhotepConnectionPoolManager.getInstance(2);
     }
 
     @After
     public void finalize() throws IOException {
+        serverSocket1.close();
+        serverSocket2.close();
         poolManager.close();
     }
 
     @Test
-    public void testReleaseConnection() throws IOException {
-        final Socket socket1 = poolManager.getConnection(host1);
-        assertNotNull(socket1);
-        assertTrue(poolManager.releaseConnection(host1, socket1));
-        assertFalse(poolManager.releaseConnection(host1, socket1));
+    public void testReleaseConnection() throws IOException, InterruptedException {
+        Socket socket;
+        try (final ImhotepConnection connection = poolManager.getConnection(host1)) {
+            socket = connection.getSocket();
+            assertNotNull(socket);
+        }
+
+        final ImhotepConnection connection = poolManager.getConnection(host1);
+        socket = connection.getSocket();
+        assertNotNull(socket);
+        connection.close();
     }
 
     @Test
-    public void testGetConnection() throws IOException {
-        final Socket socket1 = poolManager.getConnection(host1);
-        assertNotNull(socket1);
-        assertEquals(socket1.getInetAddress().getHostName(), host1.getHostname());
-        assertTrue(poolManager.releaseConnection(host1, socket1));
+    public void testGetConnection() throws IOException, InterruptedException {
+        try (final ImhotepConnection connection = poolManager.getConnection(host1)) {
+            final Socket socket = connection.getSocket();
+            assertNotNull(socket);
+            assertEquals(socket.getInetAddress().getHostName(), host1.getHostname());
+        }
 
-        final Socket socket2 = poolManager.getConnection(host2);
-        assertNotNull(socket2);
-        assertEquals(socket2.getInetAddress().getHostName(), host2.getHostname());
-        assertTrue(poolManager.releaseConnection(host2, socket2));
+        try (final ImhotepConnection connection = poolManager.getConnection(host2)) {
+            final Socket socket = connection.getSocket();
+            assertNotNull(socket);
+            assertEquals(socket.getInetAddress().getHostName(), host2.getHostname());
+        }
+    }
+
+    @Test
+    public void testDiscardConnection() throws IOException, InterruptedException {
+        Socket socket;
+        try (final ImhotepConnection connection = poolManager.getConnection(host1)) {
+            socket = connection.getSocket();
+            assertNotNull(socket);
+            poolManager.discardConnection(host1, connection);
+        }
+        assertTrue(socket.isClosed());
     }
 
     @Test
@@ -115,10 +147,11 @@ public class ImhotepConnectionPoolManagerTest {
         @Override
         public Socket call() throws Exception {
             final Host host = taskIndex % 2 == 0 ? host1 : host2;
-            final Socket socket = poolManager.getConnection(host);
-            Thread.sleep(taskIndex/5 * 100);
-            poolManager.releaseConnection(host, socket);
-            return socket;
+            try (final ImhotepConnection connection = poolManager.getConnection(host)) {
+                final Socket socket = connection.getSocket();
+                Thread.sleep(taskIndex/5 * 100);
+                return socket;
+            }
         }
     }
 }

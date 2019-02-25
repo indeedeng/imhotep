@@ -3,29 +3,35 @@ package com.indeed.imhotep;
 import com.google.common.collect.Queues;
 import com.google.common.collect.Sets;
 import com.indeed.imhotep.client.Host;
+import com.indeed.util.core.io.Closeables2;
+import org.apache.log4j.Logger;
 
 import java.io.IOException;
 import java.net.Socket;
+import java.util.Collection;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * @author xweng
  */
 public class RemoteImhotepConnectionPool implements ImhotepConnectionPool{
+    private static final Logger logger = Logger.getLogger(RemoteImhotepConnectionPool.class);
     private static final int DEFAULT_POOL_SIZE = 8;
     private static final int DEFAULT_SOCKET_TIMEOUT = (int)TimeUnit.MINUTES.toMillis(10);
 
     private final int poolSize;
     private final Host host;
 
-    private int created;
-    private final BlockingQueue<Socket> availableConnections;
-
-    // totally control of sockets
-    // in case of repeated release and IO leak caused by users forget to release
-    private final Set<Socket> occupiedConnections;
+    private AtomicInteger socketCount;
+    private final BlockingQueue<Socket> availableSockets;
+    // whole control of sockets in case of incorrect usage of release and discard
+    private final Set<Socket> occupiedSockets;
 
     public RemoteImhotepConnectionPool(final Host host) {
         this(host, DEFAULT_POOL_SIZE);
@@ -35,59 +41,61 @@ public class RemoteImhotepConnectionPool implements ImhotepConnectionPool{
         this.host = host;
         this.poolSize = poolSize;
 
-        created = 0;
-        availableConnections = Queues.newArrayBlockingQueue(poolSize);
-        occupiedConnections = Sets.newConcurrentHashSet();
+        socketCount = new AtomicInteger(0);
+        availableSockets = Queues.newArrayBlockingQueue(poolSize);
+        occupiedSockets = Sets.newConcurrentHashSet();
     }
 
     @Override
-    public Socket getConnection() throws InterruptedException, IOException {
-        if (!availableConnections.isEmpty()) {
-            return internalGet();
+    public ImhotepConnection getConnection() throws InterruptedException, IOException {
+        Socket socket = availableSockets.poll();
+        if (socket != null) {
+            return internalGet(socket);
         }
 
-        if (created < poolSize) {
+        if (socketCount.get() < poolSize) {
             synchronized (this) {
-                if (created < poolSize) {
-                    final Socket socket = createConnection();
-                    occupiedConnections.add(socket);
-                    return socket;
+                if (socketCount.get() < poolSize) {
+                    socket = createConnection();
                 }
             }
         }
-        return internalGet();
+
+        if (socket == null) {
+            socket = availableSockets.take();
+        }
+        return internalGet(socket);
     }
 
-    private Socket internalGet() throws InterruptedException {
-        final Socket socket = availableConnections.take();
-        occupiedConnections.add(socket);
-        return socket;
+    private ImhotepConnection internalGet(final Socket socket) {
+        occupiedSockets.add(socket);
+        return new ImhotepConnection(this, socket);
     }
 
     @Override
-    public boolean releaseConnection(final Socket socket) {
-        if (!occupiedConnections.contains(socket)) {
-            return false;
+    public void discardConnection(final ImhotepConnection connection) throws IOException {
+        final Socket socket = connection.getSocket();
+        if (occupiedSockets.remove(socket)) {
+            // only decrease the count if the connection belongs to the pool
+            socketCount.decrementAndGet();
         }
-
-        occupiedConnections.remove(socket);
-        final boolean result = availableConnections.offer(socket);
-        if (!result) {
-            occupiedConnections.add(socket);
-            return false;
-        }
-        return true;
+        socket.close();
     }
 
+    @Override
+    public void releaseConnection(final ImhotepConnection connection) {
+        final Socket socket = connection.getSocket();
+        if (occupiedSockets.remove(socket)) {
+            availableSockets.offer(socket);
+        }
+    }
 
     @Override
     public void close() throws IOException {
-        for (Socket socket : availableConnections) {
-            socket.close();
-        }
-        for (Socket socket : occupiedConnections) {
-            socket.close();
-        }
+        final List<Socket> allSockets = Stream.of(availableSockets, occupiedSockets).
+                flatMap(Collection::stream).
+                collect(Collectors.toList());
+        Closeables2.closeAll(logger, allSockets);
     }
 
     private Socket createConnection() throws IOException {
@@ -96,15 +104,16 @@ public class RemoteImhotepConnectionPool implements ImhotepConnectionPool{
         socket.setReceiveBufferSize(65536);
         socket.setTcpNoDelay(true);
         socket.setKeepAlive(true);
-        created++;
+        socketCount.incrementAndGet();
         return socket;
-    }
-
-    public int getPoolSize() {
-        return poolSize;
     }
 
     public Host getHost() {
         return host;
+    }
+
+    @Override
+    public int getConnectionCount() {
+        return availableSockets.size() + occupiedSockets.size();
     }
 }
