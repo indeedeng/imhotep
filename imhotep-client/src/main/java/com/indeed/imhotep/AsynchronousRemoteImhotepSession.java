@@ -115,17 +115,17 @@ public class AsynchronousRemoteImhotepSession extends AbstractImhotepSession {
     }
 
     @Override
-    public FTGSIterator getFTGSIterator(final String[] intFields, final String[] stringFields, final List<List<String>> stats) throws ImhotepOutOfMemoryException {
+    public FTGSIterator getFTGSIterator(final String[] intFields, final String[] stringFields, @Nullable final List<List<String>> stats) throws ImhotepOutOfMemoryException {
         return extractFromSessionMemoryException(session -> session.getFTGSIterator(intFields, stringFields, stats));
     }
 
     @Override
-    public FTGSIterator getFTGSIterator(final String[] intFields, final String[] stringFields, final long termLimit, final List<List<String>> stats) throws ImhotepOutOfMemoryException {
+    public FTGSIterator getFTGSIterator(final String[] intFields, final String[] stringFields, final long termLimit, @Nullable final List<List<String>> stats) throws ImhotepOutOfMemoryException {
         return extractFromSessionMemoryException(session -> session.getFTGSIterator(intFields, stringFields, termLimit, stats));
     }
 
     @Override
-    public FTGSIterator getFTGSIterator(final String[] intFields, final String[] stringFields, final long termLimit, final int sortStat, final List<List<String>> stats) throws ImhotepOutOfMemoryException {
+    public FTGSIterator getFTGSIterator(final String[] intFields, final String[] stringFields, final long termLimit, final int sortStat, @Nullable final List<List<String>> stats) throws ImhotepOutOfMemoryException {
         return extractFromSessionMemoryException(session -> session.getFTGSIterator(intFields, stringFields, termLimit, sortStat, stats));
     }
 

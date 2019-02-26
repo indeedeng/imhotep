@@ -142,8 +142,8 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
             indexesAndSessions[i] = Pair.of(i, sessions[i]);
         }
         final FTGSIterator[] mergers = new FTGSIterator[sessions.length];
-        final Closer closer = Closer.create();
-        closer.register(Closeables2.forArray(log, mergers));
+        final Closer closeOnFailCloser = Closer.create();
+        closeOnFailCloser.register(Closeables2.forArray(log, mergers));
         try {
             // We don't need sorted for top terms case since mergers will be passed
             // in FTGSIteratorUtil.getTopTermsFTGSIterator anyway
@@ -155,11 +155,11 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
                     return session.mergeFTGSSplit(perSplitParams, nodes, index);
                 }
             });
-        } catch (final ExecutionException e) {
-            Throwables.propagateIfInstanceOf(e.getCause(), ImhotepOutOfMemoryException.class);
-            throw Throwables.propagate(e);
         } catch (final Throwable t) {
-            Closeables2.closeQuietly(closer, log);
+            Closeables2.closeQuietly(closeOnFailCloser, log);
+            if (t instanceof ExecutionException) {
+                Throwables.propagateIfInstanceOf(t.getCause(), ImhotepOutOfMemoryException.class);
+            }
             throw Throwables.propagate(t);
         }
         return mergers;
@@ -174,14 +174,14 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
         return new SortedFTGSInterleaver(mergers);
     }
 
-    private FTGSIterator[] getSubsetFTGSIteratorSplits(final Map<String, long[]> intFields, final Map<String, String[]> stringFields, final List<List<String>> stats) throws ImhotepOutOfMemoryException {
+    private FTGSIterator[] getSubsetFTGSIteratorSplits(final Map<String, long[]> intFields, final Map<String, String[]> stringFields, @Nullable final List<List<String>> stats) throws ImhotepOutOfMemoryException {
         final Pair<Integer, ImhotepRemoteSession>[] indexesAndSessions = new Pair[sessions.length];
         for (int i = 0; i < sessions.length; i++) {
             indexesAndSessions[i] = Pair.of(i, sessions[i]);
         }
         final FTGSIterator[] mergers = new FTGSIterator[sessions.length];
-        final Closer closer = Closer.create();
-        closer.register(Closeables2.forArray(log, mergers));
+        final Closer closeOnFailCloser = Closer.create();
+        closeOnFailCloser.register(Closeables2.forArray(log, mergers));
         try {
             execute(mergers, indexesAndSessions, false, new ThrowingFunction<Pair<Integer, ImhotepRemoteSession>, FTGSIterator>() {
                 public FTGSIterator apply(final Pair<Integer, ImhotepRemoteSession> indexSessionPair) throws ImhotepOutOfMemoryException {
@@ -190,11 +190,11 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
                     return session.mergeSubsetFTGSSplit(intFields, stringFields, stats, nodes, index);
                 }
             });
-        } catch (final ExecutionException e) {
-            Throwables.propagateIfInstanceOf(e.getCause(), ImhotepOutOfMemoryException.class);
-            throw Throwables.propagate(e);
         } catch (final Throwable t) {
-            Closeables2.closeQuietly(closer, log);
+            Closeables2.closeQuietly(closeOnFailCloser, log);
+            if (t instanceof ExecutionException) {
+                Throwables.propagateIfInstanceOf(t.getCause(), ImhotepOutOfMemoryException.class);
+            }
             throw Throwables.propagate(t);
         }
         return mergers;

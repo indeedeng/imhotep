@@ -18,7 +18,6 @@ import com.indeed.util.core.io.Closeables2;
 import org.apache.log4j.Logger;
 
 import java.io.Closeable;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -56,12 +55,14 @@ class StatLookup implements Closeable {
     String getName(final int index) { return names[index]; }
     IntValueLookup get(final int index) { return lookups[index]; }
 
-    void set(final int index, final String name, final IntValueLookup lookup) {
+    IntValueLookup set(final int index, final String name, final IntValueLookup lookup) {
+        final IntValueLookup original = lookups[index];
         names[index]   = name;
         lookups[index] = lookup;
         for (final Observer observer: observers) {
             observer.onChange(this, index);
         }
+        return original;
     }
 
     void    addObserver(final Observer observer) { observers.add(observer);    }

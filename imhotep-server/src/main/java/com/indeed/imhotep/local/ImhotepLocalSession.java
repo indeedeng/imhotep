@@ -358,7 +358,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     }
 
     // @Override
-    public long[][] getGroupStatsMulti(final List<List<String>> stats) throws ImhotepOutOfMemoryException {
+    public synchronized long[][] getGroupStatsMulti(final List<List<String>> stats) throws ImhotepOutOfMemoryException {
         final long[][] result = new long[stats.size()][];
 
         if (isFilteredOut()) {
@@ -437,7 +437,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             final String[] stringFields,
             final int numSplits,
             final long termLimit,
-            final List<List<String>> stats) throws ImhotepOutOfMemoryException {
+            @Nullable final List<List<String>> stats) throws ImhotepOutOfMemoryException {
         checkSplitParams(numSplits);
         try {
             return new FTGSSplitter(getFTGSIterator(intFields, stringFields, termLimit, stats),
@@ -452,7 +452,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             final Map<String, long[]> intFields,
             final Map<String, String[]> stringFields,
             final int numSplits,
-            final List<List<String>> stats) throws ImhotepOutOfMemoryException {
+            @Nullable final List<List<String>> stats) throws ImhotepOutOfMemoryException {
         checkSplitParams(numSplits);
         try {
             return new FTGSSplitter(getSubsetFTGSIterator(intFields, stringFields, stats),
@@ -1591,7 +1591,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             return numStats;
         }
 
-        public void push(final String name, final IntValueLookup lookup) throws ImhotepOutOfMemoryException {
+        public void push(final String name, final IntValueLookup lookup) {
             if (numStats == MAX_NUMBER_STATS) {
                 throw newIllegalArgumentException("Maximum number of stats exceeded");
             }
@@ -1616,6 +1616,10 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             stats.addObserver(observer);
         }
 
+        /**
+         * The resulting value will still be present in the metric stack and should NOT be closed by the caller in
+         * any circumstance.
+         */
         public IntValueLookup get(final int index) {
             if ((index < 0) || (index >= numStats)) {
                 throw newIllegalArgumentException("invalid stat index: " + index
@@ -1630,8 +1634,8 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             return result;
         }
 
-        public void set(final int index, final String statName, final IntValueLookup lookup) {
-            stats.set(index, statName, lookup);
+        public IntValueLookup set(final int index, final String statName, final IntValueLookup lookup) {
+            return stats.set(index, statName, lookup);
         }
 
         public List<String> getStatCommands() {
@@ -1805,8 +1809,9 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                     new CachedInterleavedMetrics(memory, flamdexReader.getNumDocs(), originals).getLookups();
 
             for (int i = 0; i < count; i++) {
-                stack.get(start + i).close();
-                stack.set(start + i, statName,  cached[i]);
+                final IntValueLookup oldValue = stack.set(start + i, statName, cached[i]);
+                Preconditions.checkNotNull(oldValue, "interleave should never set previously unset metric indexes");
+                oldValue.close();
             }
         } else if (statName.startsWith("mulshr ")) {
             final int shift = Integer.valueOf(statName.substring("mulshr ".length()).trim());
@@ -2502,6 +2507,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         } finally {
             Closeables2.closeQuietly(flamdexReaderRef, log);
             Closeables2.closeQuietly(memory, log);
+            Closeables2.closeQuietly(metricStack, log);
         }
     }
 

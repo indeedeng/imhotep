@@ -154,15 +154,18 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
     public FTGSIterator getSubsetFTGSIterator(final Map<String, long[]> intFields, final Map<String, String[]> stringFields, @Nullable final List<List<String>> stats) throws ImhotepOutOfMemoryException {
         try {
             if (sessions.length == 1) {
-                return persist(sessions[0].getSubsetFTGSIterator(intFields, stringFields, stats));
+                try(final Closeable ignored = TaskScheduler.CPUScheduler.lockSlot()) {
+                    return persist(sessions[0].getSubsetFTGSIterator(intFields, stringFields, stats));
+                }
             }
+
             return mergeFTGSIteratorsForSessions(sessions, 0, -1, true, s -> s.getSubsetFTGSIterator(intFields, stringFields, stats));
         } catch (final IOException e) {
             throw Throwables.propagate(e);
         }
     }
 
-    public synchronized FTGSIterator getFTGSIteratorSplit(final String[] intFields, final String[] stringFields, final int splitIndex, final int numSplits, final long termLimit, final List<List<String>> stats) throws ImhotepOutOfMemoryException {
+    public synchronized FTGSIterator getFTGSIteratorSplit(final String[] intFields, final String[] stringFields, final int splitIndex, final int numSplits, final long termLimit, @Nullable final List<List<String>> stats) throws ImhotepOutOfMemoryException {
         checkSplitParams(splitIndex, numSplits);
 
         final FTGSIterator split = getSplitOrThrow(splitIndex, numSplits);
@@ -183,7 +186,7 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
         return getSplitOrThrow(splitIndex, numSplits);
     }
 
-    public synchronized FTGSIterator getSubsetFTGSIteratorSplit(final Map<String, long[]> intFields, final Map<String, String[]> stringFields, final List<List<String>> stats, final int splitIndex, final int numSplits) throws ImhotepOutOfMemoryException {
+    public synchronized FTGSIterator getSubsetFTGSIteratorSplit(final Map<String, long[]> intFields, final Map<String, String[]> stringFields, @Nullable final List<List<String>> stats, final int splitIndex, final int numSplits) throws ImhotepOutOfMemoryException {
         checkSplitParams(splitIndex, numSplits);
 
         final FTGSIterator split = getSplitOrThrow(splitIndex, numSplits);
@@ -393,7 +396,7 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
 
     public FTGSIterator mergeSubsetFTGSSplit(final Map<String, long[]> intFields,
                                              final Map<String, String[]> stringFields,
-                                             final List<List<String>> stats,
+                                             @Nullable final List<List<String>> stats,
                                              final HostAndPort[] nodes,
                                              final int splitIndex) throws ImhotepOutOfMemoryException {
         checkSplitParams(splitIndex, nodes.length);

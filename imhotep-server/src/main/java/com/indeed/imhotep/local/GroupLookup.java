@@ -28,7 +28,8 @@ public abstract class GroupLookup {
             BitTree groupsSeen,
             int[] docIdBuf,
             long[] valBuf,
-            int[] docGroupBuffer, final ImhotepLocalSession.MetricStack metricStack);
+            int[] docGroupBuffer,
+            final ImhotepLocalSession.MetricStack metricStack);
 
     public abstract void applyIntConditionsCallback(
             int n,

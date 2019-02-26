@@ -623,7 +623,8 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                     request.getSessionId(),
                     getIntFieldsToTerms(request),
                     getStringFieldsToTerms(request),
-                    getStats(request), os,
+                    getStats(request),
+                    os,
                     request.getSplitIndex(),
                     request.getNumSplits()
             );
@@ -1221,6 +1222,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
         }
     }
 
+    @Nullable
     private List<List<String>> getStats(final ImhotepRequest request) {
         if (!request.getHasStats()) {
             return null;

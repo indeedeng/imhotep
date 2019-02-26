@@ -74,6 +74,7 @@ public interface ImhotepSession
      * get an iterator over all (field, term, group, stat) tuples for the given fields
      * @param intFields list of int fields
      * @param stringFields list of string fields
+     * @param stats list of stats to return in the FTGS. null means fall back to session stack.
      * @return an iterator. result is the same as after calling
      *          getFTGSIterator(new FTGSParams(intFields, stringFields, 0, -1, true));
      */
@@ -84,6 +85,7 @@ public interface ImhotepSession
      * @param intFields list of int fields
      * @param stringFields list of string fields
      * @param termLimit maximum number of terms that can be returned. 0 means no limit
+     * @param stats list of stats to return in the FTGS. null means fall back to session stack.
      * @return an iterator. result is the same as after calling
      *          getFTGSIterator(new FTGSParams(intFields, stringFields, termLimit, -1, true));
      */
@@ -95,6 +97,7 @@ public interface ImhotepSession
      * @param stringFields list of string fields
      * @param termLimit maximum number of terms that can be returned. 0 means no limit
      * @param sortStat the index of stats to get the top terms. No sorting is done if the value is negative
+     * @param stats list of stats to return in the FTGS. null means fall back to session stack.
      * @return an iterator. result is the same as after calling
      *          getFTGSIterator(new FTGSParams(intFields, stringFields, termLimit, sortStat, true));
      */
@@ -304,7 +307,7 @@ public interface ImhotepSession
 
     /**
      * Same as <code>randomRegroup</code> but regrouping is based on metric value
-     * @param stat the index of the metric
+     * @param stat the metric
      * @param salt the salt to use
      * @param p the minimum value to go into positiveGroup
      * @param targetGroup the group to apply the random regroup to
@@ -316,7 +319,7 @@ public interface ImhotepSession
 
     /**
      * Same as <code>randomMultiRegroup</code> but regrouping is based on metric value
-     * @param stat the index of the metric
+     * @param stat the metric
      * @param salt The salt to use
      * @param targetGroup The group to apply the random regroup to
      * @param percentages The group cutoff percentages, works together with resultGroups
@@ -352,7 +355,7 @@ public interface ImhotepSession
      * If negate=true, then documents with the metric inside the range are moved to group 0,
      *     and documents outside of the range are kept in their present groups.
      *
-     * @param stat index on stack of metric to filter based on
+     * @param stat metric to filter based on
      * @param min minimum value (inclusive) of the metric range
      * @param max maximum value (inclusive!) of the metric range
      * @param negate whether the range is being kept, or the negation of the range is being kept
@@ -364,7 +367,7 @@ public interface ImhotepSession
     /**
      * Move documents based on whether or not the given stat is within the specified range.
      *
-     * @param stat index on stack of metric to filter based on
+     * @param stat metric to filter based on
      * @param min minimum value (inclusive) of the metric range
      * @param max maximum value (inclusive!) of the metric range
      * @param targetGroup the group to affect
