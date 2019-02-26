@@ -1,5 +1,7 @@
 package com.indeed.imhotep;
 
+import com.google.common.annotations.VisibleForTesting;
+
 import java.io.Closeable;
 import java.io.IOException;
 
@@ -12,7 +14,8 @@ public interface ImhotepConnectionPool extends Closeable {
 
     void releaseConnection(final ImhotepConnection connection);
 
-    void discardConnection(final ImhotepConnection connection) throws IOException;
+    void discardConnection(final ImhotepConnection connection);
 
+    @VisibleForTesting
     int getConnectionCount();
 }

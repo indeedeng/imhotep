@@ -16,17 +16,35 @@ public class ImhotepConnectionPoolManager implements Closeable  {
     private static final Logger logger = Logger.getLogger(ImhotepConnectionPoolManager.class);
 
     private static volatile ImhotepConnectionPoolManager instanceHolder;
-    private static final Object singletonLock = new Object();
+    private static final Object singletonMutex = new Object();
 
+    /**
+     * Get a singleton connection pool manager with fixed size
+     * @param poolSize The specified pool size
+     */
     public static ImhotepConnectionPoolManager getInstance(final int poolSize) {
-        if (instanceHolder == null) {
-            synchronized (singletonLock) {
-                if (instanceHolder == null) {
-                    instanceHolder = new ImhotepConnectionPoolManager(poolSize);
+        // add a local holder to avoid reading instanceHolder twice
+        ImhotepConnectionPoolManager localHolder = instanceHolder;
+        if (localHolder == null) {
+            synchronized (singletonMutex) {
+                localHolder = instanceHolder;
+                if (localHolder == null) {
+                    instanceHolder = localHolder = new ImhotepConnectionPoolManager(poolSize);
                 }
             }
         }
-        return instanceHolder;
+
+        if (localHolder.getPoolSize() != poolSize) {
+            throw new IllegalArgumentException("Already have a connection pool with size " + localHolder.getPoolSize());
+        }
+        return localHolder;
+    }
+
+    /**
+     * Get a singleton connection pool manager with unlimited size
+     */
+    public static ImhotepConnectionPoolManager getInstance() {
+        return getInstance(Integer.MAX_VALUE);
     }
 
     private final Map<Host, ImhotepConnectionPool> hostConnectionPoolMap;
@@ -46,14 +64,8 @@ public class ImhotepConnectionPoolManager implements Closeable  {
         return pool.getConnection();
     }
 
-    public void releaseConnection(final Host host, final ImhotepConnection connection) {
-        final ImhotepConnectionPool pool = hostConnectionPoolMap.get(host);
-        pool.releaseConnection(connection);
-    }
-
-    public void discardConnection(final Host host, final ImhotepConnection connection) throws IOException {
-        final ImhotepConnectionPool pool = hostConnectionPoolMap.get(host);
-        pool.discardConnection(connection);
+    public int getPoolSize() {
+        return poolSize;
     }
 
     @Override

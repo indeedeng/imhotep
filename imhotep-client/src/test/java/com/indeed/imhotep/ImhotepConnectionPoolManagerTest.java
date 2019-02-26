@@ -20,7 +20,6 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -93,7 +92,7 @@ public class ImhotepConnectionPoolManagerTest {
         try (final ImhotepConnection connection = poolManager.getConnection(host1)) {
             socket = connection.getSocket();
             assertNotNull(socket);
-            poolManager.discardConnection(host1, connection);
+            connection.markAsBad();
         }
         assertTrue(socket.isClosed());
     }

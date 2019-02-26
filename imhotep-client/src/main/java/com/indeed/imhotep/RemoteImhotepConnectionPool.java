@@ -1,5 +1,6 @@
 package com.indeed.imhotep;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Queues;
 import com.google.common.collect.Sets;
 import com.indeed.imhotep.client.Host;
@@ -23,12 +24,12 @@ import java.util.stream.Stream;
 public class RemoteImhotepConnectionPool implements ImhotepConnectionPool{
     private static final Logger logger = Logger.getLogger(RemoteImhotepConnectionPool.class);
     private static final int DEFAULT_POOL_SIZE = 8;
-    private static final int DEFAULT_SOCKET_TIMEOUT = (int)TimeUnit.MINUTES.toMillis(10);
+    private static final int DEFAULT_SOCKET_TIMEOUT = (int)TimeUnit.MINUTES.toMillis(30);
 
     private final int poolSize;
     private final Host host;
 
-    private AtomicInteger socketCount;
+    private final AtomicInteger socketCount;
     private final BlockingQueue<Socket> availableSockets;
     // whole control of sockets in case of incorrect usage of release and discard
     private final Set<Socket> occupiedSockets;
@@ -57,6 +58,7 @@ public class RemoteImhotepConnectionPool implements ImhotepConnectionPool{
             synchronized (this) {
                 if (socketCount.get() < poolSize) {
                     socket = createConnection();
+                    socketCount.incrementAndGet();
                 }
             }
         }
@@ -72,14 +74,24 @@ public class RemoteImhotepConnectionPool implements ImhotepConnectionPool{
         return new ImhotepConnection(this, socket);
     }
 
+    /**
+     * Discard a connection from pool and close it silently without any exceptions
+     * If the connection is not from the pool, just close it directly
+     * @param connection the bad connection
+     */
     @Override
-    public void discardConnection(final ImhotepConnection connection) throws IOException {
+    public void discardConnection(final ImhotepConnection connection) {
         final Socket socket = connection.getSocket();
         if (occupiedSockets.remove(socket)) {
             // only decrease the count if the connection belongs to the pool
             socketCount.decrementAndGet();
         }
-        socket.close();
+
+        try {
+            socket.close();
+        } catch (final IOException e) {
+            logger.warn("Errors happened when closing socket " + socket);
+        }
     }
 
     @Override
@@ -100,11 +112,13 @@ public class RemoteImhotepConnectionPool implements ImhotepConnectionPool{
 
     private Socket createConnection() throws IOException {
         final Socket socket = new Socket(host.hostname, host.port);
+        logger.info("create a new socket " + socket);
+
         socket.setSoTimeout(DEFAULT_SOCKET_TIMEOUT);
         socket.setReceiveBufferSize(65536);
         socket.setTcpNoDelay(true);
         socket.setKeepAlive(true);
-        socketCount.incrementAndGet();
+
         return socket;
     }
 
@@ -113,6 +127,7 @@ public class RemoteImhotepConnectionPool implements ImhotepConnectionPool{
     }
 
     @Override
+    @VisibleForTesting
     public int getConnectionCount() {
         return availableSockets.size() + occupiedSockets.size();
     }

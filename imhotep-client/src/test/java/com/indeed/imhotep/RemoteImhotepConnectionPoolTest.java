@@ -156,7 +156,7 @@ public class RemoteImhotepConnectionPoolTest {
             fail();
         }
 
-        // discard + release
+        // discard a connection not from the pool
         try(final ImhotepConnectionPool pool = new RemoteImhotepConnectionPool(host, 2)) {
             try (final ImhotepConnection connection = pool.getConnection()) {
                 final Socket socket = connection.getSocket();
