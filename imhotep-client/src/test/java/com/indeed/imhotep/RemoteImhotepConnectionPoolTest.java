@@ -4,10 +4,12 @@ import com.indeed.imhotep.client.Host;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketTimeoutException;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -16,6 +18,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -55,6 +58,31 @@ public class RemoteImhotepConnectionPoolTest {
                 assertNotNull(socket1);
                 assertEquals(socket, socket1);
             }
+        } catch (final InterruptedException e) {
+            fail();
+        }
+    }
+
+    @Test
+    public void testGetConnectionTimeout() throws IOException {
+        try(final ImhotepConnectionPool pool = new RemoteImhotepConnectionPool(new Host("www.google.com", 81), 1))  {
+            try (final ImhotepConnection connection = pool.getConnection(1)) {
+            }
+            fail("SocketTimeoutException is expected");
+        } catch (final SocketTimeoutException e) {
+            // succeed
+        } catch (final InterruptedException | TimeoutException e) {
+            fail();
+        }
+
+        // concurrent queue timeout
+        try(final ImhotepConnectionPool pool = new RemoteImhotepConnectionPool(host, 1))  {
+            try (final ImhotepConnection connection = pool.getConnection(30)) {
+                pool.getConnection(1);
+                fail("TimeoutException is expected");
+            }
+        } catch (final TimeoutException e) {
+            // succeed
         } catch (final InterruptedException e) {
             fail();
         }

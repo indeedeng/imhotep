@@ -8,6 +8,7 @@ import org.junit.Test;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketTimeoutException;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -16,6 +17,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -83,6 +85,29 @@ public class ImhotepConnectionPoolManagerTest {
             final Socket socket = connection.getSocket();
             assertNotNull(socket);
             assertEquals(socket.getInetAddress().getHostName(), host2.getHostname());
+        }
+    }
+
+    @Test
+    public void testGetConnectionTimeout() throws IOException {
+        // socket timeout
+        try (final ImhotepConnection connection = poolManager.getConnection(new Host("www.google.com", 81), 1)) {
+            fail("SocketTimeoutException is expected");
+        } catch (final SocketTimeoutException e) {
+            // succeed
+        } catch (final InterruptedException | TimeoutException e) {
+            fail();
+        }
+
+        // concurrent queue timeout
+        try (final ImhotepConnection connection = poolManager.getConnection(host1, 1)) {
+            final ImhotepConnection connection1 = poolManager.getConnection(host1, 1);
+            final ImhotepConnection connection2 = poolManager.getConnection(host1, 1);
+            fail("TimeoutException is expected");
+        } catch (final TimeoutException e) {
+            // succeed
+        } catch (final InterruptedException e) {
+            fail();
         }
     }
 

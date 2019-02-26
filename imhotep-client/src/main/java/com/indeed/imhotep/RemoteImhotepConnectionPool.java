@@ -8,12 +8,15 @@ import com.indeed.util.core.io.Closeables2;
 import org.apache.log4j.Logger;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.net.SocketAddress;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -23,10 +26,10 @@ import java.util.stream.Stream;
  */
 public class RemoteImhotepConnectionPool implements ImhotepConnectionPool{
     private static final Logger logger = Logger.getLogger(RemoteImhotepConnectionPool.class);
-    private static final int DEFAULT_POOL_SIZE = 8;
+    private static final int DEFAULT_MAX_POOL_SIZE = 32;
     private static final int DEFAULT_SOCKET_TIMEOUT = (int)TimeUnit.MINUTES.toMillis(30);
 
-    private final int poolSize;
+    private final int maxPoolSize;
     private final Host host;
 
     private final AtomicInteger socketCount;
@@ -35,41 +38,57 @@ public class RemoteImhotepConnectionPool implements ImhotepConnectionPool{
     private final Set<Socket> occupiedSockets;
 
     public RemoteImhotepConnectionPool(final Host host) {
-        this(host, DEFAULT_POOL_SIZE);
+        this(host, DEFAULT_MAX_POOL_SIZE);
     }
 
-    public RemoteImhotepConnectionPool(final Host host, final int poolSize) {
+    public RemoteImhotepConnectionPool(final Host host, final int maxPoolSize) {
         this.host = host;
-        this.poolSize = poolSize;
+        this.maxPoolSize = maxPoolSize;
 
         socketCount = new AtomicInteger(0);
-        availableSockets = Queues.newArrayBlockingQueue(poolSize);
+        availableSockets = Queues.newArrayBlockingQueue(maxPoolSize);
         occupiedSockets = Sets.newConcurrentHashSet();
     }
 
     @Override
+    public ImhotepConnection getConnection(final int millisecondTimeout) throws InterruptedException, IOException, TimeoutException {
+        final Socket socket = internalGetSocket(millisecondTimeout);
+        if (socket == null) {
+            throw new TimeoutException("Errors when waiting for dequeue");
+        }
+        return wrapSocket(socket);
+    }
+
+    @Override
     public ImhotepConnection getConnection() throws InterruptedException, IOException {
+        return wrapSocket(internalGetSocket(0));
+    }
+
+    private Socket internalGetSocket(final int millisecondTimeout) throws InterruptedException, IOException {
+        final boolean hasTimeout = millisecondTimeout <= 0 ? false : true;
         Socket socket = availableSockets.poll();
         if (socket != null) {
-            return internalGet(socket);
+            return socket;
         }
 
-        if (socketCount.get() < poolSize) {
+        if (socketCount.get() < maxPoolSize) {
             synchronized (this) {
-                if (socketCount.get() < poolSize) {
-                    socket = createConnection();
+                if (socketCount.get() < maxPoolSize) {
+                    socket = createConnection(millisecondTimeout);
                     socketCount.incrementAndGet();
                 }
             }
         }
 
         if (socket == null) {
-            socket = availableSockets.take();
+            socket = hasTimeout ?
+                    availableSockets.poll(millisecondTimeout, TimeUnit.MILLISECONDS) :
+                    availableSockets.take();
         }
-        return internalGet(socket);
+        return socket;
     }
 
-    private ImhotepConnection internalGet(final Socket socket) {
+    private ImhotepConnection wrapSocket(final Socket socket) {
         occupiedSockets.add(socket);
         return new ImhotepConnection(this, socket);
     }
@@ -110,8 +129,11 @@ public class RemoteImhotepConnectionPool implements ImhotepConnectionPool{
         Closeables2.closeAll(logger, allSockets);
     }
 
-    private Socket createConnection() throws IOException {
-        final Socket socket = new Socket(host.hostname, host.port);
+    private Socket createConnection(final int millisecondsTimeout) throws IOException {
+        final Socket socket = new Socket();
+        final SocketAddress endpoint = new InetSocketAddress(host.getHostname(), host.getPort());
+        // it means no timeout if millisecondsTimeout is 0
+        socket.connect(endpoint, millisecondsTimeout);
         logger.info("create a new socket " + socket);
 
         socket.setSoTimeout(DEFAULT_SOCKET_TIMEOUT);
