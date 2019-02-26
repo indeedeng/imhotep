@@ -404,7 +404,9 @@ public class FTGSIteratorUtil {
                     }
 
                     extractor.advance(iterator);
-                    topTerms.offer(extractor.extract(iterator));
+                    if (topTerms.size() < termLimit || extractor.itIsBetterThan(iterator, topTerms.peek())) {
+                        topTerms.offer(extractor.extract(iterator));
+                    }
                 }
             }
 
