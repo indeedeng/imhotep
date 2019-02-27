@@ -26,9 +26,11 @@ import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.local.ImhotepJavaLocalSession;
 import com.indeed.imhotep.local.ImhotepLocalSession;
 import com.indeed.imhotep.local.MTImhotepLocalMultiSession;
+import com.indeed.imhotep.protobuf.ImhotepResponse;
 import com.indeed.imhotep.protobuf.ShardNameNumDocsPair;
 import com.indeed.imhotep.scheduling.SchedulerType;
 import com.indeed.imhotep.scheduling.TaskScheduler;
+import com.indeed.util.core.Pair;
 import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.core.reference.SharedReference;
 import com.indeed.util.core.shell.PosixFileOperations;
@@ -38,9 +40,11 @@ import org.apache.log4j.Logger;
 import javax.annotation.Nullable;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -218,6 +222,15 @@ public class LocalImhotepServiceCore
         final List<ImhotepStatusDump.SessionDump> openSessions =
                 getSessionManager().getSessionDump();
         return new ImhotepStatusDump(usedMemory, totalMemory, openSessions);
+    }
+
+    @Override
+    public Pair<ImhotepResponse, InputStream> handleGetShardFile(
+            final String filePath,
+            final ImhotepResponse.Builder builder) throws IOException {
+        final Path path = Paths.get(filePath);
+        builder.setFileLength(path.toFile().length());
+        return Pair.of(builder.build(), Files.newInputStream(path));
     }
 
     @Override
