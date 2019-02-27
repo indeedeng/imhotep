@@ -4,21 +4,17 @@ import com.indeed.imhotep.client.Host;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.rules.Timeout;
 
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -37,9 +33,8 @@ public class RemoteImhotepConnectionPoolTest {
 
     @Before
     public void initialize() throws IOException {
-        final int serverPort = 49152;
-        host = new Host("127.0.0.1", serverPort);
-        serverSocket = new ServerSocket(serverPort);
+        serverSocket = new ServerSocket(0);
+        host = new Host("127.0.0.1", serverSocket.getLocalPort());
     }
 
     @After
@@ -49,7 +44,7 @@ public class RemoteImhotepConnectionPoolTest {
 
     @Test
     public void testGetConnection() throws IOException {
-        try(final ImhotepConnectionPool pool = new RemoteImhotepConnectionPool(host, 2))  {
+        try (final ImhotepConnectionPool pool = new RemoteImhotepConnectionPool(host)) {
             try (final ImhotepConnection connection = pool.getConnection()) {
                 final Socket socket = connection.getSocket();
                 assertNotNull(socket);
@@ -58,39 +53,27 @@ public class RemoteImhotepConnectionPoolTest {
                 assertNotNull(socket1);
                 assertEquals(socket, socket1);
             }
-        } catch (final InterruptedException e) {
+        } catch (final IOException e) {
             fail();
         }
     }
 
     @Test
-    public void testGetConnectionTimeout() throws IOException {
-        try(final ImhotepConnectionPool pool = new RemoteImhotepConnectionPool(new Host("www.google.com", 81), 1))  {
+    public void testGetConnectionTimeout() {
+        try (final ImhotepConnectionPool pool = new RemoteImhotepConnectionPool(new Host("www.google.com", 81))) {
             try (final ImhotepConnection connection = pool.getConnection(1)) {
             }
             fail("SocketTimeoutException is expected");
         } catch (final SocketTimeoutException e) {
             // succeed
-        } catch (final InterruptedException | TimeoutException e) {
-            fail();
-        }
-
-        // concurrent queue timeout
-        try(final ImhotepConnectionPool pool = new RemoteImhotepConnectionPool(host, 1))  {
-            try (final ImhotepConnection connection = pool.getConnection(30)) {
-                pool.getConnection(1);
-                fail("TimeoutException is expected");
-            }
-        } catch (final TimeoutException e) {
-            // succeed
-        } catch (final InterruptedException e) {
+        } catch (final IOException e) {
             fail();
         }
     }
 
     @Test
-    public void testDiscardConnection() throws IOException {
-        try(final ImhotepConnectionPool pool = new RemoteImhotepConnectionPool(host, 2)) {
+    public void testDiscardConnection() {
+        try (final ImhotepConnectionPool pool = new RemoteImhotepConnectionPool(host)) {
             try (final ImhotepConnection connection = pool.getConnection()) {
                 final Socket socket = connection.getSocket();
                 assertNotNull(socket);
@@ -99,16 +82,15 @@ public class RemoteImhotepConnectionPoolTest {
                 pool.discardConnection(connection);
             }
             assertEquals(pool.getConnectionCount(), 0);
-        } catch (final InterruptedException e) {
+        } catch (final IOException e) {
             fail();
         }
     }
 
     @Test
     public void testGetConnectionConcurrently() throws IOException {
-        final Set<Socket> connectionSet = new HashSet<>();
         final ExecutorService executor = Executors.newFixedThreadPool(16);
-        try (final ImhotepConnectionPool pool = new RemoteImhotepConnectionPool(host, 2)) {
+        try (final ImhotepConnectionPool pool = new RemoteImhotepConnectionPool(host)) {
             List<Callable<Socket>> tasks = IntStream.range(0, 16).mapToObj(i -> new Task(pool, i)).collect(Collectors.toList());
             List<Future<Socket>> results = executor.invokeAll(tasks);
             for (final Future<Socket> future : results) {
@@ -116,18 +98,31 @@ public class RemoteImhotepConnectionPoolTest {
                 if (socket == null) {
                     fail();
                 }
-                connectionSet.add(socket);
             }
         } catch (final InterruptedException | ExecutionException e) {
             fail();
         }
-
-        assertTrue(connectionSet.size() <= 2);
     }
 
     @Test
-    public void testClose() throws IOException {
-        try(final ImhotepConnectionPool pool = new RemoteImhotepConnectionPool(host, 2)) {
+    public void testCleanUpSocket() throws InterruptedException, IOException {
+        try (final ImhotepConnectionPool pool = new RemoteImhotepConnectionPool(host, 10)) {
+            final ImhotepConnection connection1 = pool.getConnection();
+            final ImhotepConnection connection2 = pool.getConnection();
+            pool.releaseConnection(connection1);
+            pool.releaseConnection(connection2);
+
+            assertEquals(pool.getConnectionCount(), 2);
+
+            Thread.sleep(20);
+            pool.getConnection();
+            assertEquals(1, pool.getConnectionCount());
+        }
+    }
+
+    @Test
+    public void testClose() {
+        try (final ImhotepConnectionPool pool = new RemoteImhotepConnectionPool(host)) {
             try (final ImhotepConnection connection = pool.getConnection()) {
                 final Socket socket = connection.getSocket();
                 assertNotNull(socket);
@@ -137,7 +132,7 @@ public class RemoteImhotepConnectionPoolTest {
                 pool.close();
                 assertTrue(socket.isClosed());
             }
-        } catch (final InterruptedException e) {
+        } catch (final IOException e) {
             fail();
         }
     }
@@ -145,7 +140,7 @@ public class RemoteImhotepConnectionPoolTest {
     @Test
     public void testIncorrectReleaseConnection() throws IOException {
         // duplicated release
-        try(final ImhotepConnectionPool pool = new RemoteImhotepConnectionPool(host, 2)) {
+        try (final ImhotepConnectionPool pool = new RemoteImhotepConnectionPool(host)) {
             try (final ImhotepConnection connection = pool.getConnection()) {
                 final Socket socket = connection.getSocket();
                 assertNotNull(socket);
@@ -153,17 +148,17 @@ public class RemoteImhotepConnectionPoolTest {
                 pool.releaseConnection(connection);
             }
             assertEquals(pool.getConnectionCount(), 1);
-        } catch (final InterruptedException e) {
+        } catch (final IOException e) {
             fail();
         }
 
         // forget to release
         Socket socket = null;
-        try(final ImhotepConnectionPool pool = new RemoteImhotepConnectionPool(host, 2)) {
+        try (final ImhotepConnectionPool pool = new RemoteImhotepConnectionPool(host)) {
             final ImhotepConnection connection = pool.getConnection();
             socket = connection.getSocket();
             assertNotNull(socket);
-        } catch (final InterruptedException e) {
+        } catch (final IOException e) {
             fail();
         }
         assertTrue(socket.isClosed());
@@ -172,7 +167,7 @@ public class RemoteImhotepConnectionPoolTest {
     @Test
     public void testIncorrectDiscardConnection() throws IOException {
         // discard + release
-        try(final ImhotepConnectionPool pool = new RemoteImhotepConnectionPool(host, 2)) {
+        try (final ImhotepConnectionPool pool = new RemoteImhotepConnectionPool(host)) {
             try (final ImhotepConnection connection = pool.getConnection()) {
                 final Socket socket = connection.getSocket();
                 assertNotNull(socket);
@@ -180,12 +175,12 @@ public class RemoteImhotepConnectionPoolTest {
                 pool.discardConnection(connection);
             }
             assertEquals(pool.getConnectionCount(), 0);
-        } catch (final InterruptedException e) {
+        } catch (final IOException e) {
             fail();
         }
 
         // discard a connection not from the pool
-        try(final ImhotepConnectionPool pool = new RemoteImhotepConnectionPool(host, 2)) {
+        try (final ImhotepConnectionPool pool = new RemoteImhotepConnectionPool(host)) {
             try (final ImhotepConnection connection = pool.getConnection()) {
                 final Socket socket = connection.getSocket();
                 assertNotNull(socket);
@@ -195,12 +190,12 @@ public class RemoteImhotepConnectionPoolTest {
             final ImhotepConnection otherConnection = new ImhotepConnection(pool, new Socket(host.getHostname(), host.getPort()));
             pool.discardConnection(otherConnection);
             assertEquals(pool.getConnectionCount(), 1);
-        } catch (final InterruptedException e) {
+        } catch (final IOException e) {
             fail();
         }
     }
 
-    private static class Task implements Callable<Socket>{
+    private static class Task implements Callable<Socket> {
         private final int taskIndex;
         private final ImhotepConnectionPool pool;
 
@@ -213,7 +208,7 @@ public class RemoteImhotepConnectionPoolTest {
         public Socket call() throws Exception {
             try (final ImhotepConnection connection = pool.getConnection()) {
                 final Socket socket = connection.getSocket();
-                Thread.sleep(taskIndex/4*100);
+                Thread.sleep(taskIndex / 4 * 100);
                 return socket;
             }
         }

@@ -4,7 +4,6 @@ import com.google.common.annotations.VisibleForTesting;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.util.concurrent.TimeoutException;
 
 /**
  * @author xweng
@@ -14,15 +13,12 @@ public interface ImhotepConnectionPool extends Closeable {
     /**
      * Get a connection from the pool until connection is returned or errors happen
      */
-    ImhotepConnection getConnection() throws InterruptedException, IOException;
+    ImhotepConnection getConnection() throws IOException;
 
     /**
      * Get a connection from the pool with the timeout in milliseconds
-     * Throw SocketTimeoutException if it's timeout when connecting sockets
-     * Throw TimeoutException if it's timeout waiting for dequeue
-     * @param millisecondTimeout
      */
-    ImhotepConnection getConnection(final int millisecondTimeout) throws InterruptedException, IOException, TimeoutException;
+    ImhotepConnection getConnection(final int millisecondTimeout) throws IOException;
 
     /**
      * Release the connection and restore it to the pool
@@ -35,6 +31,9 @@ public interface ImhotepConnectionPool extends Closeable {
      */
     void discardConnection(final ImhotepConnection connection);
 
+    /**
+     * Get total number of connections (available + occupied)
+     */
     @VisibleForTesting
     int getConnectionCount();
 }

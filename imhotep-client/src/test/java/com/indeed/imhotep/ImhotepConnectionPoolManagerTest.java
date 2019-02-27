@@ -40,16 +40,13 @@ public class ImhotepConnectionPoolManagerTest {
 
     @Before
     public void initialize() throws IOException {
-        final int serverPort1 = 49152;
-        final int serverPort2 = 49153;
+        serverSocket1 = new ServerSocket(0);
+        serverSocket2 = new ServerSocket(0);
 
-        host1 = new Host("localhost", serverPort1);
-        host2 = new Host("localhost", serverPort2);
+        host1 = new Host("localhost", serverSocket1.getLocalPort());
+        host2 = new Host("localhost", serverSocket2.getLocalPort());
 
-        serverSocket1 = new ServerSocket(serverPort1);
-        serverSocket2 = new ServerSocket(serverPort2);
-
-        poolManager = ImhotepConnectionPoolManager.getInstance(2);
+        poolManager = ImhotepConnectionPoolManager.getInstance();
     }
 
     @After
@@ -60,7 +57,7 @@ public class ImhotepConnectionPoolManagerTest {
     }
 
     @Test
-    public void testReleaseConnection() throws IOException, InterruptedException {
+    public void testReleaseConnection() throws IOException {
         Socket socket;
         try (final ImhotepConnection connection = poolManager.getConnection(host1)) {
             socket = connection.getSocket();
@@ -74,7 +71,7 @@ public class ImhotepConnectionPoolManagerTest {
     }
 
     @Test
-    public void testGetConnection() throws IOException, InterruptedException {
+    public void testGetConnection() throws IOException {
         try (final ImhotepConnection connection = poolManager.getConnection(host1)) {
             final Socket socket = connection.getSocket();
             assertNotNull(socket);
@@ -95,24 +92,13 @@ public class ImhotepConnectionPoolManagerTest {
             fail("SocketTimeoutException is expected");
         } catch (final SocketTimeoutException e) {
             // succeed
-        } catch (final InterruptedException | TimeoutException e) {
-            fail();
-        }
-
-        // concurrent queue timeout
-        try (final ImhotepConnection connection = poolManager.getConnection(host1, 1)) {
-            final ImhotepConnection connection1 = poolManager.getConnection(host1, 1);
-            final ImhotepConnection connection2 = poolManager.getConnection(host1, 1);
-            fail("TimeoutException is expected");
-        } catch (final TimeoutException e) {
-            // succeed
-        } catch (final InterruptedException e) {
+        } catch (final IOException e) {
             fail();
         }
     }
 
     @Test
-    public void testDiscardConnection() throws IOException, InterruptedException {
+    public void testDiscardConnection() throws IOException {
         Socket socket;
         try (final ImhotepConnection connection = poolManager.getConnection(host1)) {
             socket = connection.getSocket();
@@ -148,8 +134,6 @@ public class ImhotepConnectionPoolManagerTest {
             fail();
         }
 
-        assertTrue(connectionSet1.size() <= 2 && connectionSet1.size() >= 1);
-        assertTrue(connectionSet2.size() <= 2 && connectionSet2.size() >= 1);
         for (final Socket socket : connectionSet1) {
             assertEquals(socket.getInetAddress().getHostName(), host1.getHostname());
             assertEquals(socket.getPort(), host1.getPort());

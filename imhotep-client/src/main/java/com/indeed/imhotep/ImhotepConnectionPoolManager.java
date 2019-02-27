@@ -8,7 +8,6 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeoutException;
 
 /**
  * @author xweng
@@ -20,61 +19,42 @@ public class ImhotepConnectionPoolManager implements Closeable  {
     private static final Object singletonMutex = new Object();
 
     /**
-     * Get a singleton connection pool manager with fixed size
-     * @param maxPoolSize The specified pool size
+     * Get a singleton connection pool manager
      */
-    public static ImhotepConnectionPoolManager getInstance(final int maxPoolSize) {
+    public static ImhotepConnectionPoolManager getInstance() {
         // add a local holder to avoid reading instanceHolder twice
         ImhotepConnectionPoolManager localHolder = instanceHolder;
         if (localHolder == null) {
             synchronized (singletonMutex) {
                 localHolder = instanceHolder;
                 if (localHolder == null) {
-                    instanceHolder = localHolder = new ImhotepConnectionPoolManager(maxPoolSize);
+                    instanceHolder = localHolder = new ImhotepConnectionPoolManager();
                 }
             }
-        }
-
-        if (localHolder.getMaxPoolSize() != maxPoolSize) {
-            throw new IllegalArgumentException("Already have a connection pool with size " + localHolder.getMaxPoolSize());
         }
         return localHolder;
     }
 
-    /**
-     * Get a singleton connection pool manager with unlimited size
-     */
-    public static ImhotepConnectionPoolManager getInstance() {
-        return getInstance(Integer.MAX_VALUE);
-    }
-
     private final Map<Host, ImhotepConnectionPool> hostConnectionPoolMap;
 
-    private final int maxPoolSize;
-
-    private ImhotepConnectionPoolManager(final int maxPoolSize) {
-        this.maxPoolSize = maxPoolSize;
+    private ImhotepConnectionPoolManager() {
         hostConnectionPoolMap = new ConcurrentHashMap<>();
     }
 
-    public ImhotepConnection getConnection(final Host host) throws IOException, InterruptedException {
+    public ImhotepConnection getConnection(final Host host) throws IOException {
         final ImhotepConnectionPool pool = hostConnectionPoolMap.computeIfAbsent(
                 host,
-                missingHost -> new RemoteImhotepConnectionPool(missingHost, maxPoolSize)
+                missingHost -> new RemoteImhotepConnectionPool(missingHost)
         );
         return pool.getConnection();
     }
 
-    public ImhotepConnection getConnection(final Host host, final int millisecondTimeout) throws IOException, InterruptedException, TimeoutException {
+    public ImhotepConnection getConnection(final Host host, final int millisecondTimeout) throws IOException  {
         final ImhotepConnectionPool pool = hostConnectionPoolMap.computeIfAbsent(
                 host,
-                missingHost -> new RemoteImhotepConnectionPool(missingHost, maxPoolSize)
+                missingHost -> new RemoteImhotepConnectionPool(missingHost)
         );
         return pool.getConnection(millisecondTimeout);
-    }
-
-    public int getMaxPoolSize() {
-        return maxPoolSize;
     }
 
     @Override
