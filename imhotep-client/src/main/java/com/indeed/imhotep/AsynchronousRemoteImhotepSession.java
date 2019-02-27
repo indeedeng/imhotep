@@ -11,6 +11,7 @@ import com.indeed.imhotep.api.PerformanceStats;
 import com.indeed.imhotep.io.RequestTools;
 import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
 
+import javax.annotation.Nullable;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -77,6 +78,23 @@ public class AsynchronousRemoteImhotepSession extends AbstractImhotepSession {
         }
     }
 
+    private interface FunctionMemoryException<T> {
+        public T apply(ImhotepSession session) throws ImhotepOutOfMemoryException;
+    }
+
+    private synchronized <T> T extractFromSessionMemoryException(final FunctionMemoryException<T> function) throws ImhotepOutOfMemoryException {
+        try {
+            future.get();
+            return function.apply(this.wrapped);
+        } catch (final InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw Throwables.propagate(e);
+        } catch (final ExecutionException e) {
+            Throwables.propagateIfInstanceOf(e.getCause(), ImhotepOutOfMemoryException.class);
+            throw Throwables.propagate(e);
+        }
+    }
+
     public void synchronize() {
         extractFromSession(session -> session);
     }
@@ -87,38 +105,38 @@ public class AsynchronousRemoteImhotepSession extends AbstractImhotepSession {
     }
 
     @Override
-    public long[] getGroupStats(final int stat) {
-        return extractFromSession(session -> session.getGroupStats(stat));
+    public long[] getGroupStats(final List<String> stat) throws ImhotepOutOfMemoryException {
+        return extractFromSessionMemoryException(session -> session.getGroupStats(stat));
     }
 
     @Override
-    public GroupStatsIterator getGroupStatsIterator(final int stat) {
-        return extractFromSession(session -> session.getGroupStatsIterator(stat));
+    public GroupStatsIterator getGroupStatsIterator(final List<String> stat) throws ImhotepOutOfMemoryException {
+        return extractFromSessionMemoryException(session -> session.getGroupStatsIterator(stat));
     }
 
     @Override
-    public FTGSIterator getFTGSIterator(final String[] intFields, final String[] stringFields) {
-        return extractFromSession(session -> session.getFTGSIterator(intFields, stringFields));
+    public FTGSIterator getFTGSIterator(final String[] intFields, final String[] stringFields, @Nullable final List<List<String>> stats) throws ImhotepOutOfMemoryException {
+        return extractFromSessionMemoryException(session -> session.getFTGSIterator(intFields, stringFields, stats));
     }
 
     @Override
-    public FTGSIterator getFTGSIterator(final String[] intFields, final String[] stringFields, final long termLimit) {
-        return extractFromSession(session -> session.getFTGSIterator(intFields, stringFields, termLimit));
+    public FTGSIterator getFTGSIterator(final String[] intFields, final String[] stringFields, final long termLimit, @Nullable final List<List<String>> stats) throws ImhotepOutOfMemoryException {
+        return extractFromSessionMemoryException(session -> session.getFTGSIterator(intFields, stringFields, termLimit, stats));
     }
 
     @Override
-    public FTGSIterator getFTGSIterator(final String[] intFields, final String[] stringFields, final long termLimit, final int sortStat) {
-        return extractFromSession(session -> session.getFTGSIterator(intFields, stringFields, termLimit, sortStat));
+    public FTGSIterator getFTGSIterator(final String[] intFields, final String[] stringFields, final long termLimit, final int sortStat, @Nullable final List<List<String>> stats) throws ImhotepOutOfMemoryException {
+        return extractFromSessionMemoryException(session -> session.getFTGSIterator(intFields, stringFields, termLimit, sortStat, stats));
     }
 
     @Override
-    public FTGSIterator getSubsetFTGSIterator(final Map<String, long[]> intFields, final Map<String, String[]> stringFields) {
-        return extractFromSession(session -> session.getSubsetFTGSIterator(intFields, stringFields));
+    public FTGSIterator getSubsetFTGSIterator(final Map<String, long[]> intFields, final Map<String, String[]> stringFields, @Nullable final List<List<String>> stats) throws ImhotepOutOfMemoryException {
+        return extractFromSessionMemoryException(session -> session.getSubsetFTGSIterator(intFields, stringFields, stats));
     }
 
     @Override
-    public FTGSIterator getFTGSIterator(final FTGSParams params) {
-        return extractFromSession(session -> session.getFTGSIterator(params));
+    public FTGSIterator getFTGSIterator(final FTGSParams params) throws ImhotepOutOfMemoryException {
+        return extractFromSessionMemoryException(session -> session.getFTGSIterator(params));
     }
 
     @Override
@@ -204,30 +222,18 @@ public class AsynchronousRemoteImhotepSession extends AbstractImhotepSession {
     }
 
     @Override
-    public void randomMetricRegroup(final int stat, final String salt, final double p, final int targetGroup, final int negativeGroup, final int positiveGroup) {
+    public void randomMetricRegroup(final List<String> stat, final String salt, final double p, final int targetGroup, final int negativeGroup, final int positiveGroup) throws ImhotepOutOfMemoryException {
         doIt(session -> session.randomMetricRegroup(stat, salt, p, targetGroup, negativeGroup, positiveGroup));
     }
 
     @Override
-    public void randomMetricMultiRegroup(final int stat, final String salt, final int targetGroup, final double[] percentages, final int[] resultGroups) {
+    public void randomMetricMultiRegroup(final List<String> stat, final String salt, final int targetGroup, final double[] percentages, final int[] resultGroups) throws ImhotepOutOfMemoryException {
         doIt(session -> session.randomMetricMultiRegroup(stat, salt, targetGroup, percentages, resultGroups));
     }
 
     @Override
-    public int metricRegroup(final int stat, final long min, final long max, final long intervalSize) {
-        doIt(session -> session.metricRegroup(stat, min, max, intervalSize));
-        return -999;
-    }
-
-    @Override
-    public int metricRegroup(final int stat, final long min, final long max, final long intervalSize, final boolean noGutters) {
+    public int metricRegroup(final List<String> stat, final long min, final long max, final long intervalSize, final boolean noGutters) throws ImhotepOutOfMemoryException {
         doIt(session -> session.metricRegroup(stat, min, max, intervalSize, noGutters));
-        return -999;
-    }
-
-    @Override
-    public int metricRegroup2D(final int xStat, final long xMin, final long xMax, final long xIntervalSize, final int yStat, final long yMin, final long yMax, final long yIntervalSize) {
-        doIt(session -> session.metricRegroup2D(xStat, xMin, xMax, xIntervalSize, yStat, yMin, yMax, yIntervalSize));
         return -999;
     }
 
@@ -238,13 +244,13 @@ public class AsynchronousRemoteImhotepSession extends AbstractImhotepSession {
     }
 
     @Override
-    public int metricFilter(final int stat, final long min, final long max, final boolean negate) {
+    public int metricFilter(final List<String> stat, final long min, final long max, final boolean negate) throws ImhotepOutOfMemoryException {
         doIt(session -> session.metricFilter(stat, min, max, negate));
         return -999;
     }
 
     @Override
-    public int metricFilter(final int stat, final long min, final long max, final int targetGroup, final int negativeGroup, final int positiveGroup) {
+    public int metricFilter(final List<String> stat, final long min, final long max, final int targetGroup, final int negativeGroup, final int positiveGroup) throws ImhotepOutOfMemoryException {
         doIt(session -> session.metricFilter(stat, min, max, targetGroup, negativeGroup, positiveGroup));
         return -999;
     }
@@ -280,16 +286,6 @@ public class AsynchronousRemoteImhotepSession extends AbstractImhotepSession {
     @Override
     public int getNumGroups() {
         return extractFromSession(ImhotepSession::getNumGroups);
-    }
-
-    @Override
-    public long getLowerBound(final int stat) {
-        return extractFromSession(session -> session.getLowerBound(stat));
-    }
-
-    @Override
-    public long getUpperBound(final int stat) {
-        return extractFromSession(session -> session.getUpperBound(stat));
     }
 
     @Override

@@ -28,7 +28,8 @@ public abstract class GroupLookup {
             BitTree groupsSeen,
             int[] docIdBuf,
             long[] valBuf,
-            int[] docGroupBuffer);
+            int[] docGroupBuffer,
+            final ImhotepLocalSession.MetricStack metricStack);
 
     public abstract void applyIntConditionsCallback(
             int n,
@@ -57,7 +58,6 @@ public abstract class GroupLookup {
     public abstract void fillDocGrpBuffer(int[] docIdBuf, int[] docGrpBuffer, int n);
     public abstract void fillDocGrpBufferSequential(int start, int[] docGrpBuffer, int n);
     public abstract void bitSetRegroup(FastBitSet bitSet, int targetGroup, int negativeGroup, int positiveGroup);
-    public abstract ImhotepLocalSession getSession();
     protected abstract void recalculateNumGroups();
 
     // If this definition changes, please see ImhotepLocalSession::weakGetNumGroups

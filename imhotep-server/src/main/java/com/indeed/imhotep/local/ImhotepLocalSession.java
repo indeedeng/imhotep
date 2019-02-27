@@ -15,12 +15,14 @@ package com.indeed.imhotep.local;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Multimaps;
+import com.google.common.io.Closer;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -110,6 +112,7 @@ import org.apache.commons.codec.binary.Base64;
 import org.apache.log4j.Logger;
 
 import javax.annotation.Nullable;
+import java.io.Closeable;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -152,7 +155,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     final BuffersPool memoryPool = new BuffersPool();
 
     // total size of all buffers (docIdBuf + valBuf + docGroupBuffer)
-    private static final long BUFFERS_TOTAL_SIZE = BUFFER_SIZE * (4 + 8 + 4);
+    public static final long BUFFERS_TOTAL_SIZE = BUFFER_SIZE * (4 + 8 + 4);
 
     // do not close flamdexReader, it is separately refcounted
     protected FlamdexReader flamdexReader;
@@ -166,11 +169,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
 
     private Integer zeroGroupDocCount; // lazy-evaluated
 
-    int numStats;
-
-    protected final StatLookup     statLookup = new StatLookup(MAX_NUMBER_STATS);
-
-    protected final List<String> statCommands;
+    protected final MetricStack metricStack = new MetricStack();
 
     private boolean closed = false;
 
@@ -215,16 +214,12 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             throw newImhotepOutOfMemoryException();
         }
 
-        docIdToGroup = new ConstantGroupLookup(this, 1, numDocs);
+        docIdToGroup = new ConstantGroupLookup(1, numDocs);
         docIdToGroup.recalculateNumGroups();
         zeroGroupDocCount = 0;
         moveDeletedDocumentsToGroupZero();
 
-        accountForFlamdexFTGSIteratorMemChange(0, docIdToGroup.getNumGroups());
-
-        this.statCommands = new ArrayList<>();
-
-        this.statLookup.addObserver(new StatLookup.Observer() {
+        this.metricStack.addObserver(new StatLookup.Observer() {
                 public void onChange(final StatLookup statLookup, final int index) {
                     instrumentedFlamdexReader.onPushStat(statLookup.getName(index),
                                                          statLookup.get(index));
@@ -262,7 +257,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
      */
     @Override
     public int weakGetNumStats() {
-        return this.numStats;
+        return this.metricStack.getNumStats();
     }
 
     /**
@@ -354,72 +349,98 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
      * Add stats to array
      * @param stat - stat to add
      * @param partialResult - array with some data. Don't reassign values with new stats result.
-     *                      Add current session stats to array instead
      */
-    protected abstract void addGroupStats(int stat, long[] partialResult);
+    protected abstract void addGroupStats(List<String> stat, long[] partialResult) throws ImhotepOutOfMemoryException;
 
     @Override
-    public synchronized long[] getGroupStats(final int stat) {
+    public synchronized long[] getGroupStats(final List<String> stat) throws ImhotepOutOfMemoryException {
+        return getGroupStatsMulti(Collections.singletonList(stat))[0];
+    }
+
+    // @Override
+    public synchronized long[][] getGroupStatsMulti(final List<List<String>> stats) throws ImhotepOutOfMemoryException {
+        final long[][] result = new long[stats.size()][];
 
         if (isFilteredOut()) {
-            return new long[0];
+            Arrays.setAll(result, x -> new long[0]);
+            return result;
         }
 
-        final long[] result = new long[getNumGroups()];
-        addGroupStats(stat, result);
+        for (int i = 0; i < stats.size(); i++) {
+            final List<String> stat = stats.get(i);
+            result[i] = new long[getNumGroups()];
+            addGroupStats(stat, result[i]);
+        }
+
         return result;
     }
 
     @Override
-    public synchronized GroupStatsIterator getGroupStatsIterator(final int stat) {
+    public synchronized GroupStatsIterator getGroupStatsIterator(final List<String> stat) throws ImhotepOutOfMemoryException {
         return new GroupStatsDummyIterator(getGroupStats(stat));
     }
 
     @Override
-    public synchronized FTGSIterator getFTGSIterator(final FTGSParams params) {
+    public synchronized FTGSIterator getFTGSIterator(final FTGSParams params) throws ImhotepOutOfMemoryException {
 
         if (isFilteredOut()) {
-            return new EmptyFTGSIterator(params.intFields, params.stringFields, numStats);
+            return new EmptyFTGSIterator(params.intFields, params.stringFields, (params.stats == null) ? metricStack.getNumStats() : params.stats.size());
         }
 
-        // TODO: support unsorted FlamdexFTGSIterator
-        // if params.isTopTerms() then Flamdex iterator can be unsorted
-        // We could benefit in case of int/string field conversions
-        FTGSIterator iterator = new FlamdexFTGSIterator(
-                this,
-                flamdexReaderRef.copy(),
-                params.intFields,
-                params.stringFields);
+        final Closer closeOnFailCloser = Closer.create();
+        try {
+            final MetricStack stack = closeOnFailCloser.register(fromStatsOrStackCopy(params.stats));
 
-        if (params.isTopTerms()) {
-            iterator = FTGSIteratorUtil.getTopTermsFTGSIterator(iterator, params.termLimit, params.sortStat);
-        } else if (params.isTermLimit()) {
-            iterator = new TermLimitedFTGSIterator(iterator, params.termLimit);
+            // TODO: support unsorted FlamdexFTGSIterator
+            // if params.isTopTerms() then Flamdex iterator can be unsorted
+            // We could benefit in case of int/string field conversions
+            FTGSIterator iterator = closeOnFailCloser.register(new FlamdexFTGSIterator(
+                    this,
+                    flamdexReaderRef.copy(),
+                    params.intFields,
+                    params.stringFields,
+                    stack
+            ));
+
+            if (params.isTopTerms()) {
+                iterator = FTGSIteratorUtil.getTopTermsFTGSIterator(iterator, params.termLimit, params.sortStat);
+            } else if (params.isTermLimit()) {
+                iterator = new TermLimitedFTGSIterator(iterator, params.termLimit);
+            }
+
+            return iterator;
+        } catch (final Exception e) {
+            Closeables2.closeQuietly(closeOnFailCloser, log);
+            throw e;
         }
-        return iterator;
     }
 
     @Override
-    public FTGSIterator getSubsetFTGSIterator(final Map<String, long[]> intFields,
-                                              final Map<String, String[]> stringFields) {
+    public FTGSIterator getSubsetFTGSIterator(
+            final Map<String, long[]> intFields,
+            final Map<String, String[]> stringFields,
+            @Nullable final List<List<String>> stats
+    ) throws ImhotepOutOfMemoryException {
         if (isFilteredOut()) {
             final List<String> intFieldsNames = new ArrayList<>(intFields.size());
             intFields.entrySet().iterator().forEachRemaining(entry -> intFieldsNames.add(entry.getKey()));
             final List<String> strFieldsNames = new ArrayList<>(stringFields.size());
             stringFields.entrySet().iterator().forEachRemaining(entry -> strFieldsNames.add(entry.getKey()));
-            return new EmptyFTGSIterator(intFieldsNames.toArray(new String[0]), strFieldsNames.toArray(new String[0]), numStats);
+            return new EmptyFTGSIterator(intFieldsNames.toArray(new String[0]), strFieldsNames.toArray(new String[0]), (stats == null) ? metricStack.getNumStats() : stats.size());
         }
-        return new FlamdexSubsetFTGSIterator(this, flamdexReaderRef.copy(), intFields, stringFields);
+        final MetricStack stack = fromStatsOrStackCopy(stats);
+        return new FlamdexSubsetFTGSIterator(this, flamdexReaderRef.copy(), intFields, stringFields, stack);
     }
 
     public FTGSSplitter getFTGSIteratorSplitter(
             final String[] intFields,
             final String[] stringFields,
             final int numSplits,
-            final long termLimit) {
+            final long termLimit,
+            @Nullable final List<List<String>> stats) throws ImhotepOutOfMemoryException {
         checkSplitParams(numSplits);
         try {
-            return new FTGSSplitter(getFTGSIterator(intFields, stringFields, termLimit),
+            return new FTGSSplitter(getFTGSIterator(intFields, stringFields, termLimit, stats),
                     numSplits,
                     969168349, tempFileSizeBytesLeft);
         } catch (final IOException e) {
@@ -430,10 +451,11 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     public  FTGSSplitter getSubsetFTGSIteratorSplitter(
             final Map<String, long[]> intFields,
             final Map<String, String[]> stringFields,
-            final int numSplits) {
+            final int numSplits,
+            @Nullable final List<List<String>> stats) throws ImhotepOutOfMemoryException {
         checkSplitParams(numSplits);
         try {
-            return new FTGSSplitter(getSubsetFTGSIterator(intFields, stringFields),
+            return new FTGSSplitter(getSubsetFTGSIterator(intFields, stringFields, stats),
                     numSplits,
                     969168349, tempFileSizeBytesLeft);
         } catch (final IOException e) {
@@ -450,20 +472,13 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
 
         final String[] intFields = isIntField ? new String[]{field} : new String[0];
         final String[] strFields = isIntField ? new String[0] : new String[]{field};
-        GroupStatsIterator result = null;
-        final int savedNumStats = numStats;
+        final FTGSIterator iterator;
         try {
-            // it's a hack
-            // let's pretend we have no stats. FTGS will be faster.
-            numStats = 0;
-            final FTGSParams params = new FTGSParams(intFields, strFields, 0, -1, false);
-            final FTGSIterator iterator = getFTGSIterator(params);
-            result = FTGSIteratorUtil.calculateDistinct(iterator);
-        } finally {
-            // return stats back
-            numStats = savedNumStats;
+            iterator = getFTGSIterator(intFields, strFields, Collections.emptyList());
+        } catch (ImhotepOutOfMemoryException e) {
+            throw new IllegalStateException("Did not expect ftgs with 0 stats to allocate memory!", e);
         }
-        return result;
+        return FTGSIteratorUtil.calculateDistinct(iterator);
     }
 
     protected GroupLookup resizeGroupLookup(final GroupLookup lookup,
@@ -576,7 +591,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         throws ImhotepOutOfMemoryException {
         final GroupLookup newLookup;
 
-        newLookup = GroupLookupFactory.create(placeholderGroup, docIdToGroup.size(), this, memory);
+        newLookup = GroupLookupFactory.create(placeholderGroup, docIdToGroup.size(), memory);
 
         for (int i = 0; i < newLookup.size(); i++) {
             if (docIdToGroup.get(i) != 0) {
@@ -652,23 +667,8 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
 
         docIdToGroup.recalculateNumGroups();
         newNumGroups = docIdToGroup.getNumGroups();
-        accountForFlamdexFTGSIteratorMemChange(oldNumGroups, newNumGroups);
         docIdToGroup = resizeGroupLookup(docIdToGroup, 0, memory);
         resetLazyValues();
-    }
-
-    protected void accountForFlamdexFTGSIteratorMemChange(final int oldNumGroups,
-                                                        final int newNumGroups)
-        throws ImhotepOutOfMemoryException {
-        if (newNumGroups > oldNumGroups) {
-            // for memory in FlamdexFTGSIterator
-            if (!memory.claimMemory((12L + 8L * numStats) * (newNumGroups - oldNumGroups))) {
-                throw newImhotepOutOfMemoryException();
-            }
-        } else if (newNumGroups < oldNumGroups) {
-            // for memory in FlamdexFTGSIterator
-            memory.releaseMemory((12L + 8L * numStats) * (oldNumGroups - newNumGroups));
-        }
     }
 
     @Override
@@ -986,65 +986,71 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     }
 
     @Override
-    public synchronized void randomMetricRegroup(final int stat,
-                                    final String salt,
-                                    final double p,
-                                    final int targetGroup,
-                                    final int negativeGroup,
-                                    final int positiveGroup) throws ImhotepOutOfMemoryException {
+    public synchronized void randomMetricRegroup(
+            final List<String> stat,
+            final String salt,
+            final double p,
+            final int targetGroup,
+            final int negativeGroup,
+            final int positiveGroup
+    ) throws ImhotepOutOfMemoryException {
         randomMetricMultiRegroup(
                 stat,
                 salt,
                 targetGroup,
                 new double[] {p},
-                new int[] {negativeGroup, positiveGroup});
+                new int[] {negativeGroup, positiveGroup}
+        );
     }
 
     @Override
-    public synchronized void randomMetricMultiRegroup(final int stat,
-                                         final String salt,
-                                         final int targetGroup,
-                                         final double[] percentages,
-                                         final int[] resultGroups) throws ImhotepOutOfMemoryException {
+    public synchronized void randomMetricMultiRegroup(
+            final List<String> stat,
+            final String salt,
+            final int targetGroup,
+            final double[] percentages,
+            final int[] resultGroups) throws ImhotepOutOfMemoryException {
         ensureValidMultiRegroupArrays(percentages, resultGroups);
 
         if (isFilteredOut()) {
             return;
         }
 
-        final IntValueLookup lookup = statLookup.get(stat);
-        docIdToGroup = GroupLookupFactory.resize(
-                docIdToGroup,
-                Ints.max(resultGroups),
-                memory);
+        try (final MetricStack stack = new MetricStack()) {
+            final IntValueLookup lookup = stack.push(stat);
+            docIdToGroup = GroupLookupFactory.resize(
+                    docIdToGroup,
+                    Ints.max(resultGroups),
+                    memory);
 
-        // we want two ways of random regrouping to be equivalent
-        // 1. session.pushStat(metric) + session.randomMetricMultiRegroup(metricIndex, ...)
-        // 2. session.randomMultiRegroup(metric, ...)
-        // That's why ConsistentLongHasher here.
-        final IterativeHasher.ConsistentLongHasher hasher = new IterativeHasher.Murmur3Hasher(salt).consistentLongHasher();
-        final IterativeHasherUtils.GroupChooser chooser = IterativeHasherUtils.createChooser(percentages);
+            // we want two ways of random regrouping to be equivalent
+            // 1. session.pushStat(metric) + session.randomMetricMultiRegroup(metricIndex, ...)
+            // 2. session.randomMultiRegroup(metric, ...)
+            // That's why ConsistentLongHasher here.
+            final IterativeHasher.ConsistentLongHasher hasher = new IterativeHasher.Murmur3Hasher(salt).consistentLongHasher();
+            final IterativeHasherUtils.GroupChooser chooser = IterativeHasherUtils.createChooser(percentages);
 
-        final int[] docIdBuf = memoryPool.getIntBuffer(BUFFER_SIZE, true);
-        final long[] valBuf = memoryPool.getLongBuffer(BUFFER_SIZE, true);
-        for (int startDoc = 0; startDoc < numDocs; startDoc += BUFFER_SIZE) {
-            final int n = Math.min(BUFFER_SIZE, numDocs - startDoc);
-            for (int i = 0; i < n; i++) {
-                docIdBuf[i] = startDoc + i;
-            }
-            lookup.lookup(docIdBuf, valBuf, n);
-            for (int i = 0; i < n; i++) {
-                if (docIdToGroup.get(docIdBuf[i]) == targetGroup) {
-                    final long val = valBuf[i];
-                    final int hash = hasher.calculateHash(val);
-                    final int groupIndex = chooser.getGroup(hash);
-                    final int newGroup = resultGroups[groupIndex];
-                    docIdToGroup.set(docIdBuf[i], newGroup);
+            final int[] docIdBuf = memoryPool.getIntBuffer(BUFFER_SIZE, true);
+            final long[] valBuf = memoryPool.getLongBuffer(BUFFER_SIZE, true);
+            for (int startDoc = 0; startDoc < numDocs; startDoc += BUFFER_SIZE) {
+                final int n = Math.min(BUFFER_SIZE, numDocs - startDoc);
+                for (int i = 0; i < n; i++) {
+                    docIdBuf[i] = startDoc + i;
+                }
+                lookup.lookup(docIdBuf, valBuf, n);
+                for (int i = 0; i < n; i++) {
+                    if (docIdToGroup.get(docIdBuf[i]) == targetGroup) {
+                        final long val = valBuf[i];
+                        final int hash = hasher.calculateHash(val);
+                        final int groupIndex = chooser.getGroup(hash);
+                        final int newGroup = resultGroups[groupIndex];
+                        docIdToGroup.set(docIdBuf[i], newGroup);
+                    }
                 }
             }
+            memoryPool.returnIntBuffer(docIdBuf);
+            memoryPool.returnLongBuffer(valBuf);
         }
-        memoryPool.returnIntBuffer(docIdBuf);
-        memoryPool.returnLongBuffer(valBuf);
         finalizeRegroup();
     }
 
@@ -1192,88 +1198,84 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     }
 
     @Override
-    public synchronized int metricRegroup(final int stat,
+    public synchronized int metricRegroup(final List<String> stat,
                                           final long min,
                                           final long max,
                                           final long intervalSize,
-                                          final boolean noGutters)
-        throws ImhotepOutOfMemoryException {
-        if (stat < 0 || stat >= statLookup.length()) {
-            throw newIllegalArgumentException("invalid stat index: " + stat
-                    + ", must be between [0," + statLookup.length() + ")");
-        }
-
+                                          final boolean noGutters) throws ImhotepOutOfMemoryException {
         if (isFilteredOut()) {
             return docIdToGroup.getNumGroups();
         }
 
-        final int numBuckets = (int) (((max - 1) - min) / intervalSize + 1);
-        final int newMaxGroup = (docIdToGroup.getNumGroups()-1)*(noGutters ? numBuckets : numBuckets+2);
-        docIdToGroup = GroupLookupFactory.resize(docIdToGroup, newMaxGroup, memory);
+        try (final MetricStack stack = new MetricStack()) {
+            final IntValueLookup lookup = stack.push(stat);
 
-        final IntValueLookup lookup = statLookup.get(stat);
+            final int numBuckets = (int) (((max - 1) - min) / intervalSize + 1);
+            final int newMaxGroup = (docIdToGroup.getNumGroups()-1)*(noGutters ? numBuckets : numBuckets+2);
+            docIdToGroup = GroupLookupFactory.resize(docIdToGroup, newMaxGroup, memory);
 
-        {
-            // check if all doc in shard go to one group
-            // this often happens when grouping by unixtime (1h, 1d or 1mo for example)
-            final int commonGroup = calculateCommonGroup(lookup, min, max, intervalSize, noGutters);
-            if (commonGroup == 0) {
-                resetGroupsTo(0);
-                finalizeRegroup();
-                return docIdToGroup.getNumGroups();
-            } else if (commonGroup > 0) {
-                // all in one interval
-                final int totalBuckets = noGutters ? numBuckets : numBuckets + 2;
-                // TODO: rewrite on batched get/set after buffer pooling is introduced.
-                for (int i = 0; i < numDocs; i++) {
-                    final int group = docIdToGroup.get(i);
-                    if (group == 0) {
-                        continue;
+            {
+                // check if all doc in shard go to one group
+                // this often happens when grouping by unixtime (1h, 1d or 1mo for example)
+                final int commonGroup = calculateCommonGroup(lookup, min, max, intervalSize, noGutters);
+                if (commonGroup == 0) {
+                    resetGroupsTo(0);
+                    finalizeRegroup();
+                    return docIdToGroup.getNumGroups();
+                } else if (commonGroup > 0) {
+                    // all in one interval
+                    final int totalBuckets = noGutters ? numBuckets : numBuckets + 2;
+                    // TODO: rewrite on batched get/set after buffer pooling is introduced.
+                    for (int i = 0; i < numDocs; i++) {
+                        final int group = docIdToGroup.get(i);
+                        if (group == 0) {
+                            continue;
+                        }
+                        docIdToGroup.set(i, (group - 1) * totalBuckets + commonGroup);
                     }
-                    docIdToGroup.set(i, (group - 1) * totalBuckets + commonGroup);
-                }
 
-                finalizeRegroup();
-                return docIdToGroup.getNumGroups();
-            }
-        }
-
-        final int numDocs = docIdToGroup.size();
-        final int[] docIdBuf = memoryPool.getIntBuffer(BUFFER_SIZE, true);
-        final int[] docGroupBuffer = memoryPool.getIntBuffer(BUFFER_SIZE, true);
-        final long[] valBuf = memoryPool.getLongBuffer(BUFFER_SIZE, true);
-        for (int doc = 0; doc < numDocs; doc += BUFFER_SIZE) {
-
-            final int n = Math.min(BUFFER_SIZE, numDocs - doc);
-
-            docIdToGroup.fillDocGrpBufferSequential(doc, docGroupBuffer, n);
-
-            int numNonZero = 0;
-            for (int i = 0; i < n; ++i) {
-                if (docGroupBuffer[i] != 0) {
-                    docGroupBuffer[numNonZero] = docGroupBuffer[i];
-                    docIdBuf[numNonZero++] = doc + i;
+                    finalizeRegroup();
+                    return docIdToGroup.getNumGroups();
                 }
             }
 
-            if (numNonZero == 0) {
-                continue;
+            final int numDocs = docIdToGroup.size();
+            final int[] docIdBuf = memoryPool.getIntBuffer(BUFFER_SIZE, true);
+            final int[] docGroupBuffer = memoryPool.getIntBuffer(BUFFER_SIZE, true);
+            final long[] valBuf = memoryPool.getLongBuffer(BUFFER_SIZE, true);
+            for (int doc = 0; doc < numDocs; doc += BUFFER_SIZE) {
+
+                final int n = Math.min(BUFFER_SIZE, numDocs - doc);
+
+                docIdToGroup.fillDocGrpBufferSequential(doc, docGroupBuffer, n);
+
+                int numNonZero = 0;
+                for (int i = 0; i < n; ++i) {
+                    if (docGroupBuffer[i] != 0) {
+                        docGroupBuffer[numNonZero] = docGroupBuffer[i];
+                        docIdBuf[numNonZero++] = doc + i;
+                    }
+                }
+
+                if (numNonZero == 0) {
+                    continue;
+                }
+
+                lookup.lookup(docIdBuf, valBuf, numNonZero);
+
+                if (noGutters) {
+                    internalMetricRegroupNoGutters(min, max, intervalSize, numBuckets, numNonZero, valBuf, docGroupBuffer);
+                } else {
+                    internalMetricRegroupGutters(min, max, intervalSize, numBuckets, numNonZero, valBuf, docGroupBuffer);
+                }
+
+                docIdToGroup.batchSet(docIdBuf, docGroupBuffer, numNonZero);
             }
 
-            lookup.lookup(docIdBuf, valBuf, numNonZero);
-
-            if (noGutters) {
-                internalMetricRegroupNoGutters(min, max, intervalSize, numBuckets, numNonZero, valBuf, docGroupBuffer);
-            } else {
-                internalMetricRegroupGutters(min, max, intervalSize, numBuckets, numNonZero, valBuf, docGroupBuffer);
-            }
-
-            docIdToGroup.batchSet(docIdBuf, docGroupBuffer, numNonZero);
+            memoryPool.returnIntBuffer(docIdBuf);
+            memoryPool.returnIntBuffer(docGroupBuffer);
+            memoryPool.returnLongBuffer(valBuf);
         }
-
-        memoryPool.returnIntBuffer(docIdBuf);
-        memoryPool.returnIntBuffer(docGroupBuffer);
-        memoryPool.returnLongBuffer(valBuf);
         finalizeRegroup();
 
         return docIdToGroup.getNumGroups();
@@ -1341,112 +1343,6 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                 docGroupBuffer[i] = (docGroupBuffer[i]-1)*numBuckets+group;
             }
         }
-    }
-
-    @Override
-    public synchronized int metricRegroup2D(final int xStat,
-                                            final long xMin,
-                                            final long xMax,
-                                            final long xIntervalSize,
-                                            final int yStat,
-                                            final long yMin,
-                                            final long yMax,
-                                            final long yIntervalSize)
-        throws ImhotepOutOfMemoryException {
-
-        if (isFilteredOut()) {
-            return docIdToGroup.getNumGroups();
-        }
-
-        final int xBuckets = (int) (((xMax - 1) - xMin) / xIntervalSize + 3);
-        final int yBuckets = (int) (((yMax - 1) - yMin) / yIntervalSize + 3);
-        final int numGroups = xBuckets * yBuckets;
-
-        docIdToGroup = GroupLookupFactory.resize(docIdToGroup, numGroups, memory);
-
-        if (!memory.claimMemory(BUFFER_SIZE * 8)) {
-            throw newImhotepOutOfMemoryException();
-        }
-        final int[] docIdBuf = memoryPool.getIntBuffer(BUFFER_SIZE, true);
-        final int[] docGroupBuffer = memoryPool.getIntBuffer(BUFFER_SIZE, true);
-        final long[] xValBuf = memoryPool.getLongBuffer(BUFFER_SIZE, true);
-        final long[] yValBuf = memoryPool.getLongBuffer(BUFFER_SIZE, true);
-        try {
-            final IntValueLookup xLookup = statLookup.get(xStat);
-            final IntValueLookup yLookup = statLookup.get(yStat);
-
-            final int numDocs = docIdToGroup.size();
-            for (int doc = 0; doc < numDocs; doc += BUFFER_SIZE) {
-
-                final int n = Math.min(BUFFER_SIZE, numDocs - doc);
-
-                docIdToGroup.fillDocGrpBufferSequential(doc, docGroupBuffer, n);
-
-                int numNonZero = 0;
-                for (int i = 0; i < n; ++i) {
-                    if (docGroupBuffer[i] != 0) {
-                        docIdBuf[numNonZero++] = doc + i;
-                    }
-                }
-
-                if (numNonZero == 0) {
-                    continue;
-                }
-
-                xLookup.lookup(docIdBuf, xValBuf, numNonZero);
-                yLookup.lookup(docIdBuf, yValBuf, numNonZero);
-
-                for (int i = 0; i < numNonZero; ++i) {
-                    final long xVal = xValBuf[i];
-                    final long yVal = yValBuf[i];
-
-                    final int group;
-                    if (xVal < xMin) {
-                        if (yVal < yMin) {
-                            group = 1;
-                        } else if (yVal >= yMax) {
-                            group = (yBuckets - 1) * xBuckets + 1;
-                        } else {
-                            group = (int) (((yVal - yMin) / yIntervalSize + 1) * xBuckets + 1);
-                        }
-                    } else if (xVal >= xMax) {
-                        if (yVal < yMin) {
-                            group = xBuckets;
-                        } else if (yVal >= yMax) {
-                            group = xBuckets * yBuckets;
-                        } else {
-                            group = (int) (((yVal - yMin) / yIntervalSize + 2) * xBuckets);
-                        }
-                    } else {
-                        if (yVal < yMin) {
-                            group = (int) ((xVal - xMin) / xIntervalSize + 2);
-                        } else if (yVal >= yMax) {
-                            group =
-                                    (int) ((yBuckets - 1) * xBuckets + (xVal - xMin)
-                                            / xIntervalSize + 2);
-                        } else {
-                            group =
-                                    (int) (((yVal - yMin) / yIntervalSize + 1) * xBuckets
-                                            + (xVal - xMin) / xIntervalSize + 2);
-                        }
-                    }
-
-                    docGroupBuffer[i] = group;
-                }
-
-                docIdToGroup.batchSet(docIdBuf, docGroupBuffer, numNonZero);
-            }
-        } finally {
-            memoryPool.returnIntBuffer(docIdBuf);
-            memoryPool.returnIntBuffer(docGroupBuffer);
-            memoryPool.returnLongBuffer(xValBuf);
-            memoryPool.returnLongBuffer(yValBuf);
-            memory.releaseMemory(BUFFER_SIZE * 8);
-        }
-
-        finalizeRegroup();
-
-        return numGroups;
     }
 
     @Override
@@ -1529,116 +1425,113 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         return docIdToGroup.getNumGroups();
     }
 
-    public synchronized int metricFilter(final int stat, final long min, final long max, final boolean negate)
-            throws ImhotepOutOfMemoryException {
-        if (stat < 0 || stat >= statLookup.length()) {
-            throw newIllegalArgumentException("invalid stat index: " + stat
-                    + ", must be between [0," + statLookup.length() + ")");
-        }
-
+    public synchronized int metricFilter(final List<String> stat, final long min, final long max, final boolean negate) throws ImhotepOutOfMemoryException {
         if (isFilteredOut()) {
             return docIdToGroup.getNumGroups();
         }
 
-        docIdToGroup = GroupLookupFactory.resize(docIdToGroup, docIdToGroup.getNumGroups(), memory);
-        final IntValueLookup lookup = statLookup.get(stat);
+        try (MetricStack stack = new MetricStack()) {
+            final IntValueLookup lookup = stack.push(stat);
 
-        final int numDocs = docIdToGroup.size();
-        final int[] docIdBuf = memoryPool.getIntBuffer(BUFFER_SIZE, true);
-        final int[] docGroupBuffer = memoryPool.getIntBuffer(BUFFER_SIZE, true);
-        final long[] valBuf = memoryPool.getLongBuffer(BUFFER_SIZE, true);
-        for (int doc = 0; doc < numDocs; doc += BUFFER_SIZE) {
+            docIdToGroup = GroupLookupFactory.resize(docIdToGroup, docIdToGroup.getNumGroups(), memory);
 
-            final int n = Math.min(BUFFER_SIZE, numDocs - doc);
+            final int numDocs = docIdToGroup.size();
+            final int[] docIdBuf = memoryPool.getIntBuffer(BUFFER_SIZE, true);
+            final int[] docGroupBuffer = memoryPool.getIntBuffer(BUFFER_SIZE, true);
+            final long[] valBuf = memoryPool.getLongBuffer(BUFFER_SIZE, true);
+            for (int doc = 0; doc < numDocs; doc += BUFFER_SIZE) {
 
-            docIdToGroup.fillDocGrpBufferSequential(doc, docGroupBuffer, n);
+                final int n = Math.min(BUFFER_SIZE, numDocs - doc);
 
-            int numNonZero = 0;
-            for (int i = 0; i < n; ++i) {
-                final int group = docGroupBuffer[i];
-                if (group != 0) {
-                    docIdBuf[numNonZero] = doc + i;
-                    docGroupBuffer[numNonZero++] = group;
+                docIdToGroup.fillDocGrpBufferSequential(doc, docGroupBuffer, n);
+
+                int numNonZero = 0;
+                for (int i = 0; i < n; ++i) {
+                    final int group = docGroupBuffer[i];
+                    if (group != 0) {
+                        docIdBuf[numNonZero] = doc + i;
+                        docGroupBuffer[numNonZero++] = group;
+                    }
                 }
-            }
 
-            if (numNonZero == 0) {
-                continue;
-            }
-
-            lookup.lookup(docIdBuf, valBuf, numNonZero);
-
-            for (int i = 0; i < numNonZero; ++i) {
-                final long val = valBuf[i];
-                final boolean valInRange = val >= min && val <= max;
-                if (valInRange == negate) {
-                    docGroupBuffer[i] = 0;
+                if (numNonZero == 0) {
+                    continue;
                 }
+
+                lookup.lookup(docIdBuf, valBuf, numNonZero);
+
+                for (int i = 0; i < numNonZero; ++i) {
+                    final long val = valBuf[i];
+                    final boolean valInRange = val >= min && val <= max;
+                    if (valInRange == negate) {
+                        docGroupBuffer[i] = 0;
+                    }
+                }
+
+                docIdToGroup.batchSet(docIdBuf, docGroupBuffer, numNonZero);
             }
 
-            docIdToGroup.batchSet(docIdBuf, docGroupBuffer, numNonZero);
+            memoryPool.returnIntBuffer(docIdBuf);
+            memoryPool.returnIntBuffer(docGroupBuffer);
+            memoryPool.returnLongBuffer(valBuf);
         }
 
-        memoryPool.returnIntBuffer(docIdBuf);
-        memoryPool.returnIntBuffer(docGroupBuffer);
-        memoryPool.returnLongBuffer(valBuf);
         finalizeRegroup();
 
         return docIdToGroup.getNumGroups();
     }
 
     @Override
-    public synchronized int metricFilter(final int stat, final long min, final long max, final int targetGroup, final int negativeGroup, final int positiveGroup) throws ImhotepOutOfMemoryException {
-        if ((stat < 0) || (stat >= statLookup.length())) {
-            throw newIllegalArgumentException("invalid stat index: " + stat
-                    + ", must be between [0," + statLookup.length() + ")");
-        }
-
+    public synchronized int metricFilter(final List<String> stat, final long min, final long max, final int targetGroup, final int negativeGroup, final int positiveGroup) throws ImhotepOutOfMemoryException {
         if (isFilteredOut() || (targetGroup >= docIdToGroup.getNumGroups())) {
             return docIdToGroup.getNumGroups();
         }
 
-        final int newMaxGroup = Math.max(docIdToGroup.getNumGroups(), Math.max(positiveGroup, negativeGroup));
-        docIdToGroup = GroupLookupFactory.resize(docIdToGroup, newMaxGroup, memory);
-        final IntValueLookup lookup = statLookup.get(stat);
+        try (MetricStack stack = new MetricStack()) {
+            final IntValueLookup lookup = stack.push(stat);
 
-        final int numDocs = docIdToGroup.size();
-        final int[] docIdBuf = memoryPool.getIntBuffer(BUFFER_SIZE, true);
-        final int[] docGroupBuffer = memoryPool.getIntBuffer(BUFFER_SIZE, true);
-        final long[] valBuf = memoryPool.getLongBuffer(BUFFER_SIZE, true);
-        for (int doc = 0; doc < numDocs; doc += BUFFER_SIZE) {
+            final int newMaxGroup = Math.max(docIdToGroup.getNumGroups(), Math.max(positiveGroup, negativeGroup));
+            docIdToGroup = GroupLookupFactory.resize(docIdToGroup, newMaxGroup, memory);
 
-            final int n = Math.min(BUFFER_SIZE, numDocs - doc);
+            final int numDocs = docIdToGroup.size();
+            final int[] docIdBuf = memoryPool.getIntBuffer(BUFFER_SIZE, true);
+            final int[] docGroupBuffer = memoryPool.getIntBuffer(BUFFER_SIZE, true);
+            final long[] valBuf = memoryPool.getLongBuffer(BUFFER_SIZE, true);
+            for (int doc = 0; doc < numDocs; doc += BUFFER_SIZE) {
 
-            docIdToGroup.fillDocGrpBufferSequential(doc, docGroupBuffer, n);
+                final int n = Math.min(BUFFER_SIZE, numDocs - doc);
 
-            int numTargeted = 0;
-            for (int i = 0; i < n; ++i) {
-                final int group = docGroupBuffer[i];
-                if (group == targetGroup) {
-                    docIdBuf[numTargeted] = doc + i;
-                    docGroupBuffer[numTargeted++] = group;
+                docIdToGroup.fillDocGrpBufferSequential(doc, docGroupBuffer, n);
+
+                int numTargeted = 0;
+                for (int i = 0; i < n; ++i) {
+                    final int group = docGroupBuffer[i];
+                    if (group == targetGroup) {
+                        docIdBuf[numTargeted] = doc + i;
+                        docGroupBuffer[numTargeted++] = group;
+                    }
                 }
+
+                if (numTargeted == 0) {
+                    continue;
+                }
+
+                lookup.lookup(docIdBuf, valBuf, numTargeted);
+
+                for (int i = 0; i < numTargeted; ++i) {
+                    final long val = valBuf[i];
+                    final boolean valInRange = val >= min && val <= max;
+                    docGroupBuffer[i] = valInRange ? positiveGroup : negativeGroup;
+                }
+
+                docIdToGroup.batchSet(docIdBuf, docGroupBuffer, numTargeted);
             }
 
-            if (numTargeted == 0) {
-                continue;
-            }
-
-            lookup.lookup(docIdBuf, valBuf, numTargeted);
-
-            for (int i = 0; i < numTargeted; ++i) {
-                final long val = valBuf[i];
-                final boolean valInRange = val >= min && val <= max;
-                docGroupBuffer[i] = valInRange ? positiveGroup : negativeGroup;
-            }
-
-            docIdToGroup.batchSet(docIdBuf, docGroupBuffer, numTargeted);
+            memoryPool.returnIntBuffer(docIdBuf);
+            memoryPool.returnIntBuffer(docGroupBuffer);
+            memoryPool.returnLongBuffer(valBuf);
         }
 
-        memoryPool.returnIntBuffer(docIdBuf);
-        memoryPool.returnIntBuffer(docGroupBuffer);
-        memoryPool.returnLongBuffer(valBuf);
         finalizeRegroup();
 
         return docIdToGroup.getNumGroups();
@@ -1689,47 +1582,149 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     private static final Pattern RANDOM_PATTERN = Pattern.compile("^random\\s+(?<type>int|str)\\s+\\[(?<percentiles>[0-9., ]+)]\\s+(?<field>.*)\\s+\"(?<salt>.*)\"$");
     private static final Pattern RANDOM_METRIC_PATTERN = Pattern.compile("^random_metric\\s+\\[(?<percentiles>[0-9., ]+)]\\s+\"(?<salt>.*)\"$");
 
-    @Override
-    public synchronized int pushStat(String statName)
-        throws ImhotepOutOfMemoryException {
-        if (numStats == MAX_NUMBER_STATS) {
-            throw newIllegalArgumentException("Maximum number of stats exceeded");
+    class MetricStack implements Closeable {
+        private int numStats;
+        private final StatLookup stats = new StatLookup(MAX_NUMBER_STATS);
+        private final List<String> statCommands = new ArrayList<>();
+
+        public int getNumStats() {
+            return numStats;
         }
 
+        public void push(final String name, final IntValueLookup lookup) {
+            if (numStats == MAX_NUMBER_STATS) {
+                throw newIllegalArgumentException("Maximum number of stats exceeded");
+            }
+
+            stats.set(numStats, name, lookup);
+            numStats += 1;
+        }
+
+        public IntValueLookup popLookup() {
+            if (numStats == 0) {
+                throw newIllegalStateException("no stat to pop");
+            }
+            --numStats;
+
+            final IntValueLookup ret = stats.get(numStats);
+            stats.set(numStats, null, null);
+
+            return ret;
+        }
+
+        public void addObserver(final StatLookup.Observer observer) {
+            stats.addObserver(observer);
+        }
+
+        /**
+         * The resulting value will still be present in the metric stack and should NOT be closed by the caller in
+         * any circumstance.
+         */
+        public IntValueLookup get(final int index) {
+            if ((index < 0) || (index >= numStats)) {
+                throw newIllegalArgumentException("invalid stat index: " + index
+                        + ", must be between [0," + numStats + ")");
+            }
+            IntValueLookup result = stats.get(index);
+            // TODO: Is this dumb since we have a fancy JIT?
+            // Try to avoid unnecessary double dispatch.
+            while (result instanceof DelegatingMetric) {
+                result = ((DelegatingMetric) result).getInner();
+            }
+            return result;
+        }
+
+        public IntValueLookup set(final int index, final String statName, final IntValueLookup lookup) {
+            return stats.set(index, statName, lookup);
+        }
+
+        public List<String> getStatCommands() {
+            return Collections.unmodifiableList(statCommands);
+        }
+
+        public void clearStatCommands() {
+            Preconditions.checkState(numStats == 0, "Cannot clear stat commands if numStats!=0");
+            statCommands.clear();
+        }
+
+        @Override
+        public void close() {
+            stats.close();
+        }
+
+        public IntValueLookup push(final List<String> stat) throws ImhotepOutOfMemoryException {
+            final int startNumStats = numStats;
+            for (final String s : stat) {
+                pushStat(s, this);
+            }
+            Preconditions.checkState(numStats == (startNumStats + 1), "push(List<String>) should increase stat depth by exactly 1");
+            return get(numStats - 1);
+        }
+    }
+
+    /**
+     * If stats is non-null, then push the stats present there.
+     * If stats is null, then push delegating stats from ImhotepLocalSession.this.metricStack
+     */
+    public MetricStack fromStatsOrStackCopy(@Nullable final List<List<String>> stats) throws ImhotepOutOfMemoryException {
+        final MetricStack stack = new MetricStack();
+        try {
+            if (stats != null) {
+                for (final List<String> stat : stats) {
+                    stack.push(stat);
+                }
+            } else {
+                for (int i = 0; i < metricStack.getNumStats(); i++) {
+                    pushStat("global_stack " + i, stack);
+                }
+            }
+            return stack;
+        } catch (final Exception e) {
+            Closeables2.closeQuietly(stack, log);
+            throw e;
+        }
+    }
+
+    @Override
+    public synchronized int pushStat(final String statName) throws ImhotepOutOfMemoryException {
+        return pushStat(statName, metricStack);
+    }
+
+    public int pushStat(String statName, final MetricStack stack) throws ImhotepOutOfMemoryException {
         if (statName.startsWith("hasstr ")) {
             final String s = statName.substring("hasstr ".length()).trim();
             final String[] split = s.split(":", 2);
             if (split.length < 2) {
                 throw newIllegalArgumentException("invalid hasstr metric: " + statName);
             }
-            statLookup.set(numStats, statName, hasStringTermFilter(split[0], split[1]));
+            stack.push(statName, hasStringTermFilter(split[0], split[1]));
         } else if (statName.startsWith("hasint ")) {
             final String s = statName.substring("hasint ".length()).trim();
             final String[] split = s.split(":", 2);
             if (split.length < 2) {
                 throw newIllegalArgumentException("invalid hasint metric: " + statName);
             }
-            statLookup.set(numStats, statName, hasIntTermFilter(split[0], Long.parseLong(split[1])));
+            stack.push(statName, hasIntTermFilter(split[0], Long.parseLong(split[1])));
         } else if (statName.startsWith("hasstrfield ")) {
             final String field = statName.substring("hasstrfield ".length()).trim();
-            statLookup.set(numStats, statName, hasStringFieldFilter(field));
+            stack.push(statName, hasStringFieldFilter(field));
         } else if (statName.startsWith("hasintfield ")) {
             final String field = statName.substring("hasintfield ".length()).trim();
-            statLookup.set(numStats, statName, hasIntFieldFilter(field));
+            stack.push(statName, hasIntFieldFilter(field));
         } else if (statName.startsWith("regex ")) {
             final String s = statName.substring("regex ".length()).trim();
             final String[] split = s.split(":", 2);
             if (split.length < 2) {
                 throw newIllegalArgumentException("invalid regex metric: " + statName);
             }
-            statLookup.set(numStats, statName, hasRegexFilter(split[0], split[1]));
+            stack.push(statName, hasRegexFilter(split[0], split[1]));
         } else if (statName.startsWith("fieldequal ")) {
             final String s = statName.substring("fieldequal ".length()).trim();
             final String[] split = s.split("=");
             if (split.length != 2) {
                 throw newIllegalArgumentException("invalid field equal: " + statName);
             }
-            statLookup.set(numStats, statName, fieldEqualFilter(split[0], split[1]));
+            stack.push(statName, fieldEqualFilter(split[0], split[1]));
         } else if (statName.startsWith("regexmatch ")) {
             final Matcher matcher = REGEXPMATCH_COMMAND.matcher(statName);
             if (!matcher.matches()) {
@@ -1743,13 +1738,13 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                 throw newIllegalArgumentException("invalid regexmatch index: " + statName);
             }
 
-            statLookup.set(numStats, statName, matchByRegex(fieldName, regexp, matchIndex));
+            stack.push(statName, matchByRegex(fieldName, regexp, matchIndex));
         } else if (statName.startsWith("inttermcount ")) {
             final String field = statName.substring("inttermcount ".length()).trim();
-            statLookup.set(numStats, statName, termCountLookup(field, true));
+            stack.push(statName, termCountLookup(field, true));
         } else if (statName.startsWith("strtermcount ")) {
             final String field = statName.substring("strtermcount ".length()).trim();
-            statLookup.set(numStats, statName, termCountLookup(field, false));
+            stack.push(statName, termCountLookup(field, false));
         } else if (statName.startsWith("floatscale ")) {
             final Matcher matcher = floatScalePattern.matcher(statName);
             // accepted format is 'floatscale field*scale+offset' (or just look
@@ -1769,80 +1764,75 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                         + statName,  e);
             }
 
-            statLookup.set(numStats, statName, scaledFloatLookup(field, scale, offset));
+            stack.push(statName, scaledFloatLookup(field, scale, offset));
         } else if (statName.startsWith("dynamic ")) {
             final String name = statName.substring("dynamic ".length()).trim();
             final DynamicMetric metric = getDynamicMetrics().get(name);
             if (metric == null) {
                 throw newIllegalArgumentException("invalid dynamic metric: " + name);
             }
-            statLookup.set(numStats, statName, metric);
+            stack.push(statName, metric);
         } else if (statName.startsWith("exp ")) {
             final int scaleFactor = Integer.valueOf(statName.substring("exp ".length()).trim());
-            final IntValueLookup operand = popLookup();
-            statLookup.set(numStats, statName, new Exponential(operand, scaleFactor));
+            final IntValueLookup operand = stack.popLookup();
+            stack.push(statName, new Exponential(operand, scaleFactor));
         } else if (statName.startsWith("log ")) {
             final int scaleFactor = Integer.valueOf(statName.substring("log ".length()).trim());
-            final IntValueLookup operand = popLookup();
-            statLookup.set(numStats, statName, new Log(operand, scaleFactor));
+            final IntValueLookup operand = stack.popLookup();
+            stack.push(statName, new Log(operand, scaleFactor));
         } else if (statName.startsWith("ref ")) {
             final int depth = Integer.valueOf(statName.substring("ref ".length()).trim());
-            statLookup.set(numStats, statName, new DelegatingMetric(statLookup.get(numStats - depth - 1)));
+            stack.push(statName, new DelegatingMetric(stack.get(stack.getNumStats() - depth - 1)));
         } else if (statName.startsWith("len ")) {
             final String field = statName.substring("len ".length()).trim();
-            statLookup.set(numStats, statName, stringLenLookup(field));
+            stack.push(statName, stringLenLookup(field));
         } else if (is32BitInteger(statName)) {
             final int constant = Integer.parseInt(statName); // guaranteed not to fail
-            statLookup.set(numStats, statName, new Constant(constant));
+            stack.push(statName, new Constant(constant));
         } else if (is64BitInteger(statName)) {
             final long constant = Long.parseLong(statName); // guaranteed notto fail
-            statLookup.set(numStats, statName, new Constant(constant));
+            stack.push(statName, new Constant(constant));
         } else if (statName.startsWith("interleave ")) {
             final int count = Integer.valueOf(statName.substring("interleave ".length()).trim());
 
             final IntValueLookup[] originals = new IntValueLookup[count];
-            final int start = numStats - count;
+            final int start = stack.getNumStats() - count;
             if (start < 0) {
                 throw newIllegalArgumentException(statName + ": expected at least " + count
-                        + " metrics on stack, found " + numStats);
+                        + " metrics on stack, found " + stack.getNumStats());
             }
 
             for (int i = 0; i < count; i++) {
-                originals[i] = statLookup.get(start + i);
+                originals[i] = stack.get(start + i);
             }
             final IntValueLookup[] cached =
                     new CachedInterleavedMetrics(memory, flamdexReader.getNumDocs(), originals).getLookups();
 
             for (int i = 0; i < count; i++) {
-                statLookup.get(start + i).close();
-                statLookup.set(start + i, statName,  cached[i]);
+                final IntValueLookup oldValue = stack.set(start + i, statName, cached[i]);
+                Preconditions.checkNotNull(oldValue, "interleave should never set previously unset metric indexes");
+                oldValue.close();
             }
-
-            /* this request is valid, so keep track of the command */
-            this.statCommands.add(statName);
-
-            return numStats; // cleanup below only applies if we're increasing
-                             // the number of metrics
         } else if (statName.startsWith("mulshr ")) {
             final int shift = Integer.valueOf(statName.substring("mulshr ".length()).trim());
             if (shift < 0 || shift > 31) {
                 throw newIllegalArgumentException("mulshr shift value must be between 0 and 31 (inclusive)");
             }
-            final IntValueLookup b = popLookup();
-            final IntValueLookup a = popLookup();
-            statLookup.set(numStats, statName, new ShiftRight(new Multiplication(a, b), shift));
+            final IntValueLookup b = stack.popLookup();
+            final IntValueLookup a = stack.popLookup();
+            stack.push(statName, new ShiftRight(new Multiplication(a, b), shift));
         } else if (statName.startsWith("shldiv ")) {
             final int shift = Integer.valueOf(statName.substring("shldiv ".length()).trim());
             if (shift < 0 || shift > 31) {
                 throw newIllegalArgumentException("shldiv shift value must be between 0 and 31 (inclusive)");
             }
-            final IntValueLookup b = popLookup();
-            final IntValueLookup a = popLookup();
-            statLookup.set(numStats, statName, new Division(new ShiftLeft(a, shift), b));
+            final IntValueLookup b = stack.popLookup();
+            final IntValueLookup a = stack.popLookup();
+            stack.push(statName, new Division(new ShiftLeft(a, shift), b));
         } else if (statName.startsWith("log1pexp ")) {
             final int scale = Integer.valueOf(statName.substring("log1pexp ".length()).trim());
-            final IntValueLookup operand = popLookup();
-            statLookup.set(numStats, statName, new Log1pExp(operand, scale));
+            final IntValueLookup operand = stack.popLookup();
+            stack.push(statName, new Log1pExp(operand, scale));
         } else if (statName.startsWith("logistic ")) {
             final String[] params = statName.substring("logistic ".length()).split(" ");
             if (params.length != 2) {
@@ -1857,8 +1847,8 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                 throw newIllegalArgumentException("invalid scale factor for metric: "
                         + statName,  e);
             }
-            final IntValueLookup operand = popLookup();
-            statLookup.set(numStats, statName, new Logistic(operand, scaleDown, scaleUp));
+            final IntValueLookup operand = stack.popLookup();
+            stack.push(statName, new Logistic(operand, scaleDown, scaleUp));
         } else if (statName.startsWith("lucene ")) {
             final String queryBase64 = statName.substring("lucene ".length());
             final byte[] queryBytes = Base64.decodeBase64(queryBase64.getBytes());
@@ -1881,7 +1871,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                 searcher.search(query, bitSet, bitSetPooler);
                 final IntValueLookup lookup = new MemoryReservingIntValueLookupWrapper(
                         new com.indeed.flamdex.fieldcache.BitSetIntValueLookup(bitSet));
-                statLookup.set(numStats, statName, lookup);
+                stack.push(statName, lookup);
             } catch (final Throwable t) {
                 memory.releaseMemory(bitSetMemory);
                 if (t instanceof FlamdexOutOfMemoryException) {
@@ -1909,7 +1899,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             final String salt = matcher.group("salt");
             final String field = matcher.group("field").trim();
 
-            statLookup.set(numStats, statName, randomLookup(field, isIntField, salt, percentiles));
+            stack.push(statName, randomLookup(field, isIntField, salt, percentiles));
         } else if (statName.startsWith("random_metric ")) {
             // Expected result:
             //      1 through (percentiles.length + 1), where the distribution across these groups is determined
@@ -1926,95 +1916,98 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
 
             final String salt = matcher.group("salt");
 
-            try (final IntValueLookup operand = popLookup()) {
-                statLookup.set(numStats, statName, randomMetricLookup(operand, salt, percentiles));
+            try (final IntValueLookup operand = stack.popLookup()) {
+                stack.push(statName, randomMetricLookup(operand, salt, percentiles));
             }
+        } else if (statName.startsWith("global_stack ")) {
+            final int statIndex = Integer.parseInt(statName.substring("global_stack ".length()));
+            stack.push(statName, new DelegatingMetric(metricStack.get(statIndex)));
         } else if (Metric.getMetric(statName) != null) {
             final IntValueLookup a;
             final IntValueLookup b;
             switch (Metric.getMetric(statName)) {
             case COUNT:
-                statLookup.set(numStats, statName, new Count());
+                stack.push(statName, new Count());
                 break;
             case CACHED:
-                a = popLookup();
+                a = stack.popLookup();
                 try {
-                    statLookup.set(numStats, statName, new CachedMetric(a, flamdexReader.getNumDocs(), memory));
+                    stack.push(statName, new CachedMetric(a, flamdexReader.getNumDocs(), memory));
                 } finally {
                     a.close();
                 }
                 break;
             case ADD:
-                b = popLookup();
-                a = popLookup();
-                statLookup.set(numStats, statName, new Addition(a, b));
+                b = stack.popLookup();
+                a = stack.popLookup();
+                stack.push(statName, new Addition(a, b));
                 break;
             case SUBTRACT:
-                b = popLookup();
-                a = popLookup();
-                statLookup.set(numStats, statName, new Subtraction(a, b));
+                b = stack.popLookup();
+                a = stack.popLookup();
+                stack.push(statName, new Subtraction(a, b));
                 break;
             case MULTIPLY:
-                b = popLookup();
-                a = popLookup();
-                statLookup.set(numStats, statName, new Multiplication(a, b));
+                b = stack.popLookup();
+                a = stack.popLookup();
+                stack.push(statName, new Multiplication(a, b));
                 break;
             case DIVIDE:
-                b = popLookup();
-                a = popLookup();
-                statLookup.set(numStats, statName, new Division(a, b));
+                b = stack.popLookup();
+                a = stack.popLookup();
+                stack.push(statName, new Division(a, b));
                 break;
             case MODULUS:
-                b = popLookup();
-                a = popLookup();
-                statLookup.set(numStats, statName, new Modulus(a, b));
+                b = stack.popLookup();
+                a = stack.popLookup();
+                stack.push(statName, new Modulus(a, b));
                 break;
             case ABSOLUTE_VALUE:
-                a = popLookup();
-                statLookup.set(numStats, statName, new AbsoluteValue(a));
+                a = stack.popLookup();
+                stack.push(statName, new AbsoluteValue(a));
                 break;
             case MIN:
-                b = popLookup();
-                a = popLookup();
-                statLookup.set(numStats, statName, new Min(a, b));
+                b = stack.popLookup();
+                a = stack.popLookup();
+                stack.push(statName, new Min(a, b));
                 break;
             case MAX:
-                b = popLookup();
-                a = popLookup();
-                statLookup.set(numStats, statName, new Max(a, b));
+                b = stack.popLookup();
+                a = stack.popLookup();
+                stack.push(statName, new Max(a, b));
                 break;
             case EQ:
-                b = popLookup();
-                a = popLookup();
-                statLookup.set(numStats, statName, new Equal(a, b));
+                b = stack.popLookup();
+                a = stack.popLookup();
+                stack.push(statName, new Equal(a, b));
                 break;
             case NE:
-                b = popLookup();
-                a = popLookup();
-                statLookup.set(numStats, statName, new NotEqual(a, b));
+                b = stack.popLookup();
+                a = stack.popLookup();
+                stack.push(statName, new NotEqual(a, b));
                 break;
             case LT:
-                b = popLookup();
-                a = popLookup();
-                statLookup.set(numStats, statName, new LessThan(a, b));
+                b = stack.popLookup();
+                a = stack.popLookup();
+                stack.push(statName, new LessThan(a, b));
                 break;
             case LTE:
-                b = popLookup();
-                a = popLookup();
-                statLookup.set(numStats, statName, new LessThanOrEqual(a, b));
+                b = stack.popLookup();
+                a = stack.popLookup();
+                stack.push(statName, new LessThanOrEqual(a, b));
                 break;
             case GT:
-                b = popLookup();
-                a = popLookup();
-                statLookup.set(numStats, statName, new GreaterThan(a, b));
+                b = stack.popLookup();
+                a = stack.popLookup();
+                stack.push(statName, new GreaterThan(a, b));
                 break;
             case GTE:
-                b = popLookup();
-                a = popLookup();
-                statLookup.set(numStats, statName, new GreaterThanOrEqual(a, b));
+                b = stack.popLookup();
+                a = stack.popLookup();
+                stack.push(statName, new GreaterThanOrEqual(a, b));
                 break;
             case DOCID:
-                statLookup.set(numStats, statName, new DocIdMetric(numDocs));
+                stack.push(statName, new DocIdMetric(numDocs));
                 break;
             default:
                 throw newRuntimeException("this is a bug");
@@ -2029,22 +2022,16 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                     statName = "time";
                 }
 
-                statLookup.set(numStats, statName, flamdexReader.getMetric(statName));
+                stack.push(statName, flamdexReader.getMetric(statName));
             } catch (final FlamdexOutOfMemoryException e) {
                 throw newImhotepOutOfMemoryException(e);
             }
         }
-        numStats++;
-
-        // FlamdexFTGSIterator.termGrpStats
-        if (!memory.claimMemory(8L * docIdToGroup.getNumGroups())) {
-            throw newImhotepOutOfMemoryException();
-        }
 
         /* this request is valid, so keep track of the command */
-        this.statCommands.add(statName);
+        stack.statCommands.add(statName);
 
-        return numStats;
+        return stack.numStats;
     }
 
     @Override
@@ -2054,7 +2041,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             this.pushStat(statName);
         }
 
-        return numStats;
+        return metricStack.getNumStats();
     }
 
     private static boolean is32BitInteger(final String s) {
@@ -2075,44 +2062,16 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         }
     }
 
-    private IntValueLookup popLookup() {
-        if (numStats == 0) {
-            throw newIllegalStateException("no stat to pop");
-        }
-        --numStats;
-
-        final IntValueLookup ret = statLookup.get(numStats);
-        statLookup.set(numStats, null, null);
-
-        memory.releaseMemory(8L * docIdToGroup.getNumGroups());
-
-        return ret;
-    }
-
     @Override
     public synchronized int popStat() {
-        popLookup().close();
-
-        /* this request is valid, so keep track of the command */
-        this.statCommands.add("pop");
-
-        return numStats;
+        metricStack.popLookup().close();
+        metricStack.statCommands.add("pop");
+        return metricStack.getNumStats();
     }
 
     @Override
     public synchronized int getNumStats() {
-        return numStats;
-    }
-
-
-    @Override
-    public long getLowerBound(final int stat) {
-        return statLookup.get(stat).getMin();
-    }
-
-    @Override
-    public long getUpperBound(final int stat) {
-        return statLookup.get(stat).getMax();
+        return metricStack.getNumStats();
     }
 
     @Override
@@ -2521,13 +2480,6 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     protected void freeDocIdToGroup() {
         final long memFreed = BUFFERS_TOTAL_SIZE + docIdToGroup.memoryUsed();
         memory.releaseMemory(memFreed);
-
-        try {
-            accountForFlamdexFTGSIteratorMemChange(docIdToGroup.getNumGroups(), 0);
-        } catch(final ImhotepOutOfMemoryException e) {
-            throw newRuntimeException("Unexpected ImhotepOutOfMemoryException while releasing memory" ,e);
-        }
-
         docIdToGroup = null;
     }
 
@@ -2535,7 +2487,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         try {
             instrumentation.fire(new CloseLocalSessionEvent());
 
-            while (numStats > 0) {
+            while (metricStack.getNumStats() > 0) {
                 popStat();
             }
             freeDocIdToGroup();
@@ -2555,6 +2507,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         } finally {
             Closeables2.closeQuietly(flamdexReaderRef, log);
             Closeables2.closeQuietly(memory, log);
+            Closeables2.closeQuietly(metricStack, log);
         }
     }
 
@@ -2574,10 +2527,8 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
 
     protected void resetGroupsTo(final int group) throws ImhotepOutOfMemoryException {
         final long bytesToFree = docIdToGroup.memoryUsed();
-        final int newNumGroups = group + 1;
 
-        accountForFlamdexFTGSIteratorMemChange(docIdToGroup.getNumGroups(), newNumGroups);
-        docIdToGroup = new ConstantGroupLookup(this, group, numDocs);
+        docIdToGroup = new ConstantGroupLookup(group, numDocs);
         resetLazyValues();
         memory.releaseMemory(bytesToFree);
         moveDeletedDocumentsToGroupZero();
@@ -3248,7 +3199,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
 
     private class BitSetIntValueLookup implements IntValueLookup {
         private ThreadSafeBitSet bitSet;
-        private final long memoryUsage;
+        private long memoryUsage;
 
         private BitSetIntValueLookup(final ThreadSafeBitSet bitSet, final long memoryUsage) {
             this.bitSet = bitSet;
@@ -3281,11 +3232,13 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         public void close() {
             bitSet = null;
             memory.releaseMemory(memoryUsage);
+            memoryUsage = 0;
         }
     }
 
     private final class MemoryReservingIntValueLookupWrapper implements IntValueLookup {
         final IntValueLookup lookup;
+        private boolean closed = false;
 
         private MemoryReservingIntValueLookupWrapper(final IntValueLookup lookup) {
             this.lookup = lookup;
@@ -3313,9 +3266,12 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
 
         @Override
         public void close() {
-            final long usedMemory = memoryUsed();
-            lookup.close();
-            memory.releaseMemory(usedMemory);
+            if (!closed) {
+                final long usedMemory = memoryUsed();
+                lookup.close();
+                memory.releaseMemory(usedMemory);
+            }
+            closed = true;
         }
     }
 }

@@ -264,12 +264,7 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
     }
 
     @Override
-    public void randomMetricRegroup(final int stat,
-                                    final String salt,
-                                    final double p,
-                                    final int targetGroup,
-                                    final int negativeGroup,
-                                    final int positiveGroup) throws ImhotepOutOfMemoryException {
+    public void randomMetricRegroup(final List<String> stat, final String salt, final double p, final int targetGroup, final int negativeGroup, final int positiveGroup) throws ImhotepOutOfMemoryException {
         executeMemoryException(nullBuf, (ThrowingFunction<ImhotepSession, Object>) session -> {
             session.randomMetricRegroup(stat, salt, p, targetGroup, negativeGroup, positiveGroup);
             return null;
@@ -277,11 +272,7 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
     }
 
     @Override
-    public void randomMetricMultiRegroup(final int stat,
-                                         final String salt,
-                                         final int targetGroup,
-                                         final double[] percentages,
-                                         final int[] resultGroups) throws ImhotepOutOfMemoryException {
+    public void randomMetricMultiRegroup(final List<String> stat, final String salt, final int targetGroup, final double[] percentages, final int[] resultGroups) throws ImhotepOutOfMemoryException {
         executeMemoryException(nullBuf, (ThrowingFunction<ImhotepSession, Object>) session -> {
             session.randomMetricMultiRegroup(stat, salt, targetGroup, percentages, resultGroups);
             return null;
@@ -289,7 +280,7 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
     }
 
     @Override
-    public int metricRegroup(final int stat, final long min, final long max, final long intervalSize, final boolean noGutters) throws ImhotepOutOfMemoryException {
+    public int metricRegroup(final List<String> stat, final long min, final long max, final long intervalSize, final boolean noGutters) throws ImhotepOutOfMemoryException {
         executeMemoryException(integerBuf, new ThrowingFunction<ImhotepSession, Integer>() {
             @Override
             public Integer apply(final ImhotepSession session) throws ImhotepOutOfMemoryException {
@@ -301,20 +292,7 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
     }
 
     @Override
-    public int metricRegroup2D(final int xStat, final long xMin, final long xMax, final long xIntervalSize,
-                               final int yStat, final long yMin, final long yMax, final long yIntervalSize) throws ImhotepOutOfMemoryException {
-        executeMemoryException(integerBuf, new ThrowingFunction<ImhotepSession, Integer>() {
-            @Override
-            public Integer apply(final ImhotepSession session) throws ImhotepOutOfMemoryException {
-                return session.metricRegroup2D(xStat, xMin, xMax, xIntervalSize, yStat, yMin, yMax, yIntervalSize);
-            }
-        });
-
-        return Collections.max(Arrays.asList(integerBuf));
-    }
-
-    @Override
-    public int metricFilter(final int stat, final long min, final long max, final boolean negate) throws ImhotepOutOfMemoryException {
+    public int metricFilter(final List<String> stat, final long min, final long max, final boolean negate) throws ImhotepOutOfMemoryException {
         executeMemoryException(integerBuf, new ThrowingFunction<ImhotepSession, Integer>() {
             @Override
             public Integer apply(final ImhotepSession session) throws ImhotepOutOfMemoryException {
@@ -326,7 +304,7 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
     }
 
     @Override
-    public int metricFilter(final int stat, final long min, final long max, final int targetGroup, final int negativeGroup, final int positiveGroup) throws ImhotepOutOfMemoryException {
+    public int metricFilter(final List<String> stat, final long min, final long max, final int targetGroup, final int negativeGroup, final int positiveGroup) throws ImhotepOutOfMemoryException {
         executeMemoryException(integerBuf, new ThrowingFunction<ImhotepSession, Integer>() {
             @Override
             public Integer apply(final ImhotepSession session) throws ImhotepOutOfMemoryException {
@@ -457,27 +435,6 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
             }
         });
         return Collections.max(Arrays.asList(integerBuf));
-    }
-
-    public long getLowerBound(final int stat) {
-        executeRuntimeException(longBuf, new ThrowingFunction<ImhotepSession, Long>() {
-            @Override
-            public Long apply(final ImhotepSession session) {
-                return session.getLowerBound(stat);
-            }
-        });
-        return Collections.min(Arrays.asList(longBuf));
-    }
-
-    @Override
-    public long getUpperBound(final int stat) {
-        executeRuntimeException(longBuf, new ThrowingFunction<ImhotepSession, Long>() {
-            @Override
-            public Long apply(final ImhotepSession session) {
-                return session.getUpperBound(stat);
-            }
-        });
-        return Collections.max(Arrays.asList(longBuf));
     }
 
     @Override

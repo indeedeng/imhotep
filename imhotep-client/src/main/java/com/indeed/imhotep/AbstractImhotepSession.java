@@ -26,6 +26,7 @@ import javax.annotation.Nullable;
 import java.nio.channels.ClosedByInterruptException;
 import java.nio.file.Path;
 import java.util.Iterator;
+import java.util.List;
 
 /**
  * @author jsadun
@@ -68,13 +69,13 @@ public abstract class AbstractImhotepSession implements ImhotepSession {
     }
 
     @Override
-    public FTGSIterator getFTGSIterator(final String[] intFields, final String[] stringFields) {
-        return getFTGSIterator(intFields, stringFields, 0);
+    public FTGSIterator getFTGSIterator(final String[] intFields, final String[] stringFields, @Nullable final List<List<String>> stats) throws ImhotepOutOfMemoryException {
+        return getFTGSIterator(intFields, stringFields, 0, stats);
     }
 
     @Override
-    public FTGSIterator getFTGSIterator(final String[] intFields, final String[] stringFields, final long termLimit) {
-        return getFTGSIterator(intFields, stringFields, termLimit, -1);
+    public FTGSIterator getFTGSIterator(final String[] intFields, final String[] stringFields, final long termLimit, @Nullable final List<List<String>> stats) throws ImhotepOutOfMemoryException {
+        return getFTGSIterator(intFields, stringFields, termLimit, -1, stats);
     }
 
     @Override
@@ -82,8 +83,9 @@ public abstract class AbstractImhotepSession implements ImhotepSession {
             final String[] intFields,
             final String[] stringFields,
             final long termLimit,
-            final int sortStat) {
-        final FTGSParams params = new FTGSParams(intFields, stringFields, termLimit, sortStat, true);
+            final int sortStat,
+            @Nullable final List<List<String>> stats) throws ImhotepOutOfMemoryException {
+        final FTGSParams params = new FTGSParams(intFields, stringFields, termLimit, sortStat, true, stats);
         return getFTGSIterator(params);
     }
 
@@ -116,7 +118,7 @@ public abstract class AbstractImhotepSession implements ImhotepSession {
     }
 
     @Override
-    public int metricRegroup(final int stat, final long min, final long max, final long intervalSize) throws ImhotepOutOfMemoryException {
+    public int metricRegroup(final List<String> stat, final long min, final long max, final long intervalSize) throws ImhotepOutOfMemoryException {
         return metricRegroup(stat, min, max, intervalSize, false);
     }
 
@@ -185,7 +187,7 @@ public abstract class AbstractImhotepSession implements ImhotepSession {
         return new RuntimeException(createMessageWithSessionId(message), cause);
     }
 
-    protected ImhotepOutOfMemoryException newImhotepOutOfMemoryException() {
+    public ImhotepOutOfMemoryException newImhotepOutOfMemoryException() {
         return new ImhotepOutOfMemoryException(createMessageWithSessionId("Not enough memory"));
     }
 

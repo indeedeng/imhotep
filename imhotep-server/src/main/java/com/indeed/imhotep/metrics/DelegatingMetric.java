@@ -26,6 +26,10 @@ public class DelegatingMetric implements IntValueLookup {
         this.inner = inner;
     }
 
+    public IntValueLookup getInner() {
+        return inner;
+    }
+
     @Override
     public long getMin() {
         return inner.getMin();

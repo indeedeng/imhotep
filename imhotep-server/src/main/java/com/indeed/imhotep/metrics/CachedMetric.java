@@ -78,7 +78,7 @@ public class CachedMetric implements IntValueLookup {
 
     @Override
     public long memoryUsed() {
-        return 8L * values.length;
+        return (values == null) ? 0 : (8L * values.length);
     }
 
     @Override
