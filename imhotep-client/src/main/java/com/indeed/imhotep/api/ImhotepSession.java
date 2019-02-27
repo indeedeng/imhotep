@@ -21,7 +21,7 @@ import com.indeed.imhotep.QueryRemapRule;
 import com.indeed.imhotep.RegroupCondition;
 import com.indeed.imhotep.TermCount;
 import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
-import com.indeed.imhotep.protobuf.SortOrder;
+import com.indeed.imhotep.protobuf.StatsSortOrder;
 
 import javax.annotation.concurrent.NotThreadSafe;
 import java.io.Closeable;
@@ -64,7 +64,7 @@ public interface ImhotepSession
      * @param intFields list of int fields
      * @param stringFields list of string fields
      * @return an iterator. result is the same as after calling
-     *          getFTGSIterator(new FTGSParams(intFields, stringFields, 0, -1, true, SortOrder.UNDEFINED));
+     *          getFTGSIterator(new FTGSParams(intFields, stringFields, 0, -1, true, StatsSortOrder.UNDEFINED));
      */
     FTGSIterator getFTGSIterator(String[] intFields, String[] stringFields);
 
@@ -74,7 +74,7 @@ public interface ImhotepSession
      * @param stringFields list of string fields
      * @param termLimit maximum number of terms that can be returned. 0 means no limit
      * @return an iterator. result is the same as after calling
-     *          getFTGSIterator(new FTGSParams(intFields, stringFields, termLimit, -1, true, SortOrder.UNDEFINED));
+     *          getFTGSIterator(new FTGSParams(intFields, stringFields, termLimit, -1, true, StatsSortOrder.UNDEFINED));
      */
     FTGSIterator getFTGSIterator(String[] intFields, String[] stringFields, long termLimit);
 
@@ -84,10 +84,10 @@ public interface ImhotepSession
      * @param stringFields list of string fields
      * @param termLimit maximum numbers of terms that can be returned. 0 means no limit
      * @param sortStat the index of stats to get the top terms. No sorting is done if the value is negative
-     * @param sortOrder the order (Ascending/Descending) of stats. Ties within terms are resolved in the same order ( same as in SortOrder )
+     * @param statsSortOrder the order (Ascending/Descending) of stats. Ties within terms are resolved in the same order ( same as in StatsSortOrder )
      * @return an iterator, result is same as after calling
      */
-    FTGSIterator getFTGSIterator(String[] intFields, String[] stringFields, long termLimit, int sortStat, SortOrder sortOrder);
+    FTGSIterator getFTGSIterator(String[] intFields, String[] stringFields, long termLimit, int sortStat, StatsSortOrder statsSortOrder);
 
     FTGSIterator getSubsetFTGSIterator(Map<String, long[]> intFields, Map<String, String[]> stringFields);
 
@@ -98,7 +98,7 @@ public interface ImhotepSession
      * Result depends on values of 'termLimit, sortStat, sorted' params:
      *
      * <table summary ="description of params">
-     * <tr><th>No.</th><th>termLimit</th><th>sortStat</th><th>sorted</th><th>SortOrder<th/>
+     * <tr><th>No.</th><th>termLimit</th><th>sortStat</th><th>sorted</th><th>StatsSortOrder<th/>
      *     <th>description</th></tr>
      * <tr><th>1</th><th>0</th><th>any</th><th>true</th><th>UNDEFINED</>
      *     <th>all terms in all fields returned, terms within each field are sorted by term value</th></tr>

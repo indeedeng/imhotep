@@ -1,6 +1,6 @@
 package com.indeed.imhotep.api;
 
-import com.indeed.imhotep.protobuf.SortOrder;
+import com.indeed.imhotep.protobuf.StatsSortOrder;
 
 /**
  *  Class for getFTGSIterator method params
@@ -11,7 +11,7 @@ public class FTGSParams {
     public final long termLimit;
     public final int sortStat;
     public final boolean sorted;
-    public SortOrder sortOrder;
+    public StatsSortOrder statsSortOrder;
 
     /**
      * @param intFields list of int fields
@@ -26,7 +26,7 @@ public class FTGSParams {
             final long termLimit,
             final int sortStat,
             final boolean sorted,
-            final SortOrder sortOrder
+            final StatsSortOrder statsSortOrder
     ){
         if ((intFields == null) || (stringFields == null)) {
             throw new IllegalArgumentException("Both int fields and strings must exist");
@@ -40,7 +40,7 @@ public class FTGSParams {
         this.termLimit = termLimit;
         this.sortStat = sortStat;
         this.sorted = sorted;
-        this.sortOrder = sortOrder;
+        this.statsSortOrder = statsSortOrder;
     }
 
     public boolean isTopTerms() {
@@ -52,18 +52,18 @@ public class FTGSParams {
     }
 
     public FTGSParams copy() {
-        return new FTGSParams(intFields, stringFields, termLimit, sortStat, sorted, sortOrder);
+        return new FTGSParams(intFields, stringFields, termLimit, sortStat, sorted, statsSortOrder);
     }
 
     public FTGSParams sortedCopy() {
-        return new FTGSParams(intFields, stringFields, termLimit, sortStat, true, sortOrder);
+        return new FTGSParams(intFields, stringFields, termLimit, sortStat, true, statsSortOrder);
     }
 
     public FTGSParams unsortedCopy() {
-        return new FTGSParams(intFields, stringFields, termLimit, sortStat, false, sortOrder);
+        return new FTGSParams(intFields, stringFields, termLimit, sortStat, false, statsSortOrder);
     }
 
     public FTGSParams unlimitedCopy() {
-        return new FTGSParams(intFields, stringFields, 0, -1, sorted, sortOrder);
+        return new FTGSParams(intFields, stringFields, 0, -1, sorted, statsSortOrder);
     }
 }

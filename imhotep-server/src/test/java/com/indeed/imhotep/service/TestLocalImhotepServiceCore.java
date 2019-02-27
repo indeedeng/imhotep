@@ -20,7 +20,7 @@ import com.indeed.imhotep.api.FTGSParams;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.io.TestFileUtils;
 import com.indeed.imhotep.protobuf.ShardNameNumDocsPair;
-import com.indeed.imhotep.protobuf.SortOrder;
+import com.indeed.imhotep.protobuf.StatsSortOrder;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -83,7 +83,7 @@ public class TestLocalImhotepServiceCore {
                 @Override
                 public void run() {
                     try {
-                        service.handleGetFTGSIterator(sessionId, new FTGSParams(new String[]{"if1"}, new String[0], 0, -1, true, SortOrder.UNDEFINED), os);
+                        service.handleGetFTGSIterator(sessionId, new FTGSParams(new String[]{"if1"}, new String[0], 0, -1, true, StatsSortOrder.UNDEFINED), os);
                         fail();
                     } catch (final Exception expected) {
                         expected.printStackTrace();

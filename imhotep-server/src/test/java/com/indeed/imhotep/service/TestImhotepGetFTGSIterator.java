@@ -26,7 +26,7 @@ import com.indeed.imhotep.api.FTGSParams;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.client.ImhotepClient;
-import com.indeed.imhotep.protobuf.SortOrder;
+import com.indeed.imhotep.protobuf.StatsSortOrder;
 import org.apache.log4j.Logger;
 import org.joda.time.DateTime;
 import org.junit.After;
@@ -214,8 +214,8 @@ public class TestImhotepGetFTGSIterator {
             for (final FTGSIterator iter : Arrays.asList(
                     getFTGSIterator(dataset, new String[]{"if1", "if2", "metric"}, new String[]{"sf1", "sf2"}),
                     getFTGSIterator(dataset, new String[]{"if1", "if2", "metric"}, new String[]{"sf1", "sf2"}, 100),
-                    getFTGSIterator(dataset, new String[]{"if1", "if2", "metric"}, new String[]{"sf1", "sf2"}, 100, 0, SortOrder.ASCENDING),
-                    getFTGSIterator(dataset, new String[]{"if1", "if2", "metric"}, new String[]{"sf1", "sf2"}, 100, 0, SortOrder.DESCENDING)
+                    getFTGSIterator(dataset, new String[]{"if1", "if2", "metric"}, new String[]{"sf1", "sf2"}, 100, 0, StatsSortOrder.ASCENDING),
+                    getFTGSIterator(dataset, new String[]{"if1", "if2", "metric"}, new String[]{"sf1", "sf2"}, 100, 0, StatsSortOrder.DESCENDING)
             )) {
                 FTGSIteratorTestUtils.expectIntField(iter, "if1");
                 FTGSIteratorTestUtils.expectIntTerm(iter, 1, 1);
@@ -260,7 +260,7 @@ public class TestImhotepGetFTGSIterator {
 
             // get top 2 terms per field for the only group stat
             {
-                final FTGSIterator iter = getFTGSIterator(dataset, new String[]{"if1", "if2", "metric"}, new String[]{"sf1", "sf2"}, 2, 0, SortOrder.ASCENDING);
+                final FTGSIterator iter = getFTGSIterator(dataset, new String[]{"if1", "if2", "metric"}, new String[]{"sf1", "sf2"}, 2, 0, StatsSortOrder.ASCENDING);
 
                 FTGSIteratorTestUtils.expectIntField(iter, "if1");
                 FTGSIteratorTestUtils.expectIntTerm(iter, 31, 1);
@@ -293,7 +293,7 @@ public class TestImhotepGetFTGSIterator {
 
             // get bottom 1 terms per field for the only group stat
             {
-                final FTGSIterator iter = getFTGSIterator(dataset, new String[]{"if1", "if2", "metric"}, new String[]{"sf1", "sf2"}, 1, 0, SortOrder.DESCENDING);
+                final FTGSIterator iter = getFTGSIterator(dataset, new String[]{"if1", "if2", "metric"}, new String[]{"sf1", "sf2"}, 1, 0, StatsSortOrder.DESCENDING);
 
                 FTGSIteratorTestUtils.expectIntField(iter, "if1");
                 FTGSIteratorTestUtils.expectIntTerm(iter, 2, 1);
@@ -324,8 +324,8 @@ public class TestImhotepGetFTGSIterator {
             for (final FTGSIterator iter : Arrays.asList(
                     getFTGSIterator(dataset, new String[]{"if1", "if2", "metric"}, new String[]{"sf1", "sf2"}),
                     getFTGSIterator(dataset, new String[]{"if1", "if2", "metric"}, new String[]{"sf1", "sf2"}, 100),
-                    getFTGSIterator(dataset, new String[]{"if1", "if2", "metric"}, new String[]{"sf1", "sf2"}, 100, 0, SortOrder.ASCENDING),
-                    getFTGSIterator(dataset, new String[]{"if1", "if2", "metric"}, new String[]{"sf1", "sf2"}, 100, 0, SortOrder.DESCENDING)
+                    getFTGSIterator(dataset, new String[]{"if1", "if2", "metric"}, new String[]{"sf1", "sf2"}, 100, 0, StatsSortOrder.ASCENDING),
+                    getFTGSIterator(dataset, new String[]{"if1", "if2", "metric"}, new String[]{"sf1", "sf2"}, 100, 0, StatsSortOrder.DESCENDING)
             )) {
                 FTGSIteratorTestUtils.expectIntField(iter, "if1");
                 FTGSIteratorTestUtils.expectIntTerm(iter, 1, 1);
@@ -370,7 +370,7 @@ public class TestImhotepGetFTGSIterator {
 
             // get top 2 terms per field for the second group stat
             {
-                final FTGSIterator iter = getFTGSIterator(dataset, new String[]{"if1", "if2", "metric"}, new String[]{"sf1", "sf2"}, 2, 1, SortOrder.ASCENDING);
+                final FTGSIterator iter = getFTGSIterator(dataset, new String[]{"if1", "if2", "metric"}, new String[]{"sf1", "sf2"}, 2, 1, StatsSortOrder.ASCENDING);
 
                 FTGSIteratorTestUtils.expectIntField(iter, "if1");
                 FTGSIteratorTestUtils.expectIntTerm(iter, 1, 1);
@@ -410,8 +410,8 @@ public class TestImhotepGetFTGSIterator {
             for (final FTGSIterator iter : Arrays.asList(
                     getFTGSIterator(dataset, new String[]{"if1", "if2", "metric"}, new String[]{"sf1", "sf2"}),
                     getFTGSIterator(dataset, new String[]{"if1", "if2", "metric"}, new String[]{"sf1", "sf2"}, 100),
-                    getFTGSIterator(dataset, new String[]{"if1", "if2", "metric"}, new String[]{"sf1", "sf2"}, 100, 0, SortOrder.ASCENDING),
-                    getFTGSIterator(dataset, new String[]{"if1", "if2", "metric"}, new String[]{"sf1", "sf2"}, 100, 0, SortOrder.DESCENDING)
+                    getFTGSIterator(dataset, new String[]{"if1", "if2", "metric"}, new String[]{"sf1", "sf2"}, 100, 0, StatsSortOrder.ASCENDING),
+                    getFTGSIterator(dataset, new String[]{"if1", "if2", "metric"}, new String[]{"sf1", "sf2"}, 100, 0, StatsSortOrder.DESCENDING)
             )) {
                 FTGSIteratorTestUtils.expectIntField(iter, "if1");
                 FTGSIteratorTestUtils.expectIntTerm(iter, 1, 1);
@@ -458,7 +458,7 @@ public class TestImhotepGetFTGSIterator {
 
             // get top 2 terms per field, per group for the second group stat
             {
-                final FTGSIterator iter = getFTGSIterator(dataset, new String[]{"if1", "if2", "metric"}, new String[]{"sf1", "sf2"}, 2, 1, SortOrder.ASCENDING);
+                final FTGSIterator iter = getFTGSIterator(dataset, new String[]{"if1", "if2", "metric"}, new String[]{"sf1", "sf2"}, 2, 1, StatsSortOrder.ASCENDING);
 
                 FTGSIteratorTestUtils.expectIntField(iter, "if1");
                 FTGSIteratorTestUtils.expectIntTerm(iter, 1, 1);
@@ -501,7 +501,7 @@ public class TestImhotepGetFTGSIterator {
 
             // get bottom 2 terms per field, per group for the second group stat
             {
-                final FTGSIterator iter = getFTGSIterator(dataset, new String[]{"if1", "if2", "metric"}, new String[]{"sf1", "sf2"}, 1, 1, SortOrder.DESCENDING);
+                final FTGSIterator iter = getFTGSIterator(dataset, new String[]{"if1", "if2", "metric"}, new String[]{"sf1", "sf2"}, 1, 1, StatsSortOrder.DESCENDING);
 
                 FTGSIteratorTestUtils.expectIntField(iter, "if1");
                 FTGSIteratorTestUtils.expectIntTerm(iter, 22, 1);
@@ -665,7 +665,7 @@ public class TestImhotepGetFTGSIterator {
                         dataset.getFTGSIterator(
                                 new FTGSParams(
                                         new String[]{"if1", "if2", "metric"},
-                                        new String[]{"sf1", "sf2"}, 15, -1, false, SortOrder.UNDEFINED)));
+                                        new String[]{"sf1", "sf2"}, 15, -1, false, StatsSortOrder.UNDEFINED)));
 
                 // Maybe we need better testing for unsorted here
                 // Now we just check that fields are in the same order,
@@ -766,8 +766,8 @@ public class TestImhotepGetFTGSIterator {
             for (final FTGSIterator iterator : Arrays.asList(
                     getFTGSIterator(dataset, new String[]{"if1", "if2", "metric"}, new String[]{"sf1", "sf2"}),
                     getFTGSIterator(dataset, new String[]{"if1", "if2", "metric"}, new String[]{"sf1", "sf2"}, 100),
-                    getFTGSIterator(dataset, new String[]{"if1", "if2", "metric"}, new String[]{"sf1", "sf2"}, 100, 0, SortOrder.ASCENDING),
-                    getFTGSIterator(dataset, new String[]{"if1", "if2", "metric"}, new String[]{"sf1", "sf2"}, 100, 0, SortOrder.DESCENDING)
+                    getFTGSIterator(dataset, new String[]{"if1", "if2", "metric"}, new String[]{"sf1", "sf2"}, 100, 0, StatsSortOrder.ASCENDING),
+                    getFTGSIterator(dataset, new String[]{"if1", "if2", "metric"}, new String[]{"sf1", "sf2"}, 100, 0, StatsSortOrder.DESCENDING)
             )) {
                 final FTGSIterator iter = FTGSIteratorUtil.persist(LOGGER, iterator);
 
@@ -839,7 +839,7 @@ public class TestImhotepGetFTGSIterator {
             // get top 4 terms per field for the only group stat
             {
                 final FTGSIterator iter = FTGSIteratorUtil.persist(LOGGER,
-                        getFTGSIterator(dataset, new String[]{"if1", "if2", "metric"}, new String[]{"sf1", "sf2"}, 4, 0, SortOrder.ASCENDING));
+                        getFTGSIterator(dataset, new String[]{"if1", "if2", "metric"}, new String[]{"sf1", "sf2"}, 4, 0, StatsSortOrder.ASCENDING));
 
                 FTGSIteratorTestUtils.expectIntField(iter, "if1");
                 FTGSIteratorTestUtils.expectIntTerm(iter, 51, 1);
@@ -885,7 +885,7 @@ public class TestImhotepGetFTGSIterator {
             // get bottom 4 terms per field for the only group stat
             {
                 final FTGSIterator iter = FTGSIteratorUtil.persist(LOGGER,
-                        getFTGSIterator(dataset, new String[]{"if1", "if2", "metric"}, new String[]{"sf1", "sf2"}, 4, 0, SortOrder.DESCENDING));
+                        getFTGSIterator(dataset, new String[]{"if1", "if2", "metric"}, new String[]{"sf1", "sf2"}, 4, 0, StatsSortOrder.DESCENDING));
 
                 FTGSIteratorTestUtils.expectIntField(iter, "if1");
                 FTGSIteratorTestUtils.expectIntTerm(iter, 1, 1);
@@ -934,8 +934,8 @@ public class TestImhotepGetFTGSIterator {
             for (final FTGSIterator iterator : Arrays.asList(
                     getFTGSIterator(dataset, new String[]{"if1", "if2", "metric"}, new String[]{"sf1", "sf2"}),
                     getFTGSIterator(dataset, new String[]{"if1", "if2", "metric"}, new String[]{"sf1", "sf2"}, 100),
-                    getFTGSIterator(dataset, new String[]{"if1", "if2", "metric"}, new String[]{"sf1", "sf2"}, 100, 0, SortOrder.ASCENDING),
-                    getFTGSIterator(dataset, new String[]{"if1", "if2", "metric"}, new String[]{"sf1", "sf2"}, 100, 0, SortOrder.DESCENDING)
+                    getFTGSIterator(dataset, new String[]{"if1", "if2", "metric"}, new String[]{"sf1", "sf2"}, 100, 0, StatsSortOrder.ASCENDING),
+                    getFTGSIterator(dataset, new String[]{"if1", "if2", "metric"}, new String[]{"sf1", "sf2"}, 100, 0, StatsSortOrder.DESCENDING)
             )) {
                 final FTGSIterator iter = FTGSIteratorUtil.persist(LOGGER, iterator);
 
@@ -1007,7 +1007,7 @@ public class TestImhotepGetFTGSIterator {
             // get top 2 terms per field for the second group stat
             {
                 final FTGSIterator iter = FTGSIteratorUtil.persist(LOGGER,
-                        getFTGSIterator(dataset, new String[]{"if1", "if2", "metric"}, new String[]{"sf1", "sf2"}, 2, 1, SortOrder.ASCENDING));
+                        getFTGSIterator(dataset, new String[]{"if1", "if2", "metric"}, new String[]{"sf1", "sf2"}, 2, 1, StatsSortOrder.ASCENDING));
 
                 FTGSIteratorTestUtils.expectIntField(iter, "if1");
                 FTGSIteratorTestUtils.expectIntTerm(iter, 1, 1);
@@ -1040,7 +1040,7 @@ public class TestImhotepGetFTGSIterator {
 
             {
                 final FTGSIterator iter = FTGSIteratorUtil.persist(LOGGER,
-                        getFTGSIterator(dataset, new String[]{"if1", "if2", "metric"}, new String[]{"sf1", "sf2"}, 2, 1, SortOrder.DESCENDING));
+                        getFTGSIterator(dataset, new String[]{"if1", "if2", "metric"}, new String[]{"sf1", "sf2"}, 2, 1, StatsSortOrder.DESCENDING));
 
                 FTGSIteratorTestUtils.expectIntField(iter, "if1");
                 FTGSIteratorTestUtils.expectIntTerm(iter, 61, 1);
@@ -1080,8 +1080,8 @@ public class TestImhotepGetFTGSIterator {
             for (final FTGSIterator iterator : Arrays.asList(
                     getFTGSIterator(dataset, new String[]{"if1", "if2", "metric"}, new String[]{"sf1", "sf2"}),
                     getFTGSIterator(dataset, new String[]{"if1", "if2", "metric"}, new String[]{"sf1", "sf2"}, 100),
-                    getFTGSIterator(dataset, new String[]{"if1", "if2", "metric"}, new String[]{"sf1", "sf2"}, 100, 0, SortOrder.ASCENDING),
-                    getFTGSIterator(dataset, new String[]{"if1", "if2", "metric"}, new String[]{"sf1", "sf2"}, 100, 0, SortOrder.DESCENDING)
+                    getFTGSIterator(dataset, new String[]{"if1", "if2", "metric"}, new String[]{"sf1", "sf2"}, 100, 0, StatsSortOrder.ASCENDING),
+                    getFTGSIterator(dataset, new String[]{"if1", "if2", "metric"}, new String[]{"sf1", "sf2"}, 100, 0, StatsSortOrder.DESCENDING)
             )) {
                 final FTGSIterator iter = FTGSIteratorUtil.persist(LOGGER, iterator);
 
@@ -1155,7 +1155,7 @@ public class TestImhotepGetFTGSIterator {
             // get top 4 terms per field, per group for the second group stat
            {
                 final FTGSIterator iter = FTGSIteratorUtil.persist(LOGGER,
-                        getFTGSIterator(dataset, new String[]{"if1", "if2", "metric"}, new String[]{"sf1", "sf2"}, 4, 1, SortOrder.ASCENDING));
+                        getFTGSIterator(dataset, new String[]{"if1", "if2", "metric"}, new String[]{"sf1", "sf2"}, 4, 1, StatsSortOrder.ASCENDING));
 
                 FTGSIteratorTestUtils.expectIntField(iter, "if1");
                 FTGSIteratorTestUtils.expectIntTerm(iter, 1, 1);
@@ -1210,7 +1210,7 @@ public class TestImhotepGetFTGSIterator {
 
             {
                 final FTGSIterator iter = FTGSIteratorUtil.persist(LOGGER,
-                        getFTGSIterator(dataset, new String[]{"if1", "if2", "metric"}, new String[]{"sf1", "sf2"}, 4, 1, SortOrder.DESCENDING));
+                        getFTGSIterator(dataset, new String[]{"if1", "if2", "metric"}, new String[]{"sf1", "sf2"}, 4, 1, StatsSortOrder.DESCENDING));
 
                 FTGSIteratorTestUtils.expectIntField(iter, "if1");
                 FTGSIteratorTestUtils.expectIntTerm(iter, 31, 1);
@@ -1275,7 +1275,7 @@ public class TestImhotepGetFTGSIterator {
                                          final String[] intFields,
                                          final String[] stringFields,
                                          final long termLimit) {
-        return getFTGSIterator(session, intFields, stringFields, termLimit, -1, SortOrder.UNDEFINED);
+        return getFTGSIterator(session, intFields, stringFields, termLimit, -1, StatsSortOrder.UNDEFINED);
     }
 
     private FTGSIterator getFTGSIterator(final ImhotepSession session,
@@ -1283,8 +1283,8 @@ public class TestImhotepGetFTGSIterator {
                                          final String[] stringFields,
                                          final long termLimit,
                                          final int sortStat,
-                                         final SortOrder sortOrder) {
-        FTGSIterator iterator = session.getFTGSIterator(new FTGSParams(intFields, stringFields, termLimit, sortStat, sortedFTGS, sortOrder));
+                                         final StatsSortOrder statsSortOrder) {
+        FTGSIterator iterator = session.getFTGSIterator(new FTGSParams(intFields, stringFields, termLimit, sortStat, sortedFTGS, statsSortOrder));
         if (!sortedFTGS) {
             iterator = FTGSIteratorUtil.sortFTGSIterator(iterator);
         }
