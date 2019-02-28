@@ -1,8 +1,9 @@
-package com.indeed.imhotep;
+package com.indeed.imhotep.connection;
 
 import com.indeed.imhotep.client.Host;
-import org.junit.After;
-import org.junit.Before;
+import org.apache.log4j.Logger;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -17,7 +18,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -29,56 +29,61 @@ import static org.junit.Assert.fail;
 /**
  * @author xweng
  */
-public class ImhotepConnectionPoolManagerTest {
-    private Host host1;
-    private Host host2;
+public class ImhotepConnectionPoolTest {
 
-    private ServerSocket serverSocket1;
-    private ServerSocket serverSocket2;
+    private static final Logger logger = Logger.getLogger(ImhotepConnectionPoolTest.class);
 
-    private ImhotepConnectionPoolManager poolManager;
+    private static Host host1;
+    private static Host host2;
 
-    @Before
-    public void initialize() throws IOException {
+    private static ServerSocket serverSocket1;
+    private static ServerSocket serverSocket2;
+
+    private static ImhotepConnectionPool testConnnectionPool;
+
+    @BeforeClass
+    public static void initialize() throws IOException {
         serverSocket1 = new ServerSocket(0);
         serverSocket2 = new ServerSocket(0);
+
+        logger.error("haha");
 
         host1 = new Host("localhost", serverSocket1.getLocalPort());
         host2 = new Host("localhost", serverSocket2.getLocalPort());
 
-        poolManager = ImhotepConnectionPoolManager.getInstance();
+        testConnnectionPool = ImhotepConnectionPool.getInstance();
     }
 
-    @After
-    public void finalize() throws IOException {
+    @AfterClass
+    public static void tearUp() throws IOException {
         serverSocket1.close();
         serverSocket2.close();
-        poolManager.close();
+        testConnnectionPool.close();
     }
 
     @Test
-    public void testReleaseConnection() throws IOException {
+    public void testReleaseConnection() throws Exception {
         Socket socket;
-        try (final ImhotepConnection connection = poolManager.getConnection(host1)) {
+        try (final ImhotepConnection connection = testConnnectionPool.getConnection(host1)) {
             socket = connection.getSocket();
             assertNotNull(socket);
         }
 
-        final ImhotepConnection connection = poolManager.getConnection(host1);
+        final ImhotepConnection connection = testConnnectionPool.getConnection(host1);
         socket = connection.getSocket();
         assertNotNull(socket);
         connection.close();
     }
 
     @Test
-    public void testGetConnection() throws IOException {
-        try (final ImhotepConnection connection = poolManager.getConnection(host1)) {
+    public void testGetConnection() throws Exception {
+        try (final ImhotepConnection connection = testConnnectionPool.getConnection(host1)) {
             final Socket socket = connection.getSocket();
             assertNotNull(socket);
             assertEquals(socket.getInetAddress().getHostName(), host1.getHostname());
         }
 
-        try (final ImhotepConnection connection = poolManager.getConnection(host2)) {
+        try (final ImhotepConnection connection = testConnnectionPool.getConnection(host2)) {
             final Socket socket = connection.getSocket();
             assertNotNull(socket);
             assertEquals(socket.getInetAddress().getHostName(), host2.getHostname());
@@ -86,9 +91,9 @@ public class ImhotepConnectionPoolManagerTest {
     }
 
     @Test
-    public void testGetConnectionTimeout() throws IOException {
+    public void testGetConnectionTimeout() throws Exception {
         // socket timeout
-        try (final ImhotepConnection connection = poolManager.getConnection(new Host("www.google.com", 81), 1)) {
+        try (final ImhotepConnection connection = testConnnectionPool.getConnection(new Host("www.google.com", 81), 5000)) {
             fail("SocketTimeoutException is expected");
         } catch (final SocketTimeoutException e) {
             // succeed
@@ -98,12 +103,12 @@ public class ImhotepConnectionPoolManagerTest {
     }
 
     @Test
-    public void testDiscardConnection() throws IOException {
+    public void testDiscardConnection() throws Exception {
         Socket socket;
-        try (final ImhotepConnection connection = poolManager.getConnection(host1)) {
+        try (final ImhotepConnection connection = testConnnectionPool.getConnection(host1)) {
             socket = connection.getSocket();
             assertNotNull(socket);
-            connection.markAsBad();
+            connection.markAsInvalid();
         }
         assertTrue(socket.isClosed());
     }
@@ -155,7 +160,7 @@ public class ImhotepConnectionPoolManagerTest {
         @Override
         public Socket call() throws Exception {
             final Host host = taskIndex % 2 == 0 ? host1 : host2;
-            try (final ImhotepConnection connection = poolManager.getConnection(host)) {
+            try (final ImhotepConnection connection = testConnnectionPool.getConnection(host)) {
                 final Socket socket = connection.getSocket();
                 Thread.sleep(taskIndex/5 * 100);
                 return socket;
