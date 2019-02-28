@@ -24,9 +24,24 @@ final class BitSetGroupLookup extends GroupLookup {
     private final FastBitSet bitSet;
     private final int size;
 
+    private int nonZeroGroup;
+
     BitSetGroupLookup(final int size) {
+        this(size, 1);
+    }
+
+    BitSetGroupLookup(final int size, final int nonZeroGroup) {
         this.size = size;
         this.bitSet = new FastBitSet(size);
+        this.nonZeroGroup = nonZeroGroup;
+    }
+
+    int getNonZeroGroup() {
+        return nonZeroGroup;
+    }
+
+    void setNonZeroGroup(final int nonZeroGroup) {
+        this.nonZeroGroup = nonZeroGroup;
     }
 
     @Override
@@ -50,9 +65,9 @@ final class BitSetGroupLookup extends GroupLookup {
         }
 
         if (rewriteHead > 0) {
-            groupsSeen.set(1);
+            groupsSeen.set(nonZeroGroup);
             if (metricStack.getNumStats() > 0) {
-                Arrays.fill(docGroupBuffer, 0, rewriteHead, 1);
+                Arrays.fill(docGroupBuffer, 0, rewriteHead, nonZeroGroup);
                 for (int statIndex = 0; statIndex < metricStack.getNumStats(); statIndex++) {
                     ImhotepJavaLocalSession.updateGroupStatsDocIdBuf(metricStack.get(statIndex), termGrpStats[statIndex], docGroupBuffer, docIdBuf, valBuf, rewriteHead);
                 }
@@ -75,14 +90,14 @@ final class BitSetGroupLookup extends GroupLookup {
             if (docRemapped.get(docId)) {
                 continue;
             }
-            final int group = bitSet.get(docId) ? 1 : 0;
+            final int group = bitSet.get(docId) ? nonZeroGroup : 0;
             if (remapRules[group] == null) {
                 continue;
             }
             if (ImhotepLocalSession.checkIntCondition(remapRules[group].condition, intField, itrTerm)) {
                 continue;
             }
-            bitSet.set(docId, remapRules[group].positiveGroup == 1);
+            bitSet.set(docId, remapRules[group].positiveGroup == nonZeroGroup);
             docRemapped.set(docId);
         }
     }
@@ -100,32 +115,32 @@ final class BitSetGroupLookup extends GroupLookup {
             if (docRemapped.get(docId)) {
                 continue;
             }
-            final int group = bitSet.get(docId) ? 1 : 0;
+            final int group = bitSet.get(docId) ? nonZeroGroup : 0;
             if (remapRules[group] == null) {
                 continue;
             }
             if (ImhotepLocalSession.checkStringCondition(remapRules[group].condition, stringField, itrTerm)) {
                 continue;
             }
-            bitSet.set(docId, remapRules[group].positiveGroup == 1);
+            bitSet.set(docId, remapRules[group].positiveGroup == nonZeroGroup);
             docRemapped.set(docId);
         }
     }
 
     @Override
     public int get(final int doc) {
-        return bitSet.get(doc) ? 1 : 0;
+        return bitSet.get(doc) ? nonZeroGroup : 0;
     }
 
     @Override
     public void set(final int doc, final int group) {
-        bitSet.set(doc, group == 1);
+        bitSet.set(doc, group == nonZeroGroup);
     }
 
     @Override
     public void batchSet(final int[] docIdBuf, final int[] docGrpBuffer, final int n) {
         for (int i = 0; i < n; ++i) {
-            bitSet.set(docIdBuf[i], docGrpBuffer[i] == 1);
+            bitSet.set(docIdBuf[i], docGrpBuffer[i] == nonZeroGroup);
         }
     }
 
@@ -133,10 +148,10 @@ final class BitSetGroupLookup extends GroupLookup {
     public void fill(final int group) {
         if (group == 0) {
             bitSet.clearAll();
-        } else if (group == 1) {
+        } else if (group == nonZeroGroup) {
             bitSet.setAll();
         } else {
-            throw new IllegalArgumentException("max allowed group is 1, was passed in "+group);
+            throw new IllegalArgumentException("only groups in {0, " + nonZeroGroup + "} allowed. Was passed " + group);
         }
     }
 
@@ -147,7 +162,7 @@ final class BitSetGroupLookup extends GroupLookup {
         }
 
         for (int i = 0; i < other.size(); ++i) {
-            other.set(i, bitSet.get(i) ? 1 : 0);
+            other.set(i, bitSet.get(i) ? nonZeroGroup : 0);
         }
         other.numGroups = this.numGroups;
     }
@@ -159,7 +174,7 @@ final class BitSetGroupLookup extends GroupLookup {
 
     @Override
     public int maxGroup() {
-        return 1;
+        return nonZeroGroup;
     }
 
     @Override
@@ -170,14 +185,14 @@ final class BitSetGroupLookup extends GroupLookup {
     @Override
     public void fillDocGrpBuffer(final int[] docIdBuf, final int[] docGrpBuffer, final int n) {
         for (int i = 0; i < n; ++i) {
-            docGrpBuffer[i] = bitSet.get(docIdBuf[i]) ? 1 : 0;
+            docGrpBuffer[i] = bitSet.get(docIdBuf[i]) ? nonZeroGroup : 0;
         }
     }
 
     @Override
     public void fillDocGrpBufferSequential(final int start, final int[] docGrpBuffer, final int n) {
         for (int i = 0; i < n; i++) {
-            docGrpBuffer[i] = bitSet.get(start+i) ? 1 : 0;
+            docGrpBuffer[i] = bitSet.get(start+i) ? nonZeroGroup : 0;
         }
     }
 
@@ -187,13 +202,17 @@ final class BitSetGroupLookup extends GroupLookup {
             final int targetGroup,
             final int negativeGroup,
             final int positiveGroup) {
-        // assuming targetGroup == 1 since nothing else would make sense
-        if (negativeGroup == 0 && positiveGroup == 1) {
+        if (targetGroup != nonZeroGroup) {
+            // No work to do!
+            return;
+        }
+        // Can now assume targetGroup == nonZeroGroup
+        if (negativeGroup == 0 && positiveGroup == nonZeroGroup) {
             this.bitSet.and(bitSet);
         } else {
             for (int doc = 0; doc < this.bitSet.size(); ++doc) {
                 if (this.bitSet.get(doc)) {
-                    this.bitSet.set(doc, bitSet.get(doc) ? positiveGroup == 1 : negativeGroup == 1);
+                    this.bitSet.set(doc, bitSet.get(doc) ? positiveGroup == nonZeroGroup : negativeGroup == nonZeroGroup);
                 }
             }
         }
@@ -203,11 +222,16 @@ final class BitSetGroupLookup extends GroupLookup {
     protected void recalculateNumGroups() {
         for (int i = 0; i < bitSet.size(); ++i) {
             if (bitSet.get(i)) {
-                this.numGroups = 2;
+                this.numGroups = nonZeroGroup + 1;
                 return;
             }
         }
         this.numGroups = 1;
+    }
+
+    @Override
+    public boolean canRepresentAllValuesUpToMaxGroup() {
+        return nonZeroGroup == 1;
     }
 
     public static long calcMemUsageForSize(final int sz) {

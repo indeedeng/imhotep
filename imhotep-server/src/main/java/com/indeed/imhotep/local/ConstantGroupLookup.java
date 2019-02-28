@@ -113,7 +113,7 @@ final class ConstantGroupLookup extends GroupLookup {
 
     @Override
     public int maxGroup() {
-        return -1; // always trigger a new lookup allocation on regroups
+        return constant;
     }
 
     @Override
@@ -147,5 +147,10 @@ final class ConstantGroupLookup extends GroupLookup {
     @Override
     protected void recalculateNumGroups() {
         this.numGroups = constant + 1;
+    }
+
+    @Override
+    public boolean canRepresentAllValuesUpToMaxGroup() {
+        return constant == 0;
     }
 }

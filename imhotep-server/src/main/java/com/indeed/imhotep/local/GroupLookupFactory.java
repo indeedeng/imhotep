@@ -125,11 +125,18 @@ public class GroupLookupFactory {
     public static GroupLookup resize(final GroupLookup existingGL,
                                      final int maxGroup,
                                      final MemoryReserver memory) throws ImhotepOutOfMemoryException {
+        return resize(existingGL, maxGroup, memory, false);
+    }
+
+    public static GroupLookup resize(final GroupLookup existingGL,
+                                     final int maxGroup,
+                                     final MemoryReserver memory,
+                                     final boolean shrinkOnly) throws ImhotepOutOfMemoryException {
         final GroupLookup newGL;
 
-        if (maxGroup > existingGL.maxGroup()) {
-            /* need a bigger group */
-            newGL = create(maxGroup, existingGL.size(), memory);
+        if (!shrinkOnly && ((maxGroup > existingGL.maxGroup()) || !existingGL.canRepresentAllValuesUpToMaxGroup())) {
+            /* need a bigger group or the ability to represent all values */
+            newGL = create(Math.max(maxGroup, existingGL.maxGroup()), existingGL.size(), memory);
         } else {
             /* check if the group lookup can be shrunk */
             final int newMaxgroup = Math.max(maxGroup, existingGL.getNumGroups());

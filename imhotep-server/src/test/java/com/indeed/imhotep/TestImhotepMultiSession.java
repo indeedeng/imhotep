@@ -48,9 +48,9 @@ public class TestImhotepMultiSession {
 
         final String sessionId = "TestImhotepMultiSession";
         try (
-            final ImhotepLocalSession s1 = new ImhotepJavaLocalSession(sessionId, r1);
-            final ImhotepLocalSession s2 = new ImhotepJavaLocalSession(sessionId, r2);
-            final ImhotepSession s = new MTImhotepLocalMultiSession(
+                final ImhotepLocalSession s1 = new ImhotepJavaLocalSession(sessionId, r1, null);
+                final ImhotepLocalSession s2 = new ImhotepJavaLocalSession(sessionId, r2, null);
+                final ImhotepSession s = new MTImhotepLocalMultiSession(
                     sessionId,
                     new ImhotepLocalSession[] { s1, s2 },
                     new MemoryReservationContext(new ImhotepMemoryPool(0)),

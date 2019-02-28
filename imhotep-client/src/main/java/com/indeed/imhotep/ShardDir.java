@@ -15,7 +15,9 @@ package com.indeed.imhotep;
 
 import com.google.common.base.Objects;
 import com.sun.istack.NotNull;
+import org.joda.time.Interval;
 
+import javax.annotation.Nullable;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.regex.Matcher;
@@ -65,6 +67,16 @@ public class ShardDir {
         return Paths.get(path.getParent().getName(), endName);
     }
 
+    public static Path cleanPath(final Path path) {
+        final String endName = path.getFileName().toString();
+        final int endIndex = endName.lastIndexOf(".sqar");
+        if (endIndex > -1) {
+            final String actualEndName = endName.substring(0, endIndex);
+            return path.getParent().resolve(actualEndName);
+        }
+        return path;
+    }
+
     @NotNull
     public org.apache.hadoop.fs.Path getHadoopPath(){
         if(hadoopPath == null){
@@ -77,6 +89,15 @@ public class ShardDir {
 
     public String getId() {
         return id;
+    }
+
+    @Nullable
+    public Interval getTimeInterval() {
+        final ShardInfo.DateTimeRange range = ShardInfo.parseDateTime(id);
+        if (range == null) {
+            return null;
+        }
+        return new Interval(range.start, range.end);
     }
 
     public long getVersion() {
