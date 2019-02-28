@@ -25,26 +25,49 @@ import java.util.List;
 
 public class Shard extends ShardInfo {
     public final Host server;
+    private final Host owner;
 
+    /** If no servers are specified for shard to compute, host is both for computation and storage */
     public Shard(final String shardId, final int numDocs, final long version, final Host host) {
         super(shardId, numDocs, version);
         this.server = host;
+        this.owner = host;
     }
 
-    public Shard(final String shardId, final int numDocs, final long version, final Host host, @Nullable final String fileName) {
+    public Shard(
+            final String shardId,
+            final int numDocs,
+            final long version,
+            final Host owner,
+            final Host host) {
+        super(shardId, numDocs, version);
+        this.owner = owner;
+        this.server = host;
+    }
+
+    public Shard(
+            final String shardId,
+            final int numDocs,
+            final long version,
+            final Host owner,
+            final Host host,
+            @Nullable final String fileName) {
         super(fileName, shardId, numDocs, version);
         this.server = host;
+        this.owner = owner;
     }
 
     public Shard(final ShardInfo shardInfo, final Host host) {
         super(shardInfo.fileName, shardInfo.shardId, shardInfo.numDocs, shardInfo.version);
         this.server = host;
+        this.owner = host;
     }
 
     /** Only used in ShardLoaderUtil.findShards() in pigutil, Imhotep proper should always provide a host. */
     public Shard(final String shardId, final int numDocs, final long version) {
         super(shardId, numDocs, version);
         this.server = null;
+        this.owner = null;
     }
 
     public String getFileName() {
@@ -59,6 +82,10 @@ public class Shard extends ShardInfo {
         return server;
     }
 
+    public Host getOwner() {
+        return owner;
+    }
+
     public static List<String> keepShardIds(final List<Shard> shards) {
         final List<String> result = Lists.newArrayListWithCapacity(shards.size());
         for(final Shard shard : shards) {
@@ -68,15 +95,21 @@ public class Shard extends ShardInfo {
     }
 
     public Shard withHost(final Host newHost) {
-        return new Shard(shardId, numDocs, version, newHost, fileName);
+        return new Shard(shardId, numDocs, version, owner, newHost, fileName);
+    }
+
+    /** remain the interface to specify which server will execute shards' operation dynamically*/
+    public Shard withOwner(final Host newOwner) {
+        return new Shard(shardId, numDocs, version, newOwner, server, fileName);
     }
 
     public static Shard fromShardMessage(final ShardMessage message) {
         final Host host = new Host(message.getHost().getHost(), message.getHost().getPort());
+        final Host owner = new Host(message.getOwner().getHost(), message.getOwner().getPort());
         if (message.hasPath()) {
-            return new Shard(message.getShardId(), message.getNumDocs(), message.getVersion(), host, message.getPath());
+            return new Shard(message.getShardId(), message.getNumDocs(), message.getVersion(), owner, host, message.getPath());
         } else {
-            return new Shard(message.getShardId(), message.getNumDocs(), message.getVersion(), host);
+            return new Shard(message.getShardId(), message.getNumDocs(), message.getVersion(), owner, host);
         }
     }
 
@@ -84,6 +117,7 @@ public class Shard extends ShardInfo {
         Preconditions.checkNotNull(server);
         builder
                 .setHost(HostAndPort.newBuilder().setHost(server.hostname).setPort(server.port))
+                .setOwner(HostAndPort.newBuilder().setHost(owner.hostname).setPort(owner.port).build())
                 .setShardId(shardId)
                 .setNumDocs(numDocs)
                 .setVersion(version);
