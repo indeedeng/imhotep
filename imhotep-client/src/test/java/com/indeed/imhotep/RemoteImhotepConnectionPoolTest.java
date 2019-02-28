@@ -34,7 +34,7 @@ public class RemoteImhotepConnectionPoolTest {
     @Before
     public void initialize() throws IOException {
         serverSocket = new ServerSocket(0);
-        host = new Host("127.0.0.1", serverSocket.getLocalPort());
+        host = new Host("localhost", serverSocket.getLocalPort());
     }
 
     @After
