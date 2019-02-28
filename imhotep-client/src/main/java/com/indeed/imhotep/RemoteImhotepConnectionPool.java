@@ -74,13 +74,12 @@ public class RemoteImhotepConnectionPool implements ImhotepConnectionPool {
         final long idleReleaseTime = System.currentTimeMillis() - idleSocketLiveTime;
         SocketTimePair pair;
         while ((pair = availableSockets.poll()) != null) {
-            if (pair.getLastReleaseTime() <= idleReleaseTime) {
-                discardSocket(pair.getSocket());
-            } else {
-                break;
+            if (pair.getLastReleaseTime() > idleReleaseTime) {
+                return pair.getSocket();
             }
+            discardSocket(pair.getSocket());
         }
-        return pair == null ? null : pair.getSocket();
+        return null;
     }
 
     /**
@@ -97,11 +96,7 @@ public class RemoteImhotepConnectionPool implements ImhotepConnectionPool {
     private void discardSocket(final Socket socket) {
         occupiedSockets.remove(socket);
 
-        try {
-            socket.close();
-        } catch (final IOException e) {
-            logger.warn("Errors happened when closing socket " + socket);
-        }
+        Closeables2.closeQuietly(socket, logger);
     }
 
     @Override
@@ -114,6 +109,9 @@ public class RemoteImhotepConnectionPool implements ImhotepConnectionPool {
 
     @Override
     public void close() throws IOException {
+        if (!availableSockets.isEmpty()) {
+            logger.warn("Closing " + availableSockets.size() + " sockets that are in use");
+        }
         final List<Socket> allSockets = Stream.concat(
                 availableSockets.stream().map(pair -> pair.getSocket()),
                 occupiedSockets.stream()
