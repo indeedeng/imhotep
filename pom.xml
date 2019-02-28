@@ -69,8 +69,8 @@
         <fastutil.version>6.2.2</fastutil.version>
         <gnu-trove.version>3.0.3</gnu-trove.version>
         <protobuf-java.version>2.5.0</protobuf-java.version>
-        <hadoop.version>2.6.0-cdh5.4.8</hadoop.version>
-        <zookeeper.version>3.4.5-cdh5.4.8</zookeeper.version>
+        <hadoop.version>2.6.0-cdh5.15.1</hadoop.version>
+        <zookeeper.version>3.4.5-cdh5.15.1</zookeeper.version>
 
         <!-- releases of our own projects to use -->
         <indeed-util.version>1.0.24</indeed-util.version>
