@@ -1,6 +1,7 @@
 package com.indeed.imhotep.connection;
 
 import com.indeed.imhotep.client.Host;
+import com.indeed.util.core.Throwables2;
 import com.indeed.util.core.io.Closeables2;
 import org.apache.commons.pool2.KeyedPooledObjectFactory;
 import org.apache.commons.pool2.impl.GenericKeyedObjectPool;
@@ -13,6 +14,17 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * @author xweng
+ *
+ * try (final ImhotepConnection connection = pool.getConnection(host, 10)) {
+ *     try {
+ *         // do something with the connection
+ *      } catch (final IOException e) {
+ *         connection.markAsInvalid();
+ *         throw  e;
+ *     }
+ * } catch (final IOException e) {
+ *      // do some logs or other things
+ * }
  */
 public class ImhotepConnectionPool implements Closeable {
     private static final Logger logger = Logger.getLogger(ImhotepConnectionPool.class);
@@ -52,24 +64,31 @@ public class ImhotepConnectionPool implements Closeable {
         config.setMinIdlePerKey(DEFAULT_MINIMUM_SOCKETS_IN_POOL);
 
         keyedObjectPool = new GenericKeyedObjectPool<Host, ImhotepConnection>(factory, config);
+        ((ImhotepConnectionKeyedPooledObjectFactory) factory).setKeyedObjectPool(keyedObjectPool);
     }
 
     /**
      * Get a connection from the pool until connection is returned or errors happen
      */
-    public ImhotepConnection getConnection(final Host host) throws Exception {
-        final ImhotepConnection connection = keyedObjectPool.borrowObject(host);
-        connection.setKeyedObjectPool(keyedObjectPool);
-        return connection;
+    ImhotepConnection getConnection(final Host host) throws IOException {
+        try {
+            return keyedObjectPool.borrowObject(host);
+        } catch (final Exception e) {
+            Throwables2.propagate(e, IOException.class);
+            throw new RuntimeException(e);
+        }
     }
 
     /**
      * Get a connection from the pool with the timeout in milliseconds
      */
-    public ImhotepConnection getConnection(final Host host, final int millisecondTimeout) throws Exception {
-        final ImhotepConnection connection = keyedObjectPool.borrowObject(host, millisecondTimeout);
-        connection.setKeyedObjectPool(keyedObjectPool);
-        return connection;
+    ImhotepConnection getConnection(final Host host, final int millisecondTimeout) throws IOException {
+        try {
+            return keyedObjectPool.borrowObject(host, millisecondTimeout);
+        } catch (final Exception e) {
+            Throwables2.propagate(e, IOException.class);
+            throw new RuntimeException(e);
+        }
     }
 
     @Override

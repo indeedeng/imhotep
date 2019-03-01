@@ -17,25 +17,21 @@ public class ImhotepConnection implements Closeable {
     private Socket socket;
     private Host host;
 
-    public ImhotepConnection(final Socket socket, final Host host) {
+    ImhotepConnection(final KeyedObjectPool keyedObjectPool, final Socket socket, final Host host) {
         this.socket = socket;
         this.host = host;
-        keyedObjectPool = null;
+        this.keyedObjectPool = keyedObjectPool;
     }
 
     /**
      * Mark a connection as invalid and remove it from the connection pool
      */
-    public void markAsInvalid() {
+    void markAsInvalid() {
         try {
             keyedObjectPool.invalidateObject(host, this);
         } catch (final Exception e) {
             logger.warn("Errors happened when setting connection as invalid, connection is " + this, e);
         }
-    }
-
-    public void setKeyedObjectPool(final KeyedObjectPool keyedObjectPool) {
-        this.keyedObjectPool = keyedObjectPool;
     }
 
     public Socket getSocket() {

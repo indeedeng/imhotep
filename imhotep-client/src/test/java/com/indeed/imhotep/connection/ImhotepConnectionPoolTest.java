@@ -62,7 +62,7 @@ public class ImhotepConnectionPoolTest {
     }
 
     @Test
-    public void testReleaseConnection() throws Exception {
+    public void testReleaseConnection() throws IOException {
         Socket socket;
         try (final ImhotepConnection connection = testConnnectionPool.getConnection(host1)) {
             socket = connection.getSocket();
@@ -76,7 +76,7 @@ public class ImhotepConnectionPoolTest {
     }
 
     @Test
-    public void testGetConnection() throws Exception {
+    public void testGetConnection() throws IOException {
         try (final ImhotepConnection connection = testConnnectionPool.getConnection(host1)) {
             final Socket socket = connection.getSocket();
             assertNotNull(socket);
@@ -91,19 +91,17 @@ public class ImhotepConnectionPoolTest {
     }
 
     @Test
-    public void testGetConnectionTimeout() throws Exception {
+    public void testGetConnectionTimeout() throws IOException {
         // socket timeout
         try (final ImhotepConnection connection = testConnnectionPool.getConnection(new Host("www.google.com", 81), 5000)) {
             fail("SocketTimeoutException is expected");
         } catch (final SocketTimeoutException e) {
             // succeed
-        } catch (final IOException e) {
-            fail();
         }
     }
 
     @Test
-    public void testDiscardConnection() throws Exception {
+    public void testDiscardConnection() throws IOException {
         Socket socket;
         try (final ImhotepConnection connection = testConnnectionPool.getConnection(host1)) {
             socket = connection.getSocket();

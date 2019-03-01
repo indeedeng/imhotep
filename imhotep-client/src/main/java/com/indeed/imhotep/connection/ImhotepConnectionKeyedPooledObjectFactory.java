@@ -2,6 +2,7 @@ package com.indeed.imhotep.connection;
 
 import com.indeed.imhotep.client.Host;
 import com.indeed.util.core.io.Closeables2;
+import org.apache.commons.pool2.KeyedObjectPool;
 import org.apache.commons.pool2.KeyedPooledObjectFactory;
 import org.apache.commons.pool2.PooledObject;
 import org.apache.commons.pool2.impl.DefaultPooledObject;
@@ -24,6 +25,8 @@ public class ImhotepConnectionKeyedPooledObjectFactory implements KeyedPooledObj
     // keyedObjectPool doesn't handle the timeout during makeObject, we have to specify it in case of connection block
     private static final int DEFAULT_SOCKET_CONNECT_TIMEOUT = (int) TimeUnit.SECONDS.toMillis(30);
 
+    private KeyedObjectPool keyedObjectPool;
+
     @Override
     public PooledObject<ImhotepConnection> makeObject(final Host host) throws IOException {
         final Socket socket = new Socket();
@@ -35,7 +38,7 @@ public class ImhotepConnectionKeyedPooledObjectFactory implements KeyedPooledObj
         socket.setTcpNoDelay(true);
         socket.setKeepAlive(true);
 
-        return new DefaultPooledObject<>(new ImhotepConnection(socket, host));
+        return new DefaultPooledObject<>(new ImhotepConnection(keyedObjectPool, socket, host));
     }
 
     @Override
@@ -45,11 +48,18 @@ public class ImhotepConnectionKeyedPooledObjectFactory implements KeyedPooledObj
     }
 
     @Override
-    public boolean validateObject(final Host host, final PooledObject<ImhotepConnection> pooledObject) { return true; }
+    public boolean validateObject(final Host host, final PooledObject<ImhotepConnection> pooledObject) {
+        final Socket socket = pooledObject.getObject().getSocket();
+        return socket.isConnected() && !socket.isClosed();
+    }
 
     @Override
     public void activateObject(final Host host, final PooledObject<ImhotepConnection> pooledObject) { }
 
     @Override
     public void passivateObject(final Host host, final PooledObject<ImhotepConnection> pooledObject) { }
+
+    void setKeyedObjectPool(final KeyedObjectPool keyedObjectPool) {
+        this.keyedObjectPool = keyedObjectPool;
+    }
 }
