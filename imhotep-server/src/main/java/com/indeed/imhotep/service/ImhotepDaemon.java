@@ -59,12 +59,12 @@ import com.indeed.imhotep.protobuf.ShardNameNumDocsPair;
 import com.indeed.imhotep.protobuf.StringFieldAndTerms;
 import com.indeed.util.core.Pair;
 import com.indeed.util.core.io.Closeables2;
-import org.apache.commons.io.IOUtils;
 import org.apache.log4j.Logger;
 import org.apache.log4j.NDC;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import javax.annotation.WillNotClose;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -220,17 +220,6 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             ImhotepProtobufShipping.writeGroupStatsNoFlush(groupStats, os);
             log.debug("group stats sent");
         }
-        os.flush();
-        log.debug("response sent");
-    }
-
-    private static void sendResponseAndInputStream(
-            final ImhotepResponse response,
-            final InputStream is,
-            final OutputStream os) throws IOException {
-        log.debug("sending response");
-        ImhotepProtobufShipping.sendProtobufNoFlush(response, os);
-        IOUtils.copy(is, os);
         os.flush();
         log.debug("response sent");
     }
@@ -945,10 +934,11 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             return builder.build();
         }
 
-        private Pair<ImhotepResponse, InputStream> getShardFile(
+        private ImhotepResponse getShardFile(
                 final ImhotepRequest request,
-                final ImhotepResponse.Builder builder) throws IOException {
-            return service.handleGetShardFile(request.getShardFilePath(), builder);
+                final ImhotepResponse.Builder builder,
+                @WillNotClose final OutputStream os) throws IOException {
+            return service.handleGetShardFile(request.getShardFilePath(), builder, os);
         }
 
         private void shutdown(
@@ -979,8 +969,6 @@ public class ImhotepDaemon implements Instrumentation.Provider {
 
                 ImhotepResponse response = null;
                 GroupStatsIterator groupStats = null;
-                // for shard data input stream
-                InputStream inputStream = null;
 
                 NDC.push("#" + requestId);
 
@@ -1136,9 +1124,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                             response = remapGroups(request, builder);
                             break;
                         case GET_SHARD_FILE:
-                            final Pair<ImhotepResponse, InputStream> responseInputStreamPair = getShardFile(request, builder);
-                            response = responseInputStreamPair.getFirst();
-                            inputStream = responseInputStreamPair.getSecond();
+                            response = getShardFile(request, builder, os);
                             break;
                         case SHUTDOWN:
                             shutdown(request, is, os);
@@ -1148,11 +1134,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                                                                request.getRequestType());
                     }
                     if (response != null) {
-                        if (request.getRequestType() == ImhotepRequest.RequestType.GET_SHARD_FILE) {
-                            sendResponseAndInputStream(response, inputStream, os);
-                        } else {
-                            sendResponseAndGroupStats(response, groupStats, os);
-                        }
+                        sendResponseAndGroupStats(response, groupStats, os);
                     }
                 } catch (final ImhotepOutOfMemoryException e) {
                     expireSession(request, e);

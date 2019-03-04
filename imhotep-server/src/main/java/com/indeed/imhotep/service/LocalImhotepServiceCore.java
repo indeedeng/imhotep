@@ -23,6 +23,8 @@ import com.indeed.imhotep.ImhotepStatusDump;
 import com.indeed.imhotep.MemoryReservationContext;
 import com.indeed.imhotep.MemoryReserver;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
+import com.indeed.imhotep.fs.RemoteCachingPath;
+import com.indeed.imhotep.io.ImhotepProtobufShipping;
 import com.indeed.imhotep.local.ImhotepJavaLocalSession;
 import com.indeed.imhotep.local.ImhotepLocalSession;
 import com.indeed.imhotep.local.MTImhotepLocalMultiSession;
@@ -35,12 +37,19 @@ import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.core.reference.SharedReference;
 import com.indeed.util.core.shell.PosixFileOperations;
 import com.indeed.util.varexport.VarExporter;
+import org.apache.commons.io.IOUtils;
 import org.apache.log4j.Logger;
 
 import javax.annotation.Nullable;
+import javax.annotation.WillNotClose;
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -225,12 +234,47 @@ public class LocalImhotepServiceCore
     }
 
     @Override
-    public Pair<ImhotepResponse, InputStream> handleGetShardFile(
+    public ImhotepResponse handleGetShardFile(
             final String filePath,
-            final ImhotepResponse.Builder builder) throws IOException {
-        final Path path = Paths.get(filePath);
-        builder.setFileLength(path.toFile().length());
-        return Pair.of(builder.build(), Files.newInputStream(path));
+            final ImhotepResponse.Builder builder,
+            @WillNotClose final OutputStream os) throws IOException {
+        final Pair<File, String> fileMessagePair = validateAndOpenShardFile(filePath);
+        final File file = fileMessagePair.getFirst();
+        if (file == null) {
+            return builder.
+                    setResponseCode(ImhotepResponse.ResponseCode.KNOWN_ERROR).
+                    setExceptionMessage(fileMessagePair.getSecond()).
+                    build();
+        }
+
+        builder.setFileLength(file.length());
+        log.debug("sending shard file response");
+        ImhotepProtobufShipping.sendProtobufNoFlush(builder.build(), os);
+        try (final InputStream is = new FileInputStream(file)) {
+            IOUtils.copy(is, os);
+        }
+        os.flush();
+        log.debug("shard file response sent");
+        return null;
+    }
+
+    private Pair<File, String> validateAndOpenShardFile(final String filePath) {
+        Path path;
+        try {
+            path = Paths.get(new URI(filePath));
+        } catch (final URISyntaxException e) {
+            return Pair.of(null, "invalid format of filePath " + filePath);
+        }
+
+        if (!(path instanceof RemoteCachingPath)) {
+            return Pair.of(null, "path is not a valid RemoteCachingPath, path = " + path);
+        }
+
+        final File file = path.toFile();
+        if (!file.exists()) {
+            return Pair.of(null, "No such file: " + path);
+        }
+        return Pair.of(file, null);
     }
 
     @Override
