@@ -32,7 +32,6 @@ import com.indeed.imhotep.protobuf.ImhotepResponse;
 import com.indeed.imhotep.protobuf.ShardNameNumDocsPair;
 import com.indeed.imhotep.scheduling.SchedulerType;
 import com.indeed.imhotep.scheduling.TaskScheduler;
-import com.indeed.util.core.Pair;
 import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.core.reference.SharedReference;
 import com.indeed.util.core.shell.PosixFileOperations;
@@ -52,6 +51,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -234,20 +234,13 @@ public class LocalImhotepServiceCore
     }
 
     @Override
-    public ImhotepResponse handleGetShardFile(
+    public void handleGetShardFile(
             final String filePath,
             final ImhotepResponse.Builder builder,
             @WillNotClose final OutputStream os) throws IOException {
-        final Pair<File, String> fileMessagePair = validateAndOpenShardFile(filePath);
-        final File file = fileMessagePair.getFirst();
-        if (file == null) {
-            return builder.
-                    setResponseCode(ImhotepResponse.ResponseCode.KNOWN_ERROR).
-                    setExceptionMessage(fileMessagePair.getSecond()).
-                    build();
-        }
-
+        final File file = validateAndOpenShardFile(filePath);
         builder.setFileLength(file.length());
+
         log.debug("sending shard file response");
         ImhotepProtobufShipping.sendProtobufNoFlush(builder.build(), os);
         try (final InputStream is = new FileInputStream(file)) {
@@ -255,26 +248,28 @@ public class LocalImhotepServiceCore
         }
         os.flush();
         log.debug("shard file response sent");
-        return null;
     }
 
-    private Pair<File, String> validateAndOpenShardFile(final String filePath) {
-        Path path;
+    private File validateAndOpenShardFile(final String filePath) throws IOException {
+        final Path path;
         try {
             path = Paths.get(new URI(filePath));
         } catch (final URISyntaxException e) {
-            return Pair.of(null, "invalid format of filePath " + filePath);
+            throw new IOException("invalid format of filePath " + filePath, e);
         }
 
         if (!(path instanceof RemoteCachingPath)) {
-            return Pair.of(null, "path is not a valid RemoteCachingPath, path = " + path);
+            throw new IOException("path is not a valid RemoteCachingPath, path = " + path);
         }
 
+        // it throws IllegalStateException with "unexpected error" message by the cacheLoader if the file doesn't exist
+        // here check if the file exists and throw NoSuchFileException manually with more readable messages
         final File file = path.toFile();
         if (!file.exists()) {
-            return Pair.of(null, "No such file: " + path);
+            throw new NoSuchFileException(filePath);
         }
-        return Pair.of(file, null);
+
+        return file;
     }
 
     @Override

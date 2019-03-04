@@ -17,7 +17,6 @@ import com.indeed.imhotep.protobuf.ImhotepResponse;
 import com.indeed.imhotep.service.ImhotepDaemonRunner;
 import com.indeed.imhotep.service.ImhotepShardCreator;
 import com.indeed.imhotep.service.ShardMasterAndImhotepDaemonClusterRunner;
-import com.indeed.util.core.io.Closeables2;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.hadoop.conf.Configuration;
@@ -102,8 +101,11 @@ public class TestGetShardFile {
 
     @AfterClass
     public static void tearDown() throws IOException  {
-        clusterRunner.stop();
-        tempDir.delete();
+        try {
+            clusterRunner.stop();
+        } finally {
+            tempDir.delete();
+        }
     }
 
     @Test
@@ -159,7 +161,7 @@ public class TestGetShardFile {
         } catch (final IOException e) {
             fail();
         } finally {
-            Closeables2.closeQuietly(socket, null);
+            socket.close();
         }
     }
 

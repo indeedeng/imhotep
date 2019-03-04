@@ -23,10 +23,8 @@ import com.indeed.imhotep.protobuf.HostAndPort;
 import com.indeed.imhotep.protobuf.ImhotepResponse;
 import com.indeed.imhotep.protobuf.MultiFTGSRequest;
 import com.indeed.imhotep.protobuf.ShardNameNumDocsPair;
-import com.indeed.util.core.Pair;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Iterator;
 import java.util.List;
@@ -87,7 +85,7 @@ public interface ImhotepServiceCore {
 
     // non-session-based methods
     ImhotepStatusDump handleGetStatusDump(boolean includeShardList);
-    ImhotepResponse handleGetShardFile(String filePath, ImhotepResponse.Builder builder, OutputStream os) throws IOException;
+    void handleGetShardFile(String filePath, ImhotepResponse.Builder builder, OutputStream os) throws IOException;
 
     void close();
 }
