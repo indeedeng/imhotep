@@ -41,14 +41,11 @@ import org.apache.log4j.Logger;
 
 import javax.annotation.Nullable;
 import javax.annotation.WillNotClose;
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
@@ -234,42 +231,33 @@ public class LocalImhotepServiceCore
     }
 
     @Override
-    public void handleGetShardFile(
+    public void handleGetAndSendShardFile(
             final String filePath,
             final ImhotepResponse.Builder builder,
             @WillNotClose final OutputStream os) throws IOException {
-        final File file = validateAndOpenShardFile(filePath);
-        builder.setFileLength(file.length());
+        final Path path = getShardFilePath(filePath);
+        builder.setFileLength(Files.size(path));
 
         log.debug("sending shard file response");
         ImhotepProtobufShipping.sendProtobufNoFlush(builder.build(), os);
-        try (final InputStream is = new FileInputStream(file)) {
+        try (final InputStream is = Files.newInputStream(path)) {
             IOUtils.copy(is, os);
         }
         os.flush();
         log.debug("shard file response sent");
     }
 
-    private File validateAndOpenShardFile(final String filePath) throws IOException {
-        final Path path;
-        try {
-            path = Paths.get(new URI(filePath));
-        } catch (final URISyntaxException e) {
-            throw new IOException("invalid format of filePath " + filePath, e);
-        }
-
+    private Path getShardFilePath(final String filePath) throws IOException {
+        final Path path = Paths.get(URI.create(filePath));
         if (!(path instanceof RemoteCachingPath)) {
-            throw new IOException("path is not a valid RemoteCachingPath, path = " + path);
+            throw new IllegalArgumentException("path is not a valid RemoteCachingPath, path = " + path);
         }
-
         // it throws IllegalStateException with "unexpected error" message by the cacheLoader if the file doesn't exist
-        // here check if the file exists and throw NoSuchFileException manually with more readable messages
-        final File file = path.toFile();
-        if (!file.exists()) {
+        // here check if the file exists and throw NoSuchFileException manually with readable messages
+        if (!Files.exists(path)) {
             throw new NoSuchFileException(filePath);
         }
-
-        return file;
+        return path;
     }
 
     @Override

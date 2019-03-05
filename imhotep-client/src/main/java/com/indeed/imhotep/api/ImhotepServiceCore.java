@@ -85,7 +85,7 @@ public interface ImhotepServiceCore {
 
     // non-session-based methods
     ImhotepStatusDump handleGetStatusDump(boolean includeShardList);
-    void handleGetShardFile(String filePath, ImhotepResponse.Builder builder, OutputStream os) throws IOException;
+    void handleGetAndSendShardFile(String filePath, ImhotepResponse.Builder builder, OutputStream os) throws IOException;
 
     void close();
 }

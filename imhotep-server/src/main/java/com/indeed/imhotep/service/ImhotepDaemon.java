@@ -934,11 +934,11 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             return builder.build();
         }
 
-        private void getShardFile(
+        private void getAndSendShardFile(
                 final ImhotepRequest request,
                 final ImhotepResponse.Builder builder,
                 @WillNotClose final OutputStream os) throws IOException {
-            service.handleGetShardFile(request.getShardFilePath(), builder, os);
+            service.handleGetAndSendShardFile(request.getShardFilePath(), builder, os);
         }
 
         private void shutdown(
@@ -1124,7 +1124,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                             response = remapGroups(request, builder);
                             break;
                         case GET_SHARD_FILE:
-                            getShardFile(request, builder, os);
+                            getAndSendShardFile(request, builder, os);
                             break;
                         case SHUTDOWN:
                             shutdown(request, is, os);
