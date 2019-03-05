@@ -24,14 +24,12 @@ import com.indeed.flamdex.query.Query;
 import com.indeed.flamdex.query.Term;
 import com.indeed.flamdex.reader.MockFlamdexReader;
 import com.indeed.imhotep.GroupMultiRemapRule;
-import com.indeed.imhotep.GroupRemapRule;
 import com.indeed.imhotep.ImhotepMemoryPool;
 import com.indeed.imhotep.MemoryReservationContext;
 import com.indeed.imhotep.QueryRemapRule;
 import com.indeed.imhotep.RegroupCondition;
 import com.indeed.imhotep.api.GroupStatsIterator;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
-import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.api.PerformanceStats;
 import com.indeed.imhotep.group.IterativeHasher;
 import com.indeed.imhotep.group.IterativeHasherUtils;
@@ -49,11 +47,7 @@ import java.util.List;
 import java.util.Map;
 
 import static java.util.Collections.singletonList;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 
 /**
  * @author jsgroth
@@ -131,22 +125,22 @@ public class TestImhotepLocalSession {
         r.addIntTerm("if1", 5, 0, 2, 4, 6, 8);
 
         try (ImhotepLocalSession session = new ImhotepJavaLocalSession("testLocalSession", r)) {
-            session.regroup(new GroupRemapRule[]{new GroupRemapRule(
+            session.regroup(new GroupMultiRemapRule[]{new GroupMultiRemapRule(
                     1,
-                    new RegroupCondition("if1", true,
-                            0, "", false),
-                    0, 1)});
+                    0,
+                    new int[]{1},
+                    new RegroupCondition[]{new RegroupCondition("if1", true, 0, "", false)}
+            )});
             session.resetGroups();
             final int numGroups =
-                    session.regroup(new GroupRemapRule[]{new GroupRemapRule(
+                    session.regroup(new GroupMultiRemapRule[]{new GroupMultiRemapRule(
                             99999,
-                            new RegroupCondition(
-                                    "if1",
-                                    true,
-                                    1,
-                                    "",
-                                    false),
-                            1, 1)});
+                            1,
+                            new int[]{1},
+                            new RegroupCondition[]{
+                                    new RegroupCondition("if1", true, 1, "", false)
+                            }
+                    )});
             assertEquals(1, numGroups);
         }
     }
@@ -241,15 +235,14 @@ public class TestImhotepLocalSession {
 
         try (ImhotepLocalSession session = new ImhotepJavaLocalSession("testLocalSession", r)) {
             assertEquals(2,
-                    session.regroup(new GroupRemapRule[]{new GroupRemapRule(
+                    session.regroup(new GroupMultiRemapRule[]{new GroupMultiRemapRule(
                             1,
-                            new RegroupCondition(
-                                    "sf1",
-                                    false,
-                                    0,
-                                    "☃",
-                                    false),
-                            1, 0)}));
+                            1,
+                            new int[]{0},
+                            new RegroupCondition[]{
+                                    new RegroupCondition("sf1", false, 0, "☃", false)
+                            }
+                    )}));
 
             final int numGroups = session.metricRegroup(singletonList("if1"), (long) 9, (long) 17, (long) 4);
             assertEquals(5, numGroups); // 2 buckets, 2 gutters, group 0
@@ -346,23 +339,15 @@ public class TestImhotepLocalSession {
     public void testStuff() throws ImhotepOutOfMemoryException {
         final FlamdexReader r = MakeAFlamdex.make();
         try (ImhotepLocalSession session = new ImhotepJavaLocalSession("testLocalSession", r)) {
-            session.regroup(new GroupRemapRule[]{new GroupRemapRule(1, new RegroupCondition("if3",
-                    true,
-                    9999,
-                    null,
-                    false),
-                    1, 2)});
-            session.regroup(new GroupRemapRule[]{
-                    new GroupRemapRule(1, new RegroupCondition("if3",
-                            true, 19,
-                            null,
-                            false), 1,
-                            2),
-                    new GroupRemapRule(
-                            2,
-                            new RegroupCondition("sf2", false,
-                                    0, "b", false),
-                            3, 4)});
+            session.regroup(new GroupMultiRemapRule[]{
+                            new GroupMultiRemapRule(1, 1, new int[]{2}, new RegroupCondition[]{new RegroupCondition("if3", true, 9999, null, false)})
+                    });
+            session.regroup(new GroupMultiRemapRule[]{
+                    new GroupMultiRemapRule(1, 1, new int[]{2}, new RegroupCondition[]{
+                            new RegroupCondition("if3", true, 19, null, false)
+                    }),
+                    new GroupMultiRemapRule(2, 3, new int[]{4}, new RegroupCondition[]{new RegroupCondition("sf2", false, 0, "b", false)})
+            });
             final long[] stats = session.getGroupStats(singletonList("count()"));
             assertEquals(10, stats[1]);
             assertEquals(5, stats[2]);
@@ -383,28 +368,17 @@ public class TestImhotepLocalSession {
             session.updateDynamicMetric("foo", new int[]{0, 1});
             assertEquals(Longs.asList(0, 20), Longs.asList(session.getGroupStats(dynamicStat)));
 
-            session.regroup(new GroupRemapRule[]{new GroupRemapRule(1, new RegroupCondition("if2",
-                    true, 0,
-                    null,
-                    false),
-                    1, 2)});
+            session.regroup(new GroupMultiRemapRule[]{new GroupMultiRemapRule(1, 1, new int[]{2}, new RegroupCondition[]{new RegroupCondition("if2", true, 0, null, false)})});
             assertEquals(Longs.asList(0, 15, 5), Longs.asList(session.getGroupStats(dynamicStat)));
 
             session.updateDynamicMetric("foo", new int[]{0, 0, -2});
             assertEquals(Longs.asList(0, 15, -5), Longs.asList(session.getGroupStats(dynamicStat)));
 
             // reset all to group 1
-            session.regroup(new GroupRemapRule[]{
-                    new GroupRemapRule(1, new RegroupCondition("if2",
-                            true, 0,
-                            null,
-                            false), 1,
-                            1),
-                    new GroupRemapRule(2, new RegroupCondition("if2",
-                            true, 0,
-                            null,
-                            false), 1,
-                            1)});
+            session.regroup(new GroupMultiRemapRule[]{
+                    new GroupMultiRemapRule(1, 1, new int[]{1}, new RegroupCondition[]{new RegroupCondition("if2", true, 0, null, false)}),
+                    new GroupMultiRemapRule(2, 1, new int[]{1}, new RegroupCondition[]{new RegroupCondition("if2", true, 0, null, false)})
+            });
             assertEquals(Longs.asList(0, 10), Longs.asList(session.getGroupStats(dynamicStat)).subList(0, 2));
         }
     }
@@ -1710,25 +1684,13 @@ public class TestImhotepLocalSession {
             session1.createDynamicMetric("bar");
             final int[] bar = {0, 13};
             session1.updateDynamicMetric("bar", bar);
-            session1.regroup(new GroupRemapRule[]{new GroupRemapRule(1, new RegroupCondition("if3",
-                    true,
-                    9999,
-                    null,
-                    false),
-                    1, 2)});
+            session1.regroup(new GroupMultiRemapRule[]{new GroupMultiRemapRule(1, 1, new int[]{2}, new RegroupCondition[]{new RegroupCondition("if3", true, 9999, null, false)})});
             final int[] foo = {0, 1, 2};
             session1.updateDynamicMetric("foo", foo);
-            session1.regroup(new GroupRemapRule[]{
-                    new GroupRemapRule(1, new RegroupCondition("if3",
-                            true, 19,
-                            null,
-                            false),
-                            0, 2),
-                    new GroupRemapRule(2, new RegroupCondition("sf2",
-                            false, 0,
-                            "b",
-                            false),
-                            3, 4)});
+            session1.regroup(new GroupMultiRemapRule[]{
+                    new GroupMultiRemapRule(1, 0, new int[]{2}, new RegroupCondition[]{new RegroupCondition("if3", true, 19, null, false)}),
+                    new GroupMultiRemapRule(2, 3, new int[]{4}, new RegroupCondition[]{new RegroupCondition("sf2", false, 0, "b", false)})
+            });
             final int[] fo = {0, 0, 0, 0, 1};
             session1.updateDynamicMetric("foo", fo);
 
@@ -1805,18 +1767,10 @@ public class TestImhotepLocalSession {
             session1.createDynamicMetric("cat");
             final int[] cat = {0, 17};
             session1.updateDynamicMetric("cat", cat);
-            session1.regroup(new GroupRemapRule[]{
-                    new GroupRemapRule(2, new RegroupCondition("if3",
-                            true, 5,
-                            null,
-                            false),
-                            1, 6),
-                    new GroupRemapRule(3, new RegroupCondition("if3",
-                            true,
-                            10000,
-                            null,
-                            false),
-                            2, 7)});
+            session1.regroup(new GroupMultiRemapRule[]{
+                    new GroupMultiRemapRule(2, 1, new int[]{6}, new RegroupCondition[]{new RegroupCondition("if3", true, 5, null, false)}),
+                    new GroupMultiRemapRule(3, 2, new int[]{7}, new RegroupCondition[]{new RegroupCondition("if3", true, 10000, null, false)}),
+            });
             stats1 = session1.getGroupStats(singletonList("count()"));
             assertEquals(0, stats1[0]);
             assertEquals(5, stats1[1]);
@@ -1887,25 +1841,13 @@ public class TestImhotepLocalSession {
             session1.createDynamicMetric("bar");
             final int[] bar = {0, 13};
             session1.updateDynamicMetric("bar", bar);
-            session1.regroup(new GroupRemapRule[]{new GroupRemapRule(1, new RegroupCondition("if3",
-                    true,
-                    9999,
-                    null,
-                    false),
-                    1, 2)});
+            session1.regroup(new GroupMultiRemapRule[]{new GroupMultiRemapRule(1, 1, new int[]{2}, new RegroupCondition[]{new RegroupCondition("if3", true, 9999, null, false)})});
             final int[] foo = {0, 1, 2};
             session1.updateDynamicMetric("foo", foo);
-            session1.regroup(new GroupRemapRule[]{
-                    new GroupRemapRule(1, new RegroupCondition("if3",
-                            true, 19,
-                            null,
-                            false),
-                            0, 2),
-                    new GroupRemapRule(2, new RegroupCondition("sf2",
-                            false, 0,
-                            "b",
-                            false),
-                            3, 4)});
+            session1.regroup(new GroupMultiRemapRule[]{
+                    new GroupMultiRemapRule(1, 0, new int[]{2}, new RegroupCondition[]{new RegroupCondition("if3", true, 19, null, false)}),
+                    new GroupMultiRemapRule(2, 3, new int[]{4}, new RegroupCondition[]{new RegroupCondition("sf2", false, 0, "b", false)})
+            });
             final int[] fo = {0, 0, 0, 0, 1};
             session1.updateDynamicMetric("foo", fo);
 
@@ -1918,18 +1860,10 @@ public class TestImhotepLocalSession {
             session1.updateDynamicMetric("cat", cat);
             final int[] fo2 = {0, 0, 0, 0, 2};
             session1.updateDynamicMetric("foo", fo2);
-            session1.regroup(new GroupRemapRule[]{
-                    new GroupRemapRule(2, new RegroupCondition("if3",
-                            true, 5,
-                            null,
-                            false),
-                            1, 6),
-                    new GroupRemapRule(3, new RegroupCondition("if3",
-                            true,
-                            10000,
-                            null,
-                            false),
-                            2, 7)});
+            session1.regroup(new GroupMultiRemapRule[]{
+                    new GroupMultiRemapRule(2, 1, new int[]{6}, new RegroupCondition[]{new RegroupCondition("if3", true, 5, null, false)}),
+                    new GroupMultiRemapRule(3, 2, new int[]{7}, new RegroupCondition[]{new RegroupCondition("if3", true, 10000, null, false)})
+            });
 
             final int[] foo2 = {0, 7, 11};
             session1.updateDynamicMetric("foo", foo2);

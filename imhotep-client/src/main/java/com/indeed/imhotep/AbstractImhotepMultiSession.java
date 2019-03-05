@@ -25,7 +25,6 @@ import com.indeed.imhotep.exceptions.QueryCancelledException;
 import com.indeed.imhotep.scheduling.ImhotepTask;
 import com.indeed.imhotep.scheduling.SchedulerType;
 import com.indeed.imhotep.scheduling.TaskScheduler;
-import com.indeed.util.core.Throwables2;
 import com.indeed.util.core.threads.LogOnUncaughtExceptionHandler;
 import io.opentracing.ActiveSpan;
 import io.opentracing.Tracer;
@@ -202,18 +201,6 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
             sum += totalDocFreq;
         }
         return sum;
-    }
-
-    @Override
-    public int regroup(final GroupRemapRule[] rawRules) throws ImhotepOutOfMemoryException {
-        executeMemoryException(integerBuf, new ThrowingFunction<ImhotepSession, Integer>() {
-            @Override
-            public Integer apply(final ImhotepSession session) throws ImhotepOutOfMemoryException {
-                return session.regroup(rawRules);
-            }
-        });
-
-        return Collections.max(Arrays.asList(integerBuf));
     }
 
     @Override

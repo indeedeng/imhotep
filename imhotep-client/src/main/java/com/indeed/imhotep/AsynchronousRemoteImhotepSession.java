@@ -179,18 +179,6 @@ public class AsynchronousRemoteImhotepSession extends AbstractImhotepSession {
     }
 
     @Override
-    public int regroup(final GroupRemapRule[] rawRules) throws ImhotepOutOfMemoryException {
-        doIt(session -> session.regroup(rawRules));
-        return -999;
-    }
-
-    @Override
-    public int regroup2(final int numRawRules, final Iterator<GroupRemapRule> iterator) {
-        doIt(session -> session.regroup2(numRawRules, iterator));
-        return -999;
-    }
-
-    @Override
     public int regroup(final QueryRemapRule rule) throws ImhotepOutOfMemoryException {
         doIt(session -> session.regroup(rule));
         return -999;

@@ -649,26 +649,6 @@ public class ImhotepRemoteSession
     }
 
     @Override
-    public int regroup(final GroupRemapRule[] rawRules) throws ImhotepOutOfMemoryException {
-        final Timer timer = new Timer();
-        final List<GroupRemapMessage> protoRules = ImhotepClientMarshaller.marshal(rawRules);
-
-        final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.REGROUP)
-                .setSessionId(getSessionId())
-                .addAllRemapRules(protoRules)
-                .build();
-
-        try {
-            final ImhotepResponse response = sendRequestWithMemoryException(request, host, port, socketTimeout);
-            final int result = response.getNumGroups();
-            timer.complete(request);
-            return result;
-        } catch (final IOException e) {
-            throw newRuntimeException(e);
-        }
-    }
-
-    @Override
     public int regroup(final QueryRemapRule rule) throws ImhotepOutOfMemoryException {
         final Timer timer = new Timer();
         final QueryRemapMessage protoRule = ImhotepClientMarshaller.marshal(rule);

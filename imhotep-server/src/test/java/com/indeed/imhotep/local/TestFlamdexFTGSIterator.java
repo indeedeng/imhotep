@@ -15,7 +15,7 @@
 
 import com.google.common.collect.Lists;
 import com.indeed.flamdex.reader.MockFlamdexReader;
-import com.indeed.imhotep.GroupRemapRule;
+import com.indeed.imhotep.GroupMultiRemapRule;
 import com.indeed.imhotep.RegroupCondition;
 import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
@@ -26,15 +26,11 @@ import org.junit.Test;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 /**
  * @author jwolfe
@@ -149,7 +145,7 @@ public class TestFlamdexFTGSIterator {
     private ImhotepLocalSession makeTestSession(final BitsetOptimizationLevel level) throws ImhotepOutOfMemoryException {
         final MockFlamdexReader r = makeTestFlamdexReader();
         final ImhotepLocalSession session = new ImhotepJavaLocalSession("TestFlamdexFTGSIterator", r);
-        session.regroup(new GroupRemapRule[]{new GroupRemapRule(1, new RegroupCondition(DOCID_FIELD, true, 4, null, true), 2, 1)});
+        session.regroup(new GroupMultiRemapRule[]{new GroupMultiRemapRule(1, 2, new int[]{1}, new RegroupCondition[]{new RegroupCondition(DOCID_FIELD, true, 4, null, true)})});
         return session;
     }
 

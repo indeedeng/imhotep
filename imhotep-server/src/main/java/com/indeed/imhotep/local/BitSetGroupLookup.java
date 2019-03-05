@@ -15,8 +15,6 @@
 
 import com.indeed.flamdex.datastruct.FastBitSet;
 import com.indeed.imhotep.BitTree;
-import com.indeed.imhotep.GroupRemapRule;
-import com.indeed.util.core.threads.ThreadSafeBitSet;
 
 import java.util.Arrays;
 
@@ -60,56 +58,6 @@ final class BitSetGroupLookup extends GroupLookup {
         }
 
         return rewriteHead;
-    }
-
-    @Override
-    public void applyIntConditionsCallback(
-            final int n,
-            final int[] docIdBuf,
-            final ThreadSafeBitSet docRemapped,
-            final GroupRemapRule[] remapRules,
-            final String intField,
-            final long itrTerm) {
-        for (int i = 0; i < n; i++) {
-            final int docId = docIdBuf[i];
-            if (docRemapped.get(docId)) {
-                continue;
-            }
-            final int group = bitSet.get(docId) ? 1 : 0;
-            if (remapRules[group] == null) {
-                continue;
-            }
-            if (ImhotepLocalSession.checkIntCondition(remapRules[group].condition, intField, itrTerm)) {
-                continue;
-            }
-            bitSet.set(docId, remapRules[group].positiveGroup == 1);
-            docRemapped.set(docId);
-        }
-    }
-
-    @Override
-    public void applyStringConditionsCallback(
-            final int n,
-            final int[] docIdBuf,
-            final ThreadSafeBitSet docRemapped,
-            final GroupRemapRule[] remapRules,
-            final String stringField,
-            final String itrTerm) {
-        for (int i = 0; i < n; i++) {
-            final int docId = docIdBuf[i];
-            if (docRemapped.get(docId)) {
-                continue;
-            }
-            final int group = bitSet.get(docId) ? 1 : 0;
-            if (remapRules[group] == null) {
-                continue;
-            }
-            if (ImhotepLocalSession.checkStringCondition(remapRules[group].condition, stringField, itrTerm)) {
-                continue;
-            }
-            bitSet.set(docId, remapRules[group].positiveGroup == 1);
-            docRemapped.set(docId);
-        }
     }
 
     @Override

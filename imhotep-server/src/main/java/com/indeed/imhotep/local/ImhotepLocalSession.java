@@ -48,7 +48,6 @@ import com.indeed.imhotep.EmptyFTGSIterator;
 import com.indeed.imhotep.FTGSIteratorUtil;
 import com.indeed.imhotep.FTGSSplitter;
 import com.indeed.imhotep.GroupMultiRemapRule;
-import com.indeed.imhotep.GroupRemapRule;
 import com.indeed.imhotep.GroupStatsDummyIterator;
 import com.indeed.imhotep.ImhotepMemoryPool;
 import com.indeed.imhotep.Instrumentation;
@@ -119,11 +118,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -599,66 +595,6 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             }
         }
         return newLookup;
-    }
-
-    @Override
-    public synchronized int regroup(final GroupRemapRule[] rawRules)
-        throws ImhotepOutOfMemoryException {
-
-        if (isFilteredOut()) {
-            return docIdToGroup.getNumGroups();
-        }
-
-        final int requiredMemory = numDocs / 8 + 1;
-        if (!memory.claimMemory(requiredMemory)) {
-            throw newImhotepOutOfMemoryException();
-        }
-        try {
-            internalRegroup(rawRules);
-        } finally {
-            memory.releaseMemory(requiredMemory);
-        }
-        return docIdToGroup.getNumGroups();
-    }
-
-    private void ensureGroupLookupCapacity(final GroupRemapRule[] cleanRules)
-        throws ImhotepOutOfMemoryException {
-        int maxGroup = 0;
-
-        for (final GroupRemapRule rule : cleanRules) {
-            if (rule != null) {
-                maxGroup = Math.max(maxGroup, Math.max(rule.negativeGroup, rule.positiveGroup));
-            }
-        }
-        docIdToGroup = GroupLookupFactory.resize(docIdToGroup, maxGroup, memory);
-    }
-
-    private void internalRegroup(final GroupRemapRule[] rawRules) throws ImhotepOutOfMemoryException {
-        final GroupRemapRule[] cleanRules = cleanUpRules(rawRules, docIdToGroup.getNumGroups());
-
-        ensureGroupLookupCapacity(cleanRules);
-        final ThreadSafeBitSet docRemapped = new ThreadSafeBitSet(numDocs);
-        try (final DocIdStream docIdStream = flamdexReader.getDocIdStream()) {
-            applyIntConditions(cleanRules, docIdStream, docRemapped);
-            applyStringConditions(cleanRules, docIdStream, docRemapped);
-        }
-
-        // pick up everything else that was missed
-        for (int i = 0; i < docIdToGroup.size(); i++) {
-            if (docRemapped.get(i)) {
-                continue;
-            }
-            final int group = docIdToGroup.get(i);
-            final int newGroup;
-            if (cleanRules[group] != null) {
-                newGroup = cleanRules[group].negativeGroup;
-            } else {
-                newGroup = 0;
-            }
-            docIdToGroup.set(i, newGroup);
-        }
-
-        finalizeRegroup();
     }
 
     private void finalizeRegroup() throws ImhotepOutOfMemoryException {
@@ -1535,20 +1471,6 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         finalizeRegroup();
 
         return docIdToGroup.getNumGroups();
-    }
-
-    private static GroupRemapRule[] cleanUpRules(final GroupRemapRule[] rawRules, final int numGroups) {
-        final GroupRemapRule[] cleanRules = new GroupRemapRule[numGroups];
-        for (final GroupRemapRule rawRule : rawRules) {
-            if (rawRule.targetGroup >= cleanRules.length) {
-                continue; // or error?
-            }
-            if (cleanRules[rawRule.targetGroup] != null) {
-                continue; // or error?
-            }
-            cleanRules[rawRule.targetGroup] = rawRule;
-        }
-        return cleanRules;
     }
 
     private void resetLazyValues() {
@@ -2540,131 +2462,6 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         }
     }
 
-    private static class IntFieldConditionSummary {
-        long maxInequalityTerm = Long.MIN_VALUE;
-        final Set<Long> otherTerms = new HashSet<>();
-    }
-
-    private static class StringFieldConditionSummary {
-        String maxInequalityTerm = null;
-        final Set<String> otherTerms = new HashSet<>();
-    }
-
-    private void applyIntConditions(final GroupRemapRule[] remapRules,
-                                    final DocIdStream docIdStream,
-                                    final ThreadSafeBitSet docRemapped) {
-        final Map<String, IntFieldConditionSummary> intFields =
-                buildIntFieldConditionSummaryMap(remapRules);
-        for (final String intField : intFields.keySet()) {
-            final IntFieldConditionSummary summary = intFields.get(intField);
-            log.debug("[" + getSessionId() + "] Splitting groups using int field: " + intField);
-            try (final IntTermIterator itr = flamdexReader.getUnsortedIntTermIterator(intField)) {
-                final int[] docIdBuf = memoryPool.getIntBuffer(BUFFER_SIZE, true);
-
-                if (summary.maxInequalityTerm >= 0) {
-                    while (itr.next()) {
-                        final long itrTerm = itr.term();
-                        if (itrTerm > summary.maxInequalityTerm
-                                && !summary.otherTerms.contains(itrTerm)) {
-                            continue;
-                        }
-                        docIdStream.reset(itr);
-                        do {
-                            final int n = docIdStream.fillDocIdBuffer(docIdBuf);
-                            docIdToGroup.applyIntConditionsCallback(n,
-                                    docIdBuf,
-                                    docRemapped,
-                                    remapRules,
-                                    intField,
-                                    itrTerm);
-                            if (n != docIdBuf.length) {
-                                break;
-                            }
-                        } while (true);
-                    }
-                } else {
-                    for (final long term : summary.otherTerms) {
-                        itr.reset(term);
-                        if (itr.next() && itr.term() == term) {
-                            docIdStream.reset(itr);
-                            do {
-                                final int n = docIdStream.fillDocIdBuffer(docIdBuf);
-                                docIdToGroup.applyIntConditionsCallback(n,
-                                        docIdBuf,
-                                        docRemapped,
-                                        remapRules,
-                                        intField,
-                                        term);
-                                if (n != docIdBuf.length) {
-                                    break;
-                                }
-                            } while (true);
-                        }
-                    }
-                }
-                memoryPool.returnIntBuffer(docIdBuf);
-            }
-        }
-    }
-
-    private void applyStringConditions(final GroupRemapRule[] remapRules,
-                                       final DocIdStream docIdStream,
-                                       final ThreadSafeBitSet docRemapped) {
-        final Map<String, StringFieldConditionSummary> stringFields =
-                buildStringFieldConditionSummaryMap(remapRules);
-        for (final String stringField : stringFields.keySet()) {
-            final StringFieldConditionSummary summary = stringFields.get(stringField);
-            log.debug("[" + getSessionId() + "] Splitting groups using string field: " + stringField);
-
-            try (final StringTermIterator itr = flamdexReader.getStringTermIterator(stringField)) {
-                final int[] docIdBuf = memoryPool.getIntBuffer(BUFFER_SIZE, true);
-
-                if (summary.maxInequalityTerm != null) {
-                    while (itr.next()) {
-                        final String itrTerm = itr.term();
-                        if ((summary.maxInequalityTerm.compareTo(itrTerm) < 0)
-                                && !summary.otherTerms.contains(itrTerm)) {
-                            continue;
-                        }
-                        docIdStream.reset(itr);
-                        do {
-                            final int n = docIdStream.fillDocIdBuffer(docIdBuf);
-                            docIdToGroup.applyStringConditionsCallback(n,
-                                    docIdBuf,
-                                    docRemapped,
-                                    remapRules,
-                                    stringField,
-                                    itrTerm);
-                            if (n != docIdBuf.length) {
-                                break;
-                            }
-                        } while (true);
-                    }
-                } else {
-                    for (final String term : summary.otherTerms) {
-                        itr.reset(term);
-                        if (itr.next() && itr.term().equals(term)) {
-                            docIdStream.reset(itr);
-                            do {
-                                final int n = docIdStream.fillDocIdBuffer(docIdBuf);
-                                docIdToGroup.applyStringConditionsCallback(n,
-                                        docIdBuf,
-                                        docRemapped,
-                                        remapRules,
-                                        stringField,
-                                        term);
-                                if (n != docIdBuf.length) {
-                                    break;
-                                }
-                            } while (true);
-                        }
-                    }
-                }
-                memoryPool.returnIntBuffer(docIdBuf);
-            }
-        }
-    }
-
     static boolean checkStringCondition(final RegroupCondition condition,
                                         final String stringField,
                                         final String itrTerm) {
@@ -2714,113 +2511,6 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             }
         }
         return false;
-    }
-
-    private static Map<String, IntFieldConditionSummary> buildIntFieldConditionSummaryMap(final GroupRemapRule[] rules) {
-        final Map<String, IntFieldConditionSummary> ret =
-                new HashMap<>();
-        for (final GroupRemapRule rule : rules) {
-            if (rule == null) {
-                continue;
-            }
-            final RegroupCondition condition = rule.condition;
-            if (condition == null) {
-                continue;
-            }
-            if (!condition.intType) {
-                continue;
-            }
-            if (!condition.inequality) {
-                continue;
-            }
-
-            IntFieldConditionSummary entry = ret.get(condition.field);
-            if (entry == null) {
-                entry = new IntFieldConditionSummary();
-                ret.put(condition.field, entry);
-            }
-            entry.maxInequalityTerm = Math.max(entry.maxInequalityTerm, condition.intTerm);
-        }
-        for (final GroupRemapRule rule : rules) {
-            if (rule == null) {
-                continue;
-            }
-            final RegroupCondition condition = rule.condition;
-            if (condition == null) {
-                continue;
-            }
-            if (!condition.intType) {
-                continue;
-            }
-            if (condition.inequality) {
-                continue;
-            }
-
-            IntFieldConditionSummary entry = ret.get(condition.field);
-            if (entry == null) {
-                entry = new IntFieldConditionSummary();
-                ret.put(condition.field, entry);
-            }
-            if (condition.intTerm <= entry.maxInequalityTerm) {
-                continue;
-            }
-            entry.otherTerms.add(condition.intTerm);
-        }
-        return ret;
-    }
-
-    private static Map<String, StringFieldConditionSummary> buildStringFieldConditionSummaryMap(final GroupRemapRule[] rules) {
-        final Map<String, StringFieldConditionSummary> ret =
-                new HashMap<>();
-        for (final GroupRemapRule rule : rules) {
-            if (rule == null) {
-                continue;
-            }
-            final RegroupCondition condition = rule.condition;
-            if (condition == null) {
-                continue;
-            }
-            if (condition.intType) {
-                continue;
-            }
-            if (!condition.inequality) {
-                continue;
-            }
-
-            StringFieldConditionSummary entry = ret.get(condition.field);
-            if (entry == null) {
-                entry = new StringFieldConditionSummary();
-                ret.put(condition.field, entry);
-            }
-            entry.maxInequalityTerm = stringMax(entry.maxInequalityTerm, condition.stringTerm);
-        }
-        for (final GroupRemapRule rule : rules) {
-            if (rule == null) {
-                continue;
-            }
-            final RegroupCondition condition = rule.condition;
-            if (condition == null) {
-                continue;
-            }
-            if (condition.intType) {
-                continue;
-            }
-            if (condition.inequality) {
-                continue;
-            }
-
-            StringFieldConditionSummary entry = ret.get(condition.field);
-            if (entry == null) {
-                entry = new StringFieldConditionSummary();
-                ret.put(condition.field, entry);
-            }
-            if (entry.maxInequalityTerm != null
-                    && condition.stringTerm.compareTo(entry.maxInequalityTerm) <= 0) {
-                continue;
-            }
-            entry.otherTerms.add(condition.stringTerm);
-        }
-        return ret;
     }
 
     private static String stringMax(final String a, final String b) {

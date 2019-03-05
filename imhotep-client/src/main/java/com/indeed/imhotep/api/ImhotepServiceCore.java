@@ -12,9 +12,8 @@
  * limitations under the License.
  */
  package com.indeed.imhotep.api;
-
 import com.indeed.imhotep.GroupMultiRemapRule;
-import com.indeed.imhotep.GroupRemapRule;
+
 import com.indeed.imhotep.ImhotepStatusDump;
 import com.indeed.imhotep.QueryRemapRule;
 import com.indeed.imhotep.RegroupCondition;
@@ -35,8 +34,6 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 public interface ImhotepServiceCore {
     // session-based methods
-    int handleRegroup(String sessionId, GroupRemapRule[] remapRules) throws ImhotepOutOfMemoryException;
-    int handleRegroup(String sessionId, int numRemapRules, Iterator<GroupRemapRule> remapRules) throws ImhotepOutOfMemoryException;
     int handleQueryRegroup(String sessionId, QueryRemapRule remapRule) throws ImhotepOutOfMemoryException;
     int handleMultisplitRegroup(String sessionId, GroupMultiRemapRule[] remapRules, boolean errorOnCollisions) throws ImhotepOutOfMemoryException;
     int handleMultisplitRegroup(String sessionId, int numRemapRules, Iterator<GroupMultiRemapRule> remapRules, boolean errorOnCollisions) throws ImhotepOutOfMemoryException;

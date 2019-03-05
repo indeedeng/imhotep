@@ -101,12 +101,6 @@ public abstract class AbstractImhotepSession implements ImhotepSession {
     }
 
     @Override
-    public int regroup2(final int numRawRules, final Iterator<GroupRemapRule> iterator) throws ImhotepOutOfMemoryException {
-        final GroupRemapRuleArray rulesArray = new GroupRemapRuleArray(numRawRules, iterator);
-        return regroup(rulesArray.elements());
-    }
-
-    @Override
     public int regroup(final GroupMultiRemapRule[] rawRules) throws ImhotepOutOfMemoryException {
         return regroup(rawRules, false);
     }

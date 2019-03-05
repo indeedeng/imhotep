@@ -23,7 +23,6 @@ import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
 import com.indeed.flamdex.query.Query;
 import com.indeed.imhotep.GroupMultiRemapRule;
-import com.indeed.imhotep.GroupRemapRule;
 import com.indeed.imhotep.ImhotepRemoteSession;
 import com.indeed.imhotep.ImhotepStatusDump;
 import com.indeed.imhotep.Instrumentation;
@@ -46,7 +45,6 @@ import com.indeed.imhotep.io.NioPathUtil;
 import com.indeed.imhotep.io.Streams;
 import com.indeed.imhotep.marshal.ImhotepDaemonMarshaller;
 import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
-import com.indeed.imhotep.protobuf.GroupRemapMessage;
 import com.indeed.imhotep.protobuf.HostAndPort;
 import com.indeed.imhotep.protobuf.ImhotepRequest;
 import com.indeed.imhotep.protobuf.ImhotepResponse;
@@ -325,52 +323,6 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 service.handleCloseSession(sessionId);
             }
             return builder.build();
-        }
-
-        private ImhotepResponse regroup(final ImhotepRequest          request,
-                                        final ImhotepResponse.Builder builder)
-            throws ImhotepOutOfMemoryException {
-            final List<GroupRemapMessage> remapRulesList = request.getRemapRulesList();
-            final GroupRemapRule[] groupRemapMessageList =
-                ImhotepDaemonMarshaller.marshalGroupRemapMessageList(remapRulesList);
-            final int numGroups =
-                service.handleRegroup(request.getSessionId(), groupRemapMessageList);
-            builder.setNumGroups(numGroups);
-            return builder.build();
-        }
-
-        private ImhotepResponse explodedRegroup(
-                final ImhotepRequest          request,
-                final ImhotepResponse.Builder builder,
-                final InputStream             is)
-            throws ImhotepOutOfMemoryException {
-            final int numRules = request.getLength();
-            final int numGroups =
-                service.handleRegroup(request.getSessionId(),
-                                      numRules,
-                                      new UnmodifiableIterator<GroupRemapRule>() {
-                                          private int i = 0;
-
-                                          @Override
-                                          public boolean hasNext() {
-                                              return i < numRules;
-                                          }
-
-                                          @Override
-                                          public GroupRemapRule next() {
-                                              try {
-                                                  final GroupRemapMessage message =
-                                                  ImhotepProtobufShipping.readGroupRemapMessage(is);
-                                                  final GroupRemapRule rule =
-                                                  ImhotepDaemonMarshaller.marshal(message);
-                                                  i++;
-                                                  return rule;
-                                              } catch (final IOException e) {
-                                                  throw Throwables.propagate(e);
-                                              }
-                                          }
-                                      });
-            return builder.setNumGroups(numGroups).build();
         }
 
         private ImhotepResponse queryRegroup(
@@ -987,12 +939,6 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                             break;
                         case CLOSE_SESSION:
                             response = closeSession(request, builder);
-                            break;
-                        case REGROUP:
-                            response = regroup(request, builder);
-                            break;
-                        case EXPLODED_REGROUP:
-                            response = explodedRegroup(request, builder, is);
                             break;
                         case QUERY_REGROUP:
                             response = queryRegroup(request, builder);

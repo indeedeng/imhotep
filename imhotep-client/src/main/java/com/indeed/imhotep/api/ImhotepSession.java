@@ -15,7 +15,6 @@
 
 import com.indeed.flamdex.query.Query;
 import com.indeed.imhotep.GroupMultiRemapRule;
-import com.indeed.imhotep.GroupRemapRule;
 import com.indeed.imhotep.Instrumentation;
 import com.indeed.imhotep.QueryRemapRule;
 import com.indeed.imhotep.RegroupCondition;
@@ -188,31 +187,6 @@ public interface ImhotepSession
                           boolean errorOnCollisions) throws ImhotepOutOfMemoryException;
 
     int regroup(int numRawRules, Iterator<GroupMultiRemapRule> rawRules, boolean errorOnCollisions) throws ImhotepOutOfMemoryException;
-
-    /**
-     * apply the list of remap rules to remap documents into a different group. Preconditions:
-     *
-     * <ul>
-     *     <li>Each rule has a different targetGroup
-     *     <li>All targetGroups are non-negative
-     * </ul>
-     *
-     * After the regroup operation:
-     *
-     * <ul>
-     *     <li>If a document was matched by some rule (its original group was equal to the rule's targetGroup)
-     *     then its new group is the rule's positiveGroup or negativeGroup, depending on whether it matched
-     *     the rule's condition.
-     *     <li>Otherwise, the document's new group is 0.
-     * </ul>
-     *
-     * @param rawRules list of remap rules
-     * @return the number of groups after applying the regroup
-     * @throws ImhotepOutOfMemoryException if performing this operation would cause imhotep to run out of memory
-     */
-    int regroup(GroupRemapRule[] rawRules) throws ImhotepOutOfMemoryException;
-
-    int regroup2(int numRawRules, Iterator<GroupRemapRule> iterator) throws ImhotepOutOfMemoryException;
 
     /**
      * apply this query to the dataset and regroup based on whether or not a document matches the query
