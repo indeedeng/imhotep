@@ -64,6 +64,7 @@ import org.apache.log4j.NDC;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import javax.annotation.WillNotClose;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -933,6 +934,13 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             return builder.build();
         }
 
+        private void getAndSendShardFile(
+                final ImhotepRequest request,
+                final ImhotepResponse.Builder builder,
+                @WillNotClose final OutputStream os) throws IOException {
+            service.handleGetAndSendShardFile(request.getShardFilePath(), builder, os);
+        }
+
         private void shutdown(
                 final ImhotepRequest request,
                 final InputStream    is,
@@ -977,7 +985,6 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                     if (request.hasSessionId()) {
                         NDC.push(request.getSessionId());
                     }
-
                     log.debug("received request of type " + request.getRequestType() +
                              ", building response");
                     final ImhotepResponse.Builder builder = ImhotepResponse.newBuilder();
@@ -1115,6 +1122,9 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                             break;
                         case REMAP_GROUPS:
                             response = remapGroups(request, builder);
+                            break;
+                        case GET_SHARD_FILE:
+                            getAndSendShardFile(request, builder, os);
                             break;
                         case SHUTDOWN:
                             shutdown(request, is, os);

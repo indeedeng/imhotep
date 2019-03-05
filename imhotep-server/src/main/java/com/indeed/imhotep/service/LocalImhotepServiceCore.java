@@ -23,9 +23,12 @@ import com.indeed.imhotep.ImhotepStatusDump;
 import com.indeed.imhotep.MemoryReservationContext;
 import com.indeed.imhotep.MemoryReserver;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
+import com.indeed.imhotep.fs.RemoteCachingPath;
+import com.indeed.imhotep.io.ImhotepProtobufShipping;
 import com.indeed.imhotep.local.ImhotepJavaLocalSession;
 import com.indeed.imhotep.local.ImhotepLocalSession;
 import com.indeed.imhotep.local.MTImhotepLocalMultiSession;
+import com.indeed.imhotep.protobuf.ImhotepResponse;
 import com.indeed.imhotep.protobuf.ShardNameNumDocsPair;
 import com.indeed.imhotep.scheduling.SchedulerType;
 import com.indeed.imhotep.scheduling.TaskScheduler;
@@ -33,14 +36,21 @@ import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.core.reference.SharedReference;
 import com.indeed.util.core.shell.PosixFileOperations;
 import com.indeed.util.varexport.VarExporter;
+import org.apache.commons.io.IOUtils;
 import org.apache.log4j.Logger;
 
 import javax.annotation.Nullable;
+import javax.annotation.WillNotClose;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.URI;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -218,6 +228,36 @@ public class LocalImhotepServiceCore
         final List<ImhotepStatusDump.SessionDump> openSessions =
                 getSessionManager().getSessionDump();
         return new ImhotepStatusDump(usedMemory, totalMemory, openSessions);
+    }
+
+    @Override
+    public void handleGetAndSendShardFile(
+            final String filePath,
+            final ImhotepResponse.Builder builder,
+            @WillNotClose final OutputStream os) throws IOException {
+        final Path path = getShardFilePath(filePath);
+        builder.setFileLength(Files.size(path));
+
+        log.debug("sending shard file response");
+        ImhotepProtobufShipping.sendProtobufNoFlush(builder.build(), os);
+        try (final InputStream is = Files.newInputStream(path)) {
+            IOUtils.copy(is, os);
+        }
+        os.flush();
+        log.debug("shard file response sent");
+    }
+
+    private Path getShardFilePath(final String filePath) throws IOException {
+        final Path path = Paths.get(URI.create(filePath));
+        if (!(path instanceof RemoteCachingPath)) {
+            throw new IllegalArgumentException("path is not a valid RemoteCachingPath, path = " + path);
+        }
+        // it throws IllegalStateException with "unexpected error" message by the cacheLoader if the file doesn't exist
+        // here check if the file exists and throw NoSuchFileException manually with readable messages
+        if (!Files.exists(path)) {
+            throw new NoSuchFileException(filePath);
+        }
+        return path;
     }
 
     @Override

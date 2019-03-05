@@ -149,6 +149,7 @@ message ImhotepRequest {
     REMAP_GROUPS = 50;
     MERGE_MULTI_FTGS_SPLIT = 51;
     MERGE_MULTI_DISTINCT_SPLIT = 52;
+    GET_SHARD_FILE = 53;
     SHUTDOWN = 255;
   }
 
@@ -313,6 +314,9 @@ message ImhotepRequest {
   // used in everything that takes a List<String> stat or List<List<String>> stats
   repeated DocStat docStat = 70;
   optional bool hasStats = 71 [default=false];
+
+  // for download shard files
+  optional string shardFilePath = 73;
 }
 
 message DocStat {
@@ -429,6 +433,9 @@ message ImhotepResponse {
 
   // for openSession() forwarding the session to a different port
   optional uint32 new_port = 17 [default = 0];
+
+  // for download shard files
+  optional uint64 fileLength = 18;
 }
 
 enum Operator {
