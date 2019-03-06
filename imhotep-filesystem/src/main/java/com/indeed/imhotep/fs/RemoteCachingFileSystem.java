@@ -54,6 +54,7 @@ class RemoteCachingFileSystem extends FileSystem {
     private final RemoteCachingFileSystemProvider provider;
     private final SqarRemoteFileStore fileStore;
     private final LocalFileCache fileCache;
+    private final P2PCachingFileStore p2PCachingFileStore;
 
     RemoteCachingFileSystem(final RemoteCachingFileSystemProvider provider, final Map<String, ?> configuration, final MetricStatsEmitter statsEmitter) throws IOException {
         this.provider = provider;
@@ -62,6 +63,7 @@ class RemoteCachingFileSystem extends FileSystem {
                 .getFactory().create(configuration, statsEmitter);
 
         fileStore = new SqarRemoteFileStore(backingFileStore, configuration);
+        p2PCachingFileStore = new P2PCachingFileStore(this, configuration, statsEmitter);
 
         final URI cacheRootUri;
         try {
@@ -81,13 +83,16 @@ class RemoteCachingFileSystem extends FileSystem {
                         fileStore.downloadFile(src, dest);
                     }
                 },
-                statsEmitter
+                statsEmitter,
+                "file.cache"
         );
 
     }
 
-
     Path getCachePath(final RemoteCachingPath path) throws ExecutionException, IOException {
+        if (path instanceof P2PCachingPath) {
+            return p2PCachingFileStore.getCachedPath(path);
+        }
         return fileCache.cache(path);
     }
 
@@ -143,7 +148,11 @@ class RemoteCachingFileSystem extends FileSystem {
 
     @Override
     public Path getPath(final String first, final String... more) {
-        return new RemoteCachingPath(this, Joiner.on(RemoteCachingPath.PATH_SEPARATOR_STR).join(Lists.asList(first, more)));
+        return getPath(Joiner.on(RemoteCachingPath.PATH_SEPARATOR_STR).join(Lists.asList(first, more)));
+    }
+
+    private Path getPath(final String path) {
+        return (P2PCachingPath.isP2PCachingPath(path) ? new P2PCachingPath(this, path) : new RemoteCachingPath(this, path));
     }
 
     Iterable<RemoteFileStore.RemoteFileAttributes> listDirWithAttributes(final RemoteCachingPath path) throws IOException {
@@ -151,6 +160,7 @@ class RemoteCachingFileSystem extends FileSystem {
     }
 
     Iterable<RemoteCachingPath> listDir(final RemoteCachingPath path) throws IOException {
+        // TODO: I think no need to implement the listDir for P2PCachingFileStore?
         return Iterables.transform(fileStore.listDir(path), new Function<RemoteFileStore.RemoteFileAttributes, RemoteCachingPath>() {
             @Override
             public RemoteCachingPath apply(final RemoteFileStore.RemoteFileAttributes remoteFileAttributes) {
@@ -162,7 +172,11 @@ class RemoteCachingFileSystem extends FileSystem {
     SeekableByteChannel newByteChannel(final RemoteCachingPath path) throws IOException {
         final LocalFileCache.ScopedCacheFile scopedCacheFile;
         try {
-            scopedCacheFile = fileCache.getForOpen(path);
+            if (path instanceof P2PCachingPath) {
+                scopedCacheFile = p2PCachingFileStore.getOrOpen(path);
+            } else {
+                scopedCacheFile = fileCache.getForOpen(path);
+            }
         } catch (final ExecutionException e) {
             throw new IOException("Failed to access cache file for " + path, e);
         }

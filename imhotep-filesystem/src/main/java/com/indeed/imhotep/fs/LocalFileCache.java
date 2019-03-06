@@ -64,8 +64,13 @@ class LocalFileCache {
     private static final int FAST_REPORTING_FREQUENCY_MILLIS = 100;
     private static final int SLOW_REPORTING_FREQUENCY_MINUTES = 60;
 
-    LocalFileCache(final RemoteCachingFileSystem fs, final Path cacheRootDir, final long diskSpaceCapacity, final int diskBlockSize, final CacheFileLoader cacheFileLoader) throws IOException {
-        this(fs, cacheRootDir, diskSpaceCapacity, diskBlockSize, cacheFileLoader, MetricStatsEmitter.NULL_EMITTER);
+    LocalFileCache(
+            final RemoteCachingFileSystem fs,
+            final Path cacheRootDir,
+            final long diskSpaceCapacity,
+            final int diskBlockSize,
+            final CacheFileLoader cacheFileLoader) throws IOException {
+        this(fs, cacheRootDir, diskSpaceCapacity, diskBlockSize, cacheFileLoader, MetricStatsEmitter.NULL_EMITTER, "");
     }
 
     LocalFileCache(
@@ -74,12 +79,13 @@ class LocalFileCache {
             final long diskSpaceCapacity,
             final int diskBlockSize,
             final CacheFileLoader cacheFileLoader,
-            final MetricStatsEmitter statsEmitter) throws IOException {
+            final MetricStatsEmitter statsEmitter,
+            final String statsTypePrefix) throws IOException {
         this.cacheRootDir = cacheRootDir;
         this.diskSpaceCapacity = diskSpaceCapacity;
         this.statsEmitter = statsEmitter;
 
-        final CacheStatsEmitter cacheFileStatsEmitter = new CacheStatsEmitter();
+        final CacheStatsEmitter cacheFileStatsEmitter = new CacheStatsEmitter(statsTypePrefix);
         final ScheduledExecutorService fastStatsReportingExecutor =
                 Executors.newSingleThreadScheduledExecutor(new ThreadFactoryBuilder().setNameFormat("sumCacheOldestFileReferencedFilesSizeReporter").setDaemon(true).build());
         fastStatsReportingExecutor.scheduleAtFixedRate(cacheFileStatsEmitter::reportFastFreqStats, FAST_REPORTING_FREQUENCY_MILLIS, FAST_REPORTING_FREQUENCY_MILLIS, TimeUnit.MILLISECONDS);
@@ -135,6 +141,11 @@ class LocalFileCache {
 
 
     private class CacheStatsEmitter{
+        private final String statsTypePrefix;
+
+        public CacheStatsEmitter(final String statsTypePrefix) {
+            this.statsTypePrefix = statsTypePrefix;
+        }
 
         private SumCacheFileSizeIntervals getSumCacheFilesSize() {
             final SumCacheFileSizeIntervals sumCacheFileStats;
@@ -154,24 +165,24 @@ class LocalFileCache {
         }
 
         public void reportFastFreqStats() { // reports total cache size, sum of size of referenced files, oldest file age
-            statsEmitter.histogram("file.cache.total.size", getCacheUsage());
+            statsEmitter.histogram(statsTypePrefix + ".total.size", getCacheUsage());
             int oldestFileAgeSeconds = unusedFilesCache.getOldestFileAccessTime();
 
             if (oldestFileAgeSeconds != Integer.MIN_VALUE) {  // ignoring the files never accessed.
                 int currentTimeMinutes = (int)TimeUnit.MILLISECONDS.toMinutes(System.currentTimeMillis());
                 int minutesSinceLastAccess = currentTimeMinutes - (oldestFileAgeSeconds/60);
-                statsEmitter.histogram("file.cache.oldest.file.age.minutes", minutesSinceLastAccess);
+                statsEmitter.histogram(statsTypePrefix + ".oldest.file.age.minutes", minutesSinceLastAccess);
             }
 
-            statsEmitter.histogram("file.cache.referenced.files.size", referencedFilesCacheSize.get());
+            statsEmitter.histogram(statsTypePrefix + ".referenced.files.size", referencedFilesCacheSize.get());
         }
 
         public void reportSumCacheFileSize() {
             SumCacheFileSizeIntervals sumCacheFilesStats = getSumCacheFilesSize();
 
-            statsEmitter.gauge("sum.cache.file.size.minute", sumCacheFilesStats.minuteSum);
-            statsEmitter.gauge("sum.cache.file.size.hour", sumCacheFilesStats.hourSum);
-            statsEmitter.gauge("sum.cache.file.size.day", sumCacheFilesStats.daySum);
+            statsEmitter.gauge(statsTypePrefix + "sum.cache.sum.size.minute", sumCacheFilesStats.minuteSum);
+            statsEmitter.gauge(statsTypePrefix + "sum.cache.sum.size.hour", sumCacheFilesStats.hourSum);
+            statsEmitter.gauge(statsTypePrefix + ".sum.size.day", sumCacheFilesStats.daySum);
         }
     }
 
