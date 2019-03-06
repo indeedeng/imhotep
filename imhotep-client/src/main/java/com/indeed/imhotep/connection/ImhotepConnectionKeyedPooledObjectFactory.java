@@ -50,7 +50,15 @@ public class ImhotepConnectionKeyedPooledObjectFactory implements KeyedPooledObj
     @Override
     public boolean validateObject(final Host host, final PooledObject<ImhotepConnection> pooledObject) {
         final Socket socket = pooledObject.getObject().getSocket();
-        return socket.isConnected() && !socket.isClosed();
+        if (!socket.isConnected() || socket.isClosed()) {
+            return false;
+        }
+        try {
+            // minimum check if there is remained data in the socket stream
+            return socket.getInputStream().available() == 0;
+        } catch (final Exception e) {
+            return false;
+        }
     }
 
     @Override

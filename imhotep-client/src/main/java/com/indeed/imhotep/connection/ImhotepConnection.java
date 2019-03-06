@@ -13,22 +13,22 @@ import java.net.Socket;
 public class ImhotepConnection implements Closeable {
     private static final Logger logger = Logger.getLogger(ImhotepConnection.class);
 
-    private KeyedObjectPool<Host, ImhotepConnection> keyedObjectPool;
+    private KeyedObjectPool<Host, ImhotepConnection> sourcePool;
     private Socket socket;
     private Host host;
 
-    ImhotepConnection(final KeyedObjectPool keyedObjectPool, final Socket socket, final Host host) {
+    ImhotepConnection(final KeyedObjectPool sourcePool, final Socket socket, final Host host) {
+        this.sourcePool = sourcePool;
         this.socket = socket;
         this.host = host;
-        this.keyedObjectPool = keyedObjectPool;
     }
 
     /**
      * Mark a connection as invalid and remove it from the connection pool
      */
-    void markAsInvalid() {
+    public void markAsInvalid() {
         try {
-            keyedObjectPool.invalidateObject(host, this);
+            sourcePool.invalidateObject(host, this);
         } catch (final Exception e) {
             logger.warn("Errors happened when setting connection as invalid, connection is " + this, e);
         }
@@ -39,20 +39,20 @@ public class ImhotepConnection implements Closeable {
     }
 
     @Override
-    public String toString() {
-        return "ImhotepConnection{" +
-                ", socket=" + socket +
-                ", host=" + host +
-                '}';
-    }
-
-    @Override
     public void close() {
-        // keyedObjectPool already handles the idempotency
+        // KeyedObjectPool already handles the idempotency
         try {
-            keyedObjectPool.returnObject(host, this);
+            sourcePool.returnObject(host, this);
         } catch (final Exception e) {
             logger.warn("Errors happened when returning connection " + this, e);
         }
+    }
+
+    @Override
+    public String toString() {
+        return "ImhotepConnection{" +
+                "socket=" + socket +
+                ", host=" + host +
+                '}';
     }
 }
