@@ -15,6 +15,7 @@
 package com.indeed.imhotep;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
 import com.google.common.io.ByteStreams;
 import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Ints;
@@ -159,9 +160,9 @@ public class FTGSIteratorUtil {
             final int sortStat,
             final StatsSortOrder statsSortOrder) {
         try (final SilentCloseable ignored = originalIterator) {
-            if ((termLimit <= 0) || (sortStat < 0) || (sortStat >= originalIterator.getNumStats()) || (statsSortOrder == StatsSortOrder.UNDEFINED)) {
-                throw new IllegalArgumentException("TopTerms expect positive termLimit, valid sortStat index and ASCENDING/DESCENDING sortorder");
-            }
+            Preconditions.checkArgument(termLimit > 0, "TopTerms expects positive termLimit");
+            Preconditions.checkArgument(sortStat >= 0, "TopTerms expects sortStat index >= 0");
+            Preconditions.checkArgument(statsSortOrder != StatsSortOrder.UNDEFINED, "TopTerms does not accept UNDEFINED stats sort order");
             return getTopTermsFTGSIteratorInternal(originalIterator, termLimit, sortStat, statsSortOrder);
         }
     }
@@ -172,9 +173,9 @@ public class FTGSIteratorUtil {
             final int sortStat,
             final StatsSortOrder statsSortOrder) {
         try (final SilentCloseable ignored = originalIterator) {
-            if ((termLimit <= 0) || (sortStat < 0) || (sortStat >= originalIterator.getNumStats()) || (statsSortOrder == StatsSortOrder.UNDEFINED)) {
-                throw new IllegalArgumentException("TopTerms expect positive termLimit, valid sortStat index and ASCENDING/DESCENDING sortorder");
-            }
+            Preconditions.checkArgument(termLimit > 0, "TopTerms expects positive termLimit");
+            Preconditions.checkArgument(sortStat >= 0, "TopTerms expects sortStat index >= 0");
+            Preconditions.checkArgument(statsSortOrder != StatsSortOrder.UNDEFINED, "TopTerms does not accept UNDEFINED stats sort order");
             return getTopTermsFTGSIteratorInternal(originalIterator, termLimit, sortStat, statsSortOrder);
         }
     }
