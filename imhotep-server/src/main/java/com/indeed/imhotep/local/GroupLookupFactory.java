@@ -21,7 +21,7 @@ public class GroupLookupFactory {
     }
 
     private interface GroupLookupCreator {
-        GroupLookup createLookup(ImhotepLocalSession session, int size);
+        GroupLookup createLookup(int size);
         long calcMemUsageForSize(int size);
         int getMaxGroup();
     }
@@ -30,8 +30,8 @@ public class GroupLookupFactory {
         //BitSetGroupLookup
         new GroupLookupCreator() {
             @Override
-            public GroupLookup createLookup(final ImhotepLocalSession session, final int size) {
-                return new BitSetGroupLookup(session, size);
+            public GroupLookup createLookup(final int size) {
+                return new BitSetGroupLookup(size);
             }
 
             @Override
@@ -48,8 +48,8 @@ public class GroupLookupFactory {
         //ByteGroupLookup
         new GroupLookupCreator() {
             @Override
-            public GroupLookup createLookup(final ImhotepLocalSession session, final int size) {
-                return new ByteGroupLookup(session, size);
+            public GroupLookup createLookup(final int size) {
+                return new ByteGroupLookup(size);
             }
 
             @Override
@@ -66,8 +66,8 @@ public class GroupLookupFactory {
         //CharGroupLookup
         new GroupLookupCreator() {
             @Override
-            public GroupLookup createLookup(final ImhotepLocalSession session, final int size) {
-                return new CharGroupLookup(session, size);
+            public GroupLookup createLookup(final int size) {
+                return new CharGroupLookup(size);
             }
 
             @Override
@@ -84,8 +84,8 @@ public class GroupLookupFactory {
         //IntGroupLookup
         new GroupLookupCreator() {
             @Override
-            public GroupLookup createLookup(final ImhotepLocalSession session, final int size) {
-                return new IntGroupLookup(session, size);
+            public GroupLookup createLookup(final int size) {
+                return new IntGroupLookup(size);
             }
 
             @Override
@@ -112,7 +112,6 @@ public class GroupLookupFactory {
 
     public static GroupLookup create(final int maxGroup,
                                      final int size,
-                                     final ImhotepLocalSession session,
                                      final MemoryReserver memory) throws ImhotepOutOfMemoryException {
 
         final GroupLookupCreator lookupCreator = findCreator(maxGroup);
@@ -120,7 +119,7 @@ public class GroupLookupFactory {
         if (!memory.claimMemory(memoryUsage)) {
             throw new ImhotepOutOfMemoryException();
         }
-        return lookupCreator.createLookup(session, size);
+        return lookupCreator.createLookup(size);
     }
 
     public static GroupLookup resize(final GroupLookup existingGL,
@@ -130,7 +129,7 @@ public class GroupLookupFactory {
 
         if (maxGroup > existingGL.maxGroup()) {
             /* need a bigger group */
-            newGL = create(maxGroup, existingGL.size(), existingGL.getSession(), memory);
+            newGL = create(maxGroup, existingGL.size(), memory);
         } else {
             /* check if the group lookup can be shrunk */
             final int newMaxgroup = Math.max(maxGroup, existingGL.getNumGroups());
@@ -147,7 +146,7 @@ public class GroupLookupFactory {
                 return existingGL;
             }
 
-            newGL = factory.createLookup(existingGL.getSession(), existingGL.size());
+            newGL = factory.createLookup(existingGL.size());
         }
         existingGL.copyInto(newGL);
         memory.releaseMemory(existingGL.memoryUsed());

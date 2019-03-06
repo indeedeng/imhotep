@@ -204,11 +204,11 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
         final long time = System.currentTimeMillis();
 
         /* pop off all the stats, they will be repushed after the optimization */
-        final List<String> statsCopy = new ArrayList<>(this.statCommands);
-        while (this.numStats > 0) {
+        final List<String> statsCopy = new ArrayList<>(metricStack.getStatCommands());
+        while (metricStack.getNumStats() > 0) {
             this.popStat();
         }
-        this.statCommands.clear();
+        metricStack.clearStatCommands();
 
         final Path writerOutputDir;
         try {
@@ -324,11 +324,11 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
         }
 
         /* pop off all the stats, they will be repushed after the flamdex reset */
-        statsCopy = new ArrayList<>(this.statCommands);
-        while (this.numStats > 0) {
+        statsCopy = new ArrayList<>(metricStack.getStatCommands());
+        while (metricStack.getNumStats() > 0) {
             this.popStat();
         }
-        this.statCommands.clear();
+        metricStack.clearStatCommands();
 
         /* read in all the optimization records */
         try {
@@ -434,7 +434,7 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
     }
 
     @Override
-    protected void addGroupStats(final int stat, final long[] partialResult) {
+    protected void addGroupStats(final List<String> stat, final long[] partialResult) throws ImhotepOutOfMemoryException {
 
         if (isFilteredOut()) {
             return;
@@ -444,12 +444,17 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
         final int[] docGroupBuffer = memoryPool.getIntBuffer(ImhotepLocalSession.BUFFER_SIZE, true);
         final long[] valueBuffer = memoryPool.getLongBuffer(ImhotepLocalSession.BUFFER_SIZE, true);
 
-        updateGroupStatsAllDocs(statLookup.get(stat),
-                partialResult,
-                docIdToGroup,
-                docGroupBuffer,
-                docIdBuffer,
-                valueBuffer);
+        try (final MetricStack stack = new MetricStack()) {
+            final IntValueLookup lookup = stack.push(stat);
+            updateGroupStatsAllDocs(
+                    lookup,
+                    partialResult,
+                    docIdToGroup,
+                    docGroupBuffer,
+                    docIdBuffer,
+                    valueBuffer
+            );
+        }
         memoryPool.returnIntBuffer(docIdBuffer);
         memoryPool.returnIntBuffer(docGroupBuffer);
         memoryPool.returnLongBuffer(valueBuffer);

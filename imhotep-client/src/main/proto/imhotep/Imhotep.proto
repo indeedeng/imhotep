@@ -120,7 +120,7 @@ message ImhotepRequest {
     STRING_OR_REGROUP = 15;
     QUERY_REGROUP = 16;
     METRIC_REGROUP = 17;
-    METRIC_REGROUP_2D = 18;
+    DELETED___METRIC_REGROUP_2D = 18;
     CREATE_DYNAMIC_METRIC = 19;
     UPDATE_DYNAMIC_METRIC = 20;
     RESET_GROUPS = 21;
@@ -199,17 +199,18 @@ message ImhotepRequest {
   // for queryRegroup()
   optional QueryRemapMessage query_remap_rule = 20;
 
-  // for metricRegroup() and metricRegroup2D()
-  optional int32 x_stat = 21;
+  // for metricRegroup()
+  optional int32 deleted___x_stat = 21;
+  optional DocStat x_stat_docstat = 72;
   optional int64 x_min = 22;
   optional int64 x_max = 23;
   optional int64 x_interval_size = 24;
 
   // for metricRegroup2D()
-  optional int32 y_stat = 25;
-  optional int64 y_min = 26;
-  optional int64 y_max = 27;
-  optional int64 y_interval_size = 28;
+  optional int32 deleted___y_stat = 25;
+  optional int64 deleted___y_min = 26;
+  optional int64 deleted___y_max = 27;
+  optional int64 deleted___y_interval_size = 28;
   
   // used in openSession()  
   optional int32 merge_thread_limit = 29 [default = 0];
@@ -315,8 +316,16 @@ message ImhotepRequest {
   // for MERGE_MULTI_FTGS_SPLIT and MERGE_MULTI_DISTINCT_SPLIT
   optional MultiFTGSRequest multiFtgsRequest = 69;
 
-  // for topK and bottomK 
-  optional StatsSortOrder statsSortOrder = 70;
+  // used in everything that takes a List<String> stat or List<List<String>> stats
+  repeated DocStat docStat = 70;
+  optional bool hasStats = 71 [default=false];
+
+  //for topK and bottomK
+  optional StatsSortOrder statsSortOrder = 73;
+}
+
+message DocStat {
+  repeated string stat = 1;
 }
 
 message AggregateStat {
@@ -348,6 +357,8 @@ message MultiFTGSRequest {
     repeated HostAndPort nodes = 1;
     optional string session_id = 2;
     optional string field = 3;
+    repeated DocStat stats = 4;
+    optional bool hasStats = 5 [default=false];
   }
 
   repeated MultiFTGSSession sessionInfo = 1;

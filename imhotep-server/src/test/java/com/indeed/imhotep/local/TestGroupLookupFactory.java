@@ -88,7 +88,7 @@ public class TestGroupLookupFactory {
 
     private void testLookup(final int index) {
         try {
-            final GroupLookup lookup = GroupLookupFactory.create(MAX_SIZE[index], 10, null, memory);
+            final GroupLookup lookup = GroupLookupFactory.create(MAX_SIZE[index], 10, memory);
 
             // lookup is extending to every bigger lookup
             for(int i = index + 1; i < MAX_SIZE.length; i++) {

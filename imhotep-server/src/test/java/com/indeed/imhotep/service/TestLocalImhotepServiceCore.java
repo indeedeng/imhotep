@@ -83,7 +83,7 @@ public class TestLocalImhotepServiceCore {
                 @Override
                 public void run() {
                     try {
-                        service.handleGetFTGSIterator(sessionId, new FTGSParams(new String[]{"if1"}, new String[0], 0, -1, true, StatsSortOrder.UNDEFINED), os);
+                        service.handleGetFTGSIterator(sessionId, new FTGSParams(new String[]{"if1"}, new String[0], 0, -1, true, null, StatsSortOrder.UNDEFINED), os);
                         fail();
                     } catch (final Exception expected) {
                         expected.printStackTrace();

@@ -246,10 +246,7 @@ public class IndexReWriter {
         final int[] mapping = new int[nTotalDocs];
 
         /* populate mapping and new GroupLookup */
-        final GroupLookup newGL = GroupLookupFactory.create(numGroups,
-                                                      newNumDocs, 
-                                                      this.newSession, 
-                                                      memory);
+        final GroupLookup newGL = GroupLookupFactory.create(numGroups, newNumDocs, memory);
         for (int i = 0; i < sessions.size(); i++) {
             final GroupLookup gl = sessions.get(i).docIdToGroup;
             final int offset = this.sessionDocIdOffsets[i];

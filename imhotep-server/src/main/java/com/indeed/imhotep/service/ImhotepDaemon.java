@@ -15,6 +15,7 @@ package com.indeed.imhotep.service;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.UnmodifiableIterator;
 import com.google.common.primitives.Doubles;
@@ -34,6 +35,7 @@ import com.indeed.imhotep.api.FTGSParams;
 import com.indeed.imhotep.api.GroupStatsIterator;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepServiceCore;
+import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.api.PerformanceStats;
 import com.indeed.imhotep.client.Host;
 import com.indeed.imhotep.exceptions.ImhotepKnownException;
@@ -68,7 +70,6 @@ import java.io.OutputStream;
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadMXBean;
 import java.net.InetAddress;
-import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
@@ -444,7 +445,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 final ImhotepResponse.Builder builder)
                 throws ImhotepOutOfMemoryException {
             service.handleRandomMetricRegroup(request.getSessionId(),
-                    request.getStat(),
+                    getSingleStat(request),
                     request.getSalt(),
                     request.getP(),
                     request.getTargetGroup(),
@@ -458,7 +459,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 final ImhotepResponse.Builder builder)
                 throws ImhotepOutOfMemoryException {
             service.handleRandomMetricMultiRegroup(request.getSessionId(),
-                    request.getStat(),
+                    getSingleStat(request),
                     request.getSalt(),
                     request.getTargetGroup(),
                     Doubles.toArray(request.getPercentagesList()),
@@ -505,11 +506,13 @@ public class ImhotepDaemon implements Instrumentation.Provider {
         }
 
         private Pair<ImhotepResponse, GroupStatsIterator> getStreamingGroupStats(final ImhotepRequest request,
-                                                            final ImhotepResponse.Builder builder)
-        {
+                                                            final ImhotepResponse.Builder builder) throws ImhotepOutOfMemoryException {
+            final List<String> stat = getSingleStat(request);
             final GroupStatsIterator groupStats =
-                service.handleGetGroupStats(request.getSessionId(),
-                                            request.getStat());
+                service.handleGetGroupStats(
+                        request.getSessionId(),
+                        stat
+                );
             builder.setGroupStatSize(groupStats.getNumGroups());
             return Pair.of(builder.build(), groupStats);
         }
@@ -538,7 +541,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             return Pair.of(builder.build(), groupStats);
         }
 
-        private Pair<ImhotepResponse, GroupStatsIterator> mergeMultiDistinctSplit(final ImhotepRequest request, final ImhotepResponse.Builder builder) {
+        private Pair<ImhotepResponse, GroupStatsIterator> mergeMultiDistinctSplit(final ImhotepRequest request, final ImhotepResponse.Builder builder) throws ImhotepOutOfMemoryException {
             final MultiFTGSRequest multiFtgsRequest = request.getMultiFtgsRequest();
 
             final String localSessionId = chooseMultiFtgsLocalSessionId(multiFtgsRequest);
@@ -562,15 +565,16 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                     request.getTermLimit(),
                     request.getSortStat(),
                     request.getSortedFTGS(),
+                    getStats(request),
                     request.getStatsSortOrder()
-                    );
+            );
         }
 
         private void getFTGSIterator(
                 final ImhotepRequest          request,
                 final ImhotepResponse.Builder builder,
                 final OutputStream            os)
-            throws IOException {
+                throws IOException, ImhotepOutOfMemoryException {
             checkSessionValidity(request);
             service.handleGetFTGSIterator(request.getSessionId(),
                                           getFTGSParams(request),
@@ -583,10 +587,13 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 final OutputStream            os)
             throws IOException, ImhotepOutOfMemoryException {
             checkSessionValidity(request);
-            service.handleGetSubsetFTGSIterator(request.getSessionId(),
-                                                getIntFieldsToTerms(request),
-                                                getStringFieldsToTerms(request),
-                                                os);
+            service.handleGetSubsetFTGSIterator(
+                    request.getSessionId(),
+                    getIntFieldsToTerms(request),
+                    getStringFieldsToTerms(request),
+                    getStats(request),
+                    os
+            );
         }
 
         private void getFTGSSplit(
@@ -595,13 +602,16 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 final OutputStream            os)
             throws IOException, ImhotepOutOfMemoryException {
             checkSessionValidity(request);
-            service.handleGetFTGSIteratorSplit(request.getSessionId(),
-                                               getIntFields(request),
-                                               getStringFields(request),
-                                               os,
-                                               request.getSplitIndex(),
-                                               request.getNumSplits(),
-                                               request.getTermLimit());
+            service.handleGetFTGSIteratorSplit(
+                    request.getSessionId(),
+                    getIntFields(request),
+                    getStringFields(request),
+                    os,
+                    request.getSplitIndex(),
+                    request.getNumSplits(),
+                    request.getTermLimit(),
+                    getStats(request)
+            );
         }
 
         private void getSubsetFTGSSplit(
@@ -610,19 +620,22 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 final OutputStream            os)
             throws IOException, ImhotepOutOfMemoryException {
             checkSessionValidity(request);
-            service.handleGetSubsetFTGSIteratorSplit(request.getSessionId(),
-                                                     getIntFieldsToTerms(request),
-                                                     getStringFieldsToTerms(request),
-                                                     os,
-                                                     request.getSplitIndex(),
-                                                     request.getNumSplits());
+            service.handleGetSubsetFTGSIteratorSplit(
+                    request.getSessionId(),
+                    getIntFieldsToTerms(request),
+                    getStringFieldsToTerms(request),
+                    getStats(request),
+                    os,
+                    request.getSplitIndex(),
+                    request.getNumSplits()
+            );
         }
 
         private void mergeFTGSSplit(
                 final ImhotepRequest          request,
                 final ImhotepResponse.Builder builder,
                 final OutputStream            os)
-            throws IOException {
+                throws IOException, ImhotepOutOfMemoryException {
             checkSessionValidity(request);
             final HostAndPort[] nodes = request.getNodesList().toArray(new HostAndPort[0]);
             final FTGSParams params = getFTGSParams(request);
@@ -638,16 +651,19 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             throws IOException, ImhotepOutOfMemoryException {
             checkSessionValidity(request);
             final HostAndPort[] nodes = request.getNodesList().toArray(new HostAndPort[0]);
-            service.handleMergeSubsetFTGSIteratorSplit(request.getSessionId(),
-                                                       getIntFieldsToTerms(request),
-                                                       getStringFieldsToTerms(request),
-                                                       os, nodes, request.getSplitIndex());
+            service.handleMergeSubsetFTGSIteratorSplit(
+                    request.getSessionId(),
+                    getIntFieldsToTerms(request),
+                    getStringFieldsToTerms(request),
+                    getStats(request),
+                    os, nodes, request.getSplitIndex()
+            );
         }
 
         private void mergeMultiFTGSSplit(
                 final ImhotepRequest request,
                 final OutputStream os
-        ) {
+        ) throws IOException, ImhotepOutOfMemoryException {
             final MultiFTGSRequest multiFtgsRequest = request.getMultiFtgsRequest();
             final HostAndPort[] nodes = multiFtgsRequest.getNodesList().toArray(new HostAndPort[0]);
             service.handleMergeMultiFTGSSplit(
@@ -718,29 +734,14 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 final ImhotepRequest          request,
                 final ImhotepResponse.Builder builder)
             throws ImhotepOutOfMemoryException {
-            final int numGroups = service.handleMetricRegroup(request.getSessionId(),
-                                                              request.getXStat(),
-                                                              request.getXMin(),
-                                                              request.getXMax(),
-                                                              request.getXIntervalSize(),
-                                                              request.getNoGutters());
-            builder.setNumGroups(numGroups);
-            return builder.build();
-        }
-
-        private ImhotepResponse metricRegroup2D(
-                final ImhotepRequest          request,
-                final ImhotepResponse.Builder builder)
-            throws ImhotepOutOfMemoryException {
-            final int numGroups = service.handleMetricRegroup2D(request.getSessionId(),
-                                                                request.getXStat(),
-                                                                request.getXMin(),
-                                                                request.getXMax(),
-                                                                request.getXIntervalSize(),
-                                                                request.getYStat(),
-                                                                request.getYMin(),
-                                                                request.getYMax(),
-                                                                request.getYIntervalSize());
+            final int numGroups = service.handleMetricRegroup(
+                    request.getSessionId(),
+                    getXStat(request),
+                    request.getXMin(),
+                    request.getXMax(),
+                    request.getXIntervalSize(),
+                    request.getNoGutters()
+            );
             builder.setNumGroups(numGroups);
             return builder.build();
         }
@@ -753,7 +754,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             if (request.getTargetGroup() > 0) {
                 numGroups = service.handleMetricFilter(
                         request.getSessionId(),
-                        request.getXStat(),
+                        getXStat(request),
                         request.getXMin(),
                         request.getXMax(),
                         request.getTargetGroup(),
@@ -763,7 +764,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             } else {
                 numGroups = service.handleMetricFilter(
                         request.getSessionId(),
-                        request.getXStat(),
+                        getXStat(request),
                         request.getXMin(),
                         request.getXMax(),
                         request.getNegate()
@@ -1062,9 +1063,6 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                         case METRIC_REGROUP:
                             response = metricRegroup(request, builder);
                             break;
-                        case METRIC_REGROUP_2D:
-                            response = metricRegroup2D(request, builder);
-                            break;
                         case METRIC_FILTER:
                             response = metricFilter(request, builder);
                             break;
@@ -1223,6 +1221,39 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 }
             }
         }
+    }
+
+    @Nullable
+    private List<List<String>> getStats(final ImhotepRequest request) {
+        if (!request.getHasStats()) {
+            return null;
+        }
+        return request.getDocStatList().stream()
+                .map(docStat -> Lists.newArrayList(docStat.getStatList()))
+                .collect(Collectors.toList());
+    }
+
+    private List<String> getSingleStat(final ImhotepRequest request) {
+        final List<String> stat;
+        if (request.getHasStats()) {
+            final List<List<String>> requestStats = getStats(request);
+            Preconditions.checkNotNull(requestStats);
+            Preconditions.checkArgument(requestStats.size() == 1);
+            stat = requestStats.get(0);
+        } else {
+            stat = ImhotepSession.stackStat(request.getStat());
+        }
+        return stat;
+    }
+
+    private List<String> getXStat(final ImhotepRequest request) {
+        final List<String> stat;
+        if (request.getXStatDocstat().getStatCount() > 0) {
+            stat = request.getXStatDocstat().getStatList();
+        } else {
+            stat = ImhotepSession.stackStat(request.getDeletedXStat());
+        }
+        return stat;
     }
 
     public void shutdown(final boolean sysExit) throws IOException {

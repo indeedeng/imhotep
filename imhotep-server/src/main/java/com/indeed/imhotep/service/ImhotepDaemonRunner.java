@@ -32,6 +32,7 @@ public class ImhotepDaemonRunner {
     private final FlamdexReaderSource flamdexFactory;
 
     private LocalImhotepServiceConfig config = new LocalImhotepServiceConfig();
+    private long memoryCapacity = 1024L * 1024 * 1024 * 1024;
     private ImhotepDaemon currentlyRunning;
 
     public ImhotepDaemonRunner(final Path rootShardsDir, final Path tempDir, final int port) {
@@ -64,6 +65,10 @@ public class ImhotepDaemonRunner {
         this.config = config;
     }
 
+    public void setMemoryCapacity(final long memoryCapacity) {
+        this.memoryCapacity = memoryCapacity;
+    }
+
     public int getPort() {
         return port;
     }
@@ -79,7 +84,7 @@ public class ImhotepDaemonRunner {
         currentlyRunning =
                 new ImhotepDaemon(new ServerSocket(port),
                                   new LocalImhotepServiceCore(tempDir,
-                                                              1024L * 1024 * 1024 * 1024,
+                                                              memoryCapacity,
                                                               flamdexFactory,
                                           config,
                                           rootShardsDir),

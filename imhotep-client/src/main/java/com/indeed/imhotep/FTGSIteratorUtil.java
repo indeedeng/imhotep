@@ -27,6 +27,7 @@ import com.indeed.imhotep.api.FTGAIterator;
 import com.indeed.imhotep.api.FTGIterator;
 import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.api.GroupStatsIterator;
+import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.protobuf.StatsSortOrder;
 import com.indeed.imhotep.scheduling.SilentCloseable;
@@ -442,7 +443,9 @@ public class FTGSIteratorUtil {
                     }
 
                     extractor.advance(iterator);
-                    topTerms.offer(extractor.extract(iterator));
+                    if (topTerms.size() < termLimit || extractor.itIsBetterThan(iterator, topTerms.peek())) {
+                        topTerms.offer(extractor.extract(iterator));
+                    }
                 }
             }
 
@@ -573,7 +576,7 @@ public class FTGSIteratorUtil {
     public static FTGSIterator[] getFTGSIteratorSplits(final ImhotepSession session,
                                                        final String[] intFields,
                                                        final String[] stringFields,
-                                                       final long termLimit) {
+                                                       final long termLimit) throws ImhotepOutOfMemoryException {
         if (session instanceof RemoteImhotepMultiSession) {
             return ((RemoteImhotepMultiSession)session).getFTGSIteratorSplits(intFields, stringFields, termLimit);
         }

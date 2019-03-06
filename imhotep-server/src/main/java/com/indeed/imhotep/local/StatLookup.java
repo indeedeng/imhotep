@@ -14,7 +14,10 @@
 package com.indeed.imhotep.local;
 
 import com.indeed.flamdex.api.IntValueLookup;
+import com.indeed.util.core.io.Closeables2;
+import org.apache.log4j.Logger;
 
+import java.io.Closeable;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -30,8 +33,9 @@ import java.util.List;
  *
  * @author johnf
  */
-class StatLookup
-{
+class StatLookup implements Closeable {
+    private static final Logger log = Logger.getLogger(StatLookup.class);
+
     interface Observer {
         void onChange(final StatLookup statLookup, final int index);
     }
@@ -51,14 +55,21 @@ class StatLookup
     String getName(final int index) { return names[index]; }
     IntValueLookup get(final int index) { return lookups[index]; }
 
-    void set(final int index, final String name, final IntValueLookup lookup) {
+    IntValueLookup set(final int index, final String name, final IntValueLookup lookup) {
+        final IntValueLookup original = lookups[index];
         names[index]   = name;
         lookups[index] = lookup;
         for (final Observer observer: observers) {
             observer.onChange(this, index);
         }
+        return original;
     }
 
     void    addObserver(final Observer observer) { observers.add(observer);    }
     void removeObserver(final Observer observer) { observers.remove(observer); }
+
+    @Override
+    public void close() {
+        Closeables2.closeAll(log, lookups);
+    }
 }

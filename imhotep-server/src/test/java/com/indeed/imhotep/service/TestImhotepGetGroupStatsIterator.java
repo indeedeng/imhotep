@@ -32,8 +32,10 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.concurrent.TimeoutException;
 
+import static java.util.Collections.singletonList;
 import static org.junit.Assert.assertEquals;
 
 /**
@@ -106,11 +108,8 @@ public class TestImhotepGetGroupStatsIterator {
         ) {
             dataset.regroup(new GroupMultiRemapRule[]{data.getSecond()});
 
-            dataset.pushStat("id");
-            dataset.pushStat("shardId");
-
-            final long[] idSum = dataset.getGroupStats(0);
-            final long[] shardIdSum = dataset.getGroupStats(1);
+            final long[] idSum = dataset.getGroupStats(singletonList("id"));
+            final long[] shardIdSum = dataset.getGroupStats(singletonList("shardId"));
 
             assertEquals(idSum.length, docCount);
             assertEquals(shardIdSum.length, docCount);
@@ -157,15 +156,14 @@ public class TestImhotepGetGroupStatsIterator {
         ) {
             // remapping all docs to group 1.000.000 to have big group stats array
             dataset.intOrRegroup("fakeField", new long[0], 1, 1000000, 1000000);
-            dataset.pushStat("count()");
-            final GroupStatsIterator iterator = dataset.getGroupStatsIterator(0);
+            final GroupStatsIterator iterator = dataset.getGroupStatsIterator(Collections.singletonList("count()"));
             iterator.close(); // in IMTEPD-400 daemons are closing sessions here.
 
             // Wait a little bit, let daemons to fail.
             Thread.sleep(1000);
 
             // Check, if session is still alive
-            assertEquals(2, dataset.pushStat("count()"));
+            assertEquals(1000001, dataset.getNumGroups());
         }
     }
 }

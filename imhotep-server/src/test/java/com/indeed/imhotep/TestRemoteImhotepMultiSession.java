@@ -1,5 +1,6 @@
 package com.indeed.imhotep;
 
+import com.google.common.collect.Lists;
 import com.indeed.flamdex.MakeAFlamdex;
 import com.indeed.flamdex.MemoryFlamdex;
 import com.indeed.flamdex.api.FlamdexReader;
@@ -18,6 +19,8 @@ import org.junit.Test;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.concurrent.TimeoutException;
 
 import static org.junit.Assert.assertArrayEquals;
@@ -69,8 +72,7 @@ public class TestRemoteImhotepMultiSession {
                         .build();
         final int groupCount = session.regroupWithProtos(new GroupMultiRemapMessage[] {message}, true);
         assertEquals(3, groupCount);
-        session.pushStat("count()");
-        final long[] stats = session.getGroupStats(0);
+        final long[] stats = session.getGroupStats(Collections.singletonList("count()"));
         assertArrayEquals(new long[] {0, 0, duration * docsPerShard}, stats);
     }
 
@@ -91,15 +93,13 @@ public class TestRemoteImhotepMultiSession {
 
         try (final ImhotepClient client = clusterRunner.createClient();
              final ImhotepSession session = client.sessionBuilder(dataset, date, date.plusDays(duration)).build()) {
-            session.pushStat("docId()");
-            session.metricRegroup(0, 0, session.getNumDocs(), 1);
-            session.pushStat("count()");
-            session.pushStat("+");
-            assertArrayEquals(new long[] {0,10,20,30,40,50,60,70,80,90,100,110,120,130,140,150,160,170,180,190,200}, session.getGroupStats(0));
+            session.metricRegroup(Collections.singletonList("docId()"), (long) 0, session.getNumDocs(), (long) 1);
+            final ArrayList<String> docIdPlusCount = Lists.newArrayList("docId()", "count()", "+");
+            assertArrayEquals(new long[] {0,10,20,30,40,50,60,70,80,90,100,110,120,130,140,150,160,170,180,190,200}, session.getGroupStats(docIdPlusCount));
             assertEquals(21, session.regroup(new int[] {10, 11, 12}, new int[]{0, 1, 2}, false));
-            assertArrayEquals(new long[] {0,120,140,30,40,50,60,70,80,90,0,0,0,130,140,150,160,170,180,190,200}, session.getGroupStats(0));
+            assertArrayEquals(new long[] {0,120,140,30,40,50,60,70,80,90,0,0,0,130,140,150,160,170,180,190,200}, session.getGroupStats(docIdPlusCount));
             assertEquals(5, session.regroup(new int[] {2, 6, 7}, new int[]{2, 3, 4}, true));
-            assertArrayEquals(new long[] {0,0,140,60,70}, session.getGroupStats(0));
+            assertArrayEquals(new long[] {0,0,140,60,70}, session.getGroupStats(docIdPlusCount));
         }
     }
 }

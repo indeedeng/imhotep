@@ -57,8 +57,6 @@ public class TestImhotepMultiSession {
                     null,
                     "", "")
         ){
-            s.pushStat("count()");
-
             // groups: s1=[1], s2=[1]
 
             s.regroup(new GroupRemapRule[]{
@@ -66,14 +64,14 @@ public class TestImhotepMultiSession {
             });
 
             // groups: s1=[2], s2=[3]
-            assertEquals(Arrays.asList(0L, 0L, 1L, 1L), Longs.asList(s.getGroupStats(0)).subList(0, 4));
+            assertEquals(Arrays.asList(0L, 0L, 1L, 1L), Longs.asList(s.getGroupStats(Collections.singletonList("count()"))).subList(0, 4));
 
             s.regroup(new GroupRemapRule[]{
                     new GroupRemapRule(3, new RegroupCondition("f", false, 0, "foo", false), 4, 5)
             });
 
             // groups: s1=[0], s2=[5]
-            assertEquals(Arrays.asList(0L, 0L, 0L, 0L, 0L, 1L), Longs.asList(s.getGroupStats(0)).subList(0, 6));
+            assertEquals(Arrays.asList(0L, 0L, 0L, 0L, 0L, 1L), Longs.asList(s.getGroupStats(Collections.singletonList("count()"))).subList(0, 6));
         }
     }
 }

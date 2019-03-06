@@ -21,15 +21,10 @@ import com.indeed.util.core.threads.ThreadSafeBitSet;
 import java.util.Arrays;
 
 final class ConstantGroupLookup extends GroupLookup {
-    /**
-     *
-     */
-    private final ImhotepLocalSession session;
     private final int constant;
     private final int size;
 
-    ConstantGroupLookup(final ImhotepLocalSession imhotepLocalSession, final int constant, final int size) {
-        session = imhotepLocalSession;
+    ConstantGroupLookup(final int constant, final int size) {
         this.constant = constant;
         this.size = size;
         this.numGroups = constant + 1;
@@ -45,17 +40,18 @@ final class ConstantGroupLookup extends GroupLookup {
                                  final BitTree groupsSeen,
                                  final int[] docIdBuf,
                                  final long[] valBuf,
-                                 final int[] docGroupBuffer) {
+                                 final int[] docGroupBuffer,
+                                 final ImhotepLocalSession.MetricStack metricStack) {
         if (constant == 0) {
             return 0;
         }
 
         if (n > 0) {
             groupsSeen.set(constant);
-            if (session.numStats > 0) {
+            if (metricStack.getNumStats() > 0) {
                 Arrays.fill(docGroupBuffer, 0, n, constant);
-                for (int statIndex = 0; statIndex < session.numStats; statIndex++) {
-                    ImhotepJavaLocalSession.updateGroupStatsDocIdBuf(session.statLookup.get(statIndex), termGrpStats[statIndex], docGroupBuffer, docIdBuf, valBuf, n);
+                for (int statIndex = 0; statIndex < metricStack.getNumStats(); statIndex++) {
+                    ImhotepJavaLocalSession.updateGroupStatsDocIdBuf(metricStack.get(statIndex), termGrpStats[statIndex], docGroupBuffer, docIdBuf, valBuf, n);
                 }
             }
         }
@@ -151,10 +147,5 @@ final class ConstantGroupLookup extends GroupLookup {
     @Override
     protected void recalculateNumGroups() {
         this.numGroups = constant + 1;
-    }
-
-    @Override
-    public ImhotepLocalSession getSession() {
-        return this.session;
     }
 }

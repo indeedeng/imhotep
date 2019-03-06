@@ -23,6 +23,7 @@ import com.indeed.imhotep.ImhotepMemoryPool;
 import com.indeed.imhotep.MemoryReservationContext;
 import com.indeed.imhotep.RegroupCondition;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
+import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.io.TestFileUtils;
 import org.junit.Test;
 
@@ -32,6 +33,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
 
+import static java.util.Collections.singletonList;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
@@ -42,7 +44,7 @@ public class TestIndexReWriter {
         /* make session 1 */
         final MockFlamdexReader r1 =
                 new MockFlamdexReader(Arrays.asList("if1", "if2", "if3"),
-                                      Collections.singletonList("sf1"),
+                                      singletonList("sf1"),
                                       Arrays.asList("if1", "if2"),
                                       10,
                                       TestFileUtils.createTempShard());
@@ -70,7 +72,7 @@ public class TestIndexReWriter {
         /* make session 2 */
         final MockFlamdexReader r2 =
                 new MockFlamdexReader(Arrays.asList("if1", "if2"),
-                                      Collections.singletonList("sf1"),
+                                      singletonList("sf1"),
                                       Arrays.asList("if1", "if2"),
                                       10,
                                       TestFileUtils.createTempShard());
@@ -91,7 +93,7 @@ public class TestIndexReWriter {
         /* make session 3 */
         final MockFlamdexReader r3 =
                 new MockFlamdexReader(Arrays.asList("if1", "if2"),
-                                      Collections.singletonList("sf1"),
+                                      singletonList("sf1"),
                                       Arrays.asList("if1", "if2"),
                                       5,
                                       TestFileUtils.createTempShard());
@@ -138,15 +140,15 @@ public class TestIndexReWriter {
                     .get(3L));
             assertEquals("Merged Int Terms are wrong", Arrays.asList(4, 19), w.getIntTerms().get("if2")
                     .get(4L));
-            assertEquals("Merged Int Terms are wrong", Collections.singletonList(10), w.getIntTerms().get("if2")
+            assertEquals("Merged Int Terms are wrong", singletonList(10), w.getIntTerms().get("if2")
                     .get(5L));
-            assertEquals("Merged Int Terms are wrong", Collections.singletonList(11), w.getIntTerms().get("if2")
+            assertEquals("Merged Int Terms are wrong", singletonList(11), w.getIntTerms().get("if2")
                     .get(6L));
-            assertEquals("Merged Int Terms are wrong", Collections.singletonList(12), w.getIntTerms().get("if2")
+            assertEquals("Merged Int Terms are wrong", singletonList(12), w.getIntTerms().get("if2")
                     .get(7L));
-            assertEquals("Merged Int Terms are wrong", Collections.singletonList(13), w.getIntTerms().get("if2")
+            assertEquals("Merged Int Terms are wrong", singletonList(13), w.getIntTerms().get("if2")
                     .get(8L));
-            assertEquals("Merged Int Terms are wrong", Collections.singletonList(14), w.getIntTerms().get("if2")
+            assertEquals("Merged Int Terms are wrong", singletonList(14), w.getIntTerms().get("if2")
                     .get(9L));
         }
     }
@@ -155,9 +157,9 @@ public class TestIndexReWriter {
     public void testMergingStringTermDocIterator() throws ImhotepOutOfMemoryException, IOException {
         /* make session 1 */
         final MockFlamdexReader r1 =
-                new MockFlamdexReader(Collections.singletonList("if1"),
+                new MockFlamdexReader(singletonList("if1"),
                                       Arrays.asList("sf1", "sf2", "sf3"),
-                                      Collections.singletonList("if1"),
+                                      singletonList("if1"),
                                       10,
                                       TestFileUtils.createTempShard());
 
@@ -183,9 +185,9 @@ public class TestIndexReWriter {
 
         /* make session 2 */
         final MockFlamdexReader r2 =
-                new MockFlamdexReader(Collections.singletonList("if1"),
+                new MockFlamdexReader(singletonList("if1"),
                                       Arrays.asList("sf1", "sf2"),
-                                      Collections.singletonList("if1"),
+                                      singletonList("if1"),
                                       10,
                                       TestFileUtils.createTempShard());
         r2.addStringTerm("sf1", "0", 5);
@@ -204,9 +206,9 @@ public class TestIndexReWriter {
 
         /* make session 3 */
         final MockFlamdexReader r3 =
-                new MockFlamdexReader(Collections.singletonList("if1"),
-                                      Collections.singletonList("sf2"),
-                                      Collections.singletonList("if1"),
+                new MockFlamdexReader(singletonList("if1"),
+                                      singletonList("sf2"),
+                                      singletonList("if1"),
                                       5,
                                       TestFileUtils.createTempShard());
         r3.addStringTerm("sf2", "0", 0);
@@ -255,15 +257,15 @@ public class TestIndexReWriter {
                     .get("sf2").get("3"));
             assertEquals("Merged String Terms are wrong", Arrays.asList(4, 19), w.getStringTerms()
                     .get("sf2").get("4"));
-            assertEquals("Merged String Terms are wrong", Collections.singletonList(10), w.getStringTerms()
+            assertEquals("Merged String Terms are wrong", singletonList(10), w.getStringTerms()
                     .get("sf2").get("5"));
-            assertEquals("Merged String Terms are wrong", Collections.singletonList(11), w.getStringTerms()
+            assertEquals("Merged String Terms are wrong", singletonList(11), w.getStringTerms()
                     .get("sf2").get("6"));
-            assertEquals("Merged String Terms are wrong", Collections.singletonList(12), w.getStringTerms()
+            assertEquals("Merged String Terms are wrong", singletonList(12), w.getStringTerms()
                     .get("sf2").get("7"));
-            assertEquals("Merged String Terms are wrong", Collections.singletonList(13), w.getStringTerms()
+            assertEquals("Merged String Terms are wrong", singletonList(13), w.getStringTerms()
                     .get("sf2").get("8"));
-            assertEquals("Merged String Terms are wrong", Collections.singletonList(14), w.getStringTerms()
+            assertEquals("Merged String Terms are wrong", singletonList(14), w.getStringTerms()
                     .get("sf2").get("9"));
         }
     }
@@ -273,7 +275,6 @@ public class TestIndexReWriter {
         /* make session 1 */
         final FlamdexReader r1 = MakeAFlamdex.make();
         final ImhotepJavaLocalSession session1 = new ImhotepJavaLocalSession("testSession", r1);
-        session1.pushStat("count()");
         session1.createDynamicMetric("foo");
         session1.createDynamicMetric("bar");
         final int[] bar = {0, 13};
@@ -297,7 +298,7 @@ public class TestIndexReWriter {
                                                                                           "b",
                                                                                           false),
                                                                   3, 4) });
-        final long[] stats1 = session1.getGroupStats(0);
+        final long[] stats1 = session1.getGroupStats(singletonList("count()"));
         assertEquals(10, stats1[1]);
         assertEquals(5, stats1[2]);
         assertEquals(4, stats1[3]);
@@ -306,7 +307,6 @@ public class TestIndexReWriter {
         /* make session 2 */
         final FlamdexReader r2 = MakeAFlamdex.make();
         final ImhotepJavaLocalSession session2 = new ImhotepJavaLocalSession("testSession", r2);
-        session2.pushStat("count()");
         session2.createDynamicMetric("foo");
         session2.createDynamicMetric("cat");
         final int[] cat = {0, 17};
@@ -330,7 +330,7 @@ public class TestIndexReWriter {
                                                                                           "b",
                                                                                           false),
                                                                   2, 4) });
-        final long[] stats2 = session2.getGroupStats(0);
+        final long[] stats2 = session2.getGroupStats(singletonList("count()"));
         assertEquals(10, stats2[1]);
         assertEquals(4, stats2[2]);
         assertEquals(5, stats2[3]);
@@ -450,7 +450,6 @@ public class TestIndexReWriter {
         /* make session 1 */
         final FlamdexReader r1 = MakeAFlamdex.make();
         final ImhotepJavaLocalSession session1 = new ImhotepJavaLocalSession("testSession", r1);
-        session1.pushStat("count()");
         session1.createDynamicMetric("foo");
         session1.createDynamicMetric("bar");
         final int[] bar = {0, 13};
@@ -474,7 +473,7 @@ public class TestIndexReWriter {
                                                                                           "b",
                                                                                           false),
                                                                   3, 4) });
-        final long[] stats1 = session1.getGroupStats(0);
+        final long[] stats1 = session1.getGroupStats(singletonList("count()"));
         assertEquals(0, stats1[0]);
         assertEquals(0, stats1[1]);
         assertEquals(5, stats1[2]);
@@ -484,7 +483,6 @@ public class TestIndexReWriter {
         /* make session 2 */
         final FlamdexReader r2 = MakeAFlamdex.make();
         final ImhotepJavaLocalSession session2 = new ImhotepJavaLocalSession("testSession", r2);
-        session2.pushStat("count()");
         session2.createDynamicMetric("foo");
         session2.createDynamicMetric("cat");
         final int[] cat = {0, 17};
@@ -508,7 +506,7 @@ public class TestIndexReWriter {
                                                                                           "b",
                                                                                           false),
                                                                   2, 4) });
-        final long[] stats2 = session2.getGroupStats(0);
+        final long[] stats2 = session2.getGroupStats(singletonList("count()"));
         assertEquals(10, stats2[1]);
         assertEquals(4, stats2[2]);
         assertEquals(5, stats2[3]);
