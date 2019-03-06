@@ -114,17 +114,17 @@ public interface ImhotepSession
      * Result depends on values of 'termLimit, sortStat, sorted' params:
      *
      * <table summary ="description of params">
-     * <tr><th>No.</th><th>termLimit</th><th>sortStat</th><th>sorted</th><th>StatsSortOrder<th/>
+     * <tr><th>No.</th><th>termLimit</th><th>sortStat</th><th>sorted</th><th>StatsSortOrder</th>
      *     <th>description</th></tr>
-     * <tr><th>1</th><th>0</th><th>any</th><th>true</th><th>UNDEFINED</>
+     * <tr><th>1</th><th>0</th><th>any</th><th>true</th><th>UNDEFINED</th>
      *     <th>all terms in all fields returned, terms within each field are sorted by term value</th></tr>
      * <tr><th>2</th><th>0</th><th>any</th><th>false</th><th>UNDEFINED</th>
      *     <th>all terms in all fields returned, terms within each field go in any order</th></tr>
-     * <tr><th>3</th><th>&gt; 0</th><th>&gt;= 0</th><th>true</th><th>ASCENDING</>
+     * <tr><th>3</th><th>&gt; 0</th><th>&gt;= 0</th><th>true</th><th>ASCENDING</th>
      *     <th>for each (field, group) pair only (up to) 'termLimit' tuples with biggest
      *     sortStat metric value appear in result. Terms within each field are sorted by term value.
      *     Metric ties are resolved by terms</th></tr>
-     * <tr><th>4</th><th>&gt; 0</th><th>&gt;= 0</th><th>true</th><th>DESCENDING</>
+     * <tr><th>4</th><th>&gt; 0</th><th>&gt;= 0</th><th>true</th><th>DESCENDING</th>
      *     <th>for each (field, group) pair only (up to) 'termLimit' tuples with smallest
      *     sortStat metric value appear in result. Terms within each field are sorted by term value.
      *     Metric ties are resolved by decreasing order of terms</th></tr>
