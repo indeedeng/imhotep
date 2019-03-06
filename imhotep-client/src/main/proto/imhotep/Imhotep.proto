@@ -155,6 +155,7 @@ message ImhotepRequest {
     REMAP_GROUPS = 50;
     MERGE_MULTI_FTGS_SPLIT = 51;
     MERGE_MULTI_DISTINCT_SPLIT = 52;
+    BATCH_REQUESTS = 53;
     SHUTDOWN = 255;
   }
 
@@ -322,6 +323,8 @@ message ImhotepRequest {
 
   //for topK and bottomK
   optional StatsSortOrder statsSortOrder = 73;
+
+  optional int32 batchRequestLength = 74;
 }
 
 message DocStat {

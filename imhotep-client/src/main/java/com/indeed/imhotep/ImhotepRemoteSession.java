@@ -27,6 +27,7 @@ import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.api.FTGSParams;
 import com.indeed.imhotep.api.GroupStatsIterator;
 import com.indeed.imhotep.api.HasSessionId;
+import com.indeed.imhotep.api.ImhotepCommand;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.PerformanceStats;
 import com.indeed.imhotep.exceptions.GenericImhotepKnownException;
@@ -574,16 +575,12 @@ public class ImhotepRemoteSession
         }
     }
 
-    private Pair<ImhotepResponse, InputStream> sendRequestAndSaveResponseToFile(
-            final ImhotepRequest request,
-            final String tempFilePrefix) throws IOException, ImhotepOutOfMemoryException {
-        final Socket socket = newSocket(host, port, socketTimeout);
-        final InputStream is = Streams.newBufferedInputStream(socket.getInputStream());
-        final OutputStream os = Streams.newBufferedOutputStream(socket.getOutputStream());
-        final ImhotepResponse response;
+    public BufferedInputStream SaveRespsonseToFileFromStreams(
+            final InputStream is,
+            final String tempFilePrefix
+    ) throws IOException {
         Path tmp = null;
         try {
-            response = checkMemoryException(getSessionId(), sendRequest(createSender(request), is, os, host, port));
             tmp = Files.createTempFile(tempFilePrefix, ".tmp");
             final long start = System.currentTimeMillis();
             try (final OutputStream out = new LimitedBufferedOutputStream(Files.newOutputStream(tmp), tempFileSizeBytesLeft)) {
@@ -599,7 +596,7 @@ public class ImhotepRemoteSession
                 }
             }
             final BufferedInputStream bufferedInputStream = new BufferedInputStream(Files.newInputStream(tmp));
-            return new Pair<>(response, bufferedInputStream);
+            return bufferedInputStream;
         } finally {
             if (tmp != null) {
                 try {
@@ -608,6 +605,21 @@ public class ImhotepRemoteSession
                     log.warn("[" + getSessionId() + "] Failed to delete temp file " + tmp);
                 }
             }
+        }
+    }
+
+    private Pair<ImhotepResponse, InputStream> sendRequestAndSaveResponseToFile(
+            final ImhotepRequest request,
+            final String tempFilePrefix) throws IOException, ImhotepOutOfMemoryException {
+        final Socket socket = newSocket(host, port, socketTimeout);
+        final InputStream is = Streams.newBufferedInputStream(socket.getInputStream());
+        final OutputStream os = Streams.newBufferedOutputStream(socket.getOutputStream());
+        final ImhotepResponse response;
+        try {
+            response = checkMemoryException(getSessionId(), sendRequest(createSender(request), is, os, host, port));
+            final BufferedInputStream tempFileStream = SaveRespsonseToFileFromStreams(is, tempFilePrefix);
+            return new Pair<>(response, tempFileStream);
+        } finally {
             closeSocket(socket);
         }
     }
@@ -1332,6 +1344,31 @@ public class ImhotepRemoteSession
         return checkMemoryException(request.getSessionId(), response);
     }
 
+    public void sendRequestReadNoResponseFlush(
+          final ImhotepRequestSender request,
+          final OutputStream os) throws IOException {
+        sendRequestReadNoResponseFlush(request, os, host, port);
+    }
+
+    private static void sendRequestReadNoResponseFlush(
+            final ImhotepRequestSender request,
+            final OutputStream os,
+            final String host,
+            final int port ) throws  IOException{
+        final String sessionId = request.getSessionId();
+        try {
+            request.writeToStreamNoFlush(os);
+            os.flush();
+        } catch (final IOException e) {
+            String errorMessage = "IO error with " + request.getRequestType() + " request to " + host + ":" + port;
+            if (sessionId != null) {
+                errorMessage = createMessageWithSessionId(errorMessage, sessionId);
+            }
+            log.error(errorMessage, e);
+            throw new IOException(errorMessage, e);
+        }
+    }
+
     private static ImhotepResponse sendRequest(
             final ImhotepRequestSender request,
             final InputStream is,
@@ -1341,8 +1378,7 @@ public class ImhotepRemoteSession
         final Tracer tracer = GlobalTracer.get();
         final String sessionId = request.getSessionId();
         try (final ActiveSpan activeSpan = tracer.buildSpan(request.getRequestType().name()).withTag("sessionid", sessionId).withTag("host", host + ":" + port).startActive()) {
-            request.writeToStreamNoFlush(os);
-            os.flush();
+            sendRequestReadNoResponseFlush(request, os, host, port);
             final ImhotepResponse response = ImhotepProtobufShipping.readResponse(is);
             if (response.getResponseCode() == ImhotepResponse.ResponseCode.KNOWN_ERROR) {
                 throw buildImhotepKnownExceptionFromResponse(response, host, port, sessionId);
@@ -1361,6 +1397,12 @@ public class ImhotepRemoteSession
             log.error(errorMessage, e);
             throw new IOException(errorMessage, e);
         }
+    }
+
+    public ImhotepResponse readResponseWithMemoryExceptionFromInputStream(
+            final InputStream is
+    ) throws IOException, ImhotepOutOfMemoryException {
+        return readResponseWithMemoryException(is, host, port);
     }
 
     private ImhotepResponse readResponseWithMemoryException(
@@ -1472,5 +1514,27 @@ public class ImhotepRemoteSession
             final long elapsedTimeMillis = System.currentTimeMillis() - beginTimeMillis;
             instrumentation.fire(new SubmitRequestEvent(requestType, beginTimeMillis, elapsedTimeMillis));
         }
+    }
+
+    public <T> T sendImhotepBatchRequest(final List<ImhotepCommand> commands, final ImhotepCommand<T> lastCommand) throws IOException, ImhotepOutOfMemoryException {
+        final Socket socket = newSocket(host, port, socketTimeout);
+        final OutputStream os = Streams.newBufferedOutputStream(socket.getOutputStream());
+        final InputStream is = Streams.newBufferedInputStream(socket.getInputStream());
+
+        ImhotepRequest batchRequestHeader = getBuilderForType(ImhotepRequest.RequestType.BATCH_REQUESTS)
+                .setBatchRequestLength(commands.size())
+                .setSessionId(getSessionId())
+                .build();
+
+        final ImhotepRequestSender imhotepRequestSender = new RequestTools.ImhotepRequestSender.Simple(batchRequestHeader);
+        sendRequestReadNoResponseFlush(imhotepRequestSender, os, host, port);
+
+        for (ImhotepCommand command: commands) {
+            command.writeToOutputStream(os, this);
+        }
+
+        final T readResponse = lastCommand.readResponse(is, this);
+        socket.close();
+        return readResponse;
     }
 }
