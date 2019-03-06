@@ -51,7 +51,7 @@ public class ImhotepConnectionPoolTest {
         host1 = new Host("localhost", serverSocket1.getLocalPort());
         host2 = new Host("localhost", serverSocket2.getLocalPort());
 
-        testConnnectionPool = ImhotepConnectionPool.getInstance();
+        testConnnectionPool = ImhotepConnectionPool.INSTANCE;
     }
 
     @AfterClass
@@ -94,6 +94,28 @@ public class ImhotepConnectionPoolTest {
     public void testGetConnectionTimeout() throws IOException {
         // socket timeout
         try (final ImhotepConnection connection = testConnnectionPool.getConnection(new Host("www.google.com", 81), 5000)) {
+            fail("SocketTimeoutException is expected");
+        } catch (final SocketTimeoutException e) {
+            // succeed
+        }
+    }
+
+    @Test
+    public void testWithConnection() throws IOException {
+        final String socketHost = testConnnectionPool.withConnection(host1, connection -> {
+            final Socket socket = connection.getSocket();
+            return socket.getInetAddress().getHostName();
+        });
+        assertEquals(socketHost, host1.getHostname());
+    }
+
+    @Test
+    public void testWithConnectionTimeout() throws IOException {
+        try {
+            testConnnectionPool.withConnection(new Host("www.google.com", 81), 5000, connection -> {
+                final Socket socket = connection.getSocket();
+                return socket.getInetAddress().getHostName();
+            });
             fail("SocketTimeoutException is expected");
         } catch (final SocketTimeoutException e) {
             // succeed
