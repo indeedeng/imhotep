@@ -19,6 +19,7 @@ public class FTGSParams {
      * @param termLimit - see {@link ImhotepSession#getFTGSIterator(FTGSParams)} for details
      * @param sortStat - see {@link ImhotepSession#getFTGSIterator(FTGSParams)} for details
      * @param sorted - see {@link ImhotepSession#getFTGSIterator(FTGSParams)} for details
+     * @param statsSortOrder - see {@link ImhotepSession#getFTGSIterator(FTGSParams)} for details
      */
     public FTGSParams(
             final String[] intFields,
