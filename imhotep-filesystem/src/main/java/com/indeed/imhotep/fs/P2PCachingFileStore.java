@@ -1,7 +1,7 @@
 package com.indeed.imhotep.fs;
 
 import com.google.common.io.ByteStreams;
-import com.indeed.imhotep.connection.ImhotepConnection;
+import com.indeed.imhotep.client.Host;
 import com.indeed.imhotep.connection.ImhotepConnectionPool;
 import com.indeed.imhotep.io.ImhotepProtobufShipping;
 import com.indeed.imhotep.io.Streams;
@@ -9,15 +9,17 @@ import com.indeed.imhotep.protobuf.ImhotepRequest;
 import com.indeed.imhotep.protobuf.ImhotepResponse;
 import com.indeed.imhotep.service.MetricStatsEmitter;
 import com.indeed.util.core.io.Closeables2;
-import jdk.internal.util.xml.impl.Input;
 import org.apache.commons.compress.utils.IOUtils;
+import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.InetAddress;
 import java.net.Socket;
 import java.net.URI;
+import java.net.UnknownHostException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -31,15 +33,15 @@ import java.util.concurrent.TimeUnit;
  */
 public class P2PCachingFileStore extends RemoteFileStore {
     private static final Logger logger = Logger.getLogger(P2PCachingFileStore.class);
-    private static final int CONNECTION_FROM_POOL_TIMEOUT = (int) TimeUnit.SECONDS.toMillis(30);
+    private static final int FETCH_CONNECTION_TIMEOUT = (int) TimeUnit.SECONDS.toMillis(30);
 
     private final LocalFileCache fileCache;
     private final MetricStatsEmitter statsEmitter;
-    private Path cacheRootPath;
+    private final Path cacheRootPath;
 
-    public P2PCachingFileStore(final RemoteCachingFileSystem fs,
-                               final Map<String, ?> configuration,
-                               final MetricStatsEmitter statsEmitters) throws IOException {
+    P2PCachingFileStore(final RemoteCachingFileSystem fs,
+                        final Map<String, ?> configuration,
+                        final MetricStatsEmitter statsEmitters) throws IOException {
         statsEmitter = statsEmitters;
         cacheRootPath = Paths.get(URI.create((String) configuration.get("imhotep.fs.p2p.cache.root.uri")));
 
@@ -68,18 +70,28 @@ public class P2PCachingFileStore extends RemoteFileStore {
     }
 
     @Override
-    List<RemoteFileAttributes> listDir(final RemoteCachingPath path) throws IOException {
+    List<RemoteFileAttributes> listDir(final RemoteCachingPath path) {
         throw new UnsupportedOperationException("You need to implement this");
     }
 
     @Override
-    RemoteFileAttributes getRemoteAttributes(final RemoteCachingPath path) throws IOException {
+    RemoteFileAttributes getRemoteAttributes(final RemoteCachingPath path) {
         throw new UnsupportedOperationException("You need to implement this");
     }
 
     @Override
     void downloadFile(final RemoteCachingPath srcPath, final Path destPath) throws IOException {
-        downloadFileImpl((P2PCachingPath) srcPath, destPath);
+        final P2PCachingPath p2PCachingPath = (P2PCachingPath) srcPath;
+        // download only if files are in other servers
+        if (!ownShard(p2PCachingPath)) {
+            downloadFileImpl(p2PCachingPath, destPath);
+        } else {
+            try (final InputStream fileInputStream = Files.newInputStream(p2PCachingPath.getRealPath())) {
+                try (final OutputStream outputStream = Files.newOutputStream(destPath)) {
+                    IOUtils.copy(fileInputStream, outputStream);
+                }
+            }
+        }
     }
 
     @Override
@@ -103,18 +115,22 @@ public class P2PCachingFileStore extends RemoteFileStore {
         if (skipped != startOffset) {
             throw new IOException("Could not move offset for path " + path + " by " + startOffset);
         }
-
         return is;
     }
 
     @Override
-    public String name() { return cacheRootPath.toString(); }
+    public String name() {
+        return cacheRootPath.toString();
+    }
 
     private void downloadFileImpl(final P2PCachingPath srcPath, final Path destPath) throws IOException {
         final ImhotepConnectionPool pool = ImhotepConnectionPool.INSTANCE;
         final String localFilePath = srcPath.getRealPath().toUri().toString();
+        final Host srcHost = srcPath.getPeerHost();
 
-        final InputStream fileInputStream = pool.withConnection(srcPath.getPeerHost(), CONNECTION_FROM_POOL_TIMEOUT, connection -> {
+        final long downloadStartMillis = System.currentTimeMillis();
+        // fileInputStream won't be closed otherwise socket will be closed too
+        final InputStream fileInputStream = pool.withConnection(srcHost, FETCH_CONNECTION_TIMEOUT, connection -> {
             final Socket socket = connection.getSocket();
             final OutputStream os = Streams.newBufferedOutputStream(socket.getOutputStream());
             final InputStream is = Streams.newBufferedInputStream(socket.getInputStream());
@@ -126,14 +142,32 @@ public class P2PCachingFileStore extends RemoteFileStore {
             ImhotepProtobufShipping.sendProtobuf(newRequest, os);
             final ImhotepResponse imhotepResponse = ImhotepProtobufShipping.readResponse(is);
             if (imhotepResponse.getResponseCode() != ImhotepResponse.ResponseCode.OK) {
-                // TODO: do some logs and handle the error message
+                //TODO: may also need to log error stack trace and message, but it's way too long
+                throw new IOException("Failed to download file from server " + srcPath.getPeerHost() + ", filePath = " + localFilePath);
             }
+
+            reportFileDownload(imhotepResponse.getFileLength(), System.currentTimeMillis() - downloadStartMillis);
             return ByteStreams.limit(is, imhotepResponse.getFileLength());
         });
 
-        try (final OutputStream outputStream = Files.newOutputStream(destPath)) {
-            IOUtils.copy(fileInputStream, outputStream);
+        try (final OutputStream fileOutputStream = Files.newOutputStream(destPath)) {
+            IOUtils.copy(fileInputStream, fileOutputStream);
         }
-        // TODO: do some stats record
+    }
+
+    // check if current server is the owner of that shard file
+    private boolean ownShard(final P2PCachingPath path) throws UnknownHostException {
+        final String remoteHostName = path.getPeerHost().getHostname();
+        final InetAddress localHost = InetAddress.getLocalHost();
+
+        return StringUtils.equals(remoteHostName, localHost.getHostName())
+                || StringUtils.equals(remoteHostName, localHost.getHostAddress());
+    }
+
+    private void reportFileDownload(
+            final long size,
+            final long duration) {
+        statsEmitter.histogram("p2p.file.downloaded.size", size);
+        statsEmitter.histogram("p2p.file.downloaded.time", duration);
     }
 }

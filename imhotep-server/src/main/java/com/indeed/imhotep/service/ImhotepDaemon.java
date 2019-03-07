@@ -65,6 +65,7 @@ import org.apache.log4j.NDC;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.WillNotClose;
+import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -248,7 +249,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 final InetAddress remoteAddress = socket.getInetAddress();
                 NDC.push("DaemonWorker(" + socket.getRemoteSocketAddress() + ")");
                 try {
-                    internalRun();
+                    while (!internalRun()) ;
                 } finally {
                     NDC.pop();
                 }
@@ -954,7 +955,11 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             }
         }
 
-        private void internalRun() {
+        /**
+         * Run and check if client socket has been closed.
+         * @return true if it's closed, otherwise false
+         */
+        private boolean internalRun() {
             ImhotepRequest request = null;
             try {
                 final long beginTm = System.currentTimeMillis();
@@ -977,7 +982,12 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 try {
                     log.debug("getting request");
                     // TODO TODO TODO validate request
-                    request = ImhotepProtobufShipping.readRequest(is);
+
+                    try {
+                        request = ImhotepProtobufShipping.readRequest(is);
+                    } catch (final EOFException e) {
+                        return true;
+                    }
 
                     requestContext = new RequestContext(request);
                     RequestContext.THREAD_REQUEST_CONTEXT.set(requestContext);
@@ -1136,6 +1146,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                     if (response != null) {
                         sendResponseAndGroupStats(response, groupStats, os);
                     }
+                    return false;
                 } catch (final ImhotepOutOfMemoryException e) {
                     expireSession(request, e);
                     final ImhotepResponse.ResponseCode oom =
@@ -1182,7 +1193,6 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                     }
                     NDC.setMaxDepth(ndcDepth);
                     Closeables2.closeQuietly(groupStats, log);
-                    close(socket, is, os);
                 }
             } catch (final IOException e) {
                 expireSession(request,e );
@@ -1193,6 +1203,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 }
                 throw new RuntimeException(e);
             }
+            return false;
         }
 
         private void checkSessionValidity(final ImhotepRequest protoRequest) {

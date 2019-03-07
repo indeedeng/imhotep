@@ -8,7 +8,7 @@ import java.util.regex.Pattern;
 /**
  * @author xweng
  */
-public class P2PCachingPath extends RemoteCachingPath {
+class P2PCachingPath extends RemoteCachingPath {
     // TODO: make the regex stricter
     private static final Pattern P2P_PATH_PATTERN = Pattern.compile("^/remote/[^\\:]+:[0-9]+/.*");
 

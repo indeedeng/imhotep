@@ -20,11 +20,14 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.URI;
+import java.nio.file.DirectoryStream;
 import java.nio.file.FileSystem;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.TimeoutException;
@@ -41,7 +44,7 @@ public class P2PCachingTestContext implements Closeable {
     private static ImhotepDaemonRunner imhotepDaemonRunner;
     private static ShardMasterAndImhotepDaemonClusterRunner clusterRunner;
 
-    public P2PCachingTestContext() throws  IOException, TimeoutException, InterruptedException {
+    P2PCachingTestContext() throws  IOException, TimeoutException, InterruptedException {
         tempDir = new TemporaryFolder();
         setUp();
     }
@@ -51,7 +54,7 @@ public class P2PCachingTestContext implements Closeable {
         tearDown();
     }
 
-    public Path getRootPath() {
+    Path getRootPath() {
         return rootPath;
     }
 
@@ -59,11 +62,24 @@ public class P2PCachingTestContext implements Closeable {
         return fs;
     }
 
-    public int getDaemonPort() {
+    int getDaemonPort() {
         return imhotepDaemonRunner.getActualPort();
     }
 
-    public void createIndex(final String indexSubDir, final boolean isSqarFile) throws IOException {
+    List<String> getIndexFileNames(final String indexSubDir) throws IOException {
+        final Path wholePath = localStorePath.resolve(indexSubDir);
+        final List<String> fileList = new ArrayList<>();
+        final DirectoryStream<Path> stream = Files.newDirectoryStream(wholePath);
+        for (final Path path : stream) {
+            if (Files.isDirectory(path)) {
+                continue;
+            }
+            fileList.add(path.getFileName().toString());
+        }
+        return fileList;
+    }
+
+    void createIndex(final String indexSubDir, final boolean isSqarFile) throws IOException {
         final Path wholePath = localStorePath.resolve(indexSubDir);
         if (!Files.exists(wholePath)) {
             tempDir.newFolder(wholePath.toString());
