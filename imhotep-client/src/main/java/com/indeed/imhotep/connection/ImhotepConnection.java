@@ -13,24 +13,26 @@ import java.net.Socket;
 public class ImhotepConnection implements Closeable {
     private static final Logger logger = Logger.getLogger(ImhotepConnection.class);
 
-    private KeyedObjectPool<Host, ImhotepConnection> sourcePool;
-    private Socket socket;
-    private Host host;
+    private final KeyedObjectPool<Host, Socket> sourcePool;
+    private final Socket socket;
+    private final Host host;
+    private boolean closed;
 
-    ImhotepConnection(final KeyedObjectPool sourcePool, final Socket socket, final Host host) {
+    ImhotepConnection(final KeyedObjectPool<Host, Socket> sourcePool, final Socket socket, final Host host) {
         this.sourcePool = sourcePool;
         this.socket = socket;
         this.host = host;
+        this.closed = false;
     }
 
     /**
      * Mark a connection as invalid and remove it from the connection pool
      */
-    public void markAsInvalid() {
+    void markAsInvalid() {
         try {
-            sourcePool.invalidateObject(host, this);
+            sourcePool.invalidateObject(host, socket);
         } catch (final Exception e) {
-            logger.warn("Errors happened when setting connection as invalid, connection is " + this, e);
+            logger.warn("Errors happened when setting socket as invalid, socket is " + socket, e);
         }
     }
 
@@ -40,11 +42,15 @@ public class ImhotepConnection implements Closeable {
 
     @Override
     public void close() {
-        // KeyedObjectPool already handles the idempotency
+        if (closed) {
+            return;
+        }
+
+        closed = true;
         try {
-            sourcePool.returnObject(host, this);
+            sourcePool.returnObject(host, socket);
         } catch (final Exception e) {
-            logger.warn("Errors happened when returning connection " + this, e);
+            // do nothing
         }
     }
 

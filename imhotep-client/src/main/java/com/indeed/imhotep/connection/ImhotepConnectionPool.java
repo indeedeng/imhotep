@@ -9,6 +9,7 @@ import org.apache.log4j.Logger;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.net.Socket;
 
 /**
  * @author xweng
@@ -24,46 +25,35 @@ import java.io.IOException;
  * testConnnectionPool.withConnection(host, connection -> {
  *     // do something with the connection and return a value
  * });
- *
- * You can also handle everything by yourself:
- *
- * try (final ImhotepConnection connection = pool.getConnection(host, timeoutMillis)) {
- *     try {
- *         // do something with the connection
- *      } catch (final Throwable t) {
- *         connection.markAsInvalid();
- *         throw t;
- *     }
- * }
  */
 public enum ImhotepConnectionPool implements Closeable {
     INSTANCE;
 
     private static final Logger logger = Logger.getLogger(ImhotepConnectionPool.class);
     // it's illegal to take the TimeUnit method as an initial value
-    private static final long DEFAULT_IDLE_SOCKET_LIVE_MILLISECONDS = 5 * 60 * 1000; // 5 minutes
+    private static final long DEFAULT_IDLE_SOCKET_LIVE_MILLIS = 5 * 60 * 1000; // 5 minutes
     // not sure if we need the minimum sockets
     private static final int DEFAULT_MINIMUM_SOCKETS_IN_POOL = 5;
 
+    private final GenericKeyedObjectPool<Host, Socket> sourcePool;
+
     ImhotepConnectionPool() {
         final ImhotepConnectionKeyedPooledObjectFactory factory = new ImhotepConnectionKeyedPooledObjectFactory();
-        final GenericKeyedObjectPoolConfig config = new GenericKeyedObjectPoolConfig();
-        config.setTimeBetweenEvictionRunsMillis(DEFAULT_IDLE_SOCKET_LIVE_MILLISECONDS);
+        final GenericKeyedObjectPoolConfig<Socket> config = new GenericKeyedObjectPoolConfig<>();
+        config.setTimeBetweenEvictionRunsMillis(DEFAULT_IDLE_SOCKET_LIVE_MILLIS);
         config.setMaxTotalPerKey(-1);
         config.setMinIdlePerKey(DEFAULT_MINIMUM_SOCKETS_IN_POOL);
 
-        sourcePool = new GenericKeyedObjectPool<Host, ImhotepConnection>(factory, config);
-        factory.setKeyedObjectPool(sourcePool);
+        sourcePool = new GenericKeyedObjectPool<>(factory, config);
     }
-
-    private GenericKeyedObjectPool<Host, ImhotepConnection> sourcePool;
 
     /**
      * Get a connection from the pool until connection is returned or errors happen
      */
-    public ImhotepConnection getConnection(final Host host) throws IOException {
+    private ImhotepConnection getConnection(final Host host) throws IOException {
         try {
-            return sourcePool.borrowObject(host);
+            final Socket socket = sourcePool.borrowObject(host);
+            return new ImhotepConnection(sourcePool, socket, host);
         } catch (final Exception e) {
             throw Throwables2.propagate(e, IOException.class);
         }
@@ -72,9 +62,10 @@ public enum ImhotepConnectionPool implements Closeable {
     /**
      * Get a connection from the pool with the timeout in milliseconds
      */
-    public ImhotepConnection getConnection(final Host host, final int timeoutMillis) throws IOException {
+    private ImhotepConnection getConnection(final Host host, final int timeoutMillis) throws IOException {
         try {
-            return sourcePool.borrowObject(host, timeoutMillis);
+            final Socket socket = sourcePool.borrowObject(host, timeoutMillis);
+            return new ImhotepConnection(sourcePool, socket, host);
         } catch (final Exception e) {
             throw Throwables2.propagate(e, IOException.class);
         }

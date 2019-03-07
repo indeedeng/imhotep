@@ -1,7 +1,6 @@
 package com.indeed.imhotep.connection;
 
 import com.indeed.imhotep.client.Host;
-import org.apache.log4j.Logger;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -23,15 +22,13 @@ import java.util.stream.IntStream;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.fail;
 
 /**
  * @author xweng
  */
 public class ImhotepConnectionPoolTest {
-
-    private static final Logger logger = Logger.getLogger(ImhotepConnectionPoolTest.class);
 
     private static Host host1;
     private static Host host2;
@@ -45,8 +42,6 @@ public class ImhotepConnectionPoolTest {
     public static void initialize() throws IOException {
         serverSocket1 = new ServerSocket(0);
         serverSocket2 = new ServerSocket(0);
-
-        logger.error("haha");
 
         host1 = new Host("localhost", serverSocket1.getLocalPort());
         host2 = new Host("localhost", serverSocket2.getLocalPort());
@@ -62,51 +57,22 @@ public class ImhotepConnectionPoolTest {
     }
 
     @Test
-    public void testReleaseConnection() throws IOException {
-        Socket socket;
-        try (final ImhotepConnection connection = testConnnectionPool.getConnection(host1)) {
-            socket = connection.getSocket();
-            assertNotNull(socket);
-        }
-
-        final ImhotepConnection connection = testConnnectionPool.getConnection(host1);
-        socket = connection.getSocket();
-        assertNotNull(socket);
-        connection.close();
-    }
-
-    @Test
-    public void testGetConnection() throws IOException {
-        try (final ImhotepConnection connection = testConnnectionPool.getConnection(host1)) {
+    public void testWithConnection() throws IOException {
+        final Socket socket1 = testConnnectionPool.withConnection(host1, connection -> {
             final Socket socket = connection.getSocket();
             assertNotNull(socket);
             assertEquals(socket.getInetAddress().getHostName(), host1.getHostname());
-        }
+            return socket;
+        });
 
-        try (final ImhotepConnection connection = testConnnectionPool.getConnection(host2)) {
+        final Socket socket2 = testConnnectionPool.withConnection(host1, connection -> {
             final Socket socket = connection.getSocket();
             assertNotNull(socket);
-            assertEquals(socket.getInetAddress().getHostName(), host2.getHostname());
-        }
-    }
-
-    @Test
-    public void testGetConnectionTimeout() throws IOException {
-        // socket timeout
-        try (final ImhotepConnection connection = testConnnectionPool.getConnection(new Host("www.google.com", 81), 5000)) {
-            fail("SocketTimeoutException is expected");
-        } catch (final SocketTimeoutException e) {
-            // succeed
-        }
-    }
-
-    @Test
-    public void testWithConnection() throws IOException {
-        final String socketHost = testConnnectionPool.withConnection(host1, connection -> {
-            final Socket socket = connection.getSocket();
-            return socket.getInetAddress().getHostName();
+            assertEquals(socket.getInetAddress().getHostName(), host1.getHostname());
+            return socket;
         });
-        assertEquals(socketHost, host1.getHostname());
+
+        assertEquals(socket1, socket2);
     }
 
     @Test
@@ -124,13 +90,17 @@ public class ImhotepConnectionPoolTest {
 
     @Test
     public void testDiscardConnection() throws IOException {
-        Socket socket;
-        try (final ImhotepConnection connection = testConnnectionPool.getConnection(host1)) {
-            socket = connection.getSocket();
-            assertNotNull(socket);
-            connection.markAsInvalid();
+        Socket socket = null;
+        try {
+            socket = testConnnectionPool.withConnection(host1, connection -> {
+                throw new IllegalArgumentException("a test exception");
+            });
+        } catch (final IllegalArgumentException e) {
+            // do nothing
         }
-        assertTrue(socket.isClosed());
+
+        final Socket socket2 = testConnnectionPool.withConnection(host1, connection -> connection.getSocket());
+        assertNotSame(socket, socket2);
     }
 
     @Test
@@ -171,20 +141,20 @@ public class ImhotepConnectionPoolTest {
     }
 
     private class Task implements Callable<Socket>{
-        private int taskIndex;
+        private final int taskIndex;
 
-        public Task(final int taskIndex) {
+        Task(final int taskIndex) {
             this.taskIndex = taskIndex;
         }
 
         @Override
-        public Socket call() throws Exception {
+        public Socket call() throws IOException, InterruptedException {
             final Host host = taskIndex % 2 == 0 ? host1 : host2;
-            try (final ImhotepConnection connection = testConnnectionPool.getConnection(host)) {
+            return testConnnectionPool.withConnection(host, connection -> {
                 final Socket socket = connection.getSocket();
                 Thread.sleep(taskIndex/5 * 100);
                 return socket;
-            }
+            });
         }
     }
 }
