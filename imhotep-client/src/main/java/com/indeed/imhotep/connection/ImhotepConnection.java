@@ -6,6 +6,7 @@ import org.apache.log4j.Logger;
 
 import java.io.Closeable;
 import java.net.Socket;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * @author xweng
@@ -16,13 +17,13 @@ public class ImhotepConnection implements Closeable {
     private final KeyedObjectPool<Host, Socket> sourcePool;
     private final Socket socket;
     private final Host host;
-    private boolean closed;
+    private final AtomicBoolean closed;
 
     ImhotepConnection(final KeyedObjectPool<Host, Socket> sourcePool, final Socket socket, final Host host) {
         this.sourcePool = sourcePool;
         this.socket = socket;
         this.host = host;
-        this.closed = false;
+        this.closed = new AtomicBoolean(false);
     }
 
     /**
@@ -42,15 +43,14 @@ public class ImhotepConnection implements Closeable {
 
     @Override
     public void close() {
-        if (closed) {
+        if (closed.getAndSet(true)) {
             return;
         }
 
-        closed = true;
         try {
             sourcePool.returnObject(host, socket);
         } catch (final Exception e) {
-            // do nothing
+            logger.warn("Errors happened when returning socket, socket = " + socket, e);
         }
     }
 
