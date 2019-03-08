@@ -23,10 +23,12 @@ import com.indeed.imhotep.ImhotepStatusDump;
 import com.indeed.imhotep.MemoryReservationContext;
 import com.indeed.imhotep.MemoryReserver;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
+import com.indeed.imhotep.client.Host;
 import com.indeed.imhotep.local.ImhotepJavaLocalSession;
 import com.indeed.imhotep.local.ImhotepLocalSession;
 import com.indeed.imhotep.local.MTImhotepLocalMultiSession;
-import com.indeed.imhotep.protobuf.ShardNameNumDocsPair;
+import com.indeed.imhotep.protobuf.HostAndPort;
+import com.indeed.imhotep.protobuf.ShardBasicInfoMessage;
 import com.indeed.imhotep.scheduling.SchedulerType;
 import com.indeed.imhotep.scheduling.TaskScheduler;
 import com.indeed.util.core.io.Closeables2;
@@ -226,7 +228,19 @@ public class LocalImhotepServiceCore
     }
 
     @Override
-    public String handleOpenSession(String dataset, List<ShardNameNumDocsPair> shardRequestList, String username, String clientName, String ipAddress, int clientVersion, int mergeThreadLimit, boolean optimizeGroupZeroLookups, String sessionId, AtomicLong tempFileSizeBytesLeft, long sessionTimeout) throws ImhotepOutOfMemoryException {
+    public String handleOpenSession(
+            String dataset,
+            List<ShardBasicInfoMessage> shardRequestList,
+            String username,
+            String clientName,
+            String ipAddress,
+            int clientVersion,
+            int mergeThreadLimit,
+            boolean optimizeGroupZeroLookups,
+            String sessionId,
+            AtomicLong tempFileSizeBytesLeft,
+            long sessionTimeout,
+            final boolean p2pCache) throws ImhotepOutOfMemoryException {
         if (Strings.isNullOrEmpty(sessionId)) {
             sessionId = generateSessionId();
         }
@@ -250,7 +264,7 @@ public class LocalImhotepServiceCore
         try {
             // Construct flamdex readers
             final List<ConcurrentFlamdexReaderFactory.CreateRequest> readerRequests =
-                    shardRequestListToFlamdexReaderRequests(dataset, shardRequestList, username, clientName);
+                    shardRequestListToFlamdexReaderRequests(dataset, shardRequestList, username, clientName, p2pCache);
             final Map<Path, SharedReference<CachedFlamdexReader>> flamdexes = flamderReaderFactory.constructFlamdexReaders(readerRequests);
 
             // Construct local sessions using the above readers
@@ -302,15 +316,22 @@ public class LocalImhotepServiceCore
         return sessionId;
     }
 
-    private List<ConcurrentFlamdexReaderFactory.CreateRequest> shardRequestListToFlamdexReaderRequests(String dataset,
-                                                                                                       List<ShardNameNumDocsPair> shardRequestList,
-                                                                                                       String userName,
-                                                                                                       String clientName) {
+    private List<ConcurrentFlamdexReaderFactory.CreateRequest> shardRequestListToFlamdexReaderRequests(final String dataset,
+                                                                                                       final List<ShardBasicInfoMessage> shardRequestList,
+                                                                                                       final String userName,
+                                                                                                       final String clientName,
+                                                                                                       final boolean p2pCache) {
         final List<ConcurrentFlamdexReaderFactory.CreateRequest> readerRequests = Lists.newArrayList();
-        for (final ShardNameNumDocsPair aShardRequestList : shardRequestList) {
+        for (final ShardBasicInfoMessage aShardRequestList : shardRequestList) {
             final String shardName = aShardRequestList.getShardName();
             final int numDocs = aShardRequestList.getNumDocs();
-            readerRequests.add(new ConcurrentFlamdexReaderFactory.CreateRequest(dataset, shardName, numDocs, userName, clientName));
+
+            Host shardOwner = null;
+            if (p2pCache) {
+                final HostAndPort protoHost = aShardRequestList.getOwner();
+                shardOwner = new Host(protoHost.getHost(), protoHost.getPort());
+            }
+            readerRequests.add(new ConcurrentFlamdexReaderFactory.CreateRequest(dataset, shardName, shardOwner, numDocs, userName, clientName));
         }
         return readerRequests;
     }

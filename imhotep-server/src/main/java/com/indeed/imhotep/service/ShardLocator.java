@@ -2,9 +2,12 @@ package com.indeed.imhotep.service;
 
 import com.google.common.collect.ComparisonChain;
 import com.indeed.imhotep.ShardDir;
+import com.indeed.imhotep.client.Host;
 
+import javax.annotation.Nullable;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
@@ -14,31 +17,20 @@ import java.util.stream.Collectors;
 
 public interface ShardLocator {
     public static ShardLocator appendingSQARShardLocator(final Path rootDir) {
-        return (dataset, shardName) -> {
+        return (dataset, shardName, shardOwner) -> {
             final String archiveName;
             if (shardName.endsWith(".sqar")) {
                 archiveName = shardName;
             } else {
                 archiveName = shardName + ".sqar";
             }
-            final Path shardPath = rootDir.resolve(dataset).resolve(archiveName);
-            if (Files.exists(shardPath)) {
-                return Optional.of(shardPath);
-            } else {
-                return Optional.empty();
-            }
+            return locateAndCheck(rootDir, dataset, archiveName, shardOwner);
         };
     }
 
     public static ShardLocator pathShardLocator(final Path rootDir) {
-        return (dataset, shardName) -> {
-            final Path shardPath = rootDir.resolve(dataset).resolve(shardName);
-            if (Files.exists(shardPath)) {
-                return Optional.of(shardPath);
-            } else {
-                return Optional.empty();
-            }
-        };
+        return (dataset, shardName, shardOwner) ->
+                locateAndCheck(rootDir, dataset, shardName, shardOwner);
     }
 
     /**
@@ -54,10 +46,34 @@ public interface ShardLocator {
     }
 
     /**
+     * convert a local path to p2p path
+     */
+    static Path toP2PPath(final Path rootPath, final Path localPath, final Host shardOwner) {
+        final Path fakeP2PPath = rootPath
+                .resolve("remote")
+                .resolve(shardOwner.toString())
+                .resolve(localPath.toString());
+        return Paths.get(fakeP2PPath.toUri());
+    }
+
+    static Optional<Path> locateAndCheck(final Path rootDir, final String dataset, final String shardName, final Host shardOwner) {
+        Path shardPath = rootDir.resolve(dataset).resolve(shardName);
+        if (shardOwner != null) {
+            shardPath = toP2PPath(rootDir, shardPath, shardOwner);
+        }
+        if (Files.exists(shardPath)) {
+            return Optional.of(shardPath);
+        } else {
+            return Optional.empty();
+        }
+    }
+
+    /**
      * @param dataset
      * @param shardName the directory name of the shard. see: {@link FlamdexInfo}.
+     * @param shardOwner the owner of that shard, null means it won't locate to P2PCachingPath
      */
-    Optional<Path> locateShard(final String dataset, final String shardName);
+    Optional<Path> locateShard(final String dataset, final String shardName, @Nullable final Host shardOwner);
 
     static class CombinedShardLocator implements ShardLocator {
         private static final Comparator<ShardDir> SHARD_DIR_COMPARATOR = (lhs, rhs) -> {
@@ -75,9 +91,9 @@ public interface ShardLocator {
         }
 
         @Override
-        public Optional<Path> locateShard(final String dataset, final String shardName) {
+        public Optional<Path> locateShard(final String dataset, final String shardName, @Nullable final Host shardOwner) {
             return shardLocators.stream()
-                    .map(shardLocator -> shardLocator.locateShard(dataset, shardName))
+                    .map(shardLocator -> shardLocator.locateShard(dataset, shardName, shardOwner))
                     .filter(Optional::isPresent)
                     .map(Optional::get)
                     .map(ShardDir::new)

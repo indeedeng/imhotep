@@ -55,7 +55,7 @@ import com.indeed.imhotep.protobuf.MultiFTGSRequest;
 import com.indeed.imhotep.protobuf.QueryMessage;
 import com.indeed.imhotep.protobuf.QueryRemapMessage;
 import com.indeed.imhotep.protobuf.RegroupConditionMessage;
-import com.indeed.imhotep.protobuf.ShardNameNumDocsPair;
+import com.indeed.imhotep.protobuf.ShardBasicInfoMessage;
 import com.indeed.imhotep.protobuf.StringFieldAndTerms;
 import com.indeed.util.core.Pair;
 import com.indeed.util.core.io.Closeables2;
@@ -277,7 +277,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                     final OutputStream os = Streams.newBufferedOutputStream(socket.getOutputStream());
                     final InputStream is = Streams.newBufferedInputStream(socket.getInputStream());
 
-                    final List<ShardNameNumDocsPair> shards = request.getShardsList();
+                    final List<ShardBasicInfoMessage> shards = request.getShardsList();
                     log.trace("sending open request to "+host+":"+port+" for shards "+ shards);
 
                     ImhotepProtobufShipping.sendProtobuf(request, os);
@@ -304,8 +304,8 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                                 request.getOptimizeGroupZeroLookups(),
                                 request.getSessionId(),
                                 tempFileSizeBytesLeft,
-                                request.getSessionTimeout()
-
+                                request.getSessionTimeout(),
+                                request.getP2PCache()
                         );
                 NDC.push(sessionId);
                 builder.setSessionId(sessionId);

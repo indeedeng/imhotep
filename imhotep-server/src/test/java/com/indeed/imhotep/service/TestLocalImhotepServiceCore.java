@@ -19,7 +19,7 @@ import com.indeed.flamdex.simple.TestSimpleFlamdexDocWriter;
 import com.indeed.imhotep.api.FTGSParams;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.io.TestFileUtils;
-import com.indeed.imhotep.protobuf.ShardNameNumDocsPair;
+import com.indeed.imhotep.protobuf.ShardBasicInfoMessage;
 import com.indeed.imhotep.protobuf.StatsSortOrder;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -76,7 +76,10 @@ public class TestLocalImhotepServiceCore {
                     directory);
 
 
-            final String sessionId = service.handleOpenSession("dataset", Collections.singletonList(ShardNameNumDocsPair.newBuilder().setShardName("index20150601").build()), "", "", "", 0, 0, false, "", null, 0);
+            final String sessionId = service.handleOpenSession("dataset", Collections.singletonList(
+                    ShardBasicInfoMessage.newBuilder().setShardName("index20150601").build()),
+                    "", "", "", 0, 0,
+                    false, "", null, 0, false);
             service.handlePushStat(sessionId, "count()");
             final OutputStream os = new CloseableNullOutputStream();
             final Thread t = new Thread(new Runnable() {

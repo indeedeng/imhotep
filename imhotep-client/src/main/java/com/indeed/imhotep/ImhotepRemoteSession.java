@@ -51,7 +51,7 @@ import com.indeed.imhotep.protobuf.MultiFTGSRequest;
 import com.indeed.imhotep.protobuf.QueryMessage;
 import com.indeed.imhotep.protobuf.QueryRemapMessage;
 import com.indeed.imhotep.protobuf.RegroupConditionMessage;
-import com.indeed.imhotep.protobuf.ShardNameNumDocsPair;
+import com.indeed.imhotep.protobuf.ShardBasicInfoMessage;
 import com.indeed.imhotep.protobuf.StringFieldAndTerms;
 import com.indeed.util.core.Pair;
 import com.indeed.util.core.io.Closeables2;
@@ -208,7 +208,7 @@ public class ImhotepRemoteSession
                                                    @Nullable final AtomicLong tempFileSizeBytesLeft,
                                                    final long sessionTimeout, final long numDocs) throws ImhotepOutOfMemoryException, IOException {
 
-        return openSession(host, port, dataset, shards, mergeThreadLimit, username, "", optimizeGroupZeroLookups, socketTimeout, sessionId, tempFileSizeLimit, tempFileSizeBytesLeft, sessionTimeout, false, numDocs);
+        return openSession(host, port, dataset, shards, mergeThreadLimit, username, "", optimizeGroupZeroLookups, socketTimeout, sessionId, tempFileSizeLimit, tempFileSizeBytesLeft, sessionTimeout, false, numDocs, false);
     }
 
 
@@ -218,7 +218,8 @@ public class ImhotepRemoteSession
                                                    @Nullable String sessionId, final long tempFileSizeLimit,
                                                    @Nullable final AtomicLong tempFileSizeBytesLeft,
                                                    final long sessionTimeout,
-                                                   boolean allowSessionForwarding, final long numDocs) throws ImhotepOutOfMemoryException, IOException {
+                                                   boolean allowSessionForwarding, final long numDocs,
+                                                   final boolean p2pCache) throws ImhotepOutOfMemoryException, IOException {
         final Socket socket = newSocket(host, port, socketTimeout);
         final OutputStream os = Streams.newBufferedOutputStream(socket.getOutputStream());
         final InputStream is = Streams.newBufferedInputStream(socket.getInputStream());
@@ -230,13 +231,25 @@ public class ImhotepRemoteSession
                     .setClientName(clientName)
                     .setDataset(dataset)
                     .setMergeThreadLimit(mergeThreadLimit)
-                    .addAllShards(shards.stream().map(shard -> ShardNameNumDocsPair.newBuilder().setShardName(shard.getFileName()).setNumDocs(shard.numDocs).build()).collect(Collectors.toList()))
+                    .addAllShards(shards.stream().map(shard ->
+                            ShardBasicInfoMessage.newBuilder()
+                                    .setShardName(shard.getFileName())
+                                    .setNumDocs(shard.numDocs)
+                                    .setOwner(
+                                            HostAndPort.newBuilder()
+                                                    .setHost(shard.getOwner().getHostname())
+                                                    .setPort(shard.getOwner().getPort())
+                                                    .build()
+                                    )
+                                    .build())
+                                    .collect(Collectors.toList()))
                     .setOptimizeGroupZeroLookups(optimizeGroupZeroLookups)
                     .setClientVersion(CURRENT_CLIENT_VERSION)
                     .setSessionId(sessionId == null ? "" : sessionId)
                     .setTempFileSizeLimit(tempFileSizeLimit)
                     .setSessionTimeout(sessionTimeout)
                     .setAllowSessionForwarding(allowSessionForwarding)
+                    .setP2PCache(p2pCache)
                     .build();
             try {
                 ImhotepProtobufShipping.sendProtobuf(openSessionRequest, os);

@@ -17,6 +17,7 @@ package com.indeed.imhotep.service;
 import com.google.common.base.Throwables;
 import com.indeed.imhotep.MemoryReservationContext;
 import com.indeed.imhotep.MemoryReserver;
+import com.indeed.imhotep.client.Host;
 import com.indeed.imhotep.scheduling.ImhotepTask;
 import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.core.reference.SharedReference;
@@ -29,7 +30,6 @@ import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Future;
@@ -78,6 +78,7 @@ public class ConcurrentFlamdexReaderFactory {
     public static class CreateRequest {
         public final String dataset;
         public final String shardName;
+        @Nullable public final Host shardOwner;
         public final int numDocs;
         public final String userName;
         public final String clientName;
@@ -85,13 +86,21 @@ public class ConcurrentFlamdexReaderFactory {
         /**
          * @param dataset    is the directory under the {@code rootDir}.
          * @param shardName  is the shard directory name. See {@link FlamdexInfo}.
+         * @param shardOwner is the owner server of shard
          * @param numDocs    is the number of docs for the shard. Should be &lt;= 0 if it is unknown.
          * @param userName
          * @param clientName
          */
-        public CreateRequest(final String dataset, final String shardName, final int numDocs, final String userName, final String clientName) {
+        public CreateRequest(
+                final String dataset,
+                final String shardName,
+                @Nullable final Host shardOwner,
+                final int numDocs,
+                final String userName,
+                final String clientName) {
             this.dataset = dataset;
             this.shardName = shardName;
+            this.shardOwner = shardOwner;
             this.numDocs = numDocs;
             this.userName = userName;
             this.clientName = clientName;
@@ -108,7 +117,7 @@ public class ConcurrentFlamdexReaderFactory {
         }
 
         private Path locateShard(final CreateRequest createRequest) {
-            return shardLocator.locateShard(createRequest.dataset, createRequest.shardName)
+            return shardLocator.locateShard(createRequest.dataset, createRequest.shardName, createRequest.shardOwner)
                     .orElseThrow(() -> new IllegalArgumentException("Unable to locate shard for dataset=" + createRequest.dataset + ", shardName=" + createRequest.shardName));
         }
 

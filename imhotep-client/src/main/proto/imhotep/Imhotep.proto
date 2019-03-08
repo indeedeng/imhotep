@@ -91,9 +91,10 @@ message GroupMultiRemapMessage {
   optional uint32 negative_group = 4 [default = 0];
 }
 
-message ShardNameNumDocsPair {
+message ShardBasicInfoMessage {
     optional int32 num_docs = 1 [default = -1];
     required string shard_name = 2;
+    optional HostAndPort owner = 3;
 }
 
 enum StatsSortOrder {
@@ -307,7 +308,7 @@ message ImhotepRequest {
   optional bool sortedFTGS = 64 [default = true];
 
   // used in openSession()
-  repeated ShardNameNumDocsPair shards = 65;
+  repeated ShardBasicInfoMessage shards = 65;
 
   // for remapping groups
   repeated int32 fromGroups = 66 [packed = true];
@@ -323,6 +324,8 @@ message ImhotepRequest {
 
   //for topK and bottomK
   optional StatsSortOrder statsSortOrder = 73;
+
+  optional bool p2pCache = 75;
 }
 
 message DocStat {
