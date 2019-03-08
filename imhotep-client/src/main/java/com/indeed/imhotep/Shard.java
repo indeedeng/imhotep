@@ -117,7 +117,7 @@ public class Shard extends ShardInfo {
         Preconditions.checkNotNull(server);
         builder
                 .setHost(HostAndPort.newBuilder().setHost(server.hostname).setPort(server.port))
-                .setOwner(HostAndPort.newBuilder().setHost(owner.hostname).setPort(owner.port).build())
+                .setOwner(HostAndPort.newBuilder().setHost(owner.hostname).setPort(owner.port))
                 .setShardId(shardId)
                 .setNumDocs(numDocs)
                 .setVersion(version);
