@@ -942,6 +942,18 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             service.handleGetAndSendShardFile(request.getShardFilePath(), builder, os);
         }
 
+        private ImhotepResponse getShardFileAttributes(
+                final ImhotepRequest request,
+                final ImhotepResponse.Builder builder) throws IOException {
+            return service.handleGetShardFileAttributes(request.getShardFilePath(), builder);
+        }
+
+        private ImhotepResponse listShardFileAttributes(
+                final ImhotepRequest request,
+                final ImhotepResponse.Builder builder) throws IOException {
+            return service.handleListShardFileAttributes(request.getShardFilePath(), builder);
+        }
+
         private void shutdown(
                 final ImhotepRequest request,
                 final InputStream    is,
@@ -1135,6 +1147,12 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                             break;
                         case GET_SHARD_FILE:
                             getAndSendShardFile(request, builder, os);
+                            break;
+                        case GET_SHARD_FILE_ATTRIBUTES:
+                            response = getShardFileAttributes(request, builder);
+                            break;
+                        case LIST_SHARD_FILE_ATTRIBUTES:
+                            response = listShardFileAttributes(request, builder);
                             break;
                         case SHUTDOWN:
                             shutdown(request, is, os);

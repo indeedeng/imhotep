@@ -3,6 +3,7 @@ package com.indeed.imhotep;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Maps;
 import com.google.common.io.ByteStreams;
 import com.google.common.primitives.Longs;
 import com.indeed.flamdex.simple.SimpleFlamdexDocWriter;
@@ -12,6 +13,7 @@ import com.indeed.imhotep.archive.SquallArchiveWriter;
 import com.indeed.imhotep.fs.RemoteCachingFileSystemProvider;
 import com.indeed.imhotep.io.ImhotepProtobufShipping;
 import com.indeed.imhotep.io.Streams;
+import com.indeed.imhotep.protobuf.FileAttributeMessage;
 import com.indeed.imhotep.protobuf.ImhotepRequest;
 import com.indeed.imhotep.protobuf.ImhotepResponse;
 import com.indeed.imhotep.service.ImhotepDaemonRunner;
@@ -33,21 +35,28 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
 import java.net.URI;
+import java.nio.file.DirectoryStream;
 import java.nio.file.FileSystem;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.TimeoutException;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
  * @author xweng
  */
-public class TestGetShardFile {
+public class TestShardFileRequests {
     // file system variables
     private static final Map<String, String> DEFAULT_CONFIG = ImmutableMap.<String, String>builder()
             .put("imhotep.fs.store.type", "local")
@@ -55,11 +64,10 @@ public class TestGetShardFile {
             .put("imhotep.fs.cache.block.size.bytes", "4096")
             .build();
 
-    private static final String DATASET = "dataset";
+    private static final String INDEX_NAME = "index20171231.20180301170838";
 
     private static final TemporaryFolder tempDir = new TemporaryFolder();
     private static Path rootPath;
-    private static String indexSubPath;
     private static ImhotepDaemonRunner imhotepDaemonRunner;
     private static ShardMasterAndImhotepDaemonClusterRunner clusterRunner;
     private static File localStoreDir;
@@ -96,7 +104,6 @@ public class TestGetShardFile {
                 rootPath.resolve("temp-root-dir").toFile(),
                 ImhotepShardCreator.DEFAULT);
         imhotepDaemonRunner = clusterRunner.startDaemon();
-        indexSubPath = DATASET + "/index20171231.20180301170838";
     }
 
     @AfterClass
@@ -110,28 +117,72 @@ public class TestGetShardFile {
 
     @Test
     public void testGetShardFile() throws IOException {
-        tempDir.newFolder("local-store/" + indexSubPath);
-        createFlamdexIndex(localStoreDir.toPath().resolve(indexSubPath));
-        internalTestGetShardFile();
+        final String indexSubDirectory = initializeTest("dataset_1");
+        internalTestGetShardFile(indexSubDirectory);
     }
 
     @Test
     public void testGetShardFileSqar() throws IOException {
+        final String indexSubDirectory = getIndexSubDirectory("dataset_2");
         final File localArchiveDir = tempDir.newFolder("temp-local-archive-dir");
         // create local archive dir
         createFlamdexIndex(localArchiveDir.toPath());
         // create sqar file and store them in hdfs
-        final String remoteIndexDir = indexSubPath + ".sqar";
-        createSqarFiles(localArchiveDir, localStoreDir.getPath() + "/" + remoteIndexDir);
-        localArchiveDir.delete();
+        final String remoteIndexDir = localStoreDir.getPath() + "/" + indexSubDirectory + ".sqar";
+        createSqarFiles(localArchiveDir, remoteIndexDir);
 
-        internalTestGetShardFile();
+        internalTestGetShardFile(indexSubDirectory);
     }
 
-    private void internalTestGetShardFile() throws IOException {
+    @Test
+    public void testGetShardFileAttributes() throws IOException {
+        final String indexSubDirectory = initializeTest("dataset_3");
+
+        // file
+        final Path remoteFilePath = rootPath.resolve(indexSubDirectory).resolve("fld-if2.intdocs");
+        final FileAttributeMessage fileAttributes = getShardFileAttributes(remoteFilePath);
+        assertNotNull(fileAttributes);
+        assertFalse(fileAttributes.getIsDirectory());
+        assertEquals(6, fileAttributes.getSize());
+
+        // directory
+        final Path remoteDirPath = rootPath.resolve(indexSubDirectory);
+        final FileAttributeMessage dirAttributes = getShardFileAttributes(remoteDirPath);
+        assertNotNull(dirAttributes);
+        assertTrue(dirAttributes.getIsDirectory());
+        assertEquals(4096, dirAttributes.getSize());
+    }
+
+    @Test
+    public void testListShardFileAttributes() throws IOException {
+        final String indexSubDirectory = initializeTest("dataset_4");
+        // directory
+        final Path remoteDirPath = rootPath.resolve(indexSubDirectory);
+        final List<FileAttributeMessage> subFileAttributes = listShardFileAttributes(remoteDirPath);
+        final Map<Path, FileAttributeMessage> pathToAttributesMap = Maps.newHashMap();
+        subFileAttributes.forEach(attribute ->  pathToAttributesMap.put(
+                Paths.get(URI.create(attribute.getPath())),
+                attribute));
+
+        try (final DirectoryStream<Path> dirStream = Files.newDirectoryStream(remoteDirPath)) {
+            dirStream.forEach(localPath -> {
+                try {
+                    final BasicFileAttributes attributes = Files.readAttributes(localPath, BasicFileAttributes.class);
+                    final FileAttributeMessage message = pathToAttributesMap.getOrDefault(localPath, null);
+                    assertNotNull(message);
+                    assertEquals(attributes.isDirectory(), message.getIsDirectory());
+                    assertEquals(attributes.size(), message.getSize());
+                } catch (final IOException e) {
+                    fail("IOException: " + e.getMessage());
+                }
+            });
+        }
+    }
+
+    private void internalTestGetShardFile(final String indexSubDirectory) throws IOException {
         final List<String> filenames = ImmutableList.of("fld-if2.intdocs", "fld-sf1.strdocs", "metadata.txt");
         for (final String filename : filenames) {
-            final Path fieldPath = rootPath.resolve(indexSubPath).resolve(filename);
+            final Path fieldPath = rootPath.resolve(indexSubDirectory).resolve(filename);
             final File downloadedFile = File.createTempFile("temp-downloaded", "");
             downloadedFile.deleteOnExit();
             downloadShardFiles(fieldPath.toUri().toString(), downloadedFile);
@@ -139,30 +190,54 @@ public class TestGetShardFile {
         }
     }
 
+    private FileAttributeMessage getShardFileAttributes(final Path path) throws IOException {
+        final ImhotepRequest newRequest = ImhotepRequest.newBuilder()
+                .setRequestType(ImhotepRequest.RequestType.GET_SHARD_FILE_ATTRIBUTES)
+                .setShardFilePath(path.toUri().toString())
+                .build();
+        return handleRequest(newRequest, (response, is) -> response.getFileAttributes());
+    }
+
+    private List<FileAttributeMessage> listShardFileAttributes(final Path path) throws IOException {
+        final ImhotepRequest newRequest = ImhotepRequest.newBuilder()
+                .setRequestType(ImhotepRequest.RequestType.LIST_SHARD_FILE_ATTRIBUTES)
+                .setShardFilePath(path.toUri().toString())
+                .build();
+        return handleRequest(newRequest, (response, is) -> response.getSubFilesAttributesList());
+    }
+
     private void downloadShardFiles(final String remoteFilePath, final File destFile) throws IOException {
-        final Socket socket = new Socket("localhost", imhotepDaemonRunner.getActualPort());
-        final OutputStream os = Streams.newBufferedOutputStream(socket.getOutputStream());
-        final InputStream is = Streams.newBufferedInputStream(socket.getInputStream());
         final ImhotepRequest newRequest = ImhotepRequest.newBuilder()
                 .setRequestType(ImhotepRequest.RequestType.GET_SHARD_FILE)
                 .setShardFilePath(remoteFilePath)
                 .build();
+        handleRequest(newRequest, (response, is) -> {
+            try (final OutputStream outputStream = new FileOutputStream(destFile)) {
+                IOUtils.copy(ByteStreams.limit(is, response.getFileLength()), outputStream);
+            }
+            return true;
+        });
+    }
+
+    private <R> R handleRequest(final ImhotepRequest request, final ThrowingFunction<ImhotepResponse, InputStream, R> function) throws IOException {
+        final Socket socket = new Socket("localhost", imhotepDaemonRunner.getActualPort());
+        final OutputStream os = Streams.newBufferedOutputStream(socket.getOutputStream());
+        final InputStream is = Streams.newBufferedInputStream(socket.getInputStream());
         try {
-            ImhotepProtobufShipping.sendProtobuf(newRequest, os);
+            ImhotepProtobufShipping.sendProtobuf(request, os);
             final ImhotepResponse imhotepResponse = ImhotepProtobufShipping.readResponse(is);
 
             if (imhotepResponse.getResponseCode() != ImhotepResponse.ResponseCode.OK) {
                 fail("wrong response code");
             }
-
-            try (final OutputStream outputStream = new FileOutputStream(destFile)) {
-                IOUtils.copy(ByteStreams.limit(is, imhotepResponse.getFileLength()), outputStream);
-            }
-        } catch (final IOException e) {
-            fail();
+            return function.apply(imhotepResponse, is);
         } finally {
             socket.close();
         }
+    }
+
+    public interface ThrowingFunction<K, T, R> {
+        R apply(K k, T t) throws IOException;
     }
 
     private void createSqarFiles(final File archiveDir, final String destDir) throws IOException {
@@ -218,5 +293,16 @@ public class TestGetShardFile {
                 .put("imhotep.fs.filestore.hdfs.root.uri", hdfsStoreDir.toString())
                 .put("imhotep.fs.sqar.metadata.cache.path", new File(sqarDbDir, "lsmtree").toString())
                 .build();
+    }
+
+    private static String getIndexSubDirectory(final String dataset) {
+        return dataset + "/" + INDEX_NAME;
+    }
+
+    private String initializeTest(final String dataset) throws IOException {
+        final String indexSubDirectory = getIndexSubDirectory(dataset);
+        tempDir.newFolder("local-store/" + indexSubDirectory);
+        createFlamdexIndex(localStoreDir.toPath().resolve(indexSubDirectory));
+        return indexSubDirectory;
     }
 }
