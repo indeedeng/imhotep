@@ -56,7 +56,7 @@ import static org.junit.Assert.fail;
 /**
  * @author xweng
  */
-public class TestGetShardFile {
+public class TestShardFileRequests {
     // file system variables
     private static final Map<String, String> DEFAULT_CONFIG = ImmutableMap.<String, String>builder()
             .put("imhotep.fs.store.type", "local")
