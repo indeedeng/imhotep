@@ -40,6 +40,7 @@ import java.nio.file.attribute.UserPrincipalLookupService;
 import java.nio.file.spi.FileSystemProvider;
 import java.util.Collections;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.regex.Pattern;
@@ -54,7 +55,6 @@ class RemoteCachingFileSystem extends FileSystem {
     private final RemoteCachingFileSystemProvider provider;
     private final SqarRemoteFileStore fileStore;
     private final LocalFileCache fileCache;
-    private final P2PCachingFileStore p2PCachingFileStore;
 
     RemoteCachingFileSystem(final RemoteCachingFileSystemProvider provider, final Map<String, ?> configuration, final MetricStatsEmitter statsEmitter) throws IOException {
         this.provider = provider;
@@ -62,8 +62,9 @@ class RemoteCachingFileSystem extends FileSystem {
         final RemoteFileStore backingFileStore = RemoteFileStoreType.fromName((String) configuration.get("imhotep.fs.store.type"))
                 .getFactory().create(configuration, statsEmitter);
 
-        fileStore = new SqarRemoteFileStore(backingFileStore, configuration);
-        p2PCachingFileStore = new P2PCachingFileStore(this, configuration, statsEmitter);
+        final boolean enableP2PCaching = Boolean.parseBoolean((String) configuration.get("imhotep.fs.p2p.cache.enable"));
+        final P2PCachingFileStore p2PCachingFileStore = enableP2PCaching ? new P2PCachingFileStore(this, configuration, statsEmitter) : null;
+        fileStore = new SqarRemoteFileStore(backingFileStore, p2PCachingFileStore, configuration);
 
         final URI cacheRootUri;
         try {
@@ -90,8 +91,9 @@ class RemoteCachingFileSystem extends FileSystem {
     }
 
     Path getCachePath(final RemoteCachingPath path) throws ExecutionException, IOException {
-        if (path instanceof P2PCachingPath) {
-            return p2PCachingFileStore.getCachedPath(path);
+        final Optional<Path> localCachedPath = fileStore.getCachedPath(path);
+        if (localCachedPath.isPresent()) {
+            return localCachedPath.get();
         }
         return fileCache.cache(path);
     }
@@ -128,7 +130,7 @@ class RemoteCachingFileSystem extends FileSystem {
 
     @Override
     public Iterable<FileStore> getFileStores() {
-        return Collections.<FileStore>singletonList(fileStore.getBackingFileStore());
+        return fileStore.getBackingFileStores();
     }
 
     @Override
@@ -155,6 +157,10 @@ class RemoteCachingFileSystem extends FileSystem {
         return (P2PCachingPath.isP2PCachingPath(path) ? new P2PCachingPath(this, path) : new RemoteCachingPath(this, path));
     }
 
+    FileStore getFileStore(final RemoteCachingPath path) {
+        return fileStore.getBackingFileStore(path);
+    }
+
     Iterable<RemoteFileStore.RemoteFileAttributes> listDirWithAttributes(final RemoteCachingPath path) throws IOException {
         return fileStore.listDir(path);
     }
@@ -170,13 +176,12 @@ class RemoteCachingFileSystem extends FileSystem {
     }
 
     SeekableByteChannel newByteChannel(final RemoteCachingPath path) throws IOException {
+        final Optional<LocalFileCache.ScopedCacheFile> optionalScopedCacheFile = fileStore.getForOpen(path);
         final LocalFileCache.ScopedCacheFile scopedCacheFile;
         try {
-            if (path instanceof P2PCachingPath) {
-                scopedCacheFile = p2PCachingFileStore.getOrOpen(path);
-            } else {
-                scopedCacheFile = fileCache.getForOpen(path);
-            }
+            scopedCacheFile = optionalScopedCacheFile.isPresent() ?
+                    optionalScopedCacheFile.get() :
+                    fileCache.getForOpen(path);
         } catch (final ExecutionException e) {
             throw new IOException("Failed to access cache file for " + path, e);
         }

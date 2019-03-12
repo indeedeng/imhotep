@@ -1,5 +1,7 @@
 package com.indeed.imhotep;
 
+import com.indeed.imhotep.client.Host;
+import com.indeed.imhotep.fs.P2PCachingPath;
 import com.indeed.imhotep.fs.RemoteCachingPath;
 import org.apache.commons.io.FileUtils;
 import org.junit.AfterClass;
@@ -7,9 +9,10 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
@@ -20,6 +23,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -47,6 +51,31 @@ public class TestP2PCachingFile {
     public void testLocalPath() {
         final Path localFilePath = rootPath.resolve(INDEX_DIR_PREFIX).resolve("fld-if1.intdocs");
         assertTrue(Files.exists(localFilePath));
+    }
+
+    @Test
+    public void testRemotePathListDir() throws IOException {
+        final RemoteCachingPath localFilePath = rootPath.resolve(INDEX_DIR_PREFIX);
+        try (final DirectoryStream<Path> localDirStream = Files.newDirectoryStream(localFilePath)) {
+            final Path p2pCachingPath = toLocalHostP2PCachingPath(rootPath, localFilePath);
+            try (final DirectoryStream<Path> remoteDirStream = Files.newDirectoryStream(p2pCachingPath)) {
+                Iterator<Path> localIterator = localDirStream.iterator();
+                Iterator<Path> remoteIterator = remoteDirStream.iterator();
+
+                while (localIterator.hasNext() && remoteIterator.hasNext()) {
+                    final Path nextRemotePath = remoteIterator.next();
+                    final Path nextLocalPath = localIterator.next();
+
+                    assertTrue(nextRemotePath instanceof P2PCachingPath);
+                    assertTrue(nextLocalPath instanceof RemoteCachingPath);
+                    assertEquals(nextLocalPath, ((P2PCachingPath) nextRemotePath).getRealPath());
+                }
+
+                if (localIterator.hasNext() || remoteIterator.hasNext()) {
+                    fail("The sub files count isn't equal");
+                }
+            }
+        }
     }
 
     @Test
@@ -86,14 +115,13 @@ public class TestP2PCachingFile {
 
     // here it actually downloads files from other server since hostname on machine is username
     private boolean internalTestRemote(final String fileName) throws IOException {
-        final Path localFilePath = rootPath.resolve(INDEX_DIR_PREFIX).resolve(fileName);
-        final Path fakeRemotePath = rootPath
-                .resolve("remote")
-                .resolve("localhost:" + testContext.getDaemonPort())
-                .resolve(INDEX_DIR_PREFIX)
-                .resolve(fileName);
-        final Path remotePath = Paths.get(fakeRemotePath.toUri());
+        final RemoteCachingPath localFilePath = rootPath.resolve(INDEX_DIR_PREFIX).resolve(fileName);
+        final Path remotePath = toLocalHostP2PCachingPath(rootPath, localFilePath);
         return FileUtils.contentEquals(localFilePath.toFile(), remotePath.toFile());
+    }
+
+    private P2PCachingPath toLocalHostP2PCachingPath(final RemoteCachingPath rootPath, final RemoteCachingPath localPath) {
+        return P2PCachingPath.toP2PCachingPath(rootPath, localPath, new Host("localhost", testContext.getDaemonPort()));
     }
 }
 

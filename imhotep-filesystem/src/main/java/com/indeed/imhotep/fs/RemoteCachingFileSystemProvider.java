@@ -305,8 +305,7 @@ public class RemoteCachingFileSystemProvider extends FileSystemProvider {
 
     @Override
     public FileStore getFileStore(final Path path) throws IOException {
-        // TODO: currently we only support a single configured file store per file system
-        return Iterables.getFirst(FILE_SYSTEM_HOLDER.get().getFileStores(), null);
+        return FILE_SYSTEM_HOLDER.get().getFileStore(toRemoteCachePath(path));
     }
 
     @Override
