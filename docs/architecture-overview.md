@@ -16,7 +16,7 @@ Learn more about the Imhotep architecture and the components necessary to run Im
 
 
 ## Imhotep Backend Component
-The ImhotepDaemon (a.k.a. Imhotep Server) is the back-end Java service responsible for looking servicing query requests. Add instances of ImhotepDaemon to help maintain high performance with large amounts of data and increased load.
+The ImhotepDaemon (a.k.a. Imhotep Server) is the back-end Java service responsible for servicing query requests. Add instances of ImhotepDaemon to help maintain high performance with large amounts of data and increased load.
 
  *It depends on*: 
 
