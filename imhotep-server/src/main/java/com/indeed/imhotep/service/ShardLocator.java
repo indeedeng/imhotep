@@ -99,7 +99,7 @@ public interface ShardLocator {
 
     /**
      * @param dataset
-     * @param shardHostInfo the infromation about shardName, shardServer and shardOwner
+     * @param shardHostInfo the infromation about shardName and shardOwner
      */
     Optional<Path> locateShard(final String dataset, final ShardHostInfo shardHostInfo);
 

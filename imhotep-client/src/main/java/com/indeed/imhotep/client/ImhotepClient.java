@@ -404,7 +404,7 @@ public class ImhotepClient
 
         /**
          * Returns shards that were selected for the time range requested in the constructor.
-         * Shards in the list are sorted chronologically
+         * Shards in the list are sorted chronologically.
          */
         public List<Shard> getChosenShards() {
             if(chosenShards == null) {
