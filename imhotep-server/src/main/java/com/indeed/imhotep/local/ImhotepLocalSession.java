@@ -95,6 +95,7 @@ import com.indeed.imhotep.metrics.ShiftLeft;
 import com.indeed.imhotep.metrics.ShiftRight;
 import com.indeed.imhotep.metrics.Subtraction;
 import com.indeed.imhotep.pool.BuffersPool;
+import com.indeed.imhotep.protobuf.StatsSortOrder;
 import com.indeed.imhotep.protobuf.QueryMessage;
 import com.indeed.imhotep.service.InstrumentedFlamdexReader;
 import com.indeed.util.core.Pair;
@@ -403,7 +404,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             ));
 
             if (params.isTopTerms()) {
-                iterator = FTGSIteratorUtil.getTopTermsFTGSIterator(iterator, params.termLimit, params.sortStat);
+                iterator = FTGSIteratorUtil.getTopTermsFTGSIterator(iterator, params.termLimit, params.sortStat, params.statsSortOrder);
             } else if (params.isTermLimit()) {
                 iterator = new TermLimitedFTGSIterator(iterator, params.termLimit);
             }

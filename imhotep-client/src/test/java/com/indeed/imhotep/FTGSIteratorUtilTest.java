@@ -19,6 +19,7 @@ import com.google.common.base.Objects;
 import com.google.common.collect.Lists;
 import com.indeed.imhotep.FTGSBinaryFormat.FieldStat;
 import com.indeed.imhotep.api.FTGSIterator;
+import com.indeed.imhotep.protobuf.StatsSortOrder;
 import com.indeed.imhotep.service.FTGSOutputStreamWriter;
 import com.indeed.util.core.Pair;
 import org.apache.log4j.Logger;
@@ -365,7 +366,7 @@ public class FTGSIteratorUtilTest {
 
         {
             final TopTermsFTGSIterator iter = FTGSIteratorUtil.getTopTermsFTGSIterator(
-                    InputStreamFTGSIterators.create(fileAndStats, numStats, numGroups), 2, 0);
+                    InputStreamFTGSIterators.create(fileAndStats, numStats, numGroups), 2, 0, StatsSortOrder.ASCENDING);
 
             expectIntField(iter, "a");
 
@@ -412,7 +413,50 @@ public class FTGSIteratorUtilTest {
 
         {
             final TopTermsFTGSIterator iter = FTGSIteratorUtil.getTopTermsFTGSIterator(
-                    InputStreamFTGSIterators.create(fileAndStats, numStats, numGroups), 2, 1);
+                    InputStreamFTGSIterators.create(fileAndStats, numStats, numGroups), 2, 2, StatsSortOrder.DESCENDING);
+
+            expectIntField(iter, "a");
+
+            expectIntTerm(iter, 3, 15);
+            expectGroup(iter, 1, new long[]{300, 400, 0});
+            expectGroup(iter, 2, new long[]{200, -100, 0});
+
+            expectIntTerm(iter, 4, 20);
+            expectGroup(iter, 1, new long[]{-300, 500, 0});
+            expectGroup(iter, 2, new long[]{100, 200, 0});
+
+            expectFieldEnd(iter);
+
+            expectIntField(iter, "b");
+
+            expectIntTerm(iter, 13, 15);
+            expectGroup(iter, 1, new long[]{-300, -400, 0});
+            expectGroup(iter, 2, new long[]{-200, 100, 0});
+
+            expectIntTerm(iter, 14, 20);
+            expectGroup(iter, 1, new long[]{300, -500, 0});
+            expectGroup(iter, 2, new long[]{-100, -200, 0});
+
+            expectFieldEnd(iter);
+
+            expectStrField(iter, "b");
+
+            expectStrTerm(iter, "c", 15);
+            expectGroup(iter, 1, new long[]{300, 4000, 0});
+            expectGroup(iter, 2, new long[]{200, 1000, 0});
+
+            expectStrTerm(iter, "d", 20);
+            expectGroup(iter, 1, new long[]{300, -500, 0});
+            expectGroup(iter, 2, new long[]{100, -250, 0});
+
+            expectFieldEnd(iter);
+
+            expectEnd(iter);
+        }
+
+        {
+            final TopTermsFTGSIterator iter = FTGSIteratorUtil.getTopTermsFTGSIterator(
+                    InputStreamFTGSIterators.create(fileAndStats, numStats, numGroups), 2, 1, StatsSortOrder.ASCENDING);
 
             expectIntField(iter, "a");
 
@@ -465,7 +509,60 @@ public class FTGSIteratorUtilTest {
 
         {
             final TopTermsFTGSIterator iter = FTGSIteratorUtil.getTopTermsFTGSIterator(
-                    InputStreamFTGSIterators.create(fileAndStats, numStats, numGroups), 2, 2);
+                    InputStreamFTGSIterators.create(fileAndStats, numStats, numGroups), 2, 1, StatsSortOrder.DESCENDING);
+
+            expectIntField(iter, "a");
+
+            expectIntTerm(iter, 1, 5);
+            expectGroup(iter, 1, new long[]{100, 200, 0});
+
+            expectIntTerm(iter, 2, 10);
+            expectGroup(iter, 1, new long[]{200, -100, 0});
+
+            expectIntTerm(iter, 3, 15);
+            expectGroup(iter, 2, new long[]{200, -100, 0});
+
+            expectIntTerm(iter, 4, 20);
+            expectGroup(iter, 2, new long[]{100, 200, 0});
+
+            expectFieldEnd(iter);
+
+            expectIntField(iter, "b");
+
+            expectIntTerm(iter, 11, 5);
+            expectGroup(iter, 2, new long[]{300, -500, 0});
+
+            expectIntTerm(iter, 12, 10);
+            expectGroup(iter, 2, new long[]{-300, -400, 0});
+
+            expectIntTerm(iter, 13, 15);
+            expectGroup(iter, 1, new long[]{-300, -400, 0});
+
+            expectIntTerm(iter, 14, 20);
+            expectGroup(iter, 1, new long[]{300, -500, 0});
+
+            expectFieldEnd(iter);
+
+            expectStrField(iter, "b");
+
+            expectStrTerm(iter, "aA", 5);
+            expectGroup(iter, 1, new long[]{100, -250, 0});
+
+            expectStrTerm(iter, "bb", 10);
+            expectGroup(iter, 2, new long[]{300, -500, 0});
+
+            expectStrTerm(iter, "d", 20);
+            expectGroup(iter, 1, new long[]{300, -500, 0});
+            expectGroup(iter, 2, new long[]{100, -250, 0});
+
+            expectFieldEnd(iter);
+
+            expectEnd(iter);
+        }
+
+        {
+            final TopTermsFTGSIterator iter = FTGSIteratorUtil.getTopTermsFTGSIterator(
+                    InputStreamFTGSIterators.create(fileAndStats, numStats, numGroups), 2, 2, StatsSortOrder.ASCENDING);
 
             expectIntField(iter, "a");
 
@@ -502,6 +599,48 @@ public class FTGSIteratorUtilTest {
             expectGroup(iter, 2, new long[]{300, -500, 0});
 
             expectFieldEnd(iter);
+
+            expectEnd(iter);
+        }
+
+        {
+            final TopTermsFTGSIterator iter = FTGSIteratorUtil.getTopTermsFTGSIterator(
+                    InputStreamFTGSIterators.create(fileAndStats, numStats, numGroups), 2, 2, StatsSortOrder.DESCENDING);
+
+
+            expectIntField(iter, "a");
+
+            expectIntTerm(iter, 3, 15);
+            expectGroup(iter, 1, new long[]{300, 400, 0});
+            expectGroup(iter, 2, new long[]{200, -100, 0});
+
+            expectIntTerm(iter, 4, 20);
+            expectGroup(iter, 1, new long[]{-300, 500, 0});
+            expectGroup(iter, 2, new long[]{100, 200, 0});
+
+            expectFieldEnd(iter);
+
+            expectIntField(iter, "b");
+
+            expectIntTerm(iter, 13, 15);
+            expectGroup(iter, 1, new long[]{-300, -400, 0});
+            expectGroup(iter, 2, new long[]{-200, 100, 0});
+
+            expectIntTerm(iter, 14, 20);
+            expectGroup(iter, 1, new long[]{300, -500, 0});
+            expectGroup(iter, 2, new long[]{-100, -200, 0});
+
+            expectFieldEnd(iter);
+
+            expectStrField(iter, "b");
+
+            expectStrTerm(iter, "c", 15);
+            expectGroup(iter, 1, new long[]{300, 4000, 0});
+            expectGroup(iter, 2, new long[]{200, 1000, 0});
+
+            expectStrTerm(iter, "d", 20);
+            expectGroup(iter, 1, new long[]{300, -500, 0});
+            expectGroup(iter, 2, new long[]{100, -250, 0});
 
             expectEnd(iter);
         }
@@ -651,7 +790,7 @@ public class FTGSIteratorUtilTest {
 
         {
             final TopTermsFTGSIterator iter = FTGSIteratorUtil.getTopTermsFTGSIterator(
-                    InputStreamFTGSIterators.create(fileAndStats, numStats, numGroups), 2, 0);
+                    InputStreamFTGSIterators.create(fileAndStats, numStats, numGroups), 2, 0, StatsSortOrder.ASCENDING);
 
             expectIntField(iter, "a");
 
@@ -685,6 +824,41 @@ public class FTGSIteratorUtilTest {
 
             expectEnd(iter);
         }
+
+        {
+            final TopTermsFTGSIterator iter = FTGSIteratorUtil.getTopTermsFTGSIterator(
+                    InputStreamFTGSIterators.create(fileAndStats, numStats, numGroups), 2, 0, StatsSortOrder.DESCENDING);
+
+            expectIntField(iter, "a");
+
+            expectIntTerm(iter, 1, 5);
+            expectGroup(iter, 1, new long[]{100, 200});
+
+            expectIntTerm(iter, 4, 20);
+            expectGroup(iter, 1, new long[]{-300, 500});
+
+            expectFieldEnd(iter);
+
+            expectIntField(iter, "b");
+
+            expectIntTerm(iter, 12, 10);
+            expectGroup(iter, 1, new long[]{-200, 100});
+
+            expectIntTerm(iter, 13, 15);
+            expectGroup(iter, 1, new long[]{-300, -400});
+
+            expectFieldEnd(iter);
+
+            expectStrField(iter, "b");
+
+            expectStrTerm(iter, "aA", 5);
+            expectGroup(iter, 1, new long[]{100, -250});
+
+            expectStrTerm(iter, "bb", 10);
+            expectGroup(iter, 1, new long[]{200, 1000});
+
+            expectEnd(iter);
+        }
    }
 
    private static <S> boolean termStatEqual(FTGSIteratorUtil.TermStat<S> s1, FTGSIteratorUtil.TermStat<S> s2, BiPredicate<S, S> statsEqual) {
@@ -700,7 +874,7 @@ public class FTGSIteratorUtilTest {
 
     @Test
     public void testStatExtractors() {
-        final FTGSIteratorUtil.LongStatExtractor longStatExtractor = new FTGSIteratorUtil.LongStatExtractor(1, 0);
+        final FTGSIteratorUtil.LongStatExtractor longStatExtractor = new FTGSIteratorUtil.LongStatExtractor(1, 0, StatsSortOrder.ASCENDING);
         final Comparator<FTGSIteratorUtil.TermStat<long[]>> comparator = longStatExtractor.comparator();
 
         final FTGSIterator iter = FTGSIteratorTestUtils.frozen("a", 1, 1234, 1, new long[]{0});

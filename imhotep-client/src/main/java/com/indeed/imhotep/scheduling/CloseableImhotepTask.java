@@ -33,7 +33,7 @@ class CloseableImhotepTask implements SilentCloseable {
     public void close() {
         if(locked) {
             locked = false;
-            taskScheduler.stopped(task);
+            taskScheduler.stopped(task, false);
         }
     }
 }

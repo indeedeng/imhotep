@@ -96,6 +96,12 @@ message ShardNameNumDocsPair {
     required string shard_name = 2;
 }
 
+enum StatsSortOrder {
+  UNDEFINED = 1; // No sorting with respect to stats/terms
+  ASCENDING = 2;
+  DESCENDING = 3;
+}
+
 message ImhotepRequest {
   enum RequestType {
     REGROUP = 1;
@@ -314,6 +320,9 @@ message ImhotepRequest {
   // used in everything that takes a List<String> stat or List<List<String>> stats
   repeated DocStat docStat = 70;
   optional bool hasStats = 71 [default=false];
+
+  //for topK and bottomK
+  optional StatsSortOrder statsSortOrder = 73;
 }
 
 message DocStat {
@@ -372,7 +381,7 @@ message MultiFTGSRequest {
   optional int64 termLimit = 7 [default = 0];
   optional int32 sortStat = 8 [default = -1];
   optional bool sortedFTGS = 9 [default = true];
-
+  optional StatsSortOrder StatsSortOrder = 12;
 }
 
 message ImhotepResponse {

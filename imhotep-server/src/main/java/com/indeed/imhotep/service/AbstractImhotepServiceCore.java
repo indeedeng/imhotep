@@ -49,6 +49,7 @@ import com.indeed.imhotep.protobuf.AggregateStat;
 import com.indeed.imhotep.protobuf.HostAndPort;
 import com.indeed.imhotep.protobuf.ImhotepResponse;
 import com.indeed.imhotep.protobuf.MultiFTGSRequest;
+import com.indeed.imhotep.protobuf.StatsSortOrder;
 import com.indeed.imhotep.protobuf.ShardNameNumDocsPair;
 import com.indeed.imhotep.scheduling.ImhotepTask;
 import com.indeed.imhotep.scheduling.SilentCloseable;
@@ -343,7 +344,7 @@ public abstract class AbstractImhotepServiceCore
                     final FTGSIterator[] sessionIterators = doWithSession(localSessionChoice, (IOOrOutOfMemoryFunction<MTImhotepLocalMultiSession, FTGSIterator[]>) session -> {
                         final String[] intFields = isIntField ? new String[]{sessionInfo.getField()} : new String[0];
                         final String[] stringFields = isIntField ? new String[0] : new String[]{sessionInfo.getField()};
-                        final FTGSParams ftgsParams = new FTGSParams(intFields, stringFields, termLimit, -1, true, stats);
+                        final FTGSParams ftgsParams = new FTGSParams(intFields, stringFields, termLimit, -1, true, stats, StatsSortOrder.UNDEFINED);
                         return session.partialMergeFTGSSplit(sessionInfo.getSessionId(), ftgsParams, sessionNodes, splitIndex, nodes.length, numLocalSplits);
                     });
                     closer.registerOrClose(Closeables2.forArray(log, sessionIterators));
@@ -380,9 +381,10 @@ public abstract class AbstractImhotepServiceCore
         final boolean isIntField = request.getIsIntField();
         final int splitIndex = request.getSplitIndex();
         final boolean sorted = request.getSortedFTGS();
+        final StatsSortOrder statsSortOrder = request.getStatsSortOrder();
 
         final List<MultiFTGSRequest.MultiFTGSSession> sessionInfoList = request.getSessionInfoList();
-        final FTGSModifiers modifiers = new FTGSModifiers(request.getTermLimit(), request.getSortStat(), request.getSortedFTGS());
+        final FTGSModifiers modifiers = new FTGSModifiers(request.getTermLimit(), request.getSortStat(), request.getSortedFTGS(), statsSortOrder);
 
         final Map<String, SessionStatsInfo> sessionStatsInfos = new HashMap<>();
         for (int i = 0; i < sessionInfoList.size(); i++) {

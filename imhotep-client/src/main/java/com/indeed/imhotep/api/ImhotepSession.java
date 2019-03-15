@@ -21,6 +21,7 @@ import com.indeed.imhotep.QueryRemapRule;
 import com.indeed.imhotep.RegroupCondition;
 import com.indeed.imhotep.TermCount;
 import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
+import com.indeed.imhotep.protobuf.StatsSortOrder;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -76,7 +77,7 @@ public interface ImhotepSession
      * @param stringFields list of string fields
      * @param stats list of stats to return in the FTGS. null means fall back to session stack.
      * @return an iterator. result is the same as after calling
-     *          getFTGSIterator(new FTGSParams(intFields, stringFields, 0, -1, true));
+     *          getFTGSIterator(new FTGSParams(intFields, stringFields, 0, -1, true, stats, StatsSortOrder.UNDEFINED));
      */
     FTGSIterator getFTGSIterator(String[] intFields, String[] stringFields, @Nullable List<List<String>> stats) throws ImhotepOutOfMemoryException;
 
@@ -87,21 +88,22 @@ public interface ImhotepSession
      * @param termLimit maximum number of terms that can be returned. 0 means no limit
      * @param stats list of stats to return in the FTGS. null means fall back to session stack.
      * @return an iterator. result is the same as after calling
-     *          getFTGSIterator(new FTGSParams(intFields, stringFields, termLimit, -1, true));
+     *          getFTGSIterator(new FTGSParams(intFields, stringFields, termLimit, -1, true, stats, StatsSortOrder.UNDEFINED));
      */
     FTGSIterator getFTGSIterator(String[] intFields, String[] stringFields, long termLimit, @Nullable List<List<String>> stats) throws ImhotepOutOfMemoryException;
 
     /**
-     * get an iterator over (field, term, group, stat) tuples for the top termLimit terms sorted by stats in sortStat for the given fields
+     * get an iterator over (field, term, group, stat) for top termLimit terms sorted by stats in sortStat in order given in sortOrder
      * @param intFields list of int fields
      * @param stringFields list of string fields
-     * @param termLimit maximum number of terms that can be returned. 0 means no limit
+     * @param termLimit maximum numbers of terms that can be returned. 0 means no limit
      * @param sortStat the index of stats to get the top terms. No sorting is done if the value is negative
      * @param stats list of stats to return in the FTGS. null means fall back to session stack.
+     * @param statsSortOrder the order (Ascending/Descending) of stats. Ties within terms are resolved in the same order ( same as in StatsSortOrder )
      * @return an iterator. result is the same as after calling
-     *          getFTGSIterator(new FTGSParams(intFields, stringFields, termLimit, sortStat, true));
+     *          getFTGSIterator(new FTGSParams(intFields, stringFields, termLimit, sortStat, true, stats, statsSortOrder));
      */
-    FTGSIterator getFTGSIterator(String[] intFields, String[] stringFields, long termLimit, int sortStat, @Nullable List<List<String>> stats) throws ImhotepOutOfMemoryException;
+    FTGSIterator getFTGSIterator(String[] intFields, String[] stringFields, long termLimit, int sortStat, @Nullable List<List<String>> stats, StatsSortOrder statsSortOrder) throws ImhotepOutOfMemoryException;
 
     FTGSIterator getSubsetFTGSIterator(Map<String, long[]> intFields, Map<String, String[]> stringFields, @Nullable List<List<String>> stats) throws ImhotepOutOfMemoryException;
 
@@ -112,26 +114,34 @@ public interface ImhotepSession
      * Result depends on values of 'termLimit, sortStat, sorted' params:
      *
      * <table summary ="description of params">
-     * <tr><th>No.</th><th>termLimit</th><th>sortStat</th><th>sorted</th>
+     * <tr><th>No.</th><th>termLimit</th><th>sortStat</th><th>sorted</th><th>StatsSortOrder</th>
      *     <th>description</th></tr>
-     * <tr><th>1</th><th>0</th><th>any</th><th>true</th>
+     * <tr><th>1</th><th>0</th><th>any</th><th>true</th><th>UNDEFINED</th>
      *     <th>all terms in all fields returned, terms within each field are sorted by term value</th></tr>
-     * <tr><th>2</th><th>0</th><th>any</th><th>false</th>
+     * <tr><th>2</th><th>0</th><th>any</th><th>false</th><th>UNDEFINED</th>
      *     <th>all terms in all fields returned, terms within each field go in any order</th></tr>
-     * <tr><th>3</th><th>&gt; 0</th><th>&gt;= 0</th><th>true</th>
+     * <tr><th>3</th><th>&gt; 0</th><th>&gt;= 0</th><th>true</th><th>ASCENDING</th>
      *     <th>for each (field, group) pair only (up to) 'termLimit' tuples with biggest
      *     sortStat metric value appear in result. Terms within each field are sorted by term value.
-     *     (in case of a metric tie, return terms are unspecified)</th></tr>
-     * <tr><th>4</th><th>&gt; 0</th><th>&gt;= 0</th><th>false</th>
+     *     Metric ties are resolved by terms</th></tr>
+     * <tr><th>4</th><th>&gt; 0</th><th>&gt;= 0</th><th>true</th><th>DESCENDING</th>
+     *     <th>for each (field, group) pair only (up to) 'termLimit' tuples with smallest
+     *     sortStat metric value appear in result. Terms within each field are sorted by term value.
+     *     Metric ties are resolved by decreasing order of terms</th></tr>
+     * <tr><th>5</th><th>&gt; 0</th><th>&gt;= 0</th><th>false</th><th>ASCENDING</th>
      *     <th>same as 3, but terms can go in any order</th></tr>
-     * <tr><th>5</th><th>&gt; 0</th><th>&lt; 0</th><th>true</th>
+     * <tr><th>6</th><th>&gt; 0</th><th>&gt;= 0</th><th>false</th><th>DESCENDING</th>
+     *     <th>same as 4, but terms can go in any order</th></tr>
+     * <tr><th>7</th><th>&gt; 0</th><th>&lt; 0</th><th>true</th><th>UNDEFINED</th>
      *     <th>iterate through tuples sorted by term value until 'termLimit' terms are emitted</th></tr>
-     * <tr><th>6</th><th>&gt; 0</th><th>&lt; 0</th><th>false</th>
+     * <tr><th>8</th><th>&gt; 0</th><th>&lt; 0</th><th>false</th><th>UNDEFINED</th>
      *     <th>return any 'termLimit' terms from any fields.
      *     Total number of terms are 'termLimit'. Terms within field are unsorted.
      *     (note: it's not FIRST 'termLimit' terms in first fields in any order,
      *     but ANY 'termLimit' terms in any field)</th></tr>
-     * <tr><th>7</th><th>&lt; 0</th><th>any</th><th>any</th>
+     * <tr><th>9</th><th>&lt; 0</th><th>any</th><th>any</th><th>any</th>
+     *     <th>IllegalArgumentException</th></tr>
+     * <tr><th>10</th><th>any</th><th>&lt; 0</th><th>any</th><th>ASCENDING/DESCENDING</th>
      *     <th>IllegalArgumentException</th></tr>
      * </table>
      * @param params params for resulting iterator
