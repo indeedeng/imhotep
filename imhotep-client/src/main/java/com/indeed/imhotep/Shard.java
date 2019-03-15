@@ -11,7 +11,7 @@
  * express or implied. See the License for the specific language governing permissions and
  * limitations under the License.
  */
- package com.indeed.imhotep;
+package com.indeed.imhotep;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
@@ -33,50 +33,42 @@ public class Shard extends ShardInfo {
 
     /** If no servers are specified for shard to compute, host is both for computation and storage */
     public Shard(final String shardId, final int numDocs, final long version, final Host host) {
-        super(shardId, numDocs, version);
-        this.server = host;
-        this.owner = host;
+        this(shardId, numDocs, version, host, host);
     }
 
     public Shard(
             final String shardId,
             final int numDocs,
             final long version,
-            final Host owner,
-            final Host host) {
-        super(shardId, numDocs, version);
-        this.owner = owner;
-        this.server = host;
+            final Host server,
+            final Host owner) {
+        this(shardId, numDocs, version, server, owner, null);
     }
 
     public Shard(
             final String shardId,
             final int numDocs,
             final long version,
+            final Host server,
             final Host owner,
-            final Host host,
             @Nullable final String fileName) {
         super(fileName, shardId, numDocs, version);
-        this.server = host;
+        this.server = server;
         this.owner = owner;
     }
 
     public Shard(final ShardInfo shardInfo, final Host host) {
-        super(shardInfo.fileName, shardInfo.shardId, shardInfo.numDocs, shardInfo.version);
-        this.server = host;
-        this.owner = host;
+        this(shardInfo.shardId, shardInfo.numDocs, shardInfo.version, host, host, shardInfo.fileName);
     }
 
     /** Only used in ShardLoaderUtil.findShards() in pigutil, Imhotep proper should always provide a host. */
     public Shard(final String shardId, final int numDocs, final long version) {
-        super(shardId, numDocs, version);
-        this.server = null;
-        this.owner = null;
+        this(shardId, numDocs, version, null, null, null);
     }
 
     public String getFileName() {
         if (fileName == null) {
-            return this.shardId + "." + this.version;
+            return shardId + "." + version;
         } else {
             return fileName;
         }
@@ -98,8 +90,8 @@ public class Shard extends ShardInfo {
         return result;
     }
 
-    public Shard withHost(final Host newHost) {
-        return new Shard(shardId, numDocs, version, owner, newHost, fileName);
+    public Shard withServer(final Host newServer) {
+        return new Shard(shardId, numDocs, version, owner, newServer, fileName);
     }
 
     /** remain the interface to specify which server will execute shards' operation dynamically*/
