@@ -16,6 +16,7 @@
 import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.reader.MockFlamdexReader;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
+import com.indeed.imhotep.client.Host;
 import com.indeed.imhotep.protobuf.ShardBasicInfoMessage;
 import com.indeed.util.core.shell.PosixFileOperations;
 import org.junit.After;
@@ -82,7 +83,7 @@ public class TestLocalImhotepServiceCoreSharedResource {
                 new LocalImhotepServiceCore(optDirectory, 1024L * 1024 * 1024,
                                         factory,
                                         new LocalImhotepServiceConfig(),
-                        tempDir);
+                        tempDir, new Host("localhost", 0));
         final String sessionId = service.handleOpenSession("dataset", Collections.singletonList(
                 ShardBasicInfoMessage.newBuilder().setShardName(shardName).build())
                 , "", "", "", 0, 0,
@@ -139,7 +140,8 @@ public class TestLocalImhotepServiceCoreSharedResource {
                                             Long.MAX_VALUE,
                                             factory,
                                             new LocalImhotepServiceConfig().setFlamdexReaderCacheMaxDurationMillis(1),
-                                            tempDir);
+                                            tempDir,
+                                            new Host("localhost", 0));
         try {
             final String sessionId = service.handleOpenSession("dataset", Collections.singletonList(
                     ShardBasicInfoMessage.newBuilder().setShardName(shardName).build()),

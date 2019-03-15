@@ -18,6 +18,7 @@ import com.indeed.flamdex.reader.MockFlamdexReader;
 import com.indeed.flamdex.simple.TestSimpleFlamdexDocWriter;
 import com.indeed.imhotep.api.FTGSParams;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
+import com.indeed.imhotep.client.Host;
 import com.indeed.imhotep.io.TestFileUtils;
 import com.indeed.imhotep.protobuf.ShardBasicInfoMessage;
 import com.indeed.imhotep.protobuf.StatsSortOrder;
@@ -73,7 +74,8 @@ public class TestLocalImhotepServiceCore {
                 }
             },
                     new LocalImhotepServiceConfig(),
-                    directory);
+                    directory,
+                    new Host("localhost", 0));
 
 
             final String sessionId = service.handleOpenSession("dataset", Collections.singletonList(

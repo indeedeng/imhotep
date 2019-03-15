@@ -1437,12 +1437,16 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                                           final String zkPath,
                                           final @Nullable Integer sessionForwardingPort,
                                           @Nullable LocalImhotepServiceConfig localImhotepServiceConfig) throws IOException, URISyntaxException {
+
+        if(localImhotepServiceConfig == null) {
+            localImhotepServiceConfig = new LocalImhotepServiceConfig();
+        }
+
         final AbstractImhotepServiceCore localService;
 
         // initialize the imhotepfs if necessary
         RemoteCachingFileSystemProvider.setStatsEmitter(localImhotepServiceConfig.getStatsEmitter());
         RemoteCachingFileSystemProvider.newFileSystem();
-
 
         final Path shardsDir = NioPathUtil.get(shardsDirectory);
         final Path tmpDir = NioPathUtil.get(shardTempDir);
@@ -1453,18 +1457,15 @@ public class ImhotepDaemon implements Instrumentation.Provider {
         } else {
             myHostname = InetAddress.getLocalHost().getCanonicalHostName();
         }
-        final ServerSocket ss = new ServerSocket(port);
-        final Host myHost = new Host(myHostname, ss.getLocalPort());
 
-        if(localImhotepServiceConfig == null) {
-            localImhotepServiceConfig = new LocalImhotepServiceConfig();
-        }
+        final ServerSocket ss = new ServerSocket(port);
 
         localService = new LocalImhotepServiceCore(tmpDir,
                 memoryCapacityInMB * 1024 * 1024,
                 null,
                 localImhotepServiceConfig,
-                shardsDir);
+                shardsDir,
+                new Host(myHostname, port));
         final ImhotepDaemon result =
                 new ImhotepDaemon(ss, localService, zkNodes, zkPath, myHostname, port, sessionForwardingPort);
         localService.addObserver(result.getServiceCoreObserver());

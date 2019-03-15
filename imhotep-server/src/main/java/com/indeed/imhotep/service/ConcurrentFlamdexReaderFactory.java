@@ -17,14 +17,12 @@ package com.indeed.imhotep.service;
 import com.google.common.base.Throwables;
 import com.indeed.imhotep.MemoryReservationContext;
 import com.indeed.imhotep.MemoryReserver;
-import com.indeed.imhotep.client.Host;
 import com.indeed.imhotep.scheduling.ImhotepTask;
 import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.core.reference.SharedReference;
 import com.indeed.util.core.threads.NamedThreadFactory;
 import org.apache.log4j.Logger;
 
-import javax.annotation.Nullable;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Collection;
@@ -77,30 +75,30 @@ public class ConcurrentFlamdexReaderFactory {
 
     public static class CreateRequest {
         public final String dataset;
-        public final String shardName;
-        @Nullable public final Host shardOwner;
+        public final ShardHostInfo shardHostInfo;
+        public final boolean p2pCache;
         public final int numDocs;
         public final String userName;
         public final String clientName;
 
         /**
          * @param dataset    is the directory under the {@code rootDir}.
-         * @param shardName  is the shard directory name. See {@link FlamdexInfo}.
-         * @param shardOwner is the owner server of shard
+         * @param shardHostInfo is the information about shardName(shard directory name, see {@link FlamdexInfo}), shardServer and shardOwner.
+         * @param p2pCache is the option if it is p2pCache mode
          * @param numDocs    is the number of docs for the shard. Should be &lt;= 0 if it is unknown.
          * @param userName
          * @param clientName
          */
         public CreateRequest(
                 final String dataset,
-                final String shardName,
-                @Nullable final Host shardOwner,
+                final ShardHostInfo shardHostInfo,
+                final boolean p2pCache,
                 final int numDocs,
                 final String userName,
                 final String clientName) {
             this.dataset = dataset;
-            this.shardName = shardName;
-            this.shardOwner = shardOwner;
+            this.shardHostInfo = shardHostInfo;
+            this.p2pCache = p2pCache;
             this.numDocs = numDocs;
             this.userName = userName;
             this.clientName = clientName;
@@ -117,13 +115,15 @@ public class ConcurrentFlamdexReaderFactory {
         }
 
         private Path locateShard(final CreateRequest createRequest) {
-            return shardLocator.locateShard(createRequest.dataset, createRequest.shardName, createRequest.shardOwner)
-                    .orElseThrow(() -> new IllegalArgumentException("Unable to locate shard for dataset=" + createRequest.dataset + ", shardName=" + createRequest.shardName));
+            return shardLocator.locateShard(createRequest.dataset, createRequest.shardHostInfo, createRequest.p2pCache)
+                    .orElseThrow(() -> new IllegalArgumentException("Unable to locate shard for dataset=" + createRequest.dataset + ", " +
+                            "shardName=" + createRequest.shardHostInfo.getShardName()));
         }
 
         public Void call() {
             final SharedReference<CachedFlamdexReader> reader;
-            ImhotepTask.setup(createRequest.userName, createRequest.clientName, createRequest.dataset, createRequest.shardName, createRequest.numDocs);
+            ImhotepTask.setup(createRequest.userName, createRequest.clientName, createRequest.dataset,
+                    createRequest.shardHostInfo.getShardName(), createRequest.numDocs);
             final Path shardPath = locateShard(createRequest);
             try {
             // TODO: enable locking

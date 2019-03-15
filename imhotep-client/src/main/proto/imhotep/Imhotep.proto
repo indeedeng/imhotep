@@ -94,7 +94,7 @@ message GroupMultiRemapMessage {
 message ShardBasicInfoMessage {
     optional int32 num_docs = 1 [default = -1];
     required string shard_name = 2;
-    optional HostAndPort owner = 3;
+    optional HostAndPort shard_owner = 3;
 }
 
 enum StatsSortOrder {

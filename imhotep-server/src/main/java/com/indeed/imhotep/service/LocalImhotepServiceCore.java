@@ -67,6 +67,7 @@ public class LocalImhotepServiceCore
     private final Path shardTempDir;
     private final Path rootDir;
 
+    private final Host myHost;
     private final MemoryReserver memory;
     private final ConcurrentFlamdexReaderFactory flamderReaderFactory;
 
@@ -85,11 +86,13 @@ public class LocalImhotepServiceCore
                                    final long memoryCapacity,
                                    final FlamdexReaderSource flamdexReaderFactory,
                                    final LocalImhotepServiceConfig config,
-                                   final Path rootDir)
+                                   final Path rootDir,
+                                   final Host myHost)
         throws IOException {
 
         this.rootDir = rootDir;
         final MetricStatsEmitter statsEmitter = config.getStatsEmitter();
+        this.myHost = myHost;
 
         /* check if the temp dir exists, try to create it if it does not */
         Preconditions.checkNotNull(shardTempDir, "shardTempDir is invalid");
@@ -325,13 +328,13 @@ public class LocalImhotepServiceCore
         for (final ShardBasicInfoMessage aShardRequestList : shardRequestList) {
             final String shardName = aShardRequestList.getShardName();
             final int numDocs = aShardRequestList.getNumDocs();
-
             Host shardOwner = null;
-            if (p2pCache) {
-                final HostAndPort protoHost = aShardRequestList.getOwner();
-                shardOwner = new Host(protoHost.getHost(), protoHost.getPort());
+            if (aShardRequestList.hasShardOwner()) {
+                final HostAndPort protoOwner = aShardRequestList.getShardOwner();
+                shardOwner = new Host(protoOwner.getHost(), protoOwner.getPort());
             }
-            readerRequests.add(new ConcurrentFlamdexReaderFactory.CreateRequest(dataset, shardName, shardOwner, numDocs, userName, clientName));
+            final ShardHostInfo shardHostInfo = new ShardHostInfo(shardName, myHost, shardOwner);
+            readerRequests.add(new ConcurrentFlamdexReaderFactory.CreateRequest(dataset, shardHostInfo, p2pCache, numDocs, userName, clientName));
         }
         return readerRequests;
     }

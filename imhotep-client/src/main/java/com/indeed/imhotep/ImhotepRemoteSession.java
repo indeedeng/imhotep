@@ -235,7 +235,7 @@ public class ImhotepRemoteSession
                             ShardBasicInfoMessage.newBuilder()
                                     .setShardName(shard.getFileName())
                                     .setNumDocs(shard.numDocs)
-                                    .setOwner(
+                                    .setShardOwner(
                                             HostAndPort.newBuilder()
                                                     .setHost(shard.getOwner().getHostname())
                                                     .setPort(shard.getOwner().getPort())
