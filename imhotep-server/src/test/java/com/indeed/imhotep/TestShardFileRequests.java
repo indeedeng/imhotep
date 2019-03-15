@@ -57,35 +57,27 @@ import static org.junit.Assert.fail;
  * @author xweng
  */
 public class TestShardFileRequests {
-    // file system variables
-    private static final Map<String, String> DEFAULT_CONFIG = ImmutableMap.<String, String>builder()
-            .put("imhotep.fs.store.type", "local")
-            .put("imhotep.fs.cache.size.gb", "1")
-            .put("imhotep.fs.cache.block.size.bytes", "4096")
-            .build();
-
     private static final String INDEX_NAME = "index20171231.20180301170838";
 
     private static final TemporaryFolder tempDir = new TemporaryFolder();
     private static Path rootPath;
+    private static Path localStoreDir;
     private static ImhotepDaemonRunner imhotepDaemonRunner;
     private static ShardMasterAndImhotepDaemonClusterRunner clusterRunner;
-    private static File localStoreDir;
 
     @BeforeClass
     public static void setUp() throws IOException, TimeoutException, InterruptedException {
         // set up file system
         tempDir.create();
 
-        localStoreDir = tempDir.newFolder("local-store");
+        localStoreDir = tempDir.newFolder("local-store").toPath();
         final Properties properties = new Properties();
         properties.putAll(
                 getFileSystemConfigs(
-                    DEFAULT_CONFIG,
                     tempDir.newFolder("sqardb"),
                     tempDir.newFolder("cache"),
                     localStoreDir,
-                    localStoreDir.toURI())
+                    localStoreDir.toUri())
         );
 
         final File tempConfigFile = tempDir.newFile("temp-filesystem-config.properties");
@@ -100,8 +92,8 @@ public class TestShardFileRequests {
         // start daemons
         tempDir.newFolder("local-store/temp-root-dir");
         clusterRunner = new ShardMasterAndImhotepDaemonClusterRunner(
-                rootPath.toFile(),
-                rootPath.resolve("temp-root-dir").toFile(),
+                rootPath,
+                localStoreDir.resolve("temp-root-dir"),
                 ImhotepShardCreator.DEFAULT);
         imhotepDaemonRunner = clusterRunner.startDaemon();
     }
@@ -128,7 +120,7 @@ public class TestShardFileRequests {
         // create local archive dir
         createFlamdexIndex(localArchiveDir.toPath());
         // create sqar file and store them in hdfs
-        final String remoteIndexDir = localStoreDir.getPath() + "/" + indexSubDirectory + ".sqar";
+        final String remoteIndexDir = localStoreDir + "/" + indexSubDirectory + ".sqar";
         createSqarFiles(localArchiveDir, remoteIndexDir);
 
         internalTestGetShardFile(indexSubDirectory);
@@ -278,20 +270,20 @@ public class TestShardFileRequests {
     }
 
     private static Map<String, String> getFileSystemConfigs (
-            final Map<String, String> baseConfig,
             final File sqarDbDir,
             final File cacheDir,
-            final File localStoreDir,
+            final Path localStoreDir,
             final URI hdfsStoreDir) {
         return ImmutableMap.<String, String>builder()
-                .putAll(baseConfig)
                 .put("imhotep.fs.cache.root.uri", cacheDir.toURI().toString())
-                .put("imhotep.fs.enabled", "true")
                 // local
-                .put("imhotep.fs.filestore.local.root.uri", localStoreDir.toURI().toString())
+                .put("imhotep.fs.filestore.local.root.uri", localStoreDir.toUri().toString())
                 // hdfs
                 .put("imhotep.fs.filestore.hdfs.root.uri", hdfsStoreDir.toString())
                 .put("imhotep.fs.sqar.metadata.cache.path", new File(sqarDbDir, "lsmtree").toString())
+                .put("imhotep.fs.store.type", "local")
+                .put("imhotep.fs.cache.size.gb", "1")
+                .put("imhotep.fs.cache.block.size.bytes", "4096")
                 .build();
     }
 
@@ -302,7 +294,7 @@ public class TestShardFileRequests {
     private String initializeTest(final String dataset) throws IOException {
         final String indexSubDirectory = getIndexSubDirectory(dataset);
         tempDir.newFolder("local-store/" + indexSubDirectory);
-        createFlamdexIndex(localStoreDir.toPath().resolve(indexSubDirectory));
+        createFlamdexIndex(localStoreDir.resolve(indexSubDirectory));
         return indexSubDirectory;
     }
 }
