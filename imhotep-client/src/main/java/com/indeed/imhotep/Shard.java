@@ -24,7 +24,11 @@ import javax.annotation.Nullable;
 import java.util.List;
 
 public class Shard extends ShardInfo {
+
+    /** the imhotep daemon server who will conduct computation of this shard */
     public final Host server;
+
+    /** the imhotep daemon server who holds the shard and other dameons will download the shard from it */
     private final Host owner;
 
     /** If no servers are specified for shard to compute, host is both for computation and storage */
