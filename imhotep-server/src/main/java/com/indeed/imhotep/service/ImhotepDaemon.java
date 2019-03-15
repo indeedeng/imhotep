@@ -304,8 +304,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                                 request.getOptimizeGroupZeroLookups(),
                                 request.getSessionId(),
                                 tempFileSizeBytesLeft,
-                                request.getSessionTimeout(),
-                                request.getP2PCache()
+                                request.getSessionTimeout()
                         );
                 NDC.push(sessionId);
                 builder.setSessionId(sessionId);

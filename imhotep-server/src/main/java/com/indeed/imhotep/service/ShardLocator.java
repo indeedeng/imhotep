@@ -16,34 +16,43 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 public interface ShardLocator {
-    public static ShardLocator appendingSQARShardLocator(final Path rootDir) {
-        return (dataset, shardInfo, p2pCache) -> {
-            final String shardName = shardInfo.getShardName();
-            final String archiveName;
-            if (shardName.endsWith(".sqar")) {
-                archiveName = shardName;
-            } else {
-                archiveName = shardName + ".sqar";
+    public static ShardLocator appendingSQARShardLocator(final Path rootDir, final Host myHost) {
+        return new ShardLocator() {
+            private final Host myServer = myHost;
+            @Override
+            public Optional<Path> locateShard(final String dataset, final ShardHostInfo shardInfo) {
+                final String shardName = shardInfo.getShardName();
+                final String archiveName;
+                if (shardName.endsWith(".sqar")) {
+                    archiveName = shardName;
+                } else {
+                    archiveName = shardName + ".sqar";
+                }
+                return locateAndCheck(
+                        rootDir,
+                        dataset,
+                        archiveName,
+                        myServer,
+                        shardInfo.getShardOwner()
+                );
             }
-            return locateAndCheck(
-                    rootDir,
-                    dataset,
-                    archiveName,
-                    shardInfo.getShardServer(),
-                    shardInfo.getShardOwner(),
-                    p2pCache);
         };
     }
 
-    public static ShardLocator pathShardLocator(final Path rootDir) {
-        return (dataset, shardInfo, p2pCache) ->
-                locateAndCheck(
+    public static ShardLocator pathShardLocator(final Path rootDir, final Host myHost) {
+        return new ShardLocator() {
+            private final Host myServer = myHost;
+            @Override
+            public Optional<Path> locateShard(final String dataset, final ShardHostInfo shardInfo) {
+                return locateAndCheck(
                         rootDir,
                         dataset,
                         shardInfo.getShardName(),
-                        shardInfo.getShardServer(),
-                        shardInfo.getShardOwner(),
-                        p2pCache);
+                        myServer,
+                        shardInfo.getShardOwner()
+                );
+            }
+        };
     }
 
     /**
@@ -74,11 +83,10 @@ public interface ShardLocator {
             final String dataset,
             final String shardName,
             final Host shardServer,
-            @Nullable final Host shardOwner,
-            final boolean p2pCache) {
+            @Nullable final Host shardOwner) {
         Path shardPath = rootDir.resolve(dataset).resolve(shardName);
         // no need generate P2PCachingPath if shard on the same server
-        if (p2pCache && shardOwner != null && !shardServer.equals(shardOwner)) {
+        if (shardOwner != null && !shardServer.equals(shardOwner)) {
             shardPath = toP2PPath(rootDir, shardPath, shardOwner);
         }
 
@@ -92,9 +100,8 @@ public interface ShardLocator {
     /**
      * @param dataset
      * @param shardHostInfo the infromation about shardName, shardServer and shardOwner
-     * @param p2pCache      whether locating shards to P2PCachingPath (IQL-852)
      */
-    Optional<Path> locateShard(final String dataset, final ShardHostInfo shardHostInfo, final boolean p2pCache);
+    Optional<Path> locateShard(final String dataset, final ShardHostInfo shardHostInfo);
 
     static class CombinedShardLocator implements ShardLocator {
         private static final Comparator<ShardDir> SHARD_DIR_COMPARATOR = (lhs, rhs) -> {
@@ -112,9 +119,9 @@ public interface ShardLocator {
         }
 
         @Override
-        public Optional<Path> locateShard(final String dataset, final ShardHostInfo shardInfo, final boolean p2pCache) {
+        public Optional<Path> locateShard(final String dataset, final ShardHostInfo shardInfo) {
             return shardLocators.stream()
-                    .map(shardLocator -> shardLocator.locateShard(dataset, shardInfo, p2pCache))
+                    .map(shardLocator -> shardLocator.locateShard(dataset, shardInfo))
                     .filter(Optional::isPresent)
                     .map(Optional::get)
                     .map(ShardDir::new)

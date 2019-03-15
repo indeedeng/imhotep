@@ -753,8 +753,7 @@ public abstract class AbstractImhotepServiceCore
             boolean optimizeGroupZeroLookups,
             String sessionId,
             AtomicLong tempFileSizeBytesLeft,
-            final long sessionTimeout,
-            final boolean p2pCache
+            final long sessionTimeout
     ) throws ImhotepOutOfMemoryException;
 
     @Override

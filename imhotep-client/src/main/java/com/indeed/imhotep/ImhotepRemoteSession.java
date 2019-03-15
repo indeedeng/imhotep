@@ -231,25 +231,27 @@ public class ImhotepRemoteSession
                     .setClientName(clientName)
                     .setDataset(dataset)
                     .setMergeThreadLimit(mergeThreadLimit)
-                    .addAllShards(shards.stream().map(shard ->
-                            ShardBasicInfoMessage.newBuilder()
+                    .addAllShards(shards.stream().map(shard -> {
+                                final ShardBasicInfoMessage.Builder builder = ShardBasicInfoMessage.newBuilder()
                                     .setShardName(shard.getFileName())
-                                    .setNumDocs(shard.numDocs)
-                                    .setShardOwner(
+                                    .setNumDocs(shard.numDocs);
+                                if (p2pCache) {
+                                    builder.setShardOwner(
                                             HostAndPort.newBuilder()
                                                     .setHost(shard.getOwner().getHostname())
                                                     .setPort(shard.getOwner().getPort())
                                                     .build()
-                                    )
-                                    .build())
-                                    .collect(Collectors.toList()))
+                                    );
+                                }
+                                return builder.build();
+                            }
+                        ).collect(Collectors.toList()))
                     .setOptimizeGroupZeroLookups(optimizeGroupZeroLookups)
                     .setClientVersion(CURRENT_CLIENT_VERSION)
                     .setSessionId(sessionId == null ? "" : sessionId)
                     .setTempFileSizeLimit(tempFileSizeLimit)
                     .setSessionTimeout(sessionTimeout)
                     .setAllowSessionForwarding(allowSessionForwarding)
-                    .setP2PCache(p2pCache)
                     .build();
             try {
                 ImhotepProtobufShipping.sendProtobuf(openSessionRequest, os);

@@ -87,7 +87,7 @@ public class TestLocalImhotepServiceCoreSharedResource {
         final String sessionId = service.handleOpenSession("dataset", Collections.singletonList(
                 ShardBasicInfoMessage.newBuilder().setShardName(shardName).build())
                 , "", "", "", 0, 0,
-                false, "", null, 0, false);
+                false, "", null, 0);
         try {
             service.handlePushStat(sessionId, "if1");
             fail("pushStat didn't throw ImhotepOutOfMemory when it should have");
@@ -98,7 +98,7 @@ public class TestLocalImhotepServiceCoreSharedResource {
         final String sessionId2 = service.handleOpenSession("dataset", Collections.singletonList(
                 ShardBasicInfoMessage.newBuilder().setShardName(shardName).build()),
                 "", "", "", 0, 0,
-                false, "", null, 0, false);
+                false, "", null, 0);
         service.handleCloseSession(sessionId2);
         service.close();
     }
@@ -146,7 +146,7 @@ public class TestLocalImhotepServiceCoreSharedResource {
             final String sessionId = service.handleOpenSession("dataset", Collections.singletonList(
                     ShardBasicInfoMessage.newBuilder().setShardName(shardName).build()),
                     "", "", "", 0, 0,
-                    false, "", null, 0, false);
+                    false, "", null, 0);
             sessionOpened.set(true);
             try {
                 for (int i = 0; i < 5; ++i) {

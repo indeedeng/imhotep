@@ -12,13 +12,10 @@ public class ShardHostInfo {
 
     private final String shardName;
 
-    private final Host shardServer;
-
     @Nullable private final Host shardOwner;
 
-    public ShardHostInfo(final String shardName, final Host shardServer, @Nullable final Host shardOwner) {
+    ShardHostInfo(final String shardName, @Nullable final Host shardOwner) {
         this.shardName = shardName;
-        this.shardServer = shardServer;
         this.shardOwner = shardOwner;
     }
 
@@ -26,11 +23,8 @@ public class ShardHostInfo {
         return shardName;
     }
 
-    public Host getShardServer() {
-        return shardServer;
-    }
 
-    public Host getShardOwner() {
+    @Nullable public Host getShardOwner() {
         return shardOwner;
     }
 
@@ -44,20 +38,18 @@ public class ShardHostInfo {
         }
         final ShardHostInfo that = (ShardHostInfo) o;
         return Objects.equal(shardName, that.shardName) &&
-                Objects.equal(shardServer, that.shardServer) &&
                 Objects.equal(shardOwner, that.shardOwner);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hashCode(shardName, shardServer, shardOwner);
+        return Objects.hashCode(shardName, shardOwner);
     }
 
     @Override
     public String toString() {
         return "ShardHostInfo{" +
                 "shardName='" + shardName + '\'' +
-                ", shardServer=" + shardServer +
                 ", shardOwner=" + shardOwner +
                 '}';
     }

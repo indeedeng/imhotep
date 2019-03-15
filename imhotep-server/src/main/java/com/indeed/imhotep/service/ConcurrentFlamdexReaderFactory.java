@@ -76,7 +76,6 @@ public class ConcurrentFlamdexReaderFactory {
     public static class CreateRequest {
         public final String dataset;
         public final ShardHostInfo shardHostInfo;
-        public final boolean p2pCache;
         public final int numDocs;
         public final String userName;
         public final String clientName;
@@ -84,7 +83,6 @@ public class ConcurrentFlamdexReaderFactory {
         /**
          * @param dataset    is the directory under the {@code rootDir}.
          * @param shardHostInfo is the information about shardName(shard directory name, see {@link FlamdexInfo}), shardServer and shardOwner.
-         * @param p2pCache is the option if it is p2pCache mode
          * @param numDocs    is the number of docs for the shard. Should be &lt;= 0 if it is unknown.
          * @param userName
          * @param clientName
@@ -92,13 +90,11 @@ public class ConcurrentFlamdexReaderFactory {
         public CreateRequest(
                 final String dataset,
                 final ShardHostInfo shardHostInfo,
-                final boolean p2pCache,
                 final int numDocs,
                 final String userName,
                 final String clientName) {
             this.dataset = dataset;
             this.shardHostInfo = shardHostInfo;
-            this.p2pCache = p2pCache;
             this.numDocs = numDocs;
             this.userName = userName;
             this.clientName = clientName;
@@ -115,7 +111,7 @@ public class ConcurrentFlamdexReaderFactory {
         }
 
         private Path locateShard(final CreateRequest createRequest) {
-            return shardLocator.locateShard(createRequest.dataset, createRequest.shardHostInfo, createRequest.p2pCache)
+            return shardLocator.locateShard(createRequest.dataset, createRequest.shardHostInfo)
                     .orElseThrow(() -> new IllegalArgumentException("Unable to locate shard for dataset=" + createRequest.dataset + ", " +
                             "shardName=" + createRequest.shardHostInfo.getShardName()));
         }

@@ -114,7 +114,7 @@ public class LocalImhotepServiceCore
         }
         final ShardLocator shardLocator = ShardLocator.combine(
                 config.getDynamicShardLocator(),
-                config.areShardsSQARed() ? ShardLocator.appendingSQARShardLocator(rootDir) : ShardLocator.pathShardLocator(rootDir)
+                config.areShardsSQARed() ? ShardLocator.appendingSQARShardLocator(rootDir, myHost) : ShardLocator.pathShardLocator(rootDir, myHost)
         );
         this.flamderReaderFactory = new ConcurrentFlamdexReaderFactory(memory, factory, shardLocator);
 
@@ -242,8 +242,7 @@ public class LocalImhotepServiceCore
             boolean optimizeGroupZeroLookups,
             String sessionId,
             AtomicLong tempFileSizeBytesLeft,
-            long sessionTimeout,
-            final boolean p2pCache) throws ImhotepOutOfMemoryException {
+            long sessionTimeout) throws ImhotepOutOfMemoryException {
         if (Strings.isNullOrEmpty(sessionId)) {
             sessionId = generateSessionId();
         }
@@ -267,7 +266,7 @@ public class LocalImhotepServiceCore
         try {
             // Construct flamdex readers
             final List<ConcurrentFlamdexReaderFactory.CreateRequest> readerRequests =
-                    shardRequestListToFlamdexReaderRequests(dataset, shardRequestList, username, clientName, p2pCache);
+                    shardRequestListToFlamdexReaderRequests(dataset, shardRequestList, username, clientName);
             final Map<Path, SharedReference<CachedFlamdexReader>> flamdexes = flamderReaderFactory.constructFlamdexReaders(readerRequests);
 
             // Construct local sessions using the above readers
@@ -322,8 +321,7 @@ public class LocalImhotepServiceCore
     private List<ConcurrentFlamdexReaderFactory.CreateRequest> shardRequestListToFlamdexReaderRequests(final String dataset,
                                                                                                        final List<ShardBasicInfoMessage> shardRequestList,
                                                                                                        final String userName,
-                                                                                                       final String clientName,
-                                                                                                       final boolean p2pCache) {
+                                                                                                       final String clientName) {
         final List<ConcurrentFlamdexReaderFactory.CreateRequest> readerRequests = Lists.newArrayList();
         for (final ShardBasicInfoMessage aShardRequestList : shardRequestList) {
             final String shardName = aShardRequestList.getShardName();
@@ -333,8 +331,8 @@ public class LocalImhotepServiceCore
                 final HostAndPort protoOwner = aShardRequestList.getShardOwner();
                 shardOwner = new Host(protoOwner.getHost(), protoOwner.getPort());
             }
-            final ShardHostInfo shardHostInfo = new ShardHostInfo(shardName, myHost, shardOwner);
-            readerRequests.add(new ConcurrentFlamdexReaderFactory.CreateRequest(dataset, shardHostInfo, p2pCache, numDocs, userName, clientName));
+            final ShardHostInfo shardHostInfo = new ShardHostInfo(shardName, shardOwner);
+            readerRequests.add(new ConcurrentFlamdexReaderFactory.CreateRequest(dataset, shardHostInfo, numDocs, userName, clientName));
         }
         return readerRequests;
     }

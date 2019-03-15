@@ -143,7 +143,7 @@ public class TestShardMaster {
             public void refreshFieldsForDataset(final String dataset) {
             }
         };
-        final ShardLocator shardLocator = (dataset, shardHostInfo, p2pCache) -> {
+        final ShardLocator shardLocator = (dataset, shardHostInfo) -> {
             final String shardName = shardHostInfo.getShardName();
             if (shardName.equals(dynamicShard.getName())) {
                 return Optional.of(dynamicShard.getIndexDir());

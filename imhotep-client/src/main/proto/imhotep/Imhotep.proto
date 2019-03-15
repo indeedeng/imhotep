@@ -324,8 +324,6 @@ message ImhotepRequest {
 
   //for topK and bottomK
   optional StatsSortOrder statsSortOrder = 73;
-
-  optional bool p2pCache = 75;
 }
 
 message DocStat {
