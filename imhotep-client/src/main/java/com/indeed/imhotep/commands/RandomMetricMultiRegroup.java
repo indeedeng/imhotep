@@ -14,7 +14,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.List;
 
-public class RandomMetricMultiRegroup implements ImhotepCommand<Integer> {
+public class RandomMetricMultiRegroup implements ImhotepCommand<Void> {
 
     private final List<String> stat;
     private final String salt;
@@ -31,7 +31,7 @@ public class RandomMetricMultiRegroup implements ImhotepCommand<Integer> {
     }
 
     @Override
-    public Integer combine(final Integer... subResults) {
+    public Void combine(final List<Void> subResults) {
         return null;
     }
 
@@ -53,13 +53,13 @@ public class RandomMetricMultiRegroup implements ImhotepCommand<Integer> {
     }
 
     @Override
-    public Integer readResponse(final InputStream is, final ImhotepRemoteSession imhotepRemoteSession) throws IOException, ImhotepOutOfMemoryException {
+    public Void readResponse(final InputStream is, final ImhotepRemoteSession imhotepRemoteSession) throws IOException, ImhotepOutOfMemoryException {
         imhotepRemoteSession.readResponseWithMemoryExceptionFromInputStream(is);
         return null;
     }
 
     @Override
-    public Integer[] getExecutionBuffer(int length) {
-        return new Integer[length];
+    public Class<Void> getResultClass() {
+        return Void.class;
     }
 }

@@ -25,8 +25,8 @@ public class GetGroupStats implements ImhotepCommand<GroupStatsIterator> {
     }
 
     @Override
-    public GroupStatsIterator combine(final GroupStatsIterator... subResults) {
-        return new GroupStatsIteratorCombiner(subResults);
+    public GroupStatsIterator combine(final List<GroupStatsIterator> subResults) {
+        return new GroupStatsIteratorCombiner((GroupStatsIterator[])subResults.toArray());
     }
 
     @Override
@@ -44,14 +44,14 @@ public class GetGroupStats implements ImhotepCommand<GroupStatsIterator> {
     @Override
     public GroupStatsIterator readResponse(final InputStream is, final ImhotepRemoteSession imhotepRemoteSession) throws IOException {
         final ImhotepResponse response = ImhotepProtobufShipping.readResponse(is);
-        final BufferedInputStream tempFileStream = imhotepRemoteSession.SaveRespsonseToFileFromStreams(is, "groupStatsIterator");
+        final BufferedInputStream tempFileStream = imhotepRemoteSession.saveResponseToFileFromStream(is, "groupStatsIterator");
         return ImhotepProtobufShipping.readGroupStatsIterator(
                 tempFileStream, response.getGroupStatSize(), false
         );
     }
 
     @Override
-    public GroupStatsIterator[] getExecutionBuffer(int length) {
-        return new GroupStatsIterator[length] ;
+    public Class<GroupStatsIterator> getResultClass() {
+        return GroupStatsIterator.class;
     }
 }

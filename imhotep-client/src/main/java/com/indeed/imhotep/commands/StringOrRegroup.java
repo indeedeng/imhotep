@@ -10,8 +10,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Arrays;
+import java.util.List;
 
-public class StringOrRegroup implements ImhotepCommand<String> {
+public class StringOrRegroup implements ImhotepCommand<Void> {
     private final String field;
     private final String[] terms;
     private final int targetGroup;
@@ -27,7 +28,7 @@ public class StringOrRegroup implements ImhotepCommand<String> {
     }
 
     @Override
-    public String combine(final String... subResults) {
+    public Void combine(final List<Void> subResults) {
         return null;
     }
 
@@ -48,13 +49,13 @@ public class StringOrRegroup implements ImhotepCommand<String> {
     }
 
     @Override
-    public String readResponse(final InputStream is, final ImhotepRemoteSession imhotepRemoteSession) throws IOException, ImhotepOutOfMemoryException {
+    public Void readResponse(final InputStream is, final ImhotepRemoteSession imhotepRemoteSession) throws IOException, ImhotepOutOfMemoryException {
         imhotepRemoteSession.readResponseWithMemoryExceptionFromInputStream(is);
         return null;
     }
 
     @Override
-    public String[] getExecutionBuffer(int length) {
-        return new String[length];
+    public Class<Void> getResultClass() {
+        return Void.class;
     }
 }

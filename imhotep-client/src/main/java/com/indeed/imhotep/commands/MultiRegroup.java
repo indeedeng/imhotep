@@ -17,6 +17,7 @@ import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.List;
 
 public class MultiRegroup implements ImhotepCommand<Integer> {
 
@@ -49,8 +50,8 @@ public class MultiRegroup implements ImhotepCommand<Integer> {
     }
 
     @Override
-    public Integer combine(final Integer[] subResults) {
-        return Collections.max(Arrays.asList(subResults));
+    public Integer combine(final List<Integer> subResults) {
+        return Collections.max(subResults);
     }
 
     @Override
@@ -72,13 +73,13 @@ public class MultiRegroup implements ImhotepCommand<Integer> {
     }
 
     @Override
-    public Integer readResponse(InputStream is, ImhotepRemoteSession imhotepRemoteSession) throws IOException, ImhotepOutOfMemoryException {
+    public Integer readResponse(final InputStream is, final ImhotepRemoteSession imhotepRemoteSession) throws IOException, ImhotepOutOfMemoryException {
         final ImhotepResponse imhotepResponse = imhotepRemoteSession.readResponseWithMemoryExceptionFromInputStream(is);
         return imhotepResponse.getNumGroups();
     }
 
     @Override
-    public Integer[] getExecutionBuffer(int length) {
-        return new Integer[length];
+    public Class<Integer> getResultClass() {
+        return Integer.class;
     }
 }

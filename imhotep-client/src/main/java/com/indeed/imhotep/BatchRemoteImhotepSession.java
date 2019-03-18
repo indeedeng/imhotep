@@ -25,15 +25,21 @@ import com.indeed.imhotep.io.RequestTools;
 import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
 import com.indeed.imhotep.protobuf.StatsSortOrder;
 import it.unimi.dsi.fastutil.longs.LongIterators;
-import javafx.util.Pair;
 import org.apache.log4j.Logger;
 
 import javax.annotation.Nullable;
+import java.lang.reflect.Array;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * ImhotepSession implementation to send a Batch of Imhotep Requests in a single socket stream.
+ * Only requests for Regroups and GetGroupStats are included because of cross daemon synchronization needed for FTGS requests.
+ * Therefore the batch request will be of the form ((Regroup)*(GetGroupStats)*)
+ */
 public class BatchRemoteImhotepSession implements ImhotepSession {
 
     final RemoteImhotepMultiSession remoteImhotepMultiSession;
@@ -48,17 +54,17 @@ public class BatchRemoteImhotepSession implements ImhotepSession {
         }
 
         final ImhotepCommand<T> lastCommand = commands.get(commands.size() - 1);
-        final T[] buffer = lastCommand.getExecutionBuffer(remoteImhotepMultiSession.sessions.length);
+        final T[] buffer = (T[]) Array.newInstance(lastCommand.getResultClass(), remoteImhotepMultiSession.sessions.length);
 
         remoteImhotepMultiSession.sendImhotepBatchRequest(buffer, commands, lastCommand);
         commands.clear();
-        return lastCommand.combine(buffer);
+        return lastCommand.combine(Arrays.asList(buffer));
     }
 
     public <T> T executeBatchNoMemoryException() {
         try {
             return executeBatch();
-        } catch (ImhotepOutOfMemoryException e) {
+        } catch (final ImhotepOutOfMemoryException e) {
             throw new RuntimeException(e);
         }
     }
@@ -81,14 +87,14 @@ public class BatchRemoteImhotepSession implements ImhotepSession {
     @Override
     public long[] getGroupStats(final List<String> stat) throws ImhotepOutOfMemoryException {
         commands.add(new GetGroupStats(stat));
-        final GroupStatsIterator groupStatsIterator = (GroupStatsIterator) executeBatch();
+        final GroupStatsIterator groupStatsIterator = this.<GroupStatsIterator>executeBatch();
         return LongIterators.unwrap(groupStatsIterator, groupStatsIterator.getNumGroups());
     }
 
     @Override
     public GroupStatsIterator getGroupStatsIterator(final List<String> stat) throws ImhotepOutOfMemoryException {
         commands.add(new GetGroupStats(stat));
-        return (GroupStatsIterator) executeBatch();
+        return this.<GroupStatsIterator>executeBatch();
     }
 
     @Override

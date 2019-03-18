@@ -40,8 +40,8 @@ public class MetricRegroup implements ImhotepCommand<Integer> {
     }
 
     @Override
-    public Integer combine(final Integer... subResults) {
-        return Collections.max(Arrays.asList(subResults));
+    public Integer combine(final List<Integer> subResults) {
+        return Collections.max(subResults);
     }
 
     @Override
@@ -66,7 +66,7 @@ public class MetricRegroup implements ImhotepCommand<Integer> {
     }
 
     @Override
-    public Integer[] getExecutionBuffer(int length) {
-        return new Integer[length];
+    public Class<Integer> getResultClass() {
+        return Integer.class;
     }
 }

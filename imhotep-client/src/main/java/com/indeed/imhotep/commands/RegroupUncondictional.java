@@ -13,6 +13,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 
 public class RegroupUncondictional implements ImhotepCommand<Integer> {
 
@@ -27,8 +28,8 @@ public class RegroupUncondictional implements ImhotepCommand<Integer> {
     }
 
     @Override
-    public Integer combine(final Integer... subResults) {
-        return Collections.max(Arrays.asList(subResults));
+    public Integer combine(final List<Integer> subResults) {
+        return Collections.max(subResults);
     }
 
     @Override
@@ -52,7 +53,7 @@ public class RegroupUncondictional implements ImhotepCommand<Integer> {
     }
 
     @Override
-    public Integer[] getExecutionBuffer(final int length) {
-        return new Integer[length];
+    public Class<Integer> getResultClass() {
+        return Integer.class;
     }
 }

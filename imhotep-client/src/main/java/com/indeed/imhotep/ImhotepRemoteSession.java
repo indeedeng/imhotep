@@ -575,7 +575,7 @@ public class ImhotepRemoteSession
         }
     }
 
-    public BufferedInputStream SaveRespsonseToFileFromStreams(
+    public BufferedInputStream saveResponseToFileFromStream(
             final InputStream is,
             final String tempFilePrefix
     ) throws IOException {
@@ -614,10 +614,9 @@ public class ImhotepRemoteSession
         final Socket socket = newSocket(host, port, socketTimeout);
         final InputStream is = Streams.newBufferedInputStream(socket.getInputStream());
         final OutputStream os = Streams.newBufferedOutputStream(socket.getOutputStream());
-        final ImhotepResponse response;
         try {
-            response = checkMemoryException(getSessionId(), sendRequest(createSender(request), is, os, host, port));
-            final BufferedInputStream tempFileStream = SaveRespsonseToFileFromStreams(is, tempFilePrefix);
+            final ImhotepResponse response = checkMemoryException(getSessionId(), sendRequest(createSender(request), is, os, host, port));
+            final BufferedInputStream tempFileStream = saveResponseToFileFromStream(is, tempFilePrefix);
             return new Pair<>(response, tempFileStream);
         } finally {
             closeSocket(socket);
@@ -1344,29 +1343,11 @@ public class ImhotepRemoteSession
         return checkMemoryException(request.getSessionId(), response);
     }
 
-    public void sendRequestReadNoResponseFlush(
-          final ImhotepRequestSender request,
-          final OutputStream os) throws IOException {
-        sendRequestReadNoResponseFlush(request, os, host, port);
-    }
-
-    private static void sendRequestReadNoResponseFlush(
+    public static void sendRequestReadNoResponseFlush(
             final ImhotepRequestSender request,
-            final OutputStream os,
-            final String host,
-            final int port ) throws  IOException{
-        final String sessionId = request.getSessionId();
-        try {
+            final OutputStream os ) throws  IOException {
             request.writeToStreamNoFlush(os);
             os.flush();
-        } catch (final IOException e) {
-            String errorMessage = "IO error with " + request.getRequestType() + " request to " + host + ":" + port;
-            if (sessionId != null) {
-                errorMessage = createMessageWithSessionId(errorMessage, sessionId);
-            }
-            log.error(errorMessage, e);
-            throw new IOException(errorMessage, e);
-        }
     }
 
     private static ImhotepResponse sendRequest(
@@ -1378,7 +1359,7 @@ public class ImhotepRemoteSession
         final Tracer tracer = GlobalTracer.get();
         final String sessionId = request.getSessionId();
         try (final ActiveSpan activeSpan = tracer.buildSpan(request.getRequestType().name()).withTag("sessionid", sessionId).withTag("host", host + ":" + port).startActive()) {
-            sendRequestReadNoResponseFlush(request, os, host, port);
+            sendRequestReadNoResponseFlush(request, os);
             final ImhotepResponse response = ImhotepProtobufShipping.readResponse(is);
             if (response.getResponseCode() == ImhotepResponse.ResponseCode.KNOWN_ERROR) {
                 throw buildImhotepKnownExceptionFromResponse(response, host, port, sessionId);
@@ -1521,20 +1502,22 @@ public class ImhotepRemoteSession
         final OutputStream os = Streams.newBufferedOutputStream(socket.getOutputStream());
         final InputStream is = Streams.newBufferedInputStream(socket.getInputStream());
 
-        ImhotepRequest batchRequestHeader = getBuilderForType(ImhotepRequest.RequestType.BATCH_REQUESTS)
-                .setBatchRequestLength(commands.size())
-                .setSessionId(getSessionId())
-                .build();
+        try {
+            final ImhotepRequest batchRequestHeader = getBuilderForType(ImhotepRequest.RequestType.BATCH_REQUESTS)
+                    .setImhotepRequestCount(commands.size())
+                    .setSessionId(getSessionId())
+                    .build();
 
-        final ImhotepRequestSender imhotepRequestSender = new RequestTools.ImhotepRequestSender.Simple(batchRequestHeader);
-        sendRequestReadNoResponseFlush(imhotepRequestSender, os, host, port);
+            final ImhotepRequestSender imhotepRequestSender = new RequestTools.ImhotepRequestSender.Simple(batchRequestHeader);
+            sendRequestReadNoResponseFlush(imhotepRequestSender, os);
 
-        for (ImhotepCommand command: commands) {
-            command.writeToOutputStream(os, this);
+            for (final ImhotepCommand command : commands) {
+                command.writeToOutputStream(os, this);
+            }
+
+            return lastCommand.readResponse(is, this);
+        } finally {
+            closeSocket(socket);
         }
-
-        final T readResponse = lastCommand.readResponse(is, this);
-        socket.close();
-        return readResponse;
     }
 }

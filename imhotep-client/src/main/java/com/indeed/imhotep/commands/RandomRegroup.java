@@ -9,8 +9,9 @@ import com.indeed.imhotep.protobuf.ImhotepRequest;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.List;
 
-public class RandomRegroup implements ImhotepCommand<Integer> {
+public class RandomRegroup implements ImhotepCommand<Void> {
 
     private final String field;
     private final boolean isIntField;
@@ -30,8 +31,9 @@ public class RandomRegroup implements ImhotepCommand<Integer> {
         this.negativeGroup = negativeGroup;
         this.positiveGroup = positiveGroup;
     }
+
     @Override
-    public Integer combine(final Integer... subResults) {
+    public Void combine(final List<Void> subResults) {
         return null;
     }
 
@@ -54,13 +56,13 @@ public class RandomRegroup implements ImhotepCommand<Integer> {
     }
 
     @Override
-    public Integer readResponse(final InputStream is, final ImhotepRemoteSession imhotepRemoteSession) throws IOException, ImhotepOutOfMemoryException {
+    public Void readResponse(final InputStream is, final ImhotepRemoteSession imhotepRemoteSession) throws IOException, ImhotepOutOfMemoryException {
         imhotepRemoteSession.readResponseWithMemoryExceptionFromInputStream(is);
         return null;
     }
 
     @Override
-    public Integer[] getExecutionBuffer(int length) {
-        return new Integer[length];
+    public Class<Void> getResultClass() {
+        return Void.class;
     }
 }
