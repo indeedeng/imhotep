@@ -24,7 +24,6 @@ import java.nio.file.DirectoryStream;
 import java.nio.file.FileSystem;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -34,15 +33,18 @@ import java.util.concurrent.TimeoutException;
 
 /**
  * @author xweng
+ * @author xweng
  */
 public class P2PCachingTestContext implements Closeable {
+
+    private static final String INDEX_NAME = "index20171231.20180301170838";
     private final TemporaryFolder tempDir;
     private Path rootPath;
     private FileSystem fs;
     private Path localStorePath;
 
-    private static ImhotepDaemonRunner imhotepDaemonRunner;
-    private static ShardMasterAndImhotepDaemonClusterRunner clusterRunner;
+    private ImhotepDaemonRunner imhotepDaemonRunner;
+    private ShardMasterAndImhotepDaemonClusterRunner clusterRunner;
 
     P2PCachingTestContext() throws  IOException, TimeoutException, InterruptedException {
         tempDir = new TemporaryFolder();
@@ -79,26 +81,31 @@ public class P2PCachingTestContext implements Closeable {
         return fileList;
     }
 
+    String getIndexSubDirectory(final String dataset) {
+        return dataset + "/" + INDEX_NAME;
+    }
+
     void createIndex(final String indexSubDir, final boolean isSqarFile) throws IOException {
         final Path wholePath = localStorePath.resolve(indexSubDir);
         if (!Files.exists(wholePath)) {
             tempDir.newFolder(wholePath.toString());
         }
 
-         if (isSqarFile) {
-             final File tempLocalArchieveFolder = tempDir.newFolder("local-archieve-folder");
-             createSqarFiles(tempLocalArchieveFolder, wholePath.toString());
-         } else {
-             createFlamdexIndex(wholePath);
-         }
+        if (isSqarFile) {
+            final String remotePath = wholePath.toString() + ".sqar";
+            final File tempLocalArchieveFolder = tempDir.newFolder("local-archieve-folder");
+            createFlamdexIndex(tempLocalArchieveFolder.toPath());
+            createSqarFiles(tempLocalArchieveFolder, remotePath);
+        } else {
+            createFlamdexIndex(wholePath);
+        }
     }
 
     private void setUp() throws IOException, TimeoutException, InterruptedException {
         // set up file system
         tempDir.create();
-
         final File localStoreDir = tempDir.newFolder("local-store");
-        localStorePath = Paths.get(localStoreDir.getPath());
+        localStorePath = localStoreDir.toPath();
 
         final Properties properties = new Properties();
         properties.putAll(
@@ -116,10 +123,11 @@ public class P2PCachingTestContext implements Closeable {
         fs = RemoteCachingFileSystemProvider.newFileSystem(tempConfigFile);
         rootPath = Iterables.getFirst(fs.getRootDirectories(), null);
 
+        // setup imhotep runner
         tempDir.newFolder("local-store/temp-root-dir");
         clusterRunner = new ShardMasterAndImhotepDaemonClusterRunner(
-                rootPath.toFile(),
-                rootPath.resolve("temp-root-dir").toFile(),
+                rootPath,
+                localStorePath.resolve("temp-root-dir"),
                 ImhotepShardCreator.DEFAULT);
         imhotepDaemonRunner = clusterRunner.startDaemon();
     }
