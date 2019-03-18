@@ -14,7 +14,6 @@
 
 package com.indeed.imhotep.fs;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
@@ -23,6 +22,7 @@ import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Iterables;
 import com.indeed.imhotep.service.MetricStatsEmitter;
 import com.indeed.util.core.Pair;
+import com.indeed.util.core.io.Closeables2;
 import org.apache.log4j.Logger;
 
 import javax.annotation.Nonnull;
@@ -75,6 +75,7 @@ public class RemoteCachingFileSystemProvider extends FileSystemProvider {
                 throw new FileSystemAlreadyExistsException("Multiple file systems not supported");
             }
             fileSystem = new RemoteCachingFileSystem(fileSystemProvider, env, STATS_EMITTER);
+            Runtime.getRuntime().addShutdownHook(new Thread(() -> clear()));
             return fileSystem;
         }
 
@@ -100,6 +101,7 @@ public class RemoteCachingFileSystemProvider extends FileSystemProvider {
         }
 
         synchronized void clear() {
+            Closeables2.closeQuietly(fileSystem, LOGGER);
             fileSystem = null;
         }
     }
@@ -153,6 +155,10 @@ public class RemoteCachingFileSystemProvider extends FileSystemProvider {
         }
     }
 
+    public static void closeFileSystem() {
+        FILE_SYSTEM_HOLDER.clear();
+    }
+
     @Override
     public FileSystem newFileSystem(final URI uri, final Map<String, ?> env) throws IOException {
         checkUri(uri);
@@ -163,11 +169,6 @@ public class RemoteCachingFileSystemProvider extends FileSystemProvider {
     public FileSystem getFileSystem(final URI uri) {
         checkUri(uri);
         return FILE_SYSTEM_HOLDER.get();
-    }
-
-    @VisibleForTesting
-    void clearFileSystem() {
-        FILE_SYSTEM_HOLDER.clear();
     }
 
     @Override
