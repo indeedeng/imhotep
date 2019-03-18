@@ -136,7 +136,7 @@ class S3RemoteFileStore extends RemoteFileStore {
     }
 
     @Override
-    Optional<LocalFileCache.ScopedCacheFile> getForOpen(final RemoteCachingPath path) {
+    Optional<ScopedCacheFile> getForOpen(final RemoteCachingPath path) {
         return Optional.empty();
     }
 

@@ -91,7 +91,7 @@ abstract class RemoteFileStore extends FileStore {
     /**
      * Wrapper of getForOpen method in local file cache
      */
-    abstract Optional<LocalFileCache.ScopedCacheFile> getForOpen(RemoteCachingPath path);
+    abstract Optional<ScopedCacheFile> getForOpen(RemoteCachingPath path) throws IOException;
 
     /**
      * open an input stream without caching

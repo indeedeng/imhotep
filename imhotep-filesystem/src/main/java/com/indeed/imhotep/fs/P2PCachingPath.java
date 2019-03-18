@@ -12,8 +12,7 @@ import java.util.regex.Pattern;
  */
 public class P2PCachingPath extends RemoteCachingPath {
     private static final String PATH_PREFIX = "remote";
-    // TODO: make the regex stricter
-    private static final Pattern P2P_PATH_PATTERN = Pattern.compile("^/" + PATH_PREFIX + "/[^\\:]+:[0-9]+/.*");
+    private static final Pattern P2P_PATH_PATTERN = Pattern.compile("^/" + PATH_PREFIX + "/[^\\:/]+:[0-9]+/");
 
     private final Host peerHost;
     private final RemoteCachingPath realPath;
@@ -32,7 +31,7 @@ public class P2PCachingPath extends RemoteCachingPath {
     }
 
     static boolean isP2PCachingPath(final String path) {
-        return P2P_PATH_PATTERN.matcher(path).matches();
+        return P2P_PATH_PATTERN.matcher(path).lookingAt();
     }
 
     public static P2PCachingPath toP2PCachingPath(final RemoteCachingPath rootPath, final RemoteCachingPath path, final Host host) {

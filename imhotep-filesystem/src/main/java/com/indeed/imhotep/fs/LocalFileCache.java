@@ -14,6 +14,7 @@
 
 package com.indeed.imhotep.fs;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.cache.AbstractCache;
@@ -64,13 +65,14 @@ class LocalFileCache {
     private static final int FAST_REPORTING_FREQUENCY_MILLIS = 100;
     private static final int SLOW_REPORTING_FREQUENCY_MINUTES = 60;
 
+    @VisibleForTesting
     LocalFileCache(
             final RemoteCachingFileSystem fs,
             final Path cacheRootDir,
             final long diskSpaceCapacity,
             final int diskBlockSize,
             final CacheFileLoader cacheFileLoader) throws IOException {
-        this(fs, cacheRootDir, diskSpaceCapacity, diskBlockSize, cacheFileLoader, MetricStatsEmitter.NULL_EMITTER, "");
+        this(fs, cacheRootDir, diskSpaceCapacity, diskBlockSize, cacheFileLoader, MetricStatsEmitter.NULL_EMITTER, "test");
     }
 
     LocalFileCache(
@@ -180,8 +182,8 @@ class LocalFileCache {
         public void reportSumCacheFileSize() {
             SumCacheFileSizeIntervals sumCacheFilesStats = getSumCacheFilesSize();
 
-            statsEmitter.gauge(statsTypePrefix + "sum.cache.sum.size.minute", sumCacheFilesStats.minuteSum);
-            statsEmitter.gauge(statsTypePrefix + "sum.cache.sum.size.hour", sumCacheFilesStats.hourSum);
+            statsEmitter.gauge(statsTypePrefix + ".sum.cache.sum.size.minute", sumCacheFilesStats.minuteSum);
+            statsEmitter.gauge(statsTypePrefix + ".sum.cache.sum.size.hour", sumCacheFilesStats.hourSum);
             statsEmitter.gauge(statsTypePrefix + ".sum.size.day", sumCacheFilesStats.daySum);
         }
     }
@@ -259,7 +261,7 @@ class LocalFileCache {
             return cacheDirPath;
         } else {
             try (final ScopedCacheFile openedCacheFile = getForOpen(path)) {
-                return openedCacheFile.cachePath;
+                return openedCacheFile.getCachePath();
             }
         }
     }
@@ -292,7 +294,7 @@ class LocalFileCache {
      * @param path the remote path you want to access for opening
      * @return the path corresponding to the local cache file
      */
-    private Path get(final RemoteCachingPath path) throws ExecutionException {
+    Path get(final RemoteCachingPath path) throws ExecutionException {
         FileCacheEntry fileCacheEntry;
         synchronized (lock) {
             incFileUsageRef(path);
@@ -342,7 +344,7 @@ class LocalFileCache {
      * @param path      the remote path you want to give up access
      * @param cachePath the corresponding local cache file
      */
-    private void dispose(final RemoteCachingPath path, final Path cachePath) {
+    void dispose(final RemoteCachingPath path, final Path cachePath) {
         synchronized (lock) {
             final int counter = decFileUsageRef(path);
             if (counter == 0) {
@@ -389,27 +391,6 @@ class LocalFileCache {
             this.daySum = 0;
         }
 
-    }
-
-    static class ScopedCacheFile implements Closeable {
-        private final LocalFileCache cache;
-        private final RemoteCachingPath path;
-        private final Path cachePath;
-
-        ScopedCacheFile(final LocalFileCache cache, final RemoteCachingPath path) throws ExecutionException {
-            this.cache = cache;
-            this.path = path;
-            cachePath = cache.get(path);
-        }
-
-        Path getCachePath() {
-            return cachePath;
-        }
-
-        @Override
-        public void close() {
-            cache.dispose(path, cachePath);
-        }
     }
 
     interface CacheFileLoader {

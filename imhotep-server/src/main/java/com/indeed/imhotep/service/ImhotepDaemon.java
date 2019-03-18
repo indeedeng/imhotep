@@ -15,6 +15,7 @@ package com.indeed.imhotep.service;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.UnmodifiableIterator;
@@ -109,6 +110,20 @@ public class ImhotepDaemon implements Instrumentation.Provider {
         new InstrumentationProvider();
 
     private ServiceCoreObserver serviceCoreObserver;
+
+    private static final ImmutableSet REQUEST_TYPES_CLOSING_SOCKET = ImmutableSet.of(
+            ImhotepRequest.RequestType.STREAMING_GET_GROUP_STATS,
+            ImhotepRequest.RequestType.GET_FTGS_ITERATOR,
+            ImhotepRequest.RequestType.GET_SUBSET_FTGS_ITERATOR,
+            ImhotepRequest.RequestType.GET_FTGS_SPLIT,
+            ImhotepRequest.RequestType.GET_SUBSET_FTGS_SPLIT,
+            ImhotepRequest.RequestType.MERGE_FTGS_SPLIT,
+            ImhotepRequest.RequestType.MERGE_SUBSET_FTGS_SPLIT,
+            ImhotepRequest.RequestType.MERGE_MULTI_FTGS_SPLIT,
+            ImhotepRequest.RequestType.GET_DISTINCT,
+            ImhotepRequest.RequestType.MERGE_DISTINCT_SPLIT,
+            ImhotepRequest.RequestType.MERGE_MULTI_DISTINCT_SPLIT
+    );
 
     private static final class InstrumentationProvider
         extends Instrumentation.ProviderSupport {
@@ -1169,8 +1184,8 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                     expireSession(request, e);
                     final ImhotepResponse.ResponseCode oom =
                         ImhotepResponse.ResponseCode.OUT_OF_MEMORY;
-                    sendResponse(ImhotepResponse.newBuilder().setResponseCode(oom).build(), os);
                     log.warn("ImhotepOutOfMemoryException while servicing request", e);
+                    sendResponse(ImhotepResponse.newBuilder().setResponseCode(oom).build(), os);
                 } catch (final IOException e) {
                     try {
                         sendResponse(newErrorResponse(e), os);
@@ -1211,6 +1226,9 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                     }
                     NDC.setMaxDepth(ndcDepth);
                     Closeables2.closeQuietly(groupStats, log);
+                    if (request != null && REQUEST_TYPES_CLOSING_SOCKET.contains(request.getRequestType())) {
+                        close(socket, is, os);
+                    }
                 }
             } catch (final IOException e) {
                 expireSession(request,e );

@@ -9,18 +9,16 @@ import com.indeed.imhotep.protobuf.FileAttributeMessage;
 import com.indeed.imhotep.protobuf.ImhotepRequest;
 import com.indeed.imhotep.protobuf.ImhotepResponse;
 import com.indeed.imhotep.service.MetricStatsEmitter;
+import com.indeed.util.core.Throwables2;
 import com.indeed.util.core.io.Closeables2;
 import org.apache.commons.compress.utils.IOUtils;
-import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.net.InetAddress;
 import java.net.Socket;
 import java.net.URI;
-import java.net.UnknownHostException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -72,21 +70,17 @@ public class P2PCachingFileStore extends RemoteFileStore {
         try {
             return Optional.of(fileCache.cache(path));
         } catch (final ExecutionException e) {
-            throw new IllegalStateException("Unexpected error while getting cache path for " + path, e);
+            throw Throwables2.propagate(e, IOException.class, RuntimeException.class);
         }
     }
 
     @Override
-    Optional<LocalFileCache.ScopedCacheFile> getForOpen(final RemoteCachingPath path) {
+    Optional<ScopedCacheFile> getForOpen(final RemoteCachingPath path) throws IOException {
         try {
             return Optional.of(fileCache.getForOpen(path));
         } catch (final ExecutionException e) {
-            throw new IllegalStateException("Unexpected error while open cached file for " + path, e);
+            throw Throwables2.propagate(e, IOException.class, RuntimeException.class);
         }
-    }
-
-    LocalFileCache.ScopedCacheFile getOrOpen(final RemoteCachingPath path) throws ExecutionException {
-        return fileCache.getForOpen(path);
     }
 
     @Override
@@ -129,16 +123,7 @@ public class P2PCachingFileStore extends RemoteFileStore {
     @Override
     void downloadFile(final RemoteCachingPath srcPath, final Path destPath) throws IOException {
         final P2PCachingPath p2PCachingPath = (P2PCachingPath) srcPath;
-        // download only if files are in other servers
-        if (!ownShard(p2PCachingPath)) {
-            downloadFileImpl(p2PCachingPath, destPath);
-        } else {
-            try (final InputStream fileInputStream = Files.newInputStream(p2PCachingPath.getRealPath())) {
-                try (final OutputStream outputStream = Files.newOutputStream(destPath)) {
-                    IOUtils.copy(fileInputStream, outputStream);
-                }
-            }
-        }
+        downloadFileImpl(p2PCachingPath, destPath);
     }
 
     @Override
@@ -219,15 +204,6 @@ public class P2PCachingFileStore extends RemoteFileStore {
 
     private interface ThrowingFunction<K, T, R> {
         R apply(K k, T t) throws IOException;
-    }
-
-    // check if current server is the owner of that shard file
-    private boolean ownShard(final P2PCachingPath path) throws UnknownHostException {
-        final String remoteHostName = path.getPeerHost().getHostname();
-        final InetAddress localHost = InetAddress.getLocalHost();
-
-        return StringUtils.equals(remoteHostName, localHost.getHostName())
-                || StringUtils.equals(remoteHostName, localHost.getHostAddress());
     }
 
     private void reportFileDownload(

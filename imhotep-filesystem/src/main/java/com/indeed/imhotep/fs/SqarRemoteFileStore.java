@@ -204,7 +204,7 @@ class SqarRemoteFileStore extends RemoteFileStore implements Closeable {
     }
 
     @Override
-    Optional<LocalFileCache.ScopedCacheFile> getForOpen(final RemoteCachingPath path) {
+    Optional<ScopedCacheFile> getForOpen(final RemoteCachingPath path) throws IOException {
         final RemoteFileStore backingFileStore = getBackingFileStore(path);
         return backingFileStore.getForOpen(path);
     }

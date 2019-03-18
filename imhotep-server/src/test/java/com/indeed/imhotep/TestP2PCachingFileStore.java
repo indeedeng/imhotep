@@ -30,7 +30,7 @@ import static org.junit.Assert.fail;
 /**
  * @author xweng
  */
-public class TestP2PCachingFile {
+public class TestP2PCachingFileStore {
     private static P2PCachingTestContext testContext;
     private static RemoteCachingPath rootPath;
     private static final String INDEX_DIR_PREFIX = "data/index20171231.20180301170838";
@@ -53,6 +53,9 @@ public class TestP2PCachingFile {
         assertTrue(Files.exists(localFilePath));
     }
 
+    /**
+     * Cover listDir and getRemoteAttributes
+     */
     @Test
     public void testRemotePathListDir() throws IOException {
         final RemoteCachingPath localFilePath = rootPath.resolve(INDEX_DIR_PREFIX);
@@ -78,6 +81,9 @@ public class TestP2PCachingFile {
         }
     }
 
+    /**
+     * Cover getRemoteAttributes and download files
+     */
     @Test
     public void testRemotePath() throws IOException {
         assertTrue(internalTestRemote("fld-if1.intdocs"));

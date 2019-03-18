@@ -166,7 +166,6 @@ class RemoteCachingFileSystem extends FileSystem {
     }
 
     Iterable<RemoteCachingPath> listDir(final RemoteCachingPath path) throws IOException {
-        // TODO: I think no need to implement the listDir for P2PCachingFileStore?
         return Iterables.transform(fileStore.listDir(path), new Function<RemoteFileStore.RemoteFileAttributes, RemoteCachingPath>() {
             @Override
             public RemoteCachingPath apply(final RemoteFileStore.RemoteFileAttributes remoteFileAttributes) {
@@ -176,8 +175,8 @@ class RemoteCachingFileSystem extends FileSystem {
     }
 
     SeekableByteChannel newByteChannel(final RemoteCachingPath path) throws IOException {
-        final Optional<LocalFileCache.ScopedCacheFile> optionalScopedCacheFile = fileStore.getForOpen(path);
-        final LocalFileCache.ScopedCacheFile scopedCacheFile;
+        final Optional<ScopedCacheFile> optionalScopedCacheFile = fileStore.getForOpen(path);
+        final ScopedCacheFile scopedCacheFile;
         try {
             scopedCacheFile = optionalScopedCacheFile.isPresent() ?
                     optionalScopedCacheFile.get() :
@@ -192,9 +191,9 @@ class RemoteCachingFileSystem extends FileSystem {
 
     private class CloseHookedSeekableByteChannel implements SeekableByteChannel {
         private final SeekableByteChannel wrapped;
-        private final LocalFileCache.ScopedCacheFile scopedCacheFile;
+        private final ScopedCacheFile scopedCacheFile;
 
-        CloseHookedSeekableByteChannel(final SeekableByteChannel wrapped, final LocalFileCache.ScopedCacheFile scopedCacheFile) {
+        CloseHookedSeekableByteChannel(final SeekableByteChannel wrapped, final ScopedCacheFile scopedCacheFile) {
             this.wrapped = wrapped;
             this.scopedCacheFile = scopedCacheFile;
         }
