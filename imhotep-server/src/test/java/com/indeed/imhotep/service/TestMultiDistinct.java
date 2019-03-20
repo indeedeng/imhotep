@@ -687,9 +687,9 @@ public class TestMultiDistinct {
         final String dataset2 = "windowDistinctDataset2_2";
 
         final int[] counts1 = new int[]{5, 2, 0, 2, 7, 1, 0};
-        // WINDOW(2):                         {5,7,2,2,9,8,1}
+        // WINDOW(2):                  {5, 7, 2, 2, 9, 8, 1}
         final int[] counts2 = new int[]{1, 2, 1, 3, 1, 1, 1};
-        // WINDOW(2):                         {1,3,3,4,4,2,2}
+        // WINDOW(2):                  {1, 3, 3, 4, 4, 2, 2}
         final long[] window2GT1 = new long[]{0, 0, 0, 1, 1, 0, 0, 1};
 
         for (int i = 0; i < 7; i++) {
