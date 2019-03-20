@@ -627,7 +627,7 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
 
             final int[] iteratorOffsets = new int[numStats.length];
             for (int i = 1; i < iteratorOffsets.length; i++) {
-                iteratorOffsets[i] = iteratorOffsets[i - 1] + numStats[i];
+                iteratorOffsets[i] = iteratorOffsets[i - 1] + numStats[i - 1];
             }
 
             final long[] tmpRollingSumsBuffer = new long[totalNumStats];
