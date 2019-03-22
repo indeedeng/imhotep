@@ -65,6 +65,8 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
+import static com.indeed.imhotep.utils.ImhotepResponseUtils.newErrorResponse;
+
 /**
  * @author jsgroth
  */
@@ -238,9 +240,17 @@ public class LocalImhotepServiceCore
             final String filePath,
             final ImhotepResponse.Builder builder,
             @WillNotClose final OutputStream os) throws IOException {
-        final Path path = getShardFilePath(filePath);
-        builder.setFileLength(Files.size(path));
+        final Path path;
+        try {
+            path = getShardFilePath(filePath);
+        } catch (final NoSuchFileException e) {
+            log.debug("sending response");
+            ImhotepProtobufShipping.sendProtobuf(newErrorResponse(e), os);
+            log.debug("response sent");
+            return;
+        }
 
+        builder.setFileLength(Files.size(path));
         log.debug("sending shard file response");
         ImhotepProtobufShipping.sendProtobufNoFlush(builder.build(), os);
         try (final InputStream is = Files.newInputStream(path)) {
@@ -252,15 +262,25 @@ public class LocalImhotepServiceCore
 
     @Override
     public ImhotepResponse handleGetShardFileAttributes(final String filePath, final ImhotepResponse.Builder builder) throws IOException {
-        final Path path = getShardFilePath(filePath);
+        final Path path;
+        try {
+            path = getShardFilePath(filePath);
+        } catch (final NoSuchFileException e) {
+            return newErrorResponse(e);
+        }
         return builder.setFileAttributes(getFileAttributeMessage(path)).build();
     }
 
     @Override
     public ImhotepResponse handleListShardFileAttributes(final String filePath, final ImhotepResponse.Builder builder) throws IOException {
-        final Path dirPath = getShardFilePath(filePath);
-        final List<FileAttributeMessage> attributeMessageList;
+        final Path dirPath;
+        try {
+            dirPath = getShardFilePath(filePath);
+        } catch (final NoSuchFileException e) {
+            return newErrorResponse(e);
+        }
 
+        final List<FileAttributeMessage> attributeMessageList;
         try (final DirectoryStream<Path> dirStream = Files.newDirectoryStream(dirPath)) {
             attributeMessageList = FluentIterable.from(dirStream).transform(path -> {
                 try {
@@ -288,8 +308,9 @@ public class LocalImhotepServiceCore
         if (!(path instanceof RemoteCachingPath)) {
             throw new IllegalArgumentException("path is not a valid RemoteCachingPath, path = " + path);
         }
-        // it throws IllegalStateException with "unexpected error" message by the cacheLoader if the file doesn't exist
-        // here check if the file exists and throw NoSuchFileException manually with readable messages
+
+        // check if a file in sqar directory by RemoteCachingFileSystem will access a lot of non-existed files.
+        // to avoid many useless exceptions, we have to catch and handle them locally
         if (!Files.exists(path)) {
             throw new NoSuchFileException(filePath);
         }

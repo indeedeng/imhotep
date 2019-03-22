@@ -77,16 +77,6 @@ public class ShardMasterAndImhotepDaemonClusterRunner {
         this(shardsDir, tempRootDir, ImhotepShardCreator.DEFAULT);
     }
 
-    @Deprecated
-    public ShardMasterAndImhotepDaemonClusterRunner(final File shardsDir, final File tempRootDir, final ImhotepShardCreator shardCreator) {
-        this(shardsDir.toPath(), tempRootDir.toPath(), shardCreator.DEFAULT);
-    }
-
-    @Deprecated
-    public ShardMasterAndImhotepDaemonClusterRunner(final File shardsDir, final File tempRootDir) {
-        this(shardsDir.toPath(), tempRootDir.toPath(), ImhotepShardCreator.DEFAULT);
-    }
-
     public void setDynamicShardMasterAndLocator(@Nullable final ShardMaster dynamicShardMaster, @Nullable final ShardLocator dynamicShardLocator) {
         this.dynamicShardMaster = dynamicShardMaster;
         this.dynamicShardLocator = dynamicShardLocator;
