@@ -25,6 +25,19 @@ class SuffixStringTermMatcher implements StringTermMatcher {
     }
 
     @Override
+    public boolean matches(final byte[] termBytes, final int termBytesLength) {
+        if (pattern.length > termBytesLength) {
+            return false;
+        }
+        for (int i = 0, j = termBytesLength - pattern.length; i < pattern.length; ++i, ++j) {
+            if (pattern[i] != termBytes[j]) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    @Override
     public void run(final StringTermIterator termIterator, final Consumer<StringTermIterator> onMatch) {
         // The state for term[pos] will be stored in stateStack[pos - 1].
         final IntArrayList stateStack = new IntArrayList();

@@ -1,10 +1,10 @@
 package com.indeed.imhotep.matcher;
 
-import com.google.common.base.Charsets;
 import com.google.common.collect.ImmutableSet;
 import com.indeed.flamdex.api.StringTermIterator;
 import org.junit.Test;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
@@ -48,7 +48,7 @@ public class StringTermMatchersTest {
 
         @Override
         public byte[] termStringBytes() {
-            return term().getBytes(Charsets.UTF_8);
+            return term().getBytes(StandardCharsets.UTF_8);
         }
 
         @Override
@@ -61,7 +61,7 @@ public class StringTermMatchersTest {
             if (currentPos == 0) {
                 return lcpTransform.apply(0);
             } else {
-                final byte[] previous = terms.get(currentPos - 1).getBytes(Charsets.UTF_8);
+                final byte[] previous = terms.get(currentPos - 1).getBytes(StandardCharsets.UTF_8);
                 final byte[] current = termStringBytes();
                 for (int i = 0; (i < previous.length) && (i < current.length); ++i) {
                     if (current[i] != previous[i]) {
@@ -96,6 +96,15 @@ public class StringTermMatchersTest {
 
     private static void validateMatcher(final Set<String> expected, final StringTermMatcher stringTermMatcher, final Set<String> terms) {
         assertEquals(expected, terms.stream().filter(stringTermMatcher::matches).collect(Collectors.toSet()));
+        assertEquals(
+                expected,
+                terms.stream()
+                        .filter(s -> {
+                            final byte[] bytes = s.getBytes(StandardCharsets.UTF_8);
+                            return stringTermMatcher.matches(bytes, bytes.length);
+                        })
+                        .collect(Collectors.toSet())
+        );
         try (final MockStringTermIterator iterator = new MockStringTermIterator(Function.identity(), terms)) {
             assertEquals(expected, runMatcher(stringTermMatcher, iterator));
         }
