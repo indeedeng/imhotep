@@ -94,9 +94,13 @@ public class Shard extends ShardInfo {
         return new Shard(shardId, numDocs, version, owner, newServer, fileName);
     }
 
-    /** remain the interface to specify which server will execute shards' operation dynamically*/
     public Shard withOwner(final Host newOwner) {
         return new Shard(shardId, numDocs, version, newOwner, server, fileName);
+    }
+
+    // change both owner and server, it's called when ShardMaster assigns owner/server for the shard
+    public Shard witHost(final Host host) {
+        return new Shard(shardId, numDocs, version, host, host, fileName);
     }
 
     public static Shard fromShardMessage(final ShardMessage message) {
