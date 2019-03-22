@@ -3,11 +3,12 @@ package com.indeed.imhotep.service;
 import com.google.common.collect.ComparisonChain;
 import com.indeed.imhotep.ShardDir;
 import com.indeed.imhotep.client.Host;
+import com.indeed.imhotep.fs.P2PCachingPath;
+import com.indeed.imhotep.fs.RemoteCachingPath;
 
 import javax.annotation.Nullable;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
@@ -17,42 +18,33 @@ import java.util.stream.Collectors;
 
 public interface ShardLocator {
     public static ShardLocator appendingSQARShardLocator(final Path rootDir, final Host myHost) {
-        return new ShardLocator() {
-            private final Host myServer = myHost;
-            @Override
-            public Optional<Path> locateShard(final String dataset, final ShardHostInfo shardInfo) {
-                final String shardName = shardInfo.getShardName();
-                final String archiveName;
-                if (shardName.endsWith(".sqar")) {
-                    archiveName = shardName;
-                } else {
-                    archiveName = shardName + ".sqar";
-                }
-                return locateAndCheck(
-                        rootDir,
-                        dataset,
-                        archiveName,
-                        myServer,
-                        shardInfo.getShardOwner()
-                );
+        return (dataset, shardHostInfo) -> {
+            final String shardName = shardHostInfo.getShardName();
+            final String archiveName;
+            if (shardName.endsWith(".sqar")) {
+                archiveName = shardName;
+            } else {
+                archiveName = shardName + ".sqar";
             }
+            return locateAndCheck(
+                    rootDir,
+                    dataset,
+                    archiveName,
+                    myHost,
+                    shardHostInfo.getShardOwner()
+            );
         };
     }
 
     public static ShardLocator pathShardLocator(final Path rootDir, final Host myHost) {
-        return new ShardLocator() {
-            private final Host myServer = myHost;
-            @Override
-            public Optional<Path> locateShard(final String dataset, final ShardHostInfo shardInfo) {
-                return locateAndCheck(
-                        rootDir,
-                        dataset,
-                        shardInfo.getShardName(),
-                        myServer,
-                        shardInfo.getShardOwner()
-                );
-            }
-        };
+        return (dataset, shardHostInfo) ->
+            locateAndCheck(
+                    rootDir,
+                    dataset,
+                    shardHostInfo.getShardName(),
+                    myHost,
+                    shardHostInfo.getShardOwner()
+            );
     }
 
     /**
@@ -67,17 +59,6 @@ public interface ShardLocator {
         );
     }
 
-    /**
-     * convert a local path to p2p path
-     */
-    static Path toP2PPath(final Path rootPath, final Path localPath, final Host shardOwner) {
-        final Path fakeP2PPath = rootPath
-                .resolve("remote")
-                .resolve(shardOwner.toString())
-                .resolve(localPath.toString());
-        return Paths.get(fakeP2PPath.toUri());
-    }
-
     static Optional<Path> locateAndCheck(
             final Path rootDir,
             final String dataset,
@@ -87,7 +68,7 @@ public interface ShardLocator {
         Path shardPath = rootDir.resolve(dataset).resolve(shardName);
         // no need generate P2PCachingPath if shard on the same server
         if (shardOwner != null && !shardServer.equals(shardOwner)) {
-            shardPath = toP2PPath(rootDir, shardPath, shardOwner);
+            shardPath = P2PCachingPath.toP2PCachingPath((RemoteCachingPath) rootDir, shardPath, shardOwner);
         }
 
         if (Files.exists(shardPath)) {

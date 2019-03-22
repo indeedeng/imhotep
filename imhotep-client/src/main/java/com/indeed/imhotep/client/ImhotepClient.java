@@ -327,7 +327,7 @@ public class ImhotepClient
         private List<Shard> shardsOverride = null;
 
         private boolean allowSessionForwarding = false;
-        private boolean p2pCache = false;
+        private boolean peerToPeerCache = false;
 
         private int hostCount = 0; // for logging
 
@@ -374,8 +374,8 @@ public class ImhotepClient
             return this;
         }
 
-        public SessionBuilder p2pCache(final boolean p2pCache) {
-            this.p2pCache = p2pCache;
+        public SessionBuilder allowPeerToPeerCache(final boolean peerToPeerCache) {
+            this.peerToPeerCache = peerToPeerCache;
             return this;
         }
 
@@ -457,7 +457,7 @@ public class ImhotepClient
             return getSessionForShards(
                     dataset, hostsToShardsMap, mergeThreadLimit, username, clientName, optimizeGroupZeroLookups,
                     socketTimeout, localTempFileSizeLimit, daemonTempFileSizeLimit, sessionTimeout,
-                    allowSessionForwarding, p2pCache
+                    allowSessionForwarding, peerToPeerCache
             );
         }
     }

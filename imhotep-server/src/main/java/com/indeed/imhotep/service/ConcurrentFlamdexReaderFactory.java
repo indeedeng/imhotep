@@ -113,7 +113,7 @@ public class ConcurrentFlamdexReaderFactory {
         private Path locateShard(final CreateRequest createRequest) {
             return shardLocator.locateShard(createRequest.dataset, createRequest.shardHostInfo)
                     .orElseThrow(() -> new IllegalArgumentException("Unable to locate shard for dataset=" + createRequest.dataset + ", " +
-                            "shardName=" + createRequest.shardHostInfo.getShardName()));
+                            "shardHostInfo=" + createRequest.shardHostInfo.toString()));
         }
 
         public Void call() {

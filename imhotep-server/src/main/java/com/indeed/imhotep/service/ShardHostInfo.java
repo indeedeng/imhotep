@@ -12,7 +12,8 @@ public class ShardHostInfo {
 
     private final String shardName;
 
-    @Nullable private final Host shardOwner;
+    @Nullable
+    private final Host shardOwner;
 
     ShardHostInfo(final String shardName, @Nullable final Host shardOwner) {
         this.shardName = shardName;
@@ -24,7 +25,8 @@ public class ShardHostInfo {
     }
 
 
-    @Nullable public Host getShardOwner() {
+    @Nullable
+    public Host getShardOwner() {
         return shardOwner;
     }
 
