@@ -38,7 +38,6 @@ import com.indeed.imhotep.api.ImhotepServiceCore;
 import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.api.PerformanceStats;
 import com.indeed.imhotep.client.Host;
-import com.indeed.imhotep.exceptions.ImhotepKnownException;
 import com.indeed.imhotep.exceptions.InvalidSessionException;
 import com.indeed.imhotep.fs.RemoteCachingFileSystemProvider;
 import com.indeed.imhotep.io.ImhotepProtobufShipping;
@@ -87,6 +86,8 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
+
+import static com.indeed.imhotep.utils.ImhotepResponseUtils.newErrorResponse;
 
 public class ImhotepDaemon implements Instrumentation.Provider {
     private static final Logger log = Logger.getLogger(ImhotepDaemon.class);
@@ -1222,19 +1223,6 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 throw new InvalidSessionException("invalid session: " +
                         sessionId);
             }
-        }
-
-        private ImhotepResponse newErrorResponse(final Exception e) {
-            final ImhotepResponse.Builder builder = ImhotepResponse.newBuilder()
-                    .setExceptionType(e.getClass().getName())
-                    .setExceptionMessage(e.getMessage() != null ? e.getMessage() : "")
-                    .setExceptionStackTrace(Throwables.getStackTraceAsString(e));
-            if ((e instanceof ImhotepKnownException)) {
-                builder.setResponseCode(ImhotepResponse.ResponseCode.KNOWN_ERROR);
-            } else {
-                builder.setResponseCode(ImhotepResponse.ResponseCode.OTHER_ERROR);
-            }
-            return builder.build();
         }
 
         private void expireSession(final ImhotepRequest protoRequest, final Exception reason) {

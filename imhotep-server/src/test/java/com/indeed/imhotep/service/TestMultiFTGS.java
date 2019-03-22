@@ -94,7 +94,9 @@ public class TestMultiFTGS {
 
     @Before
     public void setUp() {
-        clusterRunner = new ShardMasterAndImhotepDaemonClusterRunner(rootDir.newFolder("shards"), rootDir.newFolder("temp"));
+        clusterRunner = new ShardMasterAndImhotepDaemonClusterRunner(
+                rootDir.newFolder("shards").toPath(),
+                rootDir.newFolder("temp").toPath());
     }
 
     @After

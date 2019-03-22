@@ -76,8 +76,9 @@ public class TestGetFTGSIteratorWithCachingFS {
     @Before
     public void setUp() throws IOException, URISyntaxException {
         clusterRunner = new ShardMasterAndImhotepDaemonClusterRunner(
-                fsTestContext.getLocalStoreDir(),
-                fsTestContext.getTempRootDir(), ImhotepShardCreator.GZIP_ARCHIVE);
+                fsTestContext.getLocalStoreDir().toPath(),
+                fsTestContext.getTempRootDir().toPath(),
+                ImhotepShardCreator.GZIP_ARCHIVE);
     }
 
     @After

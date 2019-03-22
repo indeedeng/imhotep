@@ -3,6 +3,7 @@ package com.indeed.imhotep;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 import com.google.common.io.ByteStreams;
+import com.indeed.imhotep.client.Host;
 import com.indeed.imhotep.fs.RemoteCachingPath;
 import com.indeed.imhotep.io.ImhotepProtobufShipping;
 import com.indeed.imhotep.io.Streams;
@@ -24,6 +25,7 @@ import java.net.Socket;
 import java.net.URI;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.attribute.BasicFileAttributes;
@@ -31,6 +33,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeoutException;
 
+import static com.indeed.imhotep.utils.ImhotepExceptionUtils.buildIOExceptionFromResponse;
+import static com.indeed.imhotep.utils.ImhotepExceptionUtils.buildImhotepKnownExceptionFromResponse;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -57,33 +61,54 @@ public class TestShardFileRequests {
 
     @Test
     public void testGetShardFile() throws IOException {
-        final String indexSubDirectory = testContext.getIndexSubDirectory("dataset_1");
-        testContext.createIndex(indexSubDirectory, false);
-        internalTestGetShardFile(indexSubDirectory);
+        testContext.createDailyShard("dataset1", 1, false);
+        final Path shardPath = testContext.getShardPaths("dataset1").get(0);
+        internalTestGetShardFile(shardPath, ImmutableList.of("fld-if1.intdocs", "fld-sf1.strdocs", "metadata.txt"));
+    }
+
+    @Test
+    public void testFailToGetShardFile() throws IOException {
+        testContext.createDailyShard("dataset11", 1, false);
+        final Path shardPath = testContext.getShardPaths("dataset11").get(0);
+
+        try {
+            internalTestGetShardFile(shardPath, ImmutableList.of("fld-if3.intdocs"));
+            fail("NoSuchFileException is expected");
+        } catch (final NoSuchFileException e) {}
     }
 
     @Test
     public void testGetShardFileSqar() throws IOException {
-        final String indexSubDirectory = testContext.getIndexSubDirectory("dataset_2");
-        testContext.createIndex(indexSubDirectory, true);
-        internalTestGetShardFile(indexSubDirectory);
+        testContext.createDailyShard("dataset2", 1, true);
+        final Path shardPath = testContext.getShardPaths("dataset2").get(0);
+        internalTestGetShardFile(shardPath, ImmutableList.of("fld-if1.intdocs", "fld-sf1.strdocs", "metadata.txt"));
     }
 
     @Test
+    public void testFailToGetShardFileSqar() throws IOException {
+        testContext.createDailyShard("dataset21", 1, true);
+        final Path shardPath = testContext.getShardPaths("dataset21").get(0);
+        try {
+            internalTestGetShardFile(shardPath, ImmutableList.of("fld-if3.intdocs", "fld-sf3.strdocs", "metadata.json"));
+            fail("NoSuchFileException is expected");
+        } catch (final NoSuchFileException e) {}
+    }
+
+
+    @Test
     public void testGetShardFileAttributes() throws IOException {
-        final String indexSubDirectory = testContext.getIndexSubDirectory("dataset_3");
-        testContext.createIndex(indexSubDirectory, false);
+        testContext.createDailyShard("dataset3", 1, false);
+        final Path shardPath = testContext.getShardPaths("dataset3").get(0);
 
         // file
-        final Path remoteFilePath = rootPath.resolve(indexSubDirectory).resolve("fld-if2.intdocs");
+        final Path remoteFilePath = shardPath.resolve("fld-if1.intdocs");
         final FileAttributeMessage fileAttributes = getShardFileAttributes(remoteFilePath);
         assertNotNull(fileAttributes);
         assertFalse(fileAttributes.getIsDirectory());
-        assertEquals(6, fileAttributes.getSize());
+        assertEquals(20, fileAttributes.getSize());
 
         // directory
-        final Path remoteDirPath = rootPath.resolve(indexSubDirectory);
-        final FileAttributeMessage dirAttributes = getShardFileAttributes(remoteDirPath);
+        final FileAttributeMessage dirAttributes = getShardFileAttributes(shardPath);
         assertNotNull(dirAttributes);
         assertTrue(dirAttributes.getIsDirectory());
         assertEquals(4096, dirAttributes.getSize());
@@ -91,10 +116,10 @@ public class TestShardFileRequests {
 
     @Test
     public void testListShardFileAttributes() throws IOException {
-        final String indexSubDirectory = testContext.getIndexSubDirectory("dataset_4");
-        testContext.createIndex(indexSubDirectory, false);
+        testContext.createDailyShard("dataset4", 1, false);
+        final Path shardPath = testContext.getShardPaths("dataset4").get(0);
 
-        final Path remoteDirPath = rootPath.resolve(indexSubDirectory);
+        final Path remoteDirPath = rootPath.resolve(shardPath);
         final List<FileAttributeMessage> subFileAttributes = listShardFileAttributes(remoteDirPath);
         final Map<Path, FileAttributeMessage> pathToAttributesMap = Maps.newHashMap();
         subFileAttributes.forEach(attribute ->  pathToAttributesMap.put(
@@ -116,10 +141,9 @@ public class TestShardFileRequests {
         }
     }
 
-    private void internalTestGetShardFile(final String indexSubDirectory) throws IOException {
-        final List<String> filenames = ImmutableList.of("fld-if2.intdocs", "fld-sf1.strdocs", "metadata.txt");
-        for (final String filename : filenames) {
-            final Path fieldPath = rootPath.resolve(indexSubDirectory).resolve(filename);
+    private void internalTestGetShardFile(final Path datasetIndexDir, final List<String> fileNames) throws IOException {
+        for (final String filename : fileNames) {
+            final Path fieldPath = datasetIndexDir.resolve(filename);
             final File downloadedFile = File.createTempFile("temp-downloaded", "");
             downloadedFile.deleteOnExit();
             downloadShardFiles(fieldPath.toUri().toString(), downloadedFile);
@@ -157,15 +181,19 @@ public class TestShardFileRequests {
     }
 
     private <R> R handleRequest(final ImhotepRequest request, final ThrowingFunction<ImhotepResponse, InputStream, R> function) throws IOException {
-        final Socket socket = new Socket("localhost", testContext.getDaemonPort());
+        final Host host = testContext.getDaemonHosts().get(0);
+        final Socket socket = new Socket(host.getHostname(), host.getPort());
         final OutputStream os = Streams.newBufferedOutputStream(socket.getOutputStream());
         final InputStream is = Streams.newBufferedInputStream(socket.getInputStream());
         try {
             ImhotepProtobufShipping.sendProtobuf(request, os);
             final ImhotepResponse imhotepResponse = ImhotepProtobufShipping.readResponse(is);
 
-            if (imhotepResponse.getResponseCode() != ImhotepResponse.ResponseCode.OK) {
-                fail("wrong response code");
+            if (imhotepResponse.getResponseCode() == ImhotepResponse.ResponseCode.KNOWN_ERROR) {
+                throw buildImhotepKnownExceptionFromResponse(imhotepResponse, host.hostname, host.getPort(), null);
+            }
+            if (imhotepResponse.getResponseCode() == ImhotepResponse.ResponseCode.OTHER_ERROR) {
+                throw buildIOExceptionFromResponse(imhotepResponse, host.getHostname(), host.getPort(), null);
             }
             return function.apply(imhotepResponse, is);
         } finally {

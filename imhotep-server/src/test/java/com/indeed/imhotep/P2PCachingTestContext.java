@@ -2,17 +2,15 @@ package com.indeed.imhotep;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
-import com.google.common.primitives.Longs;
-import com.indeed.flamdex.simple.SimpleFlamdexDocWriter;
-import com.indeed.flamdex.writer.FlamdexDocWriter;
+import com.indeed.flamdex.MemoryFlamdex;
+import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.writer.FlamdexDocument;
-import com.indeed.imhotep.archive.SquallArchiveWriter;
+import com.indeed.imhotep.client.Host;
 import com.indeed.imhotep.fs.RemoteCachingFileSystemProvider;
 import com.indeed.imhotep.service.ImhotepDaemonRunner;
 import com.indeed.imhotep.service.ImhotepShardCreator;
 import com.indeed.imhotep.service.ShardMasterAndImhotepDaemonClusterRunner;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.LocalFileSystem;
+import org.joda.time.DateTime;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.Closeable;
@@ -25,83 +23,42 @@ import java.nio.file.FileSystem;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Spliterator;
+import java.util.Spliterators;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 /**
  * @author xweng
- * @author xweng
  */
 public class P2PCachingTestContext implements Closeable {
+    DateTime DEFAULT_SHARD_START_DATE = new DateTime(2018, 1, 1, 0, 0);
 
-    private static final String INDEX_NAME = "index20171231.20180301170838";
     private final TemporaryFolder tempDir;
     private Path rootPath;
-    private FileSystem fs;
     private Path localStorePath;
-
-    private ImhotepDaemonRunner imhotepDaemonRunner;
+    private List<ImhotepDaemonRunner> imhotepDaemonRunners;
     private ShardMasterAndImhotepDaemonClusterRunner clusterRunner;
 
+    private final int daemonCount;
+
     P2PCachingTestContext() throws  IOException, TimeoutException, InterruptedException {
+        this(1);
+    }
+
+    P2PCachingTestContext(final int daemonCount) throws  IOException, TimeoutException, InterruptedException {
         tempDir = new TemporaryFolder();
+        this.daemonCount = daemonCount;
         setUp();
     }
 
-    @Override
-    public void close() throws IOException {
-        tearDown();
-    }
-
-    Path getRootPath() {
-        return rootPath;
-    }
-
-    public FileSystem getFs() {
-        return fs;
-    }
-
-    int getDaemonPort() {
-        return imhotepDaemonRunner.getActualPort();
-    }
-
-    List<String> getIndexFileNames(final String indexSubDir) throws IOException {
-        final Path wholePath = localStorePath.resolve(indexSubDir);
-        final List<String> fileList = new ArrayList<>();
-        final DirectoryStream<Path> stream = Files.newDirectoryStream(wholePath);
-        for (final Path path : stream) {
-            if (Files.isDirectory(path)) {
-                continue;
-            }
-            fileList.add(path.getFileName().toString());
-        }
-        return fileList;
-    }
-
-    String getIndexSubDirectory(final String dataset) {
-        return dataset + "/" + INDEX_NAME;
-    }
-
-    void createIndex(final String indexSubDir, final boolean isSqarFile) throws IOException {
-        final Path wholePath = localStorePath.resolve(indexSubDir);
-        if (!Files.exists(wholePath)) {
-            tempDir.newFolder(wholePath.toString());
-        }
-
-        if (isSqarFile) {
-            final String remotePath = wholePath.toString() + ".sqar";
-            final File tempLocalArchieveFolder = tempDir.newFolder("local-archieve-folder");
-            createFlamdexIndex(tempLocalArchieveFolder.toPath());
-            createSqarFiles(tempLocalArchieveFolder, remotePath);
-        } else {
-            createFlamdexIndex(wholePath);
-        }
-    }
-
     private void setUp() throws IOException, TimeoutException, InterruptedException {
+        imhotepDaemonRunners = new ArrayList<>();
         // set up file system
         tempDir.create();
         final File localStoreDir = tempDir.newFolder("local-store");
@@ -120,61 +77,87 @@ public class P2PCachingTestContext implements Closeable {
         final File tempConfigFile = tempDir.newFile("imhotep-daemon-test-filesystem-config.properties");
         properties.store(new FileOutputStream(tempConfigFile.getPath()), null);
 
-        fs = RemoteCachingFileSystemProvider.newFileSystem(tempConfigFile);
+        final FileSystem fs = RemoteCachingFileSystemProvider.newFileSystem(tempConfigFile);
         rootPath = Iterables.getFirst(fs.getRootDirectories(), null);
 
         // setup imhotep runner
         tempDir.newFolder("local-store/temp-root-dir");
         clusterRunner = new ShardMasterAndImhotepDaemonClusterRunner(
                 rootPath,
+                localStorePath,
                 localStorePath.resolve("temp-root-dir"),
                 ImhotepShardCreator.DEFAULT);
-        imhotepDaemonRunner = clusterRunner.startDaemon();
+
+        for (int i = 0; i < daemonCount; i++) {
+            imhotepDaemonRunners.add(clusterRunner.startDaemon());
+        }
     }
 
     private void tearDown() throws IOException {
         try {
+            new RemoteCachingFileSystemProvider().clearFileSystem();
             clusterRunner.stop();
         } finally {
             tempDir.delete();
         }
     }
 
-    private void createSqarFiles(final File archiveDir, final String destDir) throws IOException {
-        final SquallArchiveWriter writer = new SquallArchiveWriter(
-                new org.apache.hadoop.fs.Path(LocalFileSystem.DEFAULT_FS).getFileSystem(new Configuration()),
-                new org.apache.hadoop.fs.Path(destDir),
-                true
-        );
-        writer.batchAppendDirectory(archiveDir);
-        writer.commit();
+    Path getRootPath() {
+        return rootPath;
     }
 
-    private void createFlamdexIndex(final Path dir) throws IOException {
-        final SimpleFlamdexDocWriter.Config config = new SimpleFlamdexDocWriter.Config().setDocBufferSize(999999999).setMergeFactor(999999999);
-        try (final FlamdexDocWriter writer = new SimpleFlamdexDocWriter(dir, config)) {
-            final FlamdexDocument doc0 = new FlamdexDocument();
-            doc0.setIntField("if1", Longs.asList(0, 5, 99));
-            doc0.setIntField("if2", Longs.asList(3, 7));
-            doc0.setStringField("sf1", Arrays.asList("a", "b", "c"));
-            doc0.setStringField("sf2", Arrays.asList("0", "-234", "bob"));
-            writer.addDocument(doc0);
+    List<Host> getDaemonHosts() {
+        return imhotepDaemonRunners.stream().map(runner -> new Host("localhost", runner.getActualPort())).collect(Collectors.toList());
+    }
 
-            final FlamdexDocument doc1 = new FlamdexDocument();
-            doc1.setIntField("if2", Longs.asList(6, 7, 99));
-            doc1.setStringField("sf1", Arrays.asList("b", "d", "f"));
-            doc1.setStringField("sf2", Arrays.asList("a", "b", "bob"));
-            writer.addDocument(doc1);
-
-            final FlamdexDocument doc2 = new FlamdexDocument();
-            doc2.setStringField("sf1", Arrays.asList("", "a", "aa"));
-            writer.addDocument(doc2);
-
-            final FlamdexDocument doc3 = new FlamdexDocument();
-            doc3.setIntField("if1", Longs.asList(0, 10000));
-            doc3.setIntField("if2", Longs.asList(9));
-            writer.addDocument(doc3);
+    List<Path> getShardPaths(final String dataset) throws IOException {
+        try (final DirectoryStream<Path> dirStream = Files.newDirectoryStream(rootPath.resolve(dataset))) {
+            return StreamSupport.stream(
+                    Spliterators.spliteratorUnknownSize(dirStream.iterator(), Spliterator.ORDERED), false)
+                    .collect(Collectors.toList());
         }
+    }
+
+    ShardMasterAndImhotepDaemonClusterRunner getClusterRunner() {
+        return clusterRunner;
+    }
+
+    public void createDailyShard(final String dataset, final int duration, final boolean isArchive) throws IOException {
+        final ImhotepShardCreator creator = isArchive ? ImhotepShardCreator.GZIP_ARCHIVE : ImhotepShardCreator.DEFAULT;
+        final ShardMasterAndImhotepDaemonClusterRunner clusterRunnerForIndex = new ShardMasterAndImhotepDaemonClusterRunner(
+                localStorePath,
+                localStorePath,
+                tempDir.newFolder("temp-dir").toPath(),
+                creator);
+
+        try {
+            final DateTime date = DEFAULT_SHARD_START_DATE;
+            for (int i = 0; i < duration; i++) {
+                clusterRunnerForIndex.createDailyShard(dataset, date.plusDays(i), createReader(i));
+            }
+        } finally {
+            clusterRunnerForIndex.stop();
+        }
+    }
+
+    private FlamdexReader createReader(final int index) {
+        final MemoryFlamdex flamdex = new MemoryFlamdex();
+        final Function<Integer, FlamdexDocument> create = param -> {
+            final FlamdexDocument doc = new FlamdexDocument();
+            doc.setIntField("if1", param);
+            doc.setIntField("shardId", index);
+            doc.setStringField("sf1", "str"+index);
+            return doc;
+        };
+        // common part
+        for (int i = 0; i < 10; i++) {
+            flamdex.addDocument(create.apply(i));
+        }
+        // unique part
+        for (int i = index * 10; i < ((index + 1) * 10); i++) {
+            flamdex.addDocument(create.apply(i));
+        }
+        return flamdex;
     }
 
     private static Map<String, String> getFileSystemConfigs (
@@ -201,5 +184,10 @@ public class P2PCachingTestContext implements Closeable {
                 .put("imhotep.fs.p2p.cache.size.gb", "1")
                 .put("imhotep.fs.p2p.cache.block.size.bytes", "4096")
                 .build();
+    }
+
+    @Override
+    public void close() throws IOException {
+        tearDown();
     }
 }

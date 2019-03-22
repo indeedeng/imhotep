@@ -166,7 +166,7 @@ public class RemoteCachingFileSystemProvider extends FileSystemProvider {
     }
 
     @VisibleForTesting
-    void clearFileSystem() {
+    public void clearFileSystem() {
         FILE_SYSTEM_HOLDER.clear();
     }
 
