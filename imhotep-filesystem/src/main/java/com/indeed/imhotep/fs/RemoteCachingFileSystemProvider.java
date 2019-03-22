@@ -128,6 +128,16 @@ public class RemoteCachingFileSystemProvider extends FileSystemProvider {
         return (RemoteCachingPath) path;
     }
 
+    static P2PCachingPath toP2PCachingPath(final Path path) {
+        if (path == null) {
+            throw new NullPointerException();
+        }
+        if (!(path instanceof P2PCachingPath)) {
+            throw new ProviderMismatchException();
+        }
+        return (P2PCachingPath) path;
+    }
+
     @Override
     public String getScheme() {
         return URI_SCHEME;
@@ -166,7 +176,7 @@ public class RemoteCachingFileSystemProvider extends FileSystemProvider {
     }
 
     @VisibleForTesting
-    void clearFileSystem() {
+    public void clearFileSystem() {
         FILE_SYSTEM_HOLDER.clear();
     }
 
@@ -305,8 +315,7 @@ public class RemoteCachingFileSystemProvider extends FileSystemProvider {
 
     @Override
     public FileStore getFileStore(final Path path) throws IOException {
-        // TODO: currently we only support a single configured file store per file system
-        return Iterables.getFirst(FILE_SYSTEM_HOLDER.get().getFileStores(), null);
+        return FILE_SYSTEM_HOLDER.get().getFileStore(toRemoteCachePath(path));
     }
 
     @Override

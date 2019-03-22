@@ -41,8 +41,9 @@ import java.util.stream.Collectors;
 public class ShardMasterAndImhotepDaemonClusterRunner {
     final List<ImhotepDaemonRunner> daemonRunners = new ArrayList<>();
     final List<ShardMasterRunner> shardMasterRunners = new ArrayList<>();
-    final File shardsDir;
-    final File tempRootDir;
+    final Path shardsDir;
+    final Path shardMasterDir;
+    final Path tempRootDir;
     final ImhotepShardCreator shardCreator;
 
     @Nullable
@@ -54,13 +55,25 @@ public class ShardMasterAndImhotepDaemonClusterRunner {
     @Nullable
     private ShardMaster dynamicShardMaster = null;
 
-    public ShardMasterAndImhotepDaemonClusterRunner(final File shardsDir, final File tempRootDir, final ImhotepShardCreator shardCreator) {
+    public ShardMasterAndImhotepDaemonClusterRunner(final Path shardsDir, final Path tempRootDir, final ImhotepShardCreator shardCreator) {
         this.shardsDir = shardsDir;
+        this.tempRootDir = tempRootDir;
+        this.shardMasterDir = shardsDir;
+        this.shardCreator = shardCreator;
+    }
+
+    public ShardMasterAndImhotepDaemonClusterRunner(
+            final Path shardsDir,
+            final Path shardMasterDir,
+            final Path tempRootDir,
+            final ImhotepShardCreator shardCreator) {
+        this.shardsDir = shardsDir;
+        this.shardMasterDir = shardMasterDir;
         this.tempRootDir = tempRootDir;
         this.shardCreator = shardCreator;
     }
 
-    public ShardMasterAndImhotepDaemonClusterRunner(final File shardsDir, final File tempRootDir) {
+    public ShardMasterAndImhotepDaemonClusterRunner(final Path shardsDir, final Path tempRootDir) {
         this(shardsDir, tempRootDir, ImhotepShardCreator.DEFAULT);
     }
 
@@ -90,13 +103,13 @@ public class ShardMasterAndImhotepDaemonClusterRunner {
     }
 
     public ImhotepDaemonRunner startDaemon() throws IOException, TimeoutException, InterruptedException {
-        return startDaemon(shardsDir.toPath());
+        return startDaemon(shardsDir);
     }
 
     public ImhotepDaemonRunner startDaemon(final Path daemonShardsDir) throws IOException, TimeoutException, InterruptedException {
         final ImhotepDaemonRunner runner = new ImhotepDaemonRunner(daemonShardsDir,
                 // each daemonRunners should have its own private scratch temp dir
-                tempRootDir.toPath().resolve(UUID.randomUUID().toString()),
+                tempRootDir.resolve(UUID.randomUUID().toString()),
                 0, new GenericFlamdexReaderSource());
         runner.setConfig(new LocalImhotepServiceConfig().setDynamicShardLocator(dynamicShardLocator));
         if (memoryCapacityOverride != null) {
@@ -112,7 +125,7 @@ public class ShardMasterAndImhotepDaemonClusterRunner {
     }
 
     public ImhotepClient createClient() throws InterruptedException, TimeoutException, IOException {
-        final ShardMasterRunner smRunner = new ShardMasterRunner(shardsDir.toPath(), 0, getDaemonHosts());
+        final ShardMasterRunner smRunner = new ShardMasterRunner(shardMasterDir, 0, getDaemonHosts());
         smRunner.setDynamicShardMaster(dynamicShardMaster);
         shardMasterRunners.add(smRunner);
         smRunner.start();

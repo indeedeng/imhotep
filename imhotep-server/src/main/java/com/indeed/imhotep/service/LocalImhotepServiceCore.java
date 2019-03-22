@@ -16,6 +16,7 @@
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
+import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.indeed.imhotep.ImhotepMemoryPool;
@@ -24,10 +25,14 @@ import com.indeed.imhotep.MemoryReservationContext;
 import com.indeed.imhotep.MemoryReserver;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.client.Host;
+import com.indeed.imhotep.fs.RemoteCachingPath;
+import com.indeed.imhotep.io.ImhotepProtobufShipping;
 import com.indeed.imhotep.local.ImhotepJavaLocalSession;
 import com.indeed.imhotep.local.ImhotepLocalSession;
 import com.indeed.imhotep.local.MTImhotepLocalMultiSession;
+import com.indeed.imhotep.protobuf.FileAttributeMessage;
 import com.indeed.imhotep.protobuf.HostAndPort;
+import com.indeed.imhotep.protobuf.ImhotepResponse;
 import com.indeed.imhotep.protobuf.ShardBasicInfoMessage;
 import com.indeed.imhotep.scheduling.SchedulerType;
 import com.indeed.imhotep.scheduling.TaskScheduler;
@@ -35,14 +40,22 @@ import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.core.reference.SharedReference;
 import com.indeed.util.core.shell.PosixFileOperations;
 import com.indeed.util.varexport.VarExporter;
+import org.apache.commons.io.IOUtils;
 import org.apache.log4j.Logger;
 
 import javax.annotation.Nullable;
+import javax.annotation.WillNotClose;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.URI;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -53,6 +66,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+
+import static com.indeed.imhotep.utils.ImhotepResponseUtils.newErrorResponse;
 
 /**
  * @author jsgroth
@@ -223,6 +238,88 @@ public class LocalImhotepServiceCore
         final List<ImhotepStatusDump.SessionDump> openSessions =
                 getSessionManager().getSessionDump();
         return new ImhotepStatusDump(usedMemory, totalMemory, openSessions);
+    }
+
+    @Override
+    public void handleGetAndSendShardFile(
+            final String filePath,
+            final ImhotepResponse.Builder builder,
+            @WillNotClose final OutputStream os) throws IOException {
+        final Path path;
+        try {
+            path = getShardFilePath(filePath);
+        } catch (final NoSuchFileException e) {
+            log.debug("sending response");
+            ImhotepProtobufShipping.sendProtobuf(newErrorResponse(e), os);
+            log.debug("response sent");
+            return;
+        }
+
+        builder.setFileLength(Files.size(path));
+        log.debug("sending shard file response");
+        ImhotepProtobufShipping.sendProtobufNoFlush(builder.build(), os);
+        try (final InputStream is = Files.newInputStream(path)) {
+            IOUtils.copy(is, os);
+        }
+        os.flush();
+        log.debug("shard file response sent");
+    }
+
+    @Override
+    public ImhotepResponse handleGetShardFileAttributes(final String filePath, final ImhotepResponse.Builder builder) throws IOException {
+        final Path path;
+        try {
+            path = getShardFilePath(filePath);
+        } catch (final NoSuchFileException e) {
+            return newErrorResponse(e);
+        }
+        return builder.setFileAttributes(getFileAttributeMessage(path)).build();
+    }
+
+    @Override
+    public ImhotepResponse handleListShardFileAttributes(final String filePath, final ImhotepResponse.Builder builder) throws IOException {
+        final Path dirPath;
+        try {
+            dirPath = getShardFilePath(filePath);
+        } catch (final NoSuchFileException e) {
+            return newErrorResponse(e);
+        }
+
+        final List<FileAttributeMessage> attributeMessageList;
+        try (final DirectoryStream<Path> dirStream = Files.newDirectoryStream(dirPath)) {
+            attributeMessageList = FluentIterable.from(dirStream).transform(path -> {
+                try {
+                    return getFileAttributeMessage(path);
+                } catch (final IOException e) {
+                    throw new IllegalStateException("Failed to get attributes for " + path + " while listing " + dirPath, e);
+                }
+            }).toList();
+        }
+
+        return builder.addAllSubFilesAttributes(attributeMessageList).build();
+    }
+
+    private FileAttributeMessage getFileAttributeMessage(final Path path) throws IOException {
+        final BasicFileAttributes attributes = Files.readAttributes(path, BasicFileAttributes.class);
+        return FileAttributeMessage.newBuilder()
+                .setPath(path.toUri().toString())
+                .setSize(attributes.size())
+                .setIsDirectory(attributes.isDirectory())
+                .build();
+    }
+
+    private Path getShardFilePath(final String filePath) throws IOException {
+        final Path path = Paths.get(URI.create(filePath));
+        if (!(path instanceof RemoteCachingPath)) {
+            throw new IllegalArgumentException("path is not a valid RemoteCachingPath, path = " + path);
+        }
+
+        // check if a file in sqar directory by RemoteCachingFileSystem will access a lot of non-existed files.
+        // to avoid many useless exceptions, we have to catch and handle them locally
+        if (!Files.exists(path)) {
+            throw new NoSuchFileException(filePath);
+        }
+        return path;
     }
 
     @Override
