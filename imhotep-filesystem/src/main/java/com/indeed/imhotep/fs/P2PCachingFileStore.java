@@ -11,9 +11,10 @@ import com.indeed.imhotep.protobuf.ImhotepResponse;
 import com.indeed.imhotep.service.MetricStatsEmitter;
 import com.indeed.util.core.Throwables2;
 import com.indeed.util.core.io.Closeables2;
-import org.apache.commons.compress.utils.IOUtils;
+import org.apache.commons.io.IOUtils;
 import org.apache.log4j.Logger;
 
+import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -61,7 +62,8 @@ public class P2PCachingFileStore extends RemoteFileStore {
                     }
                 },
                 statsEmitter,
-                "p2p.cache"
+                "p2p.cache",
+                false
         );
     }
 
@@ -122,27 +124,28 @@ public class P2PCachingFileStore extends RemoteFileStore {
 
     @Override
     void downloadFile(final RemoteCachingPath srcPath, final Path destPath) throws IOException {
-        final P2PCachingPath p2PCachingPath = (P2PCachingPath) srcPath;
-        downloadFileImpl(p2PCachingPath, destPath);
+        try (final InputStream inputStream = getInputStream(srcPath)) {
+            try (final OutputStream fileOutputStream = Files.newOutputStream(destPath)) {
+                IOUtils.copy(inputStream, fileOutputStream);
+            }
+        }
     }
 
     @Override
     InputStream newInputStream(final RemoteCachingPath path, final long startOffset, final long length) throws IOException {
-        final Path cachedPath = getCachedPath(path).get();
-
-        final InputStream is = Files.newInputStream(cachedPath);
+        final InputStream inputStream = getInputStream(path);
         final long skipped;
         try {
-            skipped = is.skip(startOffset);
+            skipped = inputStream.skip(startOffset);
         } catch (final IOException e) {
-            Closeables2.closeQuietly(is, logger);
+            Closeables2.closeQuietly(inputStream, logger);
             throw new IOException("Failed to open " + path + " with offset " + startOffset, e);
         }
 
         if (skipped != startOffset) {
             throw new IOException("Could not move offset for path " + path + " by " + startOffset);
         }
-        return is;
+        return inputStream;
     }
 
     @Override
@@ -150,7 +153,8 @@ public class P2PCachingFileStore extends RemoteFileStore {
         return cacheRootPath.toString();
     }
 
-    private void downloadFileImpl(final P2PCachingPath srcPath, final Path destPath) throws IOException {
+    private InputStream getInputStream(final RemoteCachingPath path) throws IOException {
+        final P2PCachingPath srcPath = (P2PCachingPath) path;
         final String realFilePath = srcPath.getRealPath().toUri().toString();
         final long downloadStartMillis = System.currentTimeMillis();
         final ImhotepRequest newRequest = ImhotepRequest.newBuilder()
@@ -158,15 +162,15 @@ public class P2PCachingFileStore extends RemoteFileStore {
                 .setShardFilePath(realFilePath)
                 .build();
 
-        // fileInputStream won't be closed otherwise socket will be closed too
-        final InputStream fileInputStream = handleRequest(newRequest, srcPath, (response, is) -> {
+        return handleRequest(newRequest, srcPath, (response, is) -> {
             reportFileDownload(response.getFileLength(), System.currentTimeMillis() - downloadStartMillis);
-            return ByteStreams.limit(is, response.getFileLength());
+            final InputStream rawInputStream = ByteStreams.limit(is, response.getFileLength());
+            // rawInputStream won't be closed in case the socket is also closed
+            return new FilterInputStream(rawInputStream) {
+                @Override
+                public void close() { }
+            };
         });
-
-        try (final OutputStream fileOutputStream = Files.newOutputStream(destPath)) {
-            IOUtils.copy(fileInputStream, fileOutputStream);
-        }
     }
 
     /**
@@ -175,7 +179,7 @@ public class P2PCachingFileStore extends RemoteFileStore {
      * @param p2PCachingPath
      * @param function is the method to get results from response and socket inputstream(downloading files)
      * @param <R>
-     * @return
+     * @return R
      * @throws IOException
      */
     private <R> R handleRequest(

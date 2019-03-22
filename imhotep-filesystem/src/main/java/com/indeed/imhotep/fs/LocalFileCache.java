@@ -25,6 +25,7 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.indeed.imhotep.scheduling.TaskScheduler;
 import com.indeed.imhotep.service.MetricStatsEmitter;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
+import org.apache.commons.io.FileUtils;
 import org.apache.log4j.Logger;
 
 import javax.annotation.Nonnull;
@@ -62,6 +63,7 @@ class LocalFileCache {
     private final LoadingCache<RemoteCachingPath, FileCacheEntry> referencedFilesCache;
     private final Object lock = new Object();
     private final MetricStatsEmitter statsEmitter;
+    private final boolean loadExistedFiles;
     private static final int FAST_REPORTING_FREQUENCY_MILLIS = 100;
     private static final int SLOW_REPORTING_FREQUENCY_MINUTES = 60;
 
@@ -72,7 +74,7 @@ class LocalFileCache {
             final long diskSpaceCapacity,
             final int diskBlockSize,
             final CacheFileLoader cacheFileLoader) throws IOException {
-        this(fs, cacheRootDir, diskSpaceCapacity, diskBlockSize, cacheFileLoader, MetricStatsEmitter.NULL_EMITTER, "test");
+        this(fs, cacheRootDir, diskSpaceCapacity, diskBlockSize, cacheFileLoader, MetricStatsEmitter.NULL_EMITTER, "test", true);
     }
 
     LocalFileCache(
@@ -82,9 +84,11 @@ class LocalFileCache {
             final int diskBlockSize,
             final CacheFileLoader cacheFileLoader,
             final MetricStatsEmitter statsEmitter,
-            final String statsTypePrefix) throws IOException {
+            final String statsTypePrefix,
+            final boolean loadExistedFiles) throws IOException {
         this.cacheRootDir = cacheRootDir;
         this.diskSpaceCapacity = diskSpaceCapacity;
+        this.loadExistedFiles = loadExistedFiles;
         this.statsEmitter = statsEmitter;
 
         final CacheStatsEmitter cacheFileStatsEmitter = new CacheStatsEmitter(statsTypePrefix);
@@ -205,33 +209,38 @@ class LocalFileCache {
         Files.createDirectories(cacheRootDir);
         synchronized (lock) {
             unusedFilesCache.invalidateAll();
-            Files.walkFileTree(cacheRootDir, new SimpleFileVisitor<Path>() {
-                @Override
-                public FileVisitResult visitFile(final Path cachePath, final BasicFileAttributes attrs) throws IOException {
-                    super.visitFile(cachePath, attrs);
+            if (loadExistedFiles) {
+                Files.walkFileTree(cacheRootDir, new SimpleFileVisitor<Path>() {
+                    @Override
+                    public FileVisitResult visitFile(final Path cachePath, final BasicFileAttributes attrs) throws IOException {
+                        super.visitFile(cachePath, attrs);
 
-                    final long localCacheSize = sizeOnDisk(cachePath);
-                    final int lastAccessEpochTimeSeconds = Integer.MIN_VALUE; // Initialize with MIN_VALUE to ignore in stats reporting.
-                    final RemoteCachingPath path = RemoteCachingPath.resolve(RemoteCachingPath.getRoot(fs), cacheRootDir.relativize(cachePath));
+                        final long localCacheSize = sizeOnDisk(cachePath);
+                        final int lastAccessEpochTimeSeconds = Integer.MIN_VALUE; // Initialize with MIN_VALUE to ignore in stats reporting.
+                        final RemoteCachingPath path = RemoteCachingPath.resolve(RemoteCachingPath.getRoot(fs), cacheRootDir.relativize(cachePath));
 
-                    diskSpaceUsage.addAndGet(localCacheSize);
-                    unusedFilesCache.put(path, new FileCacheEntry(cachePath, localCacheSize, lastAccessEpochTimeSeconds));
+                        diskSpaceUsage.addAndGet(localCacheSize);
+                        unusedFilesCache.put(path, new FileCacheEntry(cachePath, localCacheSize, lastAccessEpochTimeSeconds));
 
-                    return FileVisitResult.CONTINUE;
-                }
-
-                @Override
-                public FileVisitResult postVisitDirectory(final Path dir, final IOException exc) throws IOException {
-                    // Delete empty directories separately since it's not handled by cleanUp() below
-                    try (final DirectoryStream<Path> dirStream = Files.newDirectoryStream(dir)) {
-                        final boolean dirIsEmpty = !dirStream.iterator().hasNext();
-                        if (dirIsEmpty) {
-                            Files.delete(dir);
-                        }
+                        return FileVisitResult.CONTINUE;
                     }
-                    return super.postVisitDirectory(dir, exc);
-                }
-            });
+
+                    @Override
+                    public FileVisitResult postVisitDirectory(final Path dir, final IOException exc) throws IOException {
+                        // Delete empty directories separately since it's not handled by cleanUp() below
+                        try (final DirectoryStream<Path> dirStream = Files.newDirectoryStream(dir)) {
+                            final boolean dirIsEmpty = !dirStream.iterator().hasNext();
+                            if (dirIsEmpty) {
+                                Files.delete(dir);
+                            }
+                        }
+                        return super.postVisitDirectory(dir, exc);
+                    }
+                });
+            } else {
+                // we don't know the host information from files in disk, so won't load them for peer to peer cache.
+                FileUtils.deleteDirectory(cacheRootDir.toFile());
+            }
             // recreate in case it was empty and got deleted above
             Files.createDirectories(cacheRootDir);
             // force clean up
@@ -434,7 +443,7 @@ class LocalFileCache {
         }
 
         public synchronized int getOldestFileAccessTime() {
-                return updateOrderMap.values().stream().mapToInt(x -> x.lastAccessEpochTimeSeconds).findFirst().orElse(Integer.MIN_VALUE);
+            return updateOrderMap.values().stream().mapToInt(x -> x.lastAccessEpochTimeSeconds).findFirst().orElse(Integer.MIN_VALUE);
         }
 
         public synchronized SumCacheFileSizeIntervals getSumCacheFileSizeStats() {

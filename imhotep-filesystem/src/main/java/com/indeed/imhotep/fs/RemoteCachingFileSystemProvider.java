@@ -128,6 +128,16 @@ public class RemoteCachingFileSystemProvider extends FileSystemProvider {
         return (RemoteCachingPath) path;
     }
 
+    static P2PCachingPath toP2PCachingPath(final Path path) {
+        if (path == null) {
+            throw new NullPointerException();
+        }
+        if (!(path instanceof P2PCachingPath)) {
+            throw new ProviderMismatchException();
+        }
+        return (P2PCachingPath) path;
+    }
+
     @Override
     public String getScheme() {
         return URI_SCHEME;

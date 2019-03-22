@@ -989,6 +989,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
          */
         private boolean internalRun() {
             ImhotepRequest request = null;
+            boolean socketClosed = false;
             try {
                 final long beginTm = System.currentTimeMillis();
 
@@ -1180,7 +1181,6 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                     if (response != null) {
                         sendResponseAndGroupStats(response, groupStats, os);
                     }
-                    return false;
                 } catch (final ImhotepOutOfMemoryException e) {
                     expireSession(request, e);
                     final ImhotepResponse.ResponseCode oom =
@@ -1229,6 +1229,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                     Closeables2.closeQuietly(groupStats, log);
                     if (request != null && REQUEST_TYPES_CLOSING_SOCKET.contains(request.getRequestType())) {
                         close(socket, is, os);
+                        socketClosed = true;
                     }
                 }
             } catch (final IOException e) {
@@ -1240,7 +1241,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 }
                 throw new RuntimeException(e);
             }
-            return false;
+            return socketClosed;
         }
 
         private void checkSessionValidity(final ImhotepRequest protoRequest) {

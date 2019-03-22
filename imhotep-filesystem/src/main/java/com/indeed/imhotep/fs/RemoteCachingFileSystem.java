@@ -85,7 +85,8 @@ class RemoteCachingFileSystem extends FileSystem {
                     }
                 },
                 statsEmitter,
-                "file.cache"
+                "file.cache",
+                true
         );
 
     }
@@ -154,7 +155,7 @@ class RemoteCachingFileSystem extends FileSystem {
     }
 
     private Path getPath(final String path) {
-        return (P2PCachingPath.isP2PCachingPath(path) ? new P2PCachingPath(this, path) : new RemoteCachingPath(this, path));
+        return (P2PCachingPath.isAbsoluteP2PCachingPath(path) ? P2PCachingPath.newP2PCachingPath(this, path) : new RemoteCachingPath(this, path));
     }
 
     FileStore getFileStore(final RemoteCachingPath path) {

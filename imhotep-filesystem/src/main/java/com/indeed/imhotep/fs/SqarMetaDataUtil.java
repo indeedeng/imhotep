@@ -35,12 +35,14 @@ class SqarMetaDataUtil {
     private SqarMetaDataUtil() {
     }
 
+    // TODO: it doesn't work well for relative path
     @Nullable
     static RemoteCachingPath getShardPath(final RemoteCachingPath path) {
         if (path.getNameCount() >= SHARD_PATH_COMPONENT) {
             final RemoteCachingPath relShardPath = (RemoteCachingPath) path.subpath(0, SHARD_PATH_COMPONENT);
             if (path.isAbsolute()) {
-                return (RemoteCachingPath) RemoteCachingPath.getRoot(path.getFileSystem()).resolve(relShardPath);
+                final RemoteCachingPath rootPath = (path instanceof P2PCachingPath) ? path.getRoot() : RemoteCachingPath.getRoot(path.getFileSystem());
+                return (RemoteCachingPath) rootPath.resolve(relShardPath);
             } else {
                 return relShardPath;
             }
@@ -50,7 +52,7 @@ class SqarMetaDataUtil {
 
     @Nullable
     static RemoteCachingPath getFilePath(final RemoteCachingPath path) {
-         if (path.getNameCount() >= (SHARD_PATH_COMPONENT + 1)) {
+        if (path.getNameCount() >= (SHARD_PATH_COMPONENT + 1)) {
             return (RemoteCachingPath) path.subpath(SHARD_PATH_COMPONENT, path.getNameCount());
         } else if (path.getNameCount() == SHARD_PATH_COMPONENT) {
             return (RemoteCachingPath) path.getFileSystem().getPath("");
