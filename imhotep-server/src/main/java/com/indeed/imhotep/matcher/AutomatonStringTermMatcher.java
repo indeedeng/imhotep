@@ -11,7 +11,7 @@ class AutomatonStringTermMatcher implements StringTermMatcher {
     private final RunAutomaton automaton;
 
     AutomatonStringTermMatcher(final String regex) {
-        this.automaton = new RunAutomaton(new RegExp(regex).toAutomaton());
+        this.automaton = new RunAutomaton(new RegExp(regex, RegExp.NONE).toAutomaton());
     }
 
     @Override
