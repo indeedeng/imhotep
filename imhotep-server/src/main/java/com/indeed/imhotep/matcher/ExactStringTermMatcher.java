@@ -34,7 +34,7 @@ public class ExactStringTermMatcher implements StringTermMatcher {
     public void run(final StringTermIterator termIterator, final Consumer<StringTermIterator> onMatch) {
         termIterator.reset(patternString);
         if (termIterator.next()) {
-            if (patternString.equals(termIterator.term())) {
+            if (matches(termIterator.termStringBytes(), termIterator.termStringLength())) {
                 onMatch.accept(termIterator);
             }
         }
