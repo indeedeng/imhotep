@@ -63,7 +63,7 @@ class RemoteCachingFileSystem extends FileSystem {
                 .getFactory().create(configuration, statsEmitter);
 
         final boolean enableP2PCaching = Boolean.parseBoolean((String) configuration.get("imhotep.fs.p2p.cache.enable"));
-        final P2PCachingFileStore p2PCachingFileStore = enableP2PCaching ? new P2PCachingFileStore(this, configuration, statsEmitter) : null;
+        final PeerToPeerCacheFileStore p2PCachingFileStore = enableP2PCaching ? new PeerToPeerCacheFileStore(this, configuration, statsEmitter) : null;
         fileStore = new SqarRemoteFileStore(backingFileStore, p2PCachingFileStore, configuration);
 
         final URI cacheRootUri;
@@ -155,7 +155,7 @@ class RemoteCachingFileSystem extends FileSystem {
     }
 
     private Path getPath(final String path) {
-        return (P2PCachingPath.isAbsoluteP2PCachingPath(path) ? P2PCachingPath.newP2PCachingPath(this, path) : new RemoteCachingPath(this, path));
+        return (PeerToPeerCachePath.isAbsolutePeerToPeerCachePath(path) ? PeerToPeerCachePath.newPeerToPeerCachePath(this, path) : new RemoteCachingPath(this, path));
     }
 
     FileStore getFileStore(final RemoteCachingPath path) {

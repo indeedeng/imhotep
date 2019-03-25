@@ -48,7 +48,7 @@ class SqarRemoteFileStore extends RemoteFileStore implements Closeable {
     private final SqarMetaDataManager sqarMetaDataManager;
     private final SqarMetaDataDao sqarMetaDataDao;
     private final RemoteFileStore defaultBackingFileStore;
-    private final RemoteFileStore p2pCachingFileStore;
+    private final RemoteFileStore peerToPeerFileStore;
 
 
     SqarRemoteFileStore(final RemoteFileStore defaultBackingFileStore,
@@ -58,10 +58,10 @@ class SqarRemoteFileStore extends RemoteFileStore implements Closeable {
 
     SqarRemoteFileStore(
             final RemoteFileStore defaultBackingFileStore,
-            final P2PCachingFileStore p2pCachingFileStore,
+            final PeerToPeerCacheFileStore peerToPeerCacheFileStore,
             final Map<String, ?> configuration) throws IOException {
         this.defaultBackingFileStore = defaultBackingFileStore;
-        this.p2pCachingFileStore = p2pCachingFileStore;
+        this.peerToPeerFileStore = peerToPeerCacheFileStore;
         final File lsmTreeMetadataStore = new File((String)configuration.get("imhotep.fs.sqar.metadata.cache.path"));
         final String lsmTreeExpirationDurationString = (String)(configuration.get("imhotep.fs.sqar.metadata.cache.expiration.hours"));
         final int lsmTreeExpirationDurationHours = lsmTreeExpirationDurationString != null ? Integer.valueOf(lsmTreeExpirationDurationString) : 0;
@@ -83,27 +83,27 @@ class SqarRemoteFileStore extends RemoteFileStore implements Closeable {
     }
 
     RemoteFileStore getBackingFileStore(final RemoteCachingPath path) {
-        if (p2pCachingFileStore != null && path instanceof P2PCachingPath) {
-            return p2pCachingFileStore;
+        if (peerToPeerFileStore != null && path instanceof PeerToPeerCachePath) {
+            return peerToPeerFileStore;
         }
         return defaultBackingFileStore;
     }
 
     Iterable<FileStore> getBackingFileStores() {
         final ImmutableList.Builder builder = ImmutableList.builder().add(defaultBackingFileStore);
-        if (p2pCachingFileStore != null) {
-            builder.add(p2pCachingFileStore);
+        if (peerToPeerFileStore != null) {
+            builder.add(peerToPeerFileStore);
         }
         return builder.build();
     }
 
     @Override
     public String name() {
-        if (p2pCachingFileStore == null) {
+        if (peerToPeerFileStore == null) {
             return defaultBackingFileStore.name();
         }
         // TODO: no sure how to do with this
-        return defaultBackingFileStore.name() + " && " + p2pCachingFileStore.name();
+        return defaultBackingFileStore.name() + " && " + peerToPeerFileStore.name();
     }
 
     @Override

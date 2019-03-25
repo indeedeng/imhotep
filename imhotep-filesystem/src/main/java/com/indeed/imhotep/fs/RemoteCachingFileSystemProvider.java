@@ -128,14 +128,14 @@ public class RemoteCachingFileSystemProvider extends FileSystemProvider {
         return (RemoteCachingPath) path;
     }
 
-    static P2PCachingPath toP2PCachingPath(final Path path) {
+    static PeerToPeerCachePath toPeerToPeerCachePath(final Path path) {
         if (path == null) {
             throw new NullPointerException();
         }
-        if (!(path instanceof P2PCachingPath)) {
+        if (!(path instanceof PeerToPeerCachePath)) {
             throw new ProviderMismatchException();
         }
-        return (P2PCachingPath) path;
+        return (PeerToPeerCachePath) path;
     }
 
     @Override
