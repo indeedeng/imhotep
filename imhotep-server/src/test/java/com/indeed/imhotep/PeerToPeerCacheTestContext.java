@@ -36,7 +36,7 @@ import java.util.stream.StreamSupport;
 /**
  * @author xweng
  */
-public class P2PCachingTestContext implements Closeable {
+public class PeerToPeerCacheTestContext implements Closeable {
     DateTime DEFAULT_SHARD_START_DATE = new DateTime(2018, 1, 1, 0, 0);
 
     private final TemporaryFolder tempDir;
@@ -47,11 +47,11 @@ public class P2PCachingTestContext implements Closeable {
 
     private final int daemonCount;
 
-    P2PCachingTestContext() throws  IOException, TimeoutException, InterruptedException {
+    PeerToPeerCacheTestContext() throws  IOException, TimeoutException, InterruptedException {
         this(1);
     }
 
-    P2PCachingTestContext(final int daemonCount) throws  IOException, TimeoutException, InterruptedException {
+    PeerToPeerCacheTestContext(final int daemonCount) throws  IOException, TimeoutException, InterruptedException {
         tempDir = new TemporaryFolder();
         this.daemonCount = daemonCount;
         setUp();
