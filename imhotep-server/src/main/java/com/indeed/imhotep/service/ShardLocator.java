@@ -3,7 +3,7 @@ package com.indeed.imhotep.service;
 import com.google.common.collect.ComparisonChain;
 import com.indeed.imhotep.ShardDir;
 import com.indeed.imhotep.client.Host;
-import com.indeed.imhotep.fs.P2PCachingPath;
+import com.indeed.imhotep.fs.PeerToPeerCachePath;
 import com.indeed.imhotep.fs.RemoteCachingPath;
 
 import javax.annotation.Nullable;
@@ -68,7 +68,7 @@ public interface ShardLocator {
         Path shardPath = rootDir.resolve(dataset).resolve(shardName);
         // no need generate P2PCachingPath if shard on the same server
         if (shardOwner != null && !shardServer.equals(shardOwner)) {
-            shardPath = P2PCachingPath.toP2PCachingPath((RemoteCachingPath) rootDir, shardPath, shardOwner);
+            shardPath = PeerToPeerCachePath.toPeerToPeerCachePath((RemoteCachingPath) rootDir, shardPath, shardOwner);
         }
 
         if (Files.exists(shardPath)) {

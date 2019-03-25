@@ -27,14 +27,14 @@ import static org.junit.Assert.assertTrue;
 /**
  * @author xweng
  */
-public class TestP2PCachingQuery {
-    private static P2PCachingTestContext testContext;
+public class TestPeerToPeerCacheQuery {
+    private static PeerToPeerCacheTestContext testContext;
     private static List<Host> daemonHosts;
     private static final int DURATION = 5;
 
     @BeforeClass
     public static void setUp() throws IOException, TimeoutException, InterruptedException {
-        testContext = new P2PCachingTestContext(3);
+        testContext = new PeerToPeerCacheTestContext(3);
         testContext.createDailyShard("dataset", DURATION, false);
         daemonHosts = testContext.getDaemonHosts();
     }
