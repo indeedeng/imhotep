@@ -45,12 +45,12 @@ import static org.junit.Assert.fail;
  * @author xweng
  */
 public class TestShardFileRequests {
-    private static P2PCachingTestContext testContext;
+    private static PeerToPeerCacheTestContext testContext;
     private static RemoteCachingPath rootPath;
 
     @BeforeClass
     public static void setUp() throws IOException, TimeoutException, InterruptedException {
-        testContext = new P2PCachingTestContext();
+        testContext = new PeerToPeerCacheTestContext();
         rootPath = (RemoteCachingPath) testContext.getRootPath();
     }
 

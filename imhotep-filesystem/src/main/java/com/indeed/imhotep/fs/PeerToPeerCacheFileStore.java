@@ -36,17 +36,17 @@ import static com.indeed.imhotep.utils.ImhotepExceptionUtils.buildImhotepKnownEx
 /**
  * @author xweng
  */
-public class P2PCachingFileStore extends RemoteFileStore {
-    private static final Logger logger = Logger.getLogger(P2PCachingFileStore.class);
+public class PeerToPeerCacheFileStore extends RemoteFileStore {
+    private static final Logger logger = Logger.getLogger(PeerToPeerCacheFileStore.class);
     private static final int FETCH_CONNECTION_TIMEOUT = (int) TimeUnit.SECONDS.toMillis(30);
 
     private final LocalFileCache fileCache;
     private final MetricStatsEmitter statsEmitter;
     private final Path cacheRootPath;
 
-    P2PCachingFileStore(final RemoteCachingFileSystem fs,
-                        final Map<String, ?> configuration,
-                        final MetricStatsEmitter statsEmitters) throws IOException {
+    PeerToPeerCacheFileStore(final RemoteCachingFileSystem fs,
+                             final Map<String, ?> configuration,
+                             final MetricStatsEmitter statsEmitters) throws IOException {
         statsEmitter = statsEmitters;
         cacheRootPath = Paths.get(URI.create((String) configuration.get("imhotep.fs.p2p.cache.root.uri")));
 
@@ -87,20 +87,20 @@ public class P2PCachingFileStore extends RemoteFileStore {
 
     @Override
     List<RemoteFileAttributes> listDir(final RemoteCachingPath path) throws IOException {
-        final P2PCachingPath p2PCachingPath = (P2PCachingPath) path;
-        final Host remoteHost = p2PCachingPath.getPeerHost();
-        final String localFilePath = p2PCachingPath.getRealPath().toUri().toString();
+        final PeerToPeerCachePath peerToPeerCachePath = (PeerToPeerCachePath) path;
+        final Host remoteHost = peerToPeerCachePath.getPeerHost();
+        final String localFilePath = peerToPeerCachePath.getRealPath().toUri().toString();
         final ImhotepRequest newRequest = ImhotepRequest.newBuilder()
                 .setRequestType(ImhotepRequest.RequestType.LIST_SHARD_FILE_ATTRIBUTES)
                 .setShardFilePath(localFilePath)
                 .build();
 
-        final List<FileAttributeMessage> attributeList = handleRequest(newRequest, p2PCachingPath,
+        final List<FileAttributeMessage> attributeList = handleRequest(newRequest, peerToPeerCachePath,
                 (response, is) -> response.getSubFilesAttributesList());
         return attributeList.stream()
                 .map(attr -> new RemoteFileAttributes(
-                        P2PCachingPath.toP2PCachingPath(
-                                p2PCachingPath.getRoot(),
+                        PeerToPeerCachePath.toPeerToPeerCachePath(
+                                peerToPeerCachePath.getRoot(),
                                 attr.getPath(),
                                 remoteHost),
                         attr.getSize(),
@@ -110,16 +110,16 @@ public class P2PCachingFileStore extends RemoteFileStore {
 
     @Override
     RemoteFileAttributes getRemoteAttributes(final RemoteCachingPath path) throws IOException {
-        final P2PCachingPath p2PCachingPath = (P2PCachingPath) path;
-        final String realFilePath = p2PCachingPath.getRealPath().toUri().toString();
+        final PeerToPeerCachePath peerToPeerCachePath = (PeerToPeerCachePath) path;
+        final String realFilePath = peerToPeerCachePath.getRealPath().toUri().toString();
         final ImhotepRequest newRequest = ImhotepRequest.newBuilder()
                 .setRequestType(ImhotepRequest.RequestType.GET_SHARD_FILE_ATTRIBUTES)
                 .setShardFilePath(realFilePath)
                 .build();
 
-        final FileAttributeMessage attributes = handleRequest(newRequest, p2PCachingPath,
+        final FileAttributeMessage attributes = handleRequest(newRequest, peerToPeerCachePath,
                 (response, is) -> response.getFileAttributes());
-        return new RemoteFileAttributes(p2PCachingPath, attributes.getSize(), !attributes.getIsDirectory());
+        return new RemoteFileAttributes(peerToPeerCachePath, attributes.getSize(), !attributes.getIsDirectory());
     }
 
     @Override
@@ -154,7 +154,7 @@ public class P2PCachingFileStore extends RemoteFileStore {
     }
 
     private InputStream getInputStream(final RemoteCachingPath path) throws IOException {
-        final P2PCachingPath srcPath = (P2PCachingPath) path;
+        final PeerToPeerCachePath srcPath = (PeerToPeerCachePath) path;
         final String realFilePath = srcPath.getRealPath().toUri().toString();
         final long downloadStartMillis = System.currentTimeMillis();
         final ImhotepRequest newRequest = ImhotepRequest.newBuilder()
@@ -176,7 +176,7 @@ public class P2PCachingFileStore extends RemoteFileStore {
     /**
      * A generic interface to handle requests in the p2pCachingStore
      * @param request
-     * @param p2PCachingPath
+     * @param peerToPeerCachePath
      * @param function is the method to get results from response and socket inputstream(downloading files)
      * @param <R>
      * @return R
@@ -184,10 +184,10 @@ public class P2PCachingFileStore extends RemoteFileStore {
      */
     private <R> R handleRequest(
             final ImhotepRequest request,
-            final P2PCachingPath p2PCachingPath,
+            final PeerToPeerCachePath peerToPeerCachePath,
             final ThrowingFunction<ImhotepResponse, InputStream, R> function) throws IOException {
         final ImhotepConnectionPool pool = ImhotepConnectionPool.INSTANCE;
-        final Host srcHost = p2PCachingPath.getPeerHost();
+        final Host srcHost = peerToPeerCachePath.getPeerHost();
 
         return pool.withConnection(srcHost, FETCH_CONNECTION_TIMEOUT, connection -> {
             final Socket socket = connection.getSocket();

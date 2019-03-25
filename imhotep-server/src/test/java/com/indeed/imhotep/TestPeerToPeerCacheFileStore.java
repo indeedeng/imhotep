@@ -1,6 +1,6 @@
 package com.indeed.imhotep;
 
-import com.indeed.imhotep.fs.P2PCachingPath;
+import com.indeed.imhotep.fs.PeerToPeerCachePath;
 import com.indeed.imhotep.fs.RemoteCachingPath;
 import org.apache.commons.io.FileUtils;
 import org.junit.AfterClass;
@@ -32,14 +32,14 @@ import static org.junit.Assert.fail;
 /**
  * @author xweng
  */
-public class TestP2PCachingFileStore {
-    private static P2PCachingTestContext testContext;
+public class TestPeerToPeerCacheFileStore {
+    private static PeerToPeerCacheTestContext testContext;
     private static RemoteCachingPath rootPath;
     private static RemoteCachingPath shardPath;
 
     @BeforeClass
     public static void setUp() throws IOException, TimeoutException, InterruptedException {
-        testContext = new P2PCachingTestContext();
+        testContext = new PeerToPeerCacheTestContext();
         testContext.createDailyShard("dataset", 1, false);
         rootPath = (RemoteCachingPath) testContext.getRootPath();
         shardPath = (RemoteCachingPath) testContext.getShardPaths("dataset").get(0);
@@ -63,8 +63,8 @@ public class TestP2PCachingFileStore {
     public void testRemotePathListDir() throws IOException {
         final RemoteCachingPath localFilePath = shardPath;
         try (final DirectoryStream<Path> localDirStream = Files.newDirectoryStream(localFilePath)) {
-            final Path p2pCachingPath = toLocalHostP2PCachingPath(rootPath, localFilePath);
-            try (final DirectoryStream<Path> remoteDirStream = Files.newDirectoryStream(p2pCachingPath)) {
+            final Path peerToPeerCachePath = toLocalHostP2PCachingPath(rootPath, localFilePath);
+            try (final DirectoryStream<Path> remoteDirStream = Files.newDirectoryStream(peerToPeerCachePath)) {
                 Iterator<Path> localIterator = localDirStream.iterator();
                 Iterator<Path> remoteIterator = remoteDirStream.iterator();
 
@@ -72,9 +72,9 @@ public class TestP2PCachingFileStore {
                     final Path nextRemotePath = remoteIterator.next();
                     final Path nextLocalPath = localIterator.next();
 
-                    assertTrue(nextRemotePath instanceof P2PCachingPath);
+                    assertTrue(nextRemotePath instanceof PeerToPeerCachePath);
                     assertTrue(nextLocalPath instanceof RemoteCachingPath);
-                    assertEquals(nextLocalPath, ((P2PCachingPath) nextRemotePath).getRealPath());
+                    assertEquals(nextLocalPath, ((PeerToPeerCachePath) nextRemotePath).getRealPath());
                 }
 
                 if (localIterator.hasNext() || remoteIterator.hasNext()) {
@@ -142,7 +142,7 @@ public class TestP2PCachingFileStore {
         return FileUtils.contentEquals(localFilePath.toFile(), remotePath.toFile());
     }
 
-    private P2PCachingPath toLocalHostP2PCachingPath(final RemoteCachingPath rootPath, final RemoteCachingPath localPath) {
-        return P2PCachingPath.toP2PCachingPath(rootPath, localPath, testContext.getDaemonHosts().get(0));
+    private PeerToPeerCachePath toLocalHostP2PCachingPath(final RemoteCachingPath rootPath, final RemoteCachingPath localPath) {
+        return PeerToPeerCachePath.toPeerToPeerCachePath(rootPath, localPath, testContext.getDaemonHosts().get(0));
     }
 }

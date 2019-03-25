@@ -25,7 +25,7 @@ import static org.junit.Assert.fail;
 /**
  * @author xweng
  */
-public class P2PCachingPathTest {
+public class PeerToPeerCachePathTest {
     private static final TemporaryFolder tempDir = new TemporaryFolder();
     private static RemoteCachingFileSystem fileSystem;
     private static Path rootPath;
@@ -72,96 +72,96 @@ public class P2PCachingPathTest {
     @Test
     public void testInitialize() {
         final Host host = new Host("localhost", 1234);
-        final P2PCachingPath path = new P2PCachingPath(fileSystem, "/var/imhotep", host);
+        final PeerToPeerCachePath path = new PeerToPeerCachePath(fileSystem, "/var/imhotep", host);
         assertEquals("/remote/localhost:1234/var/imhotep", path.toString());
 
-        final P2PCachingPath path2 = P2PCachingPath.newP2PCachingPath(fileSystem, "/remote/localhost:1234/var/imhotep");
+        final PeerToPeerCachePath path2 = PeerToPeerCachePath.newPeerToPeerCachePath(fileSystem, "/remote/localhost:1234/var/imhotep");
         assertEquals( "/remote/localhost:1234/var/imhotep", path2.toString());
 
-        final P2PCachingPath path3 = P2PCachingPath.newP2PCachingPath(fileSystem, "var/imhotep");
+        final PeerToPeerCachePath path3 = PeerToPeerCachePath.newPeerToPeerCachePath(fileSystem, "var/imhotep");
         assertEquals( "var/imhotep", path3.toString());
 
         try {
-            P2PCachingPath.newP2PCachingPath(fileSystem, "/var/imhotep");
+            PeerToPeerCachePath.newPeerToPeerCachePath(fileSystem, "/var/imhotep");
             fail("IllegalArgumentException is expected");
         } catch (final IllegalArgumentException e) {}
     }
 
     @Test
     public void testGetRoot() {
-        final P2PCachingPath path = P2PCachingPath.newP2PCachingPath(fileSystem, "/remote/localhost:1234/var/imhotep");
+        final PeerToPeerCachePath path = PeerToPeerCachePath.newPeerToPeerCachePath(fileSystem, "/remote/localhost:1234/var/imhotep");
         final Path rootPath = path.getRoot();
-        assertTrue(rootPath instanceof P2PCachingPath);
+        assertTrue(rootPath instanceof PeerToPeerCachePath);
         assertEquals("/remote/localhost:1234/", rootPath.toString());
 
         try {
-            P2PCachingPath.newP2PCachingPath(fileSystem, "var/imhotep").getRoot();
+            PeerToPeerCachePath.newPeerToPeerCachePath(fileSystem, "var/imhotep").getRoot();
             fail("IllegalArgumentException is expected");
         } catch (final IllegalArgumentException e) { }
     }
 
     @Test
     public void testGetFileName() {
-        final P2PCachingPath absolutePath = P2PCachingPath.newP2PCachingPath(fileSystem, "/remote/localhost:1234/var/imhotep");
+        final PeerToPeerCachePath absolutePath = PeerToPeerCachePath.newPeerToPeerCachePath(fileSystem, "/remote/localhost:1234/var/imhotep");
         final Path fileName = absolutePath.getFileName();
-        assertTrue(fileName instanceof P2PCachingPath);
+        assertTrue(fileName instanceof PeerToPeerCachePath);
         assertEquals("imhotep", fileName.toString());
 
-        final P2PCachingPath relativePath = P2PCachingPath.newP2PCachingPath(fileSystem, "var/imhotep");
+        final PeerToPeerCachePath relativePath = PeerToPeerCachePath.newPeerToPeerCachePath(fileSystem, "var/imhotep");
         final Path relativeFileName = relativePath.getFileName();
-        assertTrue(relativeFileName instanceof P2PCachingPath);
+        assertTrue(relativeFileName instanceof PeerToPeerCachePath);
         assertEquals("imhotep", relativeFileName.toString());
     }
 
     @Test
     public void testGetParent() {
-        final P2PCachingPath path = P2PCachingPath.newP2PCachingPath(fileSystem, "/remote/localhost:1234/var/imhotep");
+        final PeerToPeerCachePath path = PeerToPeerCachePath.newPeerToPeerCachePath(fileSystem, "/remote/localhost:1234/var/imhotep");
         final Path parentPath = path.getParent();
         assertEquals("/remote/localhost:1234/var", parentPath.toString());
         assertNull(parentPath.getParent());
 
-        final P2PCachingPath relativePath = P2PCachingPath.newP2PCachingPath(fileSystem, "var/imhotep");
+        final PeerToPeerCachePath relativePath = PeerToPeerCachePath.newPeerToPeerCachePath(fileSystem, "var/imhotep");
         final Path relativeParentPath = relativePath.getParent();
         assertEquals("var", relativeParentPath.toString());
     }
 
     @Test
     public void testGetName() {
-        final P2PCachingPath path = P2PCachingPath.newP2PCachingPath(fileSystem, "/remote/localhost:1234/var/imhotep");
+        final PeerToPeerCachePath path = PeerToPeerCachePath.newPeerToPeerCachePath(fileSystem, "/remote/localhost:1234/var/imhotep");
         final Path absoluteName0 = path.getName(0);
-        assertTrue(absoluteName0 instanceof P2PCachingPath);
+        assertTrue(absoluteName0 instanceof PeerToPeerCachePath);
         assertEquals("var", absoluteName0.toString());
 
         final Path absoluteName1 = path.getName(1);
-        assertTrue(absoluteName1 instanceof P2PCachingPath);
+        assertTrue(absoluteName1 instanceof PeerToPeerCachePath);
         assertEquals("imhotep", absoluteName1.toString());
 
-        final P2PCachingPath relativePath = P2PCachingPath.newP2PCachingPath(fileSystem, "var/imhotep");
+        final PeerToPeerCachePath relativePath = PeerToPeerCachePath.newPeerToPeerCachePath(fileSystem, "var/imhotep");
         final Path relativeName0 = relativePath.getName(0);
-        assertTrue(relativeName0 instanceof P2PCachingPath);
+        assertTrue(relativeName0 instanceof PeerToPeerCachePath);
         assertEquals("var", relativeName0.toString());
 
         final Path relativeName1 = relativePath.getName(1);
-        assertTrue(relativeName1 instanceof P2PCachingPath);
+        assertTrue(relativeName1 instanceof PeerToPeerCachePath);
         assertEquals("imhotep", relativeName1.toString());
     }
 
     @Test
     public void testSubPath() {
-        assertFalse(P2PCachingPath.newP2PCachingPath(fileSystem, "/remote/localhost:1234/var/imhotep").subpath(0, 1).isAbsolute());
-        assertFalse(P2PCachingPath.newP2PCachingPath(fileSystem, "var/imhotep").subpath(0, 1).isAbsolute());
+        assertFalse(PeerToPeerCachePath.newPeerToPeerCachePath(fileSystem, "/remote/localhost:1234/var/imhotep").subpath(0, 1).isAbsolute());
+        assertFalse(PeerToPeerCachePath.newPeerToPeerCachePath(fileSystem, "var/imhotep").subpath(0, 1).isAbsolute());
 
         assertEquals("var",
-                P2PCachingPath.newP2PCachingPath(fileSystem, "/remote/localhost:1234/var/imhotep").subpath(0, 1).toString());
+                PeerToPeerCachePath.newPeerToPeerCachePath(fileSystem, "/remote/localhost:1234/var/imhotep").subpath(0, 1).toString());
         assertEquals("var/imhotep",
-                P2PCachingPath.newP2PCachingPath(fileSystem, "/remote/localhost:1234/var/imhotep").subpath(0, 2).toString());
+                PeerToPeerCachePath.newPeerToPeerCachePath(fileSystem, "/remote/localhost:1234/var/imhotep").subpath(0, 2).toString());
         assertEquals("var",
-                P2PCachingPath.newP2PCachingPath(fileSystem, "var/imhotep").subpath(0, 1).toString());
+                PeerToPeerCachePath.newPeerToPeerCachePath(fileSystem, "var/imhotep").subpath(0, 1).toString());
         assertEquals("var/imhotep",
-                P2PCachingPath.newP2PCachingPath(fileSystem, "var/imhotep").subpath(0, 2).toString());
+                PeerToPeerCachePath.newPeerToPeerCachePath(fileSystem, "var/imhotep").subpath(0, 2).toString());
 
         try {
-            P2PCachingPath.newP2PCachingPath(fileSystem, "/remote/localhost:1234/var/imhotep").subpath(0, 3);
+            PeerToPeerCachePath.newPeerToPeerCachePath(fileSystem, "/remote/localhost:1234/var/imhotep").subpath(0, 3);
             fail("IllegalArgumentException is expected");
         } catch (final IllegalArgumentException e) { }
     }
@@ -169,48 +169,48 @@ public class P2PCachingPathTest {
     @Test
     public void testNormalize() {
         assertEquals("/remote/localhost:1234/var/imhotep",
-                P2PCachingPath.newP2PCachingPath(fileSystem, "/remote/localhost:1234/var/imhotep").normalize().toString());
+                PeerToPeerCachePath.newPeerToPeerCachePath(fileSystem, "/remote/localhost:1234/var/imhotep").normalize().toString());
         assertEquals("/remote/localhost:1234/var/imhotep",
-                P2PCachingPath.newP2PCachingPath(fileSystem, "/remote/localhost:1234/var/imhotep/./").normalize().toString());
+                PeerToPeerCachePath.newPeerToPeerCachePath(fileSystem, "/remote/localhost:1234/var/imhotep/./").normalize().toString());
         assertEquals("/remote/localhost:1234/var",
-                P2PCachingPath.newP2PCachingPath(fileSystem, "/remote/localhost:1234/var/imhotep/../").normalize().toString());
+                PeerToPeerCachePath.newPeerToPeerCachePath(fileSystem, "/remote/localhost:1234/var/imhotep/../").normalize().toString());
         assertEquals("/remote/localhost:1234/var",
-                P2PCachingPath.newP2PCachingPath(fileSystem, "/remote/localhost:1234/var/imhotep/./../").normalize().toString());
-        assertEquals("var/imhotep", P2PCachingPath.newP2PCachingPath(fileSystem, "var/imhotep").normalize().toString());
-        assertEquals("var/imhotep", P2PCachingPath.newP2PCachingPath(fileSystem, "var/imhotep/./").normalize().toString());
-        assertEquals("var", P2PCachingPath.newP2PCachingPath(fileSystem, "var/imhotep/../").normalize().toString());
-        assertEquals("var", P2PCachingPath.newP2PCachingPath(fileSystem, "var/imhotep/./../").normalize().toString());
+                PeerToPeerCachePath.newPeerToPeerCachePath(fileSystem, "/remote/localhost:1234/var/imhotep/./../").normalize().toString());
+        assertEquals("var/imhotep", PeerToPeerCachePath.newPeerToPeerCachePath(fileSystem, "var/imhotep").normalize().toString());
+        assertEquals("var/imhotep", PeerToPeerCachePath.newPeerToPeerCachePath(fileSystem, "var/imhotep/./").normalize().toString());
+        assertEquals("var", PeerToPeerCachePath.newPeerToPeerCachePath(fileSystem, "var/imhotep/../").normalize().toString());
+        assertEquals("var", PeerToPeerCachePath.newPeerToPeerCachePath(fileSystem, "var/imhotep/./../").normalize().toString());
     }
 
     @Test
     public void testToUri() {
         assertEquals(URI.create("imhtpfs:/remote/localhost:1234/var/imhotep/"),
-                P2PCachingPath.newP2PCachingPath(fileSystem, "/remote/localhost:1234/var/imhotep").toUri());
+                PeerToPeerCachePath.newPeerToPeerCachePath(fileSystem, "/remote/localhost:1234/var/imhotep").toUri());
     }
 
     @Test
     public void testAsRelativePath() {
         assertEquals("var/imhotep",
-                P2PCachingPath.newP2PCachingPath(fileSystem, "/remote/localhost:1234/var/imhotep").asRelativePath().toString());
+                PeerToPeerCachePath.newPeerToPeerCachePath(fileSystem, "/remote/localhost:1234/var/imhotep").asRelativePath().toString());
         assertEquals("var/imhotep",
-                P2PCachingPath.newP2PCachingPath(fileSystem, "var/imhotep").asRelativePath().toString());
+                PeerToPeerCachePath.newPeerToPeerCachePath(fileSystem, "var/imhotep").asRelativePath().toString());
     }
 
     @Test
-    public void TestToP2PCachingPath() {
+    public void TestToPeerToPeerCachePath() {
         assertEquals("/remote/localhost:1234/var/imhotep",
-                P2PCachingPath.toP2PCachingPath(
+                PeerToPeerCachePath.toPeerToPeerCachePath(
                         (RemoteCachingPath) rootPath,
                         Paths.get("/var/imhotep"),
                         new Host("localhost", 1234)).toString());
 
         try {
-            P2PCachingPath.toP2PCachingPath((RemoteCachingPath)rootPath, Paths.get("var/imhotep"), new Host("localhost", 1234));
+            PeerToPeerCachePath.toPeerToPeerCachePath((RemoteCachingPath)rootPath, Paths.get("var/imhotep"), new Host("localhost", 1234));
             fail("IllegalArgumentException is expected");
         } catch (final IllegalArgumentException e) {}
 
         try {
-            P2PCachingPath.toP2PCachingPath((RemoteCachingPath)rootPath, P2PCachingPath.newP2PCachingPath(fileSystem, "/remote/localhost:1234/var/imhotep"),
+            PeerToPeerCachePath.toPeerToPeerCachePath((RemoteCachingPath)rootPath, PeerToPeerCachePath.newPeerToPeerCachePath(fileSystem, "/remote/localhost:1234/var/imhotep"),
                     new Host("localhost", 1234));
             fail("IllegalArgumentException is expected");
         } catch (final IllegalArgumentException e) {}

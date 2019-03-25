@@ -20,13 +20,13 @@ import java.util.regex.Pattern;
  * absolute path format: /remote/host:port/path/to/file
  * relative path format: /path/to/file
  */
-public class P2PCachingPath extends RemoteCachingPath {
+public class PeerToPeerCachePath extends RemoteCachingPath {
 
     private static final String PATH_PREFIX = "remote";
 
     // TODO: ^/(?!ignoreme|ignoreme2|ignoremeN)([a-z0-9]+)$
     // format: /remote/host:port/
-    private static final String P2P_PATH_REGEX = new StringBuilder()
+    private static final String PEER_TO_PEER_CACHE_PATH_REGEX = new StringBuilder()
             .append("^")
             .append(PATH_SEPARATOR_STR)
             .append(PATH_PREFIX)
@@ -34,7 +34,7 @@ public class P2PCachingPath extends RemoteCachingPath {
             .append("[^\\:/]+:[0-9]+")
             .append(PATH_SEPARATOR_STR)
             .toString();
-    private static final Pattern P2P_PATH_PATTERN = Pattern.compile(P2P_PATH_REGEX);
+    private static final Pattern PEER_TO_PEER_CACHE_PATH_PATTERN = Pattern.compile(PEER_TO_PEER_CACHE_PATH_REGEX);
 
     private static final Comparator<Host> NULL_SAFE_COMPARATOR = new NullComparator(false);
 
@@ -44,50 +44,50 @@ public class P2PCachingPath extends RemoteCachingPath {
     @Nullable
     private final Host peerHost;
 
-    P2PCachingPath(final RemoteCachingFileSystem fileSystem, final String path, @Nullable final Host peerHost) {
+    PeerToPeerCachePath(final RemoteCachingFileSystem fileSystem, final String path, @Nullable final Host peerHost) {
         super(fileSystem, path);
         this.fileSystem = fileSystem;
         this.peerHost = peerHost;
     }
 
-    P2PCachingPath(final RemoteCachingFileSystem fileSystem, final String path) {
+    PeerToPeerCachePath(final RemoteCachingFileSystem fileSystem, final String path) {
         this(fileSystem, path, null);
     }
 
-    static P2PCachingPath newP2PCachingPath(final RemoteCachingFileSystem fileSystem, final String path) {
-        final Matcher matcher = P2P_PATH_PATTERN.matcher(path);
+    static PeerToPeerCachePath newPeerToPeerCachePath(final RemoteCachingFileSystem fileSystem, final String path) {
+        final Matcher matcher = PEER_TO_PEER_CACHE_PATH_PATTERN.matcher(path);
 
         // relative path
         if (!matcher.lookingAt()) {
             if (path.startsWith(PATH_SEPARATOR_STR)) {
                 throw new IllegalArgumentException("Not a valid relative path");
             }
-            return new P2PCachingPath(fileSystem, path);
+            return new PeerToPeerCachePath(fileSystem, path);
         }
 
         final String[] prefixItems = matcher.group(0).split(PATH_SEPARATOR_STR);
         final Host host = Host.valueOf(prefixItems[prefixItems.length-1]);
         // it always be an absolute path if it has host information
-        return new P2PCachingPath(fileSystem, path.replaceAll(P2P_PATH_REGEX, PATH_SEPARATOR_STR), host);
+        return new PeerToPeerCachePath(fileSystem, path.replaceAll(PEER_TO_PEER_CACHE_PATH_REGEX, PATH_SEPARATOR_STR), host);
     }
 
-    static boolean isAbsoluteP2PCachingPath(final String path) {
-        return P2P_PATH_PATTERN.matcher(path).lookingAt();
+    static boolean isAbsolutePeerToPeerCachePath(final String path) {
+        return PEER_TO_PEER_CACHE_PATH_PATTERN.matcher(path).lookingAt();
     }
 
-    public static P2PCachingPath toP2PCachingPath(final RemoteCachingPath rootPath, final Path realPath, final Host host) {
-        if (realPath instanceof P2PCachingPath) {
-            throw new IllegalArgumentException("realPath is already a p2p caching real");
+    public static PeerToPeerCachePath toPeerToPeerCachePath(final RemoteCachingPath rootPath, final Path realPath, final Host host) {
+        if (realPath instanceof PeerToPeerCachePath) {
+            throw new IllegalArgumentException("realPath is already a peer to peer cache path");
         }
         if (!realPath.isAbsolute()) {
-            throw new IllegalArgumentException("Can't convert a relative path to p2pCachingPath");
+            throw new IllegalArgumentException("Can't convert a relative path to peer to peer cache path");
         }
 
-        return new P2PCachingPath(rootPath.getFileSystem(), realPath.toString(), host);
+        return new PeerToPeerCachePath(rootPath.getFileSystem(), realPath.toString(), host);
     }
 
-    static P2PCachingPath toP2PCachingPath(final RemoteCachingPath rootPath, final String path, final Host host) {
-        return toP2PCachingPath(rootPath, Paths.get(URI.create(path)), host);
+    static PeerToPeerCachePath toPeerToPeerCachePath(final RemoteCachingPath rootPath, final String path, final Host host) {
+        return toPeerToPeerCachePath(rootPath, Paths.get(URI.create(path)), host);
     }
 
     @Nullable
@@ -100,23 +100,23 @@ public class P2PCachingPath extends RemoteCachingPath {
     }
 
     @Override
-    public P2PCachingPath getRoot() {
+    public PeerToPeerCachePath getRoot() {
         if (!isAbsolute()) {
             throw new IllegalArgumentException("Couldn't get root path for a relative path");
         }
-        return new P2PCachingPath(fileSystem, PATH_SEPARATOR_STR, peerHost);
+        return new PeerToPeerCachePath(fileSystem, PATH_SEPARATOR_STR, peerHost);
     }
 
     @Override
     public Path getParent() {
         final Path parentPath = super.getParent();
-        return parentPath != null ? new P2PCachingPath(fileSystem, parentPath.toString(), peerHost) : null;
+        return parentPath != null ? new PeerToPeerCachePath(fileSystem, parentPath.toString(), peerHost) : null;
     }
 
     @Override
     public Path subpath(final int beginIndex, final int endIndex) {
         final Path subPath = super.subpath(beginIndex, endIndex);
-        return new P2PCachingPath(fileSystem, subPath.toString(), peerHost);
+        return new PeerToPeerCachePath(fileSystem, subPath.toString(), peerHost);
     }
 
     @Override
@@ -125,20 +125,20 @@ public class P2PCachingPath extends RemoteCachingPath {
         if (equals(normalizedPath)) {
             return this;
         }
-        return new P2PCachingPath(fileSystem, normalizedPath.toString(), peerHost);
+        return new PeerToPeerCachePath(fileSystem, normalizedPath.toString(), peerHost);
     }
 
     @Override
     public Path resolve(final Path other) {
         final Path resolvedPath = super.resolve(other);
-        return new P2PCachingPath(fileSystem, resolvedPath.toString(), peerHost);
+        return new PeerToPeerCachePath(fileSystem, resolvedPath.toString(), peerHost);
     }
 
 
     @Override
     public Path relativize(final Path other) {
         final Path relativizedPath = super.relativize(other);
-        return new P2PCachingPath(fileSystem, relativizedPath.toString(), peerHost);
+        return new PeerToPeerCachePath(fileSystem, relativizedPath.toString(), peerHost);
     }
 
     public URI toUri() {
@@ -157,7 +157,7 @@ public class P2PCachingPath extends RemoteCachingPath {
 
     @Override
     public int compareTo(final Path other) {
-        final P2PCachingPath otherPath = RemoteCachingFileSystemProvider.toP2PCachingPath(other);
+        final PeerToPeerCachePath otherPath = RemoteCachingFileSystemProvider.toPeerToPeerCachePath(other);
         final int result = NULL_SAFE_COMPARATOR.compare(peerHost, otherPath.peerHost);
         if (result != 0) {
             return result;
@@ -173,7 +173,7 @@ public class P2PCachingPath extends RemoteCachingPath {
         if (o == null || getClass() != o.getClass()) {
             return false;
         }
-        final P2PCachingPath that = (P2PCachingPath) o;
+        final PeerToPeerCachePath that = (PeerToPeerCachePath) o;
         final int result = NULL_SAFE_COMPARATOR.compare(peerHost, that.peerHost);
         if (result != 0) {
             return false;
@@ -191,7 +191,7 @@ public class P2PCachingPath extends RemoteCachingPath {
         if (equals(relativePath)) {
             return this;
         }
-        return new P2PCachingPath(fileSystem, relativePath.toString(), peerHost);
+        return new PeerToPeerCachePath(fileSystem, relativePath.toString(), peerHost);
     }
 
     private String appendHostIfNecessary(final String path, final Host host) {
