@@ -33,13 +33,13 @@ import static org.junit.Assert.fail;
  * @author xweng
  */
 public class TestPeerToPeerCacheFileStore {
-    private static P2PCachingTestContext testContext;
+    private static PeerToPeerCacheTestContext testContext;
     private static RemoteCachingPath rootPath;
     private static RemoteCachingPath shardPath;
 
     @BeforeClass
     public static void setUp() throws IOException, TimeoutException, InterruptedException {
-        testContext = new P2PCachingTestContext();
+        testContext = new PeerToPeerCacheTestContext();
         testContext.createDailyShard("dataset", 1, false);
         rootPath = (RemoteCachingPath) testContext.getRootPath();
         shardPath = (RemoteCachingPath) testContext.getShardPaths("dataset").get(0);
@@ -63,8 +63,8 @@ public class TestPeerToPeerCacheFileStore {
     public void testRemotePathListDir() throws IOException {
         final RemoteCachingPath localFilePath = shardPath;
         try (final DirectoryStream<Path> localDirStream = Files.newDirectoryStream(localFilePath)) {
-            final Path p2pCachingPath = toLocalHostP2PCachingPath(rootPath, localFilePath);
-            try (final DirectoryStream<Path> remoteDirStream = Files.newDirectoryStream(p2pCachingPath)) {
+            final Path peerToPeerCachePath = toLocalHostP2PCachingPath(rootPath, localFilePath);
+            try (final DirectoryStream<Path> remoteDirStream = Files.newDirectoryStream(peerToPeerCachePath)) {
                 Iterator<Path> localIterator = localDirStream.iterator();
                 Iterator<Path> remoteIterator = remoteDirStream.iterator();
 
