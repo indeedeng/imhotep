@@ -318,7 +318,7 @@ message ImhotepRequest {
   optional bool hasStats = 71 [default=false];
 
   // for download shard files
-  optional string shardFilePath = 73;
+  optional string shardFileUri = 73;
 }
 
 message DocStat {

@@ -237,12 +237,13 @@ public class LocalImhotepServiceCore
 
     @Override
     public void handleGetAndSendShardFile(
-            final String filePath,
+            final String fileUri,
             final ImhotepResponse.Builder builder,
             @WillNotClose final OutputStream os) throws IOException {
         final Path path;
+        // getShardFilePath explains why handling NoSuchFileException locally rather than throwing it out
         try {
-            path = getShardFilePath(filePath);
+            path = getShardFilePath(fileUri);
         } catch (final NoSuchFileException e) {
             log.debug("sending response");
             ImhotepProtobufShipping.sendProtobuf(newErrorResponse(e), os);
@@ -261,10 +262,10 @@ public class LocalImhotepServiceCore
     }
 
     @Override
-    public ImhotepResponse handleGetShardFileAttributes(final String filePath, final ImhotepResponse.Builder builder) throws IOException {
+    public ImhotepResponse handleGetShardFileAttributes(final String fileUri, final ImhotepResponse.Builder builder) throws IOException {
         final Path path;
         try {
-            path = getShardFilePath(filePath);
+            path = getShardFilePath(fileUri);
         } catch (final NoSuchFileException e) {
             return newErrorResponse(e);
         }
@@ -272,10 +273,10 @@ public class LocalImhotepServiceCore
     }
 
     @Override
-    public ImhotepResponse handleListShardFileAttributes(final String filePath, final ImhotepResponse.Builder builder) throws IOException {
+    public ImhotepResponse handleListShardFileAttributes(final String fileUri, final ImhotepResponse.Builder builder) throws IOException {
         final Path dirPath;
         try {
-            dirPath = getShardFilePath(filePath);
+            dirPath = getShardFilePath(fileUri);
         } catch (final NoSuchFileException e) {
             return newErrorResponse(e);
         }

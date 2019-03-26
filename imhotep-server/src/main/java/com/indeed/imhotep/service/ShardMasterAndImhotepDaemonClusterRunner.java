@@ -41,8 +41,12 @@ import java.util.stream.Collectors;
 public class ShardMasterAndImhotepDaemonClusterRunner {
     final List<ImhotepDaemonRunner> daemonRunners = new ArrayList<>();
     final List<ShardMasterRunner> shardMasterRunners = new ArrayList<>();
+
+    /** shardMaster only works under hadoop filesystem, and shardsDir can be path from any filesystems.
+     They should be separated, but could be the same path if they aren't specified */
     final Path shardsDir;
     final Path shardMasterDir;
+
     final Path tempRootDir;
     final ImhotepShardCreator shardCreator;
 
