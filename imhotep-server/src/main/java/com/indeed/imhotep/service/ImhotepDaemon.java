@@ -955,19 +955,19 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 final ImhotepRequest request,
                 final ImhotepResponse.Builder builder,
                 @WillNotClose final OutputStream os) throws IOException {
-            service.handleGetAndSendShardFile(request.getShardFilePath(), builder, os);
+            service.handleGetAndSendShardFile(request.getShardFileUri(), builder, os);
         }
 
         private ImhotepResponse getShardFileAttributes(
                 final ImhotepRequest request,
                 final ImhotepResponse.Builder builder) throws IOException {
-            return service.handleGetShardFileAttributes(request.getShardFilePath(), builder);
+            return service.handleGetShardFileAttributes(request.getShardFileUri(), builder);
         }
 
         private ImhotepResponse listShardFileAttributes(
                 final ImhotepRequest request,
                 final ImhotepResponse.Builder builder) throws IOException {
-            return service.handleListShardFileAttributes(request.getShardFilePath(), builder);
+            return service.handleListShardFileAttributes(request.getShardFileUri(), builder);
         }
 
         private void shutdown(

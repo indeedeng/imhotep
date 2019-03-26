@@ -69,6 +69,6 @@ public class ImhotepExceptionUtils {
             msg.append(" sessionId: ").append(sessionId);
         }
 
-        return new IOException(msg.toString());
+        return new SocketTimeoutException(msg.toString());
     }
 }
