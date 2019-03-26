@@ -1,10 +1,10 @@
 package com.indeed.imhotep.matcher;
 
 import com.indeed.flamdex.api.StringTermIterator;
-import com.indeed.imhotep.automaton.Automaton;
 import com.indeed.imhotep.automaton.RegExp;
 import com.indeed.imhotep.automaton.RunAutomaton;
 
+import java.nio.charset.StandardCharsets;
 import java.util.function.Consumer;
 
 class AutomatonStringTermMatcher implements StringTermMatcher {
@@ -17,6 +17,11 @@ class AutomatonStringTermMatcher implements StringTermMatcher {
     @Override
     public boolean matches(final String term) {
         return automaton.run(term);
+    }
+
+    @Override
+    public boolean matches(final byte[] termBytes, final int termBytesLength) {
+        return matches(new String(termBytes, 0, termBytesLength, StandardCharsets.UTF_8));
     }
 
     @Override

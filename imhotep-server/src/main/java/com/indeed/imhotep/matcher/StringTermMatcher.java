@@ -12,6 +12,12 @@ public interface StringTermMatcher {
     boolean matches(final String term);
 
     /**
+     * Returns true iff the {@code termBytesLength} bytes prefix of {@code termBytes} matches to the pattern.
+     * TermBytes is encoded in UTF-8.
+     */
+    boolean matches(final byte[] termBytes, final int termBytesLength);
+
+    /**
      * For every term matches to the pattern, calls {@code onMatch#accept} with the given {@code termIterator}
      * pointing the corresponding term position.
      */
