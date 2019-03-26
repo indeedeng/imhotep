@@ -130,6 +130,10 @@ public class PerformanceStats {
             this.ioSlotsWaitTimeMs = ioSlotsWaitTimeMs;
         }
 
+        public void addCustomStats(final String statsKey, final long statsValue) {
+            customStats.put(statsKey, statsValue);
+        }
+
         public Map<String, Long> getCustomStats() {
             return customStats;
         }

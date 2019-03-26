@@ -85,6 +85,21 @@ public class PeerToPeerCachePathTest {
             PeerToPeerCachePath.newPeerToPeerCachePath(fileSystem, "/var/imhotep");
             fail("IllegalArgumentException is expected");
         } catch (final IllegalArgumentException e) {}
+
+        try {
+            PeerToPeerCachePath.newPeerToPeerCachePath(fileSystem, "/remote/local\\host:1234/var/imhotep");
+            fail("IllegalArgumentException is expected");
+        } catch (final IllegalArgumentException e) {}
+
+        try {
+            PeerToPeerCachePath.newPeerToPeerCachePath(fileSystem, "/remote/local:host:1234/var/imhotep");
+            fail("IllegalArgumentException is expected");
+        } catch (final IllegalArgumentException e) {}
+
+        try {
+            PeerToPeerCachePath.newPeerToPeerCachePath(fileSystem, "/remote/local/host:1234/var/imhotep");
+            fail("IllegalArgumentException is expected");
+        } catch (final IllegalArgumentException e) {}
     }
 
     @Test

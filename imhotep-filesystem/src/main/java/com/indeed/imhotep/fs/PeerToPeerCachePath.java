@@ -16,7 +16,7 @@ import java.util.regex.Pattern;
 /**
  * @author xweng
  *
- * A remote path to represent the file location in other daemons
+ * A remote path to represent files location in other daemons
  * absolute path format: /remote/host:port/path/to/file
  * relative path format: /path/to/file
  */
@@ -24,14 +24,13 @@ public class PeerToPeerCachePath extends RemoteCachingPath {
 
     private static final String PATH_PREFIX = "remote";
 
-    // TODO: ^/(?!ignoreme|ignoreme2|ignoremeN)([a-z0-9]+)$
     // format: /remote/host:port/
     private static final String PEER_TO_PEER_CACHE_PATH_REGEX = new StringBuilder()
             .append("^")
             .append(PATH_SEPARATOR_STR)
             .append(PATH_PREFIX)
             .append(PATH_SEPARATOR_STR)
-            .append("[^\\:/]+:[0-9]+")
+            .append("[^\\\\:?" + PATH_SEPARATOR_STR + "]+:[0-9]+")
             .append(PATH_SEPARATOR_STR)
             .toString();
     private static final Pattern PEER_TO_PEER_CACHE_PATH_PATTERN = Pattern.compile(PEER_TO_PEER_CACHE_PATH_REGEX);
@@ -42,12 +41,12 @@ public class PeerToPeerCachePath extends RemoteCachingPath {
 
     // the host information, null if it's a relative path
     @Nullable
-    private final Host peerHost;
+    private final Host remoteHost;
 
-    PeerToPeerCachePath(final RemoteCachingFileSystem fileSystem, final String path, @Nullable final Host peerHost) {
+    PeerToPeerCachePath(final RemoteCachingFileSystem fileSystem, final String path, @Nullable final Host remoteHost) {
         super(fileSystem, path);
         this.fileSystem = fileSystem;
-        this.peerHost = peerHost;
+        this.remoteHost = remoteHost;
     }
 
     PeerToPeerCachePath(final RemoteCachingFileSystem fileSystem, final String path) {
@@ -75,6 +74,7 @@ public class PeerToPeerCachePath extends RemoteCachingPath {
         return PEER_TO_PEER_CACHE_PATH_PATTERN.matcher(path).lookingAt();
     }
 
+    /** convert a normal path to PeerToPeerCachePath */
     public static PeerToPeerCachePath toPeerToPeerCachePath(final RemoteCachingPath rootPath, final Path realPath, final Host host) {
         if (realPath instanceof PeerToPeerCachePath) {
             throw new IllegalArgumentException("realPath is already a peer to peer cache path");
@@ -82,7 +82,6 @@ public class PeerToPeerCachePath extends RemoteCachingPath {
         if (!realPath.isAbsolute()) {
             throw new IllegalArgumentException("Can't convert a relative path to peer to peer cache path");
         }
-
         return new PeerToPeerCachePath(rootPath.getFileSystem(), realPath.toString(), host);
     }
 
@@ -91,8 +90,8 @@ public class PeerToPeerCachePath extends RemoteCachingPath {
     }
 
     @Nullable
-    Host getPeerHost() {
-        return peerHost;
+    Host getRemoteHost() {
+        return remoteHost;
     }
 
     public RemoteCachingPath getRealPath() {
@@ -104,19 +103,19 @@ public class PeerToPeerCachePath extends RemoteCachingPath {
         if (!isAbsolute()) {
             throw new IllegalArgumentException("Couldn't get root path for a relative path");
         }
-        return new PeerToPeerCachePath(fileSystem, PATH_SEPARATOR_STR, peerHost);
+        return new PeerToPeerCachePath(fileSystem, PATH_SEPARATOR_STR, remoteHost);
     }
 
     @Override
     public Path getParent() {
         final Path parentPath = super.getParent();
-        return parentPath != null ? new PeerToPeerCachePath(fileSystem, parentPath.toString(), peerHost) : null;
+        return parentPath != null ? new PeerToPeerCachePath(fileSystem, parentPath.toString(), remoteHost) : null;
     }
 
     @Override
     public Path subpath(final int beginIndex, final int endIndex) {
         final Path subPath = super.subpath(beginIndex, endIndex);
-        return new PeerToPeerCachePath(fileSystem, subPath.toString(), peerHost);
+        return new PeerToPeerCachePath(fileSystem, subPath.toString(), remoteHost);
     }
 
     @Override
@@ -125,20 +124,20 @@ public class PeerToPeerCachePath extends RemoteCachingPath {
         if (equals(normalizedPath)) {
             return this;
         }
-        return new PeerToPeerCachePath(fileSystem, normalizedPath.toString(), peerHost);
+        return new PeerToPeerCachePath(fileSystem, normalizedPath.toString(), remoteHost);
     }
 
     @Override
     public Path resolve(final Path other) {
         final Path resolvedPath = super.resolve(other);
-        return new PeerToPeerCachePath(fileSystem, resolvedPath.toString(), peerHost);
+        return new PeerToPeerCachePath(fileSystem, resolvedPath.toString(), remoteHost);
     }
 
 
     @Override
     public Path relativize(final Path other) {
         final Path relativizedPath = super.relativize(other);
-        return new PeerToPeerCachePath(fileSystem, relativizedPath.toString(), peerHost);
+        return new PeerToPeerCachePath(fileSystem, relativizedPath.toString(), remoteHost);
     }
 
     public URI toUri() {
@@ -147,7 +146,7 @@ public class PeerToPeerCachePath extends RemoteCachingPath {
             return new URI(
                     fileSystem.provider().getScheme(),
                     null,
-                    appendHostIfNecessary(baseUri.getRawPath(), peerHost),
+                    appendHostIfNecessary(baseUri.getRawPath(), remoteHost),
                     null,
                     null);
         } catch (final URISyntaxException e) {
@@ -158,7 +157,7 @@ public class PeerToPeerCachePath extends RemoteCachingPath {
     @Override
     public int compareTo(final Path other) {
         final PeerToPeerCachePath otherPath = RemoteCachingFileSystemProvider.toPeerToPeerCachePath(other);
-        final int result = NULL_SAFE_COMPARATOR.compare(peerHost, otherPath.peerHost);
+        final int result = NULL_SAFE_COMPARATOR.compare(remoteHost, otherPath.remoteHost);
         if (result != 0) {
             return result;
         }
@@ -174,7 +173,7 @@ public class PeerToPeerCachePath extends RemoteCachingPath {
             return false;
         }
         final PeerToPeerCachePath that = (PeerToPeerCachePath) o;
-        final int result = NULL_SAFE_COMPARATOR.compare(peerHost, that.peerHost);
+        final int result = NULL_SAFE_COMPARATOR.compare(remoteHost, that.remoteHost);
         if (result != 0) {
             return false;
         }
@@ -183,7 +182,7 @@ public class PeerToPeerCachePath extends RemoteCachingPath {
 
     @Override
     public int hashCode() {
-        return Objects.hashCode(super.hashCode(), peerHost);
+        return Objects.hashCode(super.hashCode(), remoteHost);
     }
 
     RemoteCachingPath asRelativePath() {
@@ -191,7 +190,7 @@ public class PeerToPeerCachePath extends RemoteCachingPath {
         if (equals(relativePath)) {
             return this;
         }
-        return new PeerToPeerCachePath(fileSystem, relativePath.toString(), peerHost);
+        return new PeerToPeerCachePath(fileSystem, relativePath.toString(), remoteHost);
     }
 
     private String appendHostIfNecessary(final String path, final Host host) {
@@ -211,6 +210,6 @@ public class PeerToPeerCachePath extends RemoteCachingPath {
 
     @Override
     public String toString() {
-        return appendHostIfNecessary(super.toString(), peerHost);
+        return appendHostIfNecessary(super.toString(), remoteHost);
     }
 }

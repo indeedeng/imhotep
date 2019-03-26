@@ -8,6 +8,7 @@ import com.indeed.imhotep.io.Streams;
 import com.indeed.imhotep.protobuf.FileAttributeMessage;
 import com.indeed.imhotep.protobuf.ImhotepRequest;
 import com.indeed.imhotep.protobuf.ImhotepResponse;
+import com.indeed.imhotep.scheduling.ImhotepTask;
 import com.indeed.imhotep.service.MetricStatsEmitter;
 import com.indeed.util.core.Throwables2;
 import com.indeed.util.core.io.Closeables2;
@@ -88,7 +89,7 @@ public class PeerToPeerCacheFileStore extends RemoteFileStore {
     @Override
     List<RemoteFileAttributes> listDir(final RemoteCachingPath path) throws IOException {
         final PeerToPeerCachePath peerToPeerCachePath = (PeerToPeerCachePath) path;
-        final Host remoteHost = peerToPeerCachePath.getPeerHost();
+        final Host remoteHost = peerToPeerCachePath.getRemoteHost();
         final String localFilePath = peerToPeerCachePath.getRealPath().toUri().toString();
         final ImhotepRequest newRequest = ImhotepRequest.newBuilder()
                 .setRequestType(ImhotepRequest.RequestType.LIST_SHARD_FILE_ATTRIBUTES)
@@ -187,7 +188,7 @@ public class PeerToPeerCacheFileStore extends RemoteFileStore {
             final PeerToPeerCachePath peerToPeerCachePath,
             final ThrowingFunction<ImhotepResponse, InputStream, R> function) throws IOException {
         final ImhotepConnectionPool pool = ImhotepConnectionPool.INSTANCE;
-        final Host srcHost = peerToPeerCachePath.getPeerHost();
+        final Host srcHost = peerToPeerCachePath.getRemoteHost();
 
         return pool.withConnection(srcHost, FETCH_CONNECTION_TIMEOUT, connection -> {
             final Socket socket = connection.getSocket();
@@ -215,5 +216,11 @@ public class PeerToPeerCacheFileStore extends RemoteFileStore {
             final long duration) {
         statsEmitter.histogram("p2p.file.downloaded.size", size);
         statsEmitter.histogram("p2p.file.downloaded.time", duration);
+
+        final ImhotepTask currentThreadTask = ImhotepTask.THREAD_LOCAL_TASK.get();
+        // in case of tests
+        if (currentThreadTask != null) {
+            currentThreadTask.getSession().setDownloadedBytesInPeerToPeerCache(size);
+        }
     }
 }
