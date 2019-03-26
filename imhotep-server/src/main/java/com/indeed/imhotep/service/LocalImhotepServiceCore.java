@@ -304,8 +304,8 @@ public class LocalImhotepServiceCore
                 .build();
     }
 
-    private Path getShardFilePath(final String filePath) throws IOException {
-        final Path path = Paths.get(URI.create(filePath));
+    private Path getShardFilePath(final String fileUri) throws IOException {
+        final Path path = Paths.get(URI.create(fileUri));
         if (!(path instanceof RemoteCachingPath)) {
             throw new IllegalArgumentException("path is not a valid RemoteCachingPath, path = " + path);
         }
@@ -313,7 +313,7 @@ public class LocalImhotepServiceCore
         // check if a file in sqar directory by RemoteCachingFileSystem will access a lot of non-existed files.
         // to avoid many useless exceptions, we have to catch and handle them locally
         if (!Files.exists(path)) {
-            throw new NoSuchFileException(filePath);
+            throw new NoSuchFileException(path.toString());
         }
         return path;
     }
