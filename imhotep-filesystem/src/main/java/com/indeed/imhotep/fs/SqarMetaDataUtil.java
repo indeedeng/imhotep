@@ -37,7 +37,6 @@ class SqarMetaDataUtil {
     private SqarMetaDataUtil() {
     }
 
-    // TODO: it doesn't work well for relative path
     @Nullable
     static RemoteCachingPath getShardPath(final RemoteCachingPath path) {
         Preconditions.checkArgument(path.isAbsolute());
