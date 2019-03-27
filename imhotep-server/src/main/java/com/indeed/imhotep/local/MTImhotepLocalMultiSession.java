@@ -35,6 +35,7 @@ import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.api.FTGSModifiers;
 import com.indeed.imhotep.api.FTGSParams;
 import com.indeed.imhotep.api.GroupStatsIterator;
+import com.indeed.imhotep.api.ImhotepCommand;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.metrics.aggregate.AggregateStat;
@@ -53,6 +54,7 @@ import javax.annotation.WillClose;
 import javax.annotation.WillNotClose;
 import java.io.Closeable;
 import java.io.IOException;
+import java.lang.reflect.Array;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -825,5 +827,13 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
 
     private FTGAIterator persist(@WillClose final FTGAIterator iterator) throws IOException {
         return FTGSIteratorUtil.persist(log, getSessionId(), iterator);
+    }
+
+    public <T> T executeBatchRequest(final List<ImhotepCommand> commands, final ImhotepCommand<T> lastCommand) throws ImhotepOutOfMemoryException {
+        final T[] buffer = (T[]) Array.newInstance(lastCommand.getResultClass(), sessions.length);
+        executeMemoryException(buffer, (ThrowingFunction<ImhotepSession, Object>) session -> {
+            return ((ImhotepLocalSession)session).executeBatchRequest(commands, lastCommand);
+        });
+        return lastCommand.combine(Arrays.asList(buffer));
     }
 }

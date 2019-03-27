@@ -36,6 +36,7 @@ import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.api.FTGSModifiers;
 import com.indeed.imhotep.api.FTGSParams;
 import com.indeed.imhotep.api.GroupStatsIterator;
+import com.indeed.imhotep.api.ImhotepCommand;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepServiceCore;
 import com.indeed.imhotep.api.PerformanceStats;
@@ -569,6 +570,7 @@ public abstract class AbstractImhotepServiceCore
             session.randomRegroup(field, isIntField, salt, p, targetGroup, negativeGroup, positiveGroup);
             return null;
         });
+
     }
 
     @Override
@@ -775,5 +777,10 @@ public abstract class AbstractImhotepServiceCore
     public void close() {
         ftgsExecutor.shutdownNow();
         multiFtgsExecutor.shutdownNow();
+    }
+
+    @Override
+    public <T> T handleBatchRequest(final String sessionId, final List<ImhotepCommand> commands, final ImhotepCommand<T> lastCommand) throws ImhotepOutOfMemoryException {
+        return doWithSession(sessionId, (ThrowingFunction<MTImhotepLocalMultiSession, T, ImhotepOutOfMemoryException>) session -> session.executeBatchRequest(commands, lastCommand));
     }
 }

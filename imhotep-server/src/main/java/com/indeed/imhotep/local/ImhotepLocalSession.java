@@ -60,6 +60,7 @@ import com.indeed.imhotep.TermLimitedFTGSIterator;
 import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.api.FTGSParams;
 import com.indeed.imhotep.api.GroupStatsIterator;
+import com.indeed.imhotep.api.ImhotepCommand;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.PerformanceStats;
 import com.indeed.imhotep.exceptions.MultiValuedFieldStringLenException;
@@ -3274,5 +3275,12 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             }
             closed = true;
         }
+    }
+
+    <T> T executeBatchRequest(final List<ImhotepCommand> commands, final ImhotepCommand<T> lastCommand) throws ImhotepOutOfMemoryException {
+        for (final ImhotepCommand command: commands.subList(0, commands.size() - 1)) {
+            command.apply(this);
+        }
+        return lastCommand.apply(this);
     }
 }

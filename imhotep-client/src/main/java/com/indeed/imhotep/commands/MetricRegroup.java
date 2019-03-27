@@ -1,20 +1,26 @@
 package com.indeed.imhotep.commands;
 
+import com.indeed.imhotep.CommandSerializationUtil;
 import com.indeed.imhotep.ImhotepRemoteSession;
 import com.indeed.imhotep.api.ImhotepCommand;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
+import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.io.RequestTools.ImhotepRequestSender;
 import com.indeed.imhotep.protobuf.DocStat;
 import com.indeed.imhotep.protobuf.ImhotepRequest;
 import com.indeed.imhotep.protobuf.ImhotepResponse;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.ToString;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
+@EqualsAndHashCode
+@ToString
 public class MetricRegroup implements ImhotepCommand<Integer> {
 
     private final List<String> stats;
@@ -22,21 +28,37 @@ public class MetricRegroup implements ImhotepCommand<Integer> {
     private final long max;
     private final long intervalSize;
     private final boolean noGutters;
+    @Getter private final String sessionId;
+    @Getter(lazy = true) private final ImhotepRequestSender imhotepRequestSender = imhotepRequestSenderInitializer();
 
-    private MetricRegroup(final List<String> stats, final long min, final long max, final long intervalSize, final boolean noGutters) {
+    private MetricRegroup(final List<String> stats, final long min, final long max, final long intervalSize, final boolean noGutters, final String sessionId) {
         this.stats = stats;
         this.min = min;
         this.max = max;
         this.intervalSize = intervalSize;
         this.noGutters = noGutters;
+        this.sessionId = sessionId;
     }
 
-    public static MetricRegroup createMetricRegroup(final List<String> stat, final long min, final long max, final long intervalSize, final boolean noGutters) {
-        return new MetricRegroup(stat, min, max, intervalSize, noGutters);
+    public static MetricRegroup createMetricRegroup(final List<String> stat, final long min, final long max, final long intervalSize, final boolean noGutters, final String sessionId) {
+        return new MetricRegroup(stat, min, max, intervalSize, noGutters, sessionId);
     }
 
-    public static MetricRegroup createMetricRegroup(final List<String> stat, final long min, final long max, final long intervalSize) {
-        return new MetricRegroup(stat, min, max, intervalSize, false);
+    public static MetricRegroup createMetricRegroup(final List<String> stat, final long min, final long max, final long intervalSize, final String sessionId) {
+        return new MetricRegroup(stat, min, max, intervalSize, false, sessionId);
+    }
+
+    private ImhotepRequestSender imhotepRequestSenderInitializer() {
+        final ImhotepRequest request = ImhotepRequest.newBuilder().setRequestType(ImhotepRequest.RequestType.METRIC_REGROUP)
+                .setSessionId(getSessionId())
+                .setXStatDocstat(DocStat.newBuilder().addAllStat(stats))
+                .setXMin(min)
+                .setXMax(max)
+                .setXIntervalSize(intervalSize)
+                .setNoGutters(noGutters)
+                .build();
+
+        return ImhotepRequestSender.Cached.create(request);
     }
 
     @Override
@@ -45,23 +67,18 @@ public class MetricRegroup implements ImhotepCommand<Integer> {
     }
 
     @Override
-    public void writeToOutputStream(final OutputStream os, final ImhotepRemoteSession imhotepRemoteSession) throws IOException {
-        final ImhotepRequest request = ImhotepRequest.newBuilder().setRequestType(ImhotepRequest.RequestType.METRIC_REGROUP)
-                .setSessionId(imhotepRemoteSession.getSessionId())
-                .setXStatDocstat(DocStat.newBuilder().addAllStat(stats))
-                .setXMin(min)
-                .setXMax(max)
-                .setXIntervalSize(intervalSize)
-                .setNoGutters(noGutters)
-                .build();
-
-        final ImhotepRequestSender imhotepRequestSender = new ImhotepRequestSender.Simple(request);
-        imhotepRemoteSession.sendRequestReadNoResponseFlush(imhotepRequestSender, os);
+    public void writeToOutputStream(final OutputStream os) throws IOException {
+        ImhotepRemoteSession.sendRequestReadNoResponseFlush(getImhotepRequestSender(), os);
     }
 
     @Override
-    public Integer readResponse(final InputStream is, final ImhotepRemoteSession imhotepRemoteSession) throws IOException, ImhotepOutOfMemoryException {
-        final ImhotepResponse imhotepResponse = imhotepRemoteSession.readResponseWithMemoryExceptionFromInputStream(is);
+    public Integer apply(final ImhotepSession session) throws ImhotepOutOfMemoryException {
+        return session.metricRegroup(stats, min, max, intervalSize, noGutters);
+    }
+
+    @Override
+    public Integer readResponse(final InputStream is, final CommandSerializationUtil serializationUtil) throws IOException, ImhotepOutOfMemoryException {
+        final ImhotepResponse imhotepResponse = ImhotepRemoteSession.readResponseWithMemoryExceptionSessionId(is, serializationUtil.getHost(), serializationUtil.getPort(), getSessionId());
         return imhotepResponse.getNumGroups();
     }
 

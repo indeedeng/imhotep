@@ -17,7 +17,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
 import com.google.common.collect.UnmodifiableIterator;
 import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Ints;
@@ -34,6 +33,7 @@ import com.indeed.imhotep.RequestContext;
 import com.indeed.imhotep.TermCount;
 import com.indeed.imhotep.api.FTGSParams;
 import com.indeed.imhotep.api.GroupStatsIterator;
+import com.indeed.imhotep.api.ImhotepCommand;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepServiceCore;
 import com.indeed.imhotep.api.ImhotepSession;
@@ -76,6 +76,7 @@ import java.net.Socket;
 import java.net.SocketException;
 import java.net.URISyntaxException;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -129,22 +130,6 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             }
         }
     }
-
-    private static final Set<ImhotepRequest.RequestType> VALID_BATCH_REQUESTS = Sets.immutableEnumSet(
-            ImhotepRequest.RequestType.STREAMING_GET_GROUP_STATS,
-            ImhotepRequest.RequestType.INT_OR_REGROUP,
-            ImhotepRequest.RequestType.METRIC_REGROUP,
-            ImhotepRequest.RequestType.EXPLODED_MULTISPLIT_REGROUP,
-            ImhotepRequest.RequestType.RANDOM_METRIC_MULTI_REGROUP,
-            ImhotepRequest.RequestType.RANDOM_METRIC_REGROUP,
-            ImhotepRequest.RequestType.RANDOM_MULTI_REGROUP,
-            ImhotepRequest.RequestType.RANDOM_REGROUP,
-            ImhotepRequest.RequestType.REGEX_REGROUP,
-            ImhotepRequest.RequestType.REGROUP,
-            ImhotepRequest.RequestType.REMAP_GROUPS,
-            ImhotepRequest.RequestType.STRING_OR_REGROUP
-    );
-
 
     /* Relays events to our observers. */
     private final class ServiceCoreObserver implements Instrumentation.Observer {
@@ -960,17 +945,25 @@ public class ImhotepDaemon implements Instrumentation.Provider {
         private Pair<ImhotepResponse, GroupStatsIterator> executeBatchRequest(
                 final ImhotepRequest batchImhotepRequest,
                 final InputStream is,
-                final OutputStream os) throws IOException, ImhotepOutOfMemoryException {
+                final ImhotepResponse.Builder builder) throws IOException, ImhotepOutOfMemoryException {
 
             final int imhotepRequestCount = batchImhotepRequest.getImhotepRequestCount();
             Pair<ImhotepResponse, GroupStatsIterator> imhotepResponseGroupStatsIteratorPair = Pair.of(null, null);
 
+            final List<ImhotepCommand> commands = new ArrayList<ImhotepCommand>();
             for (int i = 0; i < imhotepRequestCount; i++) {
-                final ImhotepRequest request = ImhotepProtobufShipping.readRequest(is);
-                if ( !VALID_BATCH_REQUESTS.contains(request.getRequestType()) ) {
-                    throw new RuntimeException("Received an Invalid Batch Request. Batch Mode only supports Regroup and GetGroupStats requests.");
-                }
-                imhotepResponseGroupStatsIteratorPair = handleImhotepRequest(request, is, os);
+                commands.add(ImhotepCommand.readFromInputStream(is));
+            }
+            final ImhotepCommand lastCommand = commands.get(commands.size() - 1);
+            if (lastCommand.getResultClass() == GroupStatsIterator.class) {
+                final GroupStatsIterator groupStatsIterator = (GroupStatsIterator) service.handleBatchRequest(batchImhotepRequest.getSessionId(), commands, lastCommand);
+                imhotepResponseGroupStatsIteratorPair = Pair.of(builder.setGroupStatSize(groupStatsIterator.getNumGroups()).build(), groupStatsIterator);
+            } else if (lastCommand.getResultClass() == Integer.class) {
+                final int numGroup = (Integer) service.handleBatchRequest(batchImhotepRequest.getSessionId(), commands, lastCommand);
+                imhotepResponseGroupStatsIteratorPair = Pair.of(builder.setNumGroups(numGroup).build(), null);
+            } else {
+                service.handleBatchRequest(batchImhotepRequest.getSessionId(), commands, lastCommand);
+                imhotepResponseGroupStatsIteratorPair = Pair.of(builder.build(), null);
             }
             return imhotepResponseGroupStatsIteratorPair;
         }
@@ -1133,7 +1126,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                     response = remapGroups(request, builder);
                     break;
                 case BATCH_REQUESTS:
-                    Pair<ImhotepResponse, GroupStatsIterator> responseGroupStatsIteratorPair = executeBatchRequest(request, is, os);
+                    Pair<ImhotepResponse, GroupStatsIterator> responseGroupStatsIteratorPair = executeBatchRequest(request, is, builder);
                     response = responseGroupStatsIteratorPair.getFirst();
                     groupStats = responseGroupStatsIteratorPair.getSecond();
                 case SHUTDOWN:

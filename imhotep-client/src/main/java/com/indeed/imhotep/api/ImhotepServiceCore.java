@@ -84,6 +84,7 @@ public interface ImhotepServiceCore {
 
     // non-session-based methods
     ImhotepStatusDump handleGetStatusDump(boolean includeShardList);
+    <T> T handleBatchRequest(String sessionId, List<ImhotepCommand> commands, ImhotepCommand<T> lastCommand) throws ImhotepOutOfMemoryException;
 
     void close();
 }

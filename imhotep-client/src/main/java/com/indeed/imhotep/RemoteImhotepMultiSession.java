@@ -46,6 +46,7 @@ import org.apache.log4j.Logger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.io.IOException;
+import java.lang.reflect.Array;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -576,10 +577,16 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
         }
     }
 
-    <T> void sendImhotepBatchRequest(final T[] buffer, final List<ImhotepCommand> commands, final ImhotepCommand<T> lastCommand) throws  ImhotepOutOfMemoryException {
-        executeMemoryException(buffer, session -> {
-            return session.sendImhotepBatchRequest(commands, lastCommand);
-        });
+    <T> T processImhotepBatchRequest(final List<ImhotepCommand> commands, final ImhotepCommand<T> lastCommand ) throws ImhotepOutOfMemoryException {
+        try {
+            final T[] buffer = (T[]) Array.newInstance(lastCommand.getResultClass(), sessions.length);
+            executeMemoryException(buffer, session -> {
+                return session.sendImhotepBatchRequest(commands, lastCommand);
+            });
+            return lastCommand.combine(Arrays.asList(buffer));
+        } finally {
+            commands.clear();
+        }
     }
 
 }
