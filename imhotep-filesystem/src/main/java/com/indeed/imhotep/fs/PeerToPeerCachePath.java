@@ -25,14 +25,8 @@ public class PeerToPeerCachePath extends RemoteCachingPath {
     private static final String PATH_PREFIX = "remote";
 
     // format: /remote/host:port/
-    private static final String PEER_TO_PEER_CACHE_PATH_REGEX = new StringBuilder()
-            .append("^")
-            .append(PATH_SEPARATOR_STR)
-            .append(PATH_PREFIX)
-            .append(PATH_SEPARATOR_STR)
-            .append("[^\\\\:?" + PATH_SEPARATOR_STR + "]+:[0-9]+")
-            .append(PATH_SEPARATOR_STR)
-            .toString();
+    private static final String PEER_TO_PEER_CACHE_PATH_REGEX =
+            "^" + PATH_SEPARATOR_STR + PATH_PREFIX + PATH_SEPARATOR_STR + "[^\\\\:?" + PATH_SEPARATOR_STR + "]+:[0-9]+" + PATH_SEPARATOR_STR;
     private static final Pattern PEER_TO_PEER_CACHE_PATH_PATTERN = Pattern.compile(PEER_TO_PEER_CACHE_PATH_REGEX);
 
     private static final Comparator<Host> NULL_SAFE_COMPARATOR = new NullComparator(false);
@@ -43,30 +37,30 @@ public class PeerToPeerCachePath extends RemoteCachingPath {
     @Nullable
     private final Host remoteHost;
 
-    PeerToPeerCachePath(final RemoteCachingFileSystem fileSystem, final String path, @Nullable final Host remoteHost) {
+    private PeerToPeerCachePath(final RemoteCachingFileSystem fileSystem, final String path, @Nullable final Host remoteHost) {
         super(fileSystem, path);
         this.fileSystem = fileSystem;
         this.remoteHost = remoteHost;
     }
 
-    PeerToPeerCachePath(final RemoteCachingFileSystem fileSystem, final String path) {
+    private PeerToPeerCachePath(final RemoteCachingFileSystem fileSystem, final String path) {
         this(fileSystem, path, null);
     }
 
     static PeerToPeerCachePath newPeerToPeerCachePath(final RemoteCachingFileSystem fileSystem, final String path) {
         final Matcher matcher = PEER_TO_PEER_CACHE_PATH_PATTERN.matcher(path);
 
-        // relative path
+        // resolve as an absolute path
         if (!matcher.lookingAt()) {
             if (path.startsWith(PATH_SEPARATOR_STR)) {
-                throw new IllegalArgumentException("Not a valid relative path");
+                throw new IllegalArgumentException("The given path is neither a valid peer to peer cache absolute path, nor a relative path:" + path);
             }
             return new PeerToPeerCachePath(fileSystem, path);
         }
 
+        // resolve as an absolute path
         final String[] prefixItems = matcher.group(0).split(PATH_SEPARATOR_STR);
         final Host host = Host.valueOf(prefixItems[prefixItems.length-1]);
-        // it always be an absolute path if it has host information
         return new PeerToPeerCachePath(fileSystem, path.replaceAll(PEER_TO_PEER_CACHE_PATH_REGEX, PATH_SEPARATOR_STR), host);
     }
 

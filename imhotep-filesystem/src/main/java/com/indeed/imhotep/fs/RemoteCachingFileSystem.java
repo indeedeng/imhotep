@@ -155,7 +155,11 @@ class RemoteCachingFileSystem extends FileSystem {
     }
 
     private Path getPath(final String path) {
-        return (PeerToPeerCachePath.isAbsolutePeerToPeerCachePath(path) ? PeerToPeerCachePath.newPeerToPeerCachePath(this, path) : new RemoteCachingPath(this, path));
+        if (PeerToPeerCachePath.isAbsolutePeerToPeerCachePath(path)) {
+            return PeerToPeerCachePath.newPeerToPeerCachePath(this, path);
+        } else {
+            return new RemoteCachingPath(this, path);
+        }
     }
 
     FileStore getFileStore(final RemoteCachingPath path) {

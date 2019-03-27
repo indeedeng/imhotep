@@ -63,9 +63,10 @@ class LocalFileCache {
     private final LoadingCache<RemoteCachingPath, FileCacheEntry> referencedFilesCache;
     private final Object lock = new Object();
     private final MetricStatsEmitter statsEmitter;
-    private final boolean loadExistedFiles;
     private static final int FAST_REPORTING_FREQUENCY_MILLIS = 100;
     private static final int SLOW_REPORTING_FREQUENCY_MINUTES = 60;
+    // whether load already cached files under the cacheRootDir when LocalFileCache is initialized
+    private final boolean loadExistingFiles;
 
     @VisibleForTesting
     LocalFileCache(
@@ -85,10 +86,10 @@ class LocalFileCache {
             final CacheFileLoader cacheFileLoader,
             final MetricStatsEmitter statsEmitter,
             final String statsTypePrefix,
-            final boolean loadExistedFiles) throws IOException {
+            final boolean loadExistingFiles) throws IOException {
         this.cacheRootDir = cacheRootDir;
         this.diskSpaceCapacity = diskSpaceCapacity;
-        this.loadExistedFiles = loadExistedFiles;
+        this.loadExistingFiles = loadExistingFiles;
         this.statsEmitter = statsEmitter;
 
         final CacheStatsEmitter cacheFileStatsEmitter = new CacheStatsEmitter(statsTypePrefix);
@@ -209,7 +210,7 @@ class LocalFileCache {
         Files.createDirectories(cacheRootDir);
         synchronized (lock) {
             unusedFilesCache.invalidateAll();
-            if (loadExistedFiles) {
+            if (loadExistingFiles) {
                 Files.walkFileTree(cacheRootDir, new SimpleFileVisitor<Path>() {
                     @Override
                     public FileVisitResult visitFile(final Path cachePath, final BasicFileAttributes attrs) throws IOException {

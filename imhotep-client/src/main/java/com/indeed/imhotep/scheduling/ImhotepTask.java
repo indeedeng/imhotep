@@ -229,6 +229,7 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
         return totalExecutionTime;
     }
 
+    @Nullable
     public AbstractImhotepMultiSession getSession() {
         return session;
     }

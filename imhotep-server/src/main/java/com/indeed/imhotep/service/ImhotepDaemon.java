@@ -262,11 +262,11 @@ public class ImhotepDaemon implements Instrumentation.Provider {
         @Override
         public void run() {
             try {
-                final InetAddress remoteAddress = socket.getInetAddress();
                 NDC.push("DaemonWorker(" + socket.getRemoteSocketAddress() + ")");
                 try {
-                    while (!internalRun()) ;
+                    while (!internalRun()) {}
                 } finally {
+                    Closeables2.closeQuietly(socket, log);
                     NDC.pop();
                 }
             } catch (final RuntimeException e) {

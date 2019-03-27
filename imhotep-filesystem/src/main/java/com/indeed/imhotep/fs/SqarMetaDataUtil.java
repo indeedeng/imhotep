@@ -14,6 +14,8 @@
 
 package com.indeed.imhotep.fs;
 
+import com.google.common.base.Preconditions;
+
 import javax.annotation.Nullable;
 
 /**
@@ -38,14 +40,11 @@ class SqarMetaDataUtil {
     // TODO: it doesn't work well for relative path
     @Nullable
     static RemoteCachingPath getShardPath(final RemoteCachingPath path) {
+        Preconditions.checkArgument(path.isAbsolute());
         if (path.getNameCount() >= SHARD_PATH_COMPONENT) {
             final RemoteCachingPath relShardPath = (RemoteCachingPath) path.subpath(0, SHARD_PATH_COMPONENT);
-            if (path.isAbsolute()) {
-                final RemoteCachingPath rootPath = (path instanceof PeerToPeerCachePath) ? path.getRoot() : RemoteCachingPath.getRoot(path.getFileSystem());
-                return (RemoteCachingPath) rootPath.resolve(relShardPath);
-            } else {
-                return relShardPath;
-            }
+            final RemoteCachingPath rootPath = (path instanceof PeerToPeerCachePath) ? path.getRoot() : RemoteCachingPath.getRoot(path.getFileSystem());
+            return (RemoteCachingPath) rootPath.resolve(relShardPath);
         }
         return null;
     }

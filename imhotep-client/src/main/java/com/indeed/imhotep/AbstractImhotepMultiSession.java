@@ -595,7 +595,7 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
             }
         }
         builder.setCpuTime(cpuTotalTime - savedCPUTime);
-        builder.addCustomStats("downloadedBytesInP2P", downloadedBytesInPeerToPeerCache.get());
+        builder.setCustomStat("downloadedBytesInP2P", downloadedBytesInPeerToPeerCache.get());
 
         // All sessions share the same AtomicLong tempFileSizeBytesLeft,
         // so value accumulated in builder::ftgsTempFileSize is wrong

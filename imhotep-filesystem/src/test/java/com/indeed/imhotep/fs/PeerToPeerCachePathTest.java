@@ -5,7 +5,9 @@ import com.google.common.collect.Iterables;
 import com.indeed.imhotep.client.Host;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
@@ -29,6 +31,9 @@ public class PeerToPeerCachePathTest {
     private static final TemporaryFolder tempDir = new TemporaryFolder();
     private static RemoteCachingFileSystem fileSystem;
     private static Path rootPath;
+
+    @Rule
+    public ExpectedException thrown = ExpectedException.none();
 
     @BeforeClass
     public static void setUp() throws IOException  {
@@ -71,16 +76,13 @@ public class PeerToPeerCachePathTest {
 
     @Test
     public void testInitialize() {
-        final Host host = new Host("localhost", 1234);
-        final PeerToPeerCachePath path = new PeerToPeerCachePath(fileSystem, "/var/imhotep", host);
-        assertEquals("/remote/localhost:1234/var/imhotep", path.toString());
-
         final PeerToPeerCachePath path2 = PeerToPeerCachePath.newPeerToPeerCachePath(fileSystem, "/remote/localhost:1234/var/imhotep");
         assertEquals( "/remote/localhost:1234/var/imhotep", path2.toString());
 
         final PeerToPeerCachePath path3 = PeerToPeerCachePath.newPeerToPeerCachePath(fileSystem, "var/imhotep");
         assertEquals( "var/imhotep", path3.toString());
 
+        // can expect an exception multiple times
         try {
             PeerToPeerCachePath.newPeerToPeerCachePath(fileSystem, "/var/imhotep");
             fail("IllegalArgumentException is expected");
@@ -92,7 +94,7 @@ public class PeerToPeerCachePathTest {
         } catch (final IllegalArgumentException e) {}
 
         try {
-            PeerToPeerCachePath.newPeerToPeerCachePath(fileSystem, "/remote/local:host:1234/var/imhotep");
+            PeerToPeerCachePath.newPeerToPeerCachePath(fileSystem, "/remote/local/host:1234/var/imhotep");
             fail("IllegalArgumentException is expected");
         } catch (final IllegalArgumentException e) {}
 
@@ -109,10 +111,8 @@ public class PeerToPeerCachePathTest {
         assertTrue(rootPath instanceof PeerToPeerCachePath);
         assertEquals("/remote/localhost:1234/", rootPath.toString());
 
-        try {
-            PeerToPeerCachePath.newPeerToPeerCachePath(fileSystem, "var/imhotep").getRoot();
-            fail("IllegalArgumentException is expected");
-        } catch (final IllegalArgumentException e) { }
+        thrown.expect(IllegalArgumentException.class);
+        PeerToPeerCachePath.newPeerToPeerCachePath(fileSystem, "var/imhotep").getRoot();
     }
 
     @Test
@@ -175,10 +175,8 @@ public class PeerToPeerCachePathTest {
         assertEquals("var/imhotep",
                 PeerToPeerCachePath.newPeerToPeerCachePath(fileSystem, "var/imhotep").subpath(0, 2).toString());
 
-        try {
-            PeerToPeerCachePath.newPeerToPeerCachePath(fileSystem, "/remote/localhost:1234/var/imhotep").subpath(0, 3);
-            fail("IllegalArgumentException is expected");
-        } catch (final IllegalArgumentException e) { }
+        thrown.expect(IllegalArgumentException.class);
+        PeerToPeerCachePath.newPeerToPeerCachePath(fileSystem, "/remote/localhost:1234/var/imhotep").subpath(0, 3);
     }
 
     @Test
