@@ -2,7 +2,6 @@ package com.indeed.imhotep.commands;
 
 import com.indeed.imhotep.CommandSerializationUtil;
 import com.indeed.imhotep.ImhotepRemoteSession;
-import com.indeed.imhotep.api.ImhotepCommand;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.io.RequestTools.ImhotepRequestSender;
@@ -10,34 +9,30 @@ import com.indeed.imhotep.protobuf.DocStat;
 import com.indeed.imhotep.protobuf.ImhotepRequest;
 import com.indeed.imhotep.protobuf.ImhotepResponse;
 import lombok.EqualsAndHashCode;
-import lombok.Getter;
 import lombok.ToString;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.util.Collections;
 import java.util.List;
 
 @EqualsAndHashCode
 @ToString
-public class MetricRegroup implements ImhotepCommand<Integer> {
+public class MetricRegroup extends AbstractImhotepCommand<Integer> {
 
     private final List<String> stats;
     private final long min;
     private final long max;
     private final long intervalSize;
     private final boolean noGutters;
-    @Getter private final String sessionId;
-    @Getter(lazy = true) private final ImhotepRequestSender imhotepRequestSender = imhotepRequestSenderInitializer();
 
     private MetricRegroup(final List<String> stats, final long min, final long max, final long intervalSize, final boolean noGutters, final String sessionId) {
+        super(sessionId);
         this.stats = stats;
         this.min = min;
         this.max = max;
         this.intervalSize = intervalSize;
         this.noGutters = noGutters;
-        this.sessionId = sessionId;
     }
 
     public static MetricRegroup createMetricRegroup(final List<String> stat, final long min, final long max, final long intervalSize, final boolean noGutters, final String sessionId) {
@@ -48,7 +43,8 @@ public class MetricRegroup implements ImhotepCommand<Integer> {
         return new MetricRegroup(stat, min, max, intervalSize, false, sessionId);
     }
 
-    private ImhotepRequestSender imhotepRequestSenderInitializer() {
+    @Override
+    protected ImhotepRequestSender imhotepRequestSenderInitializer() {
         final ImhotepRequest request = ImhotepRequest.newBuilder().setRequestType(ImhotepRequest.RequestType.METRIC_REGROUP)
                 .setSessionId(getSessionId())
                 .setXStatDocstat(DocStat.newBuilder().addAllStat(stats))
@@ -64,11 +60,6 @@ public class MetricRegroup implements ImhotepCommand<Integer> {
     @Override
     public Integer combine(final List<Integer> subResults) {
         return Collections.max(subResults);
-    }
-
-    @Override
-    public void writeToOutputStream(final OutputStream os) throws IOException {
-        ImhotepRemoteSession.sendRequestReadNoResponseFlush(getImhotepRequestSender(), os);
     }
 
     @Override

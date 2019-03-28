@@ -1352,11 +1352,17 @@ public class ImhotepRemoteSession
         return checkMemoryException(request.getSessionId(), response);
     }
 
-    public static void sendRequestReadNoResponseFlush(
+    public static void sendRequestReadNoResponseNoFlush(
             final ImhotepRequestSender request,
             final OutputStream os ) throws IOException {
             request.writeToStreamNoFlush(os);
-            os.flush();
+    }
+
+    public static void sendRequestReadNoResponseFlush(
+            final ImhotepRequestSender request,
+            final OutputStream os ) throws IOException {
+        request.writeToStreamNoFlush(os);
+        os.flush();
     }
 
     private static ImhotepResponse sendRequest(
@@ -1526,6 +1532,7 @@ public class ImhotepRemoteSession
             for (final ImhotepCommand command : commands) {
                 command.writeToOutputStream(os);
             }
+            os.flush();
 
             return lastCommand.readResponse(is, new CommandSerializationUtil(host, port, tempFileSizeBytesLeft));
         } catch (final SocketTimeoutException e) {

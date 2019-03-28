@@ -4,7 +4,6 @@ import com.indeed.imhotep.CommandSerializationUtil;
 import com.indeed.imhotep.GroupStatsIteratorCombiner;
 import com.indeed.imhotep.ImhotepRemoteSession;
 import com.indeed.imhotep.api.GroupStatsIterator;
-import com.indeed.imhotep.api.ImhotepCommand;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.io.ImhotepProtobufShipping;
@@ -13,29 +12,26 @@ import com.indeed.imhotep.protobuf.DocStat;
 import com.indeed.imhotep.protobuf.ImhotepRequest;
 import com.indeed.imhotep.protobuf.ImhotepResponse;
 import lombok.EqualsAndHashCode;
-import lombok.Getter;
 import lombok.ToString;
 
 import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.util.List;
 
 @EqualsAndHashCode
 @ToString
-public class GetGroupStats implements ImhotepCommand<GroupStatsIterator> {
+public class GetGroupStats extends AbstractImhotepCommand<GroupStatsIterator> {
 
     private final List<String> stats;
-    @Getter private final String sessionId;
-    @Getter(lazy = true) private final ImhotepRequestSender imhotepRequestSender = imhotepRequestSenderInitializer();
 
     public GetGroupStats(final List<String> stats, final String sessionId) {
+        super(sessionId);
         this.stats = stats;
-        this.sessionId = sessionId;
     }
 
-    private ImhotepRequestSender imhotepRequestSenderInitializer() {
+    @Override
+    public ImhotepRequestSender imhotepRequestSenderInitializer() {
         final ImhotepRequest request = ImhotepRequest.newBuilder().setRequestType(ImhotepRequest.RequestType.STREAMING_GET_GROUP_STATS)
                 .setSessionId(getSessionId())
                 .addDocStat(DocStat.newBuilder().addAllStat(stats))
@@ -48,11 +44,6 @@ public class GetGroupStats implements ImhotepCommand<GroupStatsIterator> {
     @Override
     public GroupStatsIterator combine(final List<GroupStatsIterator> subResults) {
         return new GroupStatsIteratorCombiner(subResults.toArray(new GroupStatsIterator[0]));
-    }
-
-    @Override
-    public void writeToOutputStream(final OutputStream os) throws IOException {
-        ImhotepRemoteSession.sendRequestReadNoResponseFlush(getImhotepRequestSender(), os);
     }
 
     @Override

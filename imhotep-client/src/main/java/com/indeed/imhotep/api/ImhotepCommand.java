@@ -145,7 +145,7 @@ public interface ImhotepCommand<T> extends HasSessionId {
                 for (int i = 0; i < numRules; i++) {
                     rules[i] = ImhotepDaemonMarshaller.marshal(ImhotepProtobufShipping.readGroupMultiRemapMessage(is));
                 }
-                return MultiRegroup.creatMultiRegroupCommand(rules, request.getErrorOnCollisions(), request.getSessionId());
+                return MultiRegroup.createMultiRegroupCommand(rules, request.getErrorOnCollisions(), request.getSessionId());
             case REGROUP:
                 numRules = request.getLength();
                 final GroupRemapRule[] regroupRules = new GroupRemapRule[numRules];
