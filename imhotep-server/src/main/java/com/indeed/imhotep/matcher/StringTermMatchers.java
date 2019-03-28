@@ -27,24 +27,25 @@ public class StringTermMatchers {
             return new AllMatchStringTermMatcher();
         }
 
-        if (StringMatcherUtil.isWellFormedString(Charsets.UTF_8, regex)) {
-            final Matcher exactMatcher = EXACT_MATCH.matcher(regex);
-            if (exactMatcher.matches()) {
-                return new ExactStringTermMatcher(exactMatcher.group(1));
-            }
-            final Matcher prefixMatcher = PREFIX_MATCH.matcher(regex);
-            if (prefixMatcher.matches()) {
-                return new PrefixStringTermMatcher(prefixMatcher.group(1));
-            }
-            final Matcher suffixMatcher = SUFFIX_MATCH.matcher(regex);
-            if (suffixMatcher.matches()) {
-                return new SuffixStringTermMatcher(suffixMatcher.group(1));
-            }
-            final Matcher includeMatcher = INCLUDE_MATCH.matcher(regex);
-            if (includeMatcher.matches()) {
-                return new IncludeStringTermMatcher(includeMatcher.group(1));
-            }
-        }
+        // disabled as hotfix for IQL-891
+//        if (StringMatcherUtil.isWellFormedString(Charsets.UTF_8, regex)) {
+//            final Matcher exactMatcher = EXACT_MATCH.matcher(regex);
+//            if (exactMatcher.matches()) {
+//                return new ExactStringTermMatcher(exactMatcher.group(1));
+//            }
+//            final Matcher prefixMatcher = PREFIX_MATCH.matcher(regex);
+//            if (prefixMatcher.matches()) {
+//                return new PrefixStringTermMatcher(prefixMatcher.group(1));
+//            }
+//            final Matcher suffixMatcher = SUFFIX_MATCH.matcher(regex);
+//            if (suffixMatcher.matches()) {
+//                return new SuffixStringTermMatcher(suffixMatcher.group(1));
+//            }
+//            final Matcher includeMatcher = INCLUDE_MATCH.matcher(regex);
+//            if (includeMatcher.matches()) {
+//                return new IncludeStringTermMatcher(includeMatcher.group(1));
+//            }
+//        }
         return new AutomatonStringTermMatcher(regex);
     }
 }
