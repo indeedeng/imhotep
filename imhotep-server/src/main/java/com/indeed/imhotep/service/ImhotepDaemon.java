@@ -266,6 +266,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 try {
                     while (!internalRun()) {}
                 } finally {
+                    // in case socket isn't closed properly because of any exceptions in the internalRun
                     Closeables2.closeQuietly(socket, log);
                     NDC.pop();
                 }

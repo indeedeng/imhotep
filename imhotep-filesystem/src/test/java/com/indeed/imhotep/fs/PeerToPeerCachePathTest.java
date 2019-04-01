@@ -22,7 +22,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 /**
  * @author xweng
@@ -81,27 +80,26 @@ public class PeerToPeerCachePathTest {
 
         final PeerToPeerCachePath path3 = PeerToPeerCachePath.newPeerToPeerCachePath(fileSystem, "var/imhotep");
         assertEquals( "var/imhotep", path3.toString());
+    }
 
-        // can expect an exception multiple times
-        try {
-            PeerToPeerCachePath.newPeerToPeerCachePath(fileSystem, "/var/imhotep");
-            fail("IllegalArgumentException is expected");
-        } catch (final IllegalArgumentException e) {}
+    @Test(expected = IllegalArgumentException.class)
+    public void testInitializeAbsolutePathWithoutHost() {
+        PeerToPeerCachePath.newPeerToPeerCachePath(fileSystem, "/var/imhotep");
+    }
 
-        try {
-            PeerToPeerCachePath.newPeerToPeerCachePath(fileSystem, "/remote/local\\host:1234/var/imhotep");
-            fail("IllegalArgumentException is expected");
-        } catch (final IllegalArgumentException e) {}
+    @Test(expected = IllegalArgumentException.class)
+    public void testInitializeWithExtraBackSlash() {
+        PeerToPeerCachePath.newPeerToPeerCachePath(fileSystem, "/remote/local\\host:1234/var/imhotep");
+    }
 
-        try {
-            PeerToPeerCachePath.newPeerToPeerCachePath(fileSystem, "/remote/local/host:1234/var/imhotep");
-            fail("IllegalArgumentException is expected");
-        } catch (final IllegalArgumentException e) {}
+    @Test(expected = IllegalArgumentException.class)
+    public void testInitializeWithExtraColon() {
+        PeerToPeerCachePath.newPeerToPeerCachePath(fileSystem, "/remote/local:host:1234/var/imhotep");
+    }
 
-        try {
-            PeerToPeerCachePath.newPeerToPeerCachePath(fileSystem, "/remote/local/host:1234/var/imhotep");
-            fail("IllegalArgumentException is expected");
-        } catch (final IllegalArgumentException e) {}
+    @Test(expected = IllegalArgumentException.class)
+    public void testInitializeWithExtraSlash() {
+        PeerToPeerCachePath.newPeerToPeerCachePath(fileSystem, "/remote/local/host:1234/var/imhotep");
     }
 
     @Test
@@ -216,16 +214,16 @@ public class PeerToPeerCachePathTest {
                         (RemoteCachingPath) rootPath,
                         Paths.get("/var/imhotep"),
                         new Host("localhost", 1234)).toString());
+    }
 
-        try {
-            PeerToPeerCachePath.toPeerToPeerCachePath((RemoteCachingPath)rootPath, Paths.get("var/imhotep"), new Host("localhost", 1234));
-            fail("IllegalArgumentException is expected");
-        } catch (final IllegalArgumentException e) {}
+    @Test(expected = IllegalArgumentException.class)
+    public void TestToPeerToPeerCachePathWithRelativePath() {
+        PeerToPeerCachePath.toPeerToPeerCachePath((RemoteCachingPath)rootPath, Paths.get("var/imhotep"), new Host("localhost", 1234));
+    }
 
-        try {
-            PeerToPeerCachePath.toPeerToPeerCachePath((RemoteCachingPath)rootPath, PeerToPeerCachePath.newPeerToPeerCachePath(fileSystem, "/remote/localhost:1234/var/imhotep"),
-                    new Host("localhost", 1234));
-            fail("IllegalArgumentException is expected");
-        } catch (final IllegalArgumentException e) {}
+    @Test(expected = IllegalArgumentException.class)
+    public void TestToPeerToPeerCachePathNonRemoteCachingPath() {
+        PeerToPeerCachePath.toPeerToPeerCachePath((RemoteCachingPath)rootPath, PeerToPeerCachePath.newPeerToPeerCachePath(fileSystem, "/remote/localhost:1234/var/imhotep"),
+                new Host("localhost", 1234));
     }
 }
