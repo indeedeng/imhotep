@@ -13,6 +13,7 @@
  */
  package com.indeed.imhotep.local;
 
+import com.google.common.base.Preconditions;
 import com.indeed.flamdex.datastruct.FastBitSet;
 import com.indeed.imhotep.BitTree;
 import com.indeed.imhotep.GroupRemapRule;
@@ -134,13 +135,16 @@ final class BitSetGroupLookup extends GroupLookup {
 
     @Override
     public void set(final int doc, final int group) {
+        Preconditions.checkArgument((group == 0) || (group == nonZeroGroup), "group must be in {0, nonZeroGroup}");
         bitSet.set(doc, group == nonZeroGroup);
     }
 
     @Override
     public void batchSet(final int[] docIdBuf, final int[] docGrpBuffer, final int n) {
         for (int i = 0; i < n; ++i) {
-            bitSet.set(docIdBuf[i], docGrpBuffer[i] == nonZeroGroup);
+            final int group = docGrpBuffer[i];
+            Preconditions.checkArgument((group == 0) || (group == nonZeroGroup), "group must be in {0, nonZeroGroup}");
+            bitSet.set(docIdBuf[i], group == nonZeroGroup);
         }
     }
 
@@ -202,17 +206,19 @@ final class BitSetGroupLookup extends GroupLookup {
             final int targetGroup,
             final int negativeGroup,
             final int positiveGroup) {
+        Preconditions.checkArgument((negativeGroup == 0) || (negativeGroup == nonZeroGroup), "negativeGroup must be in {0, nonZeroGroup}");
+        Preconditions.checkArgument((positiveGroup == 0) || (positiveGroup == nonZeroGroup), "positiveGroup must be in {0, nonZeroGroup}");
         if (targetGroup != nonZeroGroup) {
             // No work to do!
             return;
         }
         // Can now assume targetGroup == nonZeroGroup
-        if (negativeGroup == 0 && positiveGroup == nonZeroGroup) {
+        if ((negativeGroup == 0) && (positiveGroup == nonZeroGroup)) {
             this.bitSet.and(bitSet);
         } else {
             for (int doc = 0; doc < this.bitSet.size(); ++doc) {
                 if (this.bitSet.get(doc)) {
-                    this.bitSet.set(doc, bitSet.get(doc) ? positiveGroup == nonZeroGroup : negativeGroup == nonZeroGroup);
+                    this.bitSet.set(doc, bitSet.get(doc) ? (positiveGroup == nonZeroGroup) : (negativeGroup == nonZeroGroup));
                 }
             }
         }
