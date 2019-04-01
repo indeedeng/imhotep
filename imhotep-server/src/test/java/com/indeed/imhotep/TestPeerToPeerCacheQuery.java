@@ -10,8 +10,8 @@ import com.indeed.imhotep.client.ImhotepClient;
 import com.indeed.imhotep.protobuf.StatsSortOrder;
 import com.indeed.imhotep.service.ShardMasterAndImhotepDaemonClusterRunner;
 import org.joda.time.DateTime;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
+import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -28,20 +28,16 @@ import static org.junit.Assert.assertTrue;
  * @author xweng
  */
 public class TestPeerToPeerCacheQuery {
-    private static PeerToPeerCacheTestContext testContext;
-    private static List<Host> daemonHosts;
-    private static final int DURATION = 5;
+    @Rule
+    public PeerToPeerCacheTestContext testContext = new PeerToPeerCacheTestContext(3);
 
-    @BeforeClass
-    public static void setUp() throws IOException, TimeoutException, InterruptedException {
-        testContext = new PeerToPeerCacheTestContext(3);
+    private List<Host> daemonHosts;
+    private final int DURATION = 5;
+
+    @Before
+    public void setUp() throws IOException {
         testContext.createDailyShard("dataset", DURATION, false);
         daemonHosts = testContext.getDaemonHosts();
-    }
-
-    @AfterClass
-    public static void tearDown() throws IOException {
-        testContext.close();
     }
 
     @Test
