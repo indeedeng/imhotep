@@ -248,20 +248,22 @@ public class StringTermMatchersTest {
                 instanceOf(AutomatonStringTermMatcher.class)
         );
         assertThat(
-                StringTermMatchers.forRegex("foo&bar.*"),
-                instanceOf(AutomatonStringTermMatcher.class)
-        );
-        assertThat(
-                StringTermMatchers.forRegex("foo~a.*"),
-                instanceOf(AutomatonStringTermMatcher.class)
-        );
-        assertThat(
                 StringTermMatchers.forRegex("[.].*"),
                 instanceOf(AutomatonStringTermMatcher.class)
         );
+        // Following three tests are for brics extended syntax;
+        // We disabled them, so these should be treated as normal character.
+        assertThat(
+                StringTermMatchers.forRegex("foo&bar.*"),
+                instanceOf(PrefixStringTermMatcher.class)
+        );
+        assertThat(
+                StringTermMatchers.forRegex("foo~a.*"),
+                instanceOf(PrefixStringTermMatcher.class)
+        );
         assertThat(
                 StringTermMatchers.forRegex("<1-3>.*"),
-                instanceOf(AutomatonStringTermMatcher.class)
+                instanceOf(PrefixStringTermMatcher.class)
         );
     }
 
