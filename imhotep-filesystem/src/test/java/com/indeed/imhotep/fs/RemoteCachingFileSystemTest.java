@@ -84,15 +84,15 @@ public class RemoteCachingFileSystemTest {
 
         Assert.assertEquals(rootDir, Iterables.getFirst(fs.getRootDirectories(), null));
 
-        Assert.assertTrue(Files.readAttributes(fs.getPath(""), BasicFileAttributes.class).isDirectory());
-        Assert.assertTrue(Files.readAttributes(fs.getPath("a"), BasicFileAttributes.class).isDirectory());
-        Assert.assertTrue(Files.readAttributes(fs.getPath("b"), BasicFileAttributes.class).isDirectory());
-        Assert.assertTrue(Files.readAttributes(fs.getPath("b", "c"), BasicFileAttributes.class).isDirectory());
+        Assert.assertTrue(Files.readAttributes(fs.getPath("/"), BasicFileAttributes.class).isDirectory());
+        Assert.assertTrue(Files.readAttributes(fs.getPath("/a"), BasicFileAttributes.class).isDirectory());
+        Assert.assertTrue(Files.readAttributes(fs.getPath("/b"), BasicFileAttributes.class).isDirectory());
+        Assert.assertTrue(Files.readAttributes(fs.getPath("/b", "c"), BasicFileAttributes.class).isDirectory());
 
-        Assert.assertFalse(Files.readAttributes(fs.getPath("rootfile"), BasicFileAttributes.class).isDirectory());
-        Assert.assertFalse(Files.readAttributes(fs.getPath("a", "aa1"), BasicFileAttributes.class).isDirectory());
-        Assert.assertFalse(Files.readAttributes(fs.getPath("b", "c", "bc1"), BasicFileAttributes.class).isDirectory());
-        Assert.assertFalse(Files.readAttributes(fs.getPath("b", "c", "bc2"), BasicFileAttributes.class).isDirectory());
+        Assert.assertFalse(Files.readAttributes(fs.getPath("/rootfile"), BasicFileAttributes.class).isDirectory());
+        Assert.assertFalse(Files.readAttributes(fs.getPath("/a", "aa1"), BasicFileAttributes.class).isDirectory());
+        Assert.assertFalse(Files.readAttributes(fs.getPath("/b", "c", "bc1"), BasicFileAttributes.class).isDirectory());
+        Assert.assertFalse(Files.readAttributes(fs.getPath("/b", "c", "bc2"), BasicFileAttributes.class).isDirectory());
 
         Assert.assertEquals(fs.getPath("c"), fs.getPath("b", "c").getFileName());
         Assert.assertEquals(fs.getPath("bc2"), fs.getPath("b", "c", "bc2").getFileName());
@@ -203,64 +203,64 @@ public class RemoteCachingFileSystemTest {
 
         final FileSystem fs = testContext.getFs();
 
-        Assert.assertTrue(Files.exists(fs.getPath("a", "aa1")));
-        Assert.assertTrue(Files.notExists(fs.getPath("a", "aa2")));
+        Assert.assertTrue(Files.exists(fs.getPath("/a", "aa1")));
+        Assert.assertTrue(Files.notExists(fs.getPath("/a", "aa2")));
 
-        Assert.assertTrue(Files.isDirectory(fs.getPath("a")));
-        Assert.assertFalse(Files.isDirectory(fs.getPath("a", "aa1")));
+        Assert.assertTrue(Files.isDirectory(fs.getPath("/a")));
+        Assert.assertFalse(Files.isDirectory(fs.getPath("/a", "aa1")));
 
-        Assert.assertTrue(Files.isReadable(fs.getPath("a")));
-        Assert.assertTrue(Files.isReadable(fs.getPath("a", "aa1")));
-        Assert.assertFalse(Files.isReadable(fs.getPath("a", "aa2")));
+        Assert.assertTrue(Files.isReadable(fs.getPath("/a")));
+        Assert.assertTrue(Files.isReadable(fs.getPath("/a", "aa1")));
+        Assert.assertFalse(Files.isReadable(fs.getPath("/a", "aa2")));
 
-        Assert.assertTrue(Files.isExecutable(fs.getPath("a")));
-        Assert.assertFalse(Files.isExecutable(fs.getPath("a", "aa1")));
+        Assert.assertTrue(Files.isExecutable(fs.getPath("/a")));
+        Assert.assertFalse(Files.isExecutable(fs.getPath("/a", "aa1")));
 
-        Assert.assertFalse(Files.isWritable(fs.getPath("a")));
-        Assert.assertFalse(Files.isWritable(fs.getPath("a", "aa1")));
+        Assert.assertFalse(Files.isWritable(fs.getPath("/a")));
+        Assert.assertFalse(Files.isWritable(fs.getPath("/a", "aa1")));
 
-        Assert.assertFalse(Files.isSymbolicLink(fs.getPath("a")));
-        Assert.assertFalse(Files.isSymbolicLink(fs.getPath("a", "aa1")));
+        Assert.assertFalse(Files.isSymbolicLink(fs.getPath("/a")));
+        Assert.assertFalse(Files.isSymbolicLink(fs.getPath("/a", "aa1")));
 
-        Assert.assertFalse(Files.isHidden(fs.getPath("a")));
-        Assert.assertFalse(Files.isHidden(fs.getPath("a", "aa1")));
+        Assert.assertFalse(Files.isHidden(fs.getPath("/a")));
+        Assert.assertFalse(Files.isHidden(fs.getPath("/a", "aa1")));
 
-        Assert.assertFalse(Files.isRegularFile(fs.getPath("a")));
-        Assert.assertTrue(Files.isRegularFile(fs.getPath("a", "aa1")));
+        Assert.assertFalse(Files.isRegularFile(fs.getPath("/a")));
+        Assert.assertTrue(Files.isRegularFile(fs.getPath("/a", "aa1")));
 
-        final BasicFileAttributes bAttr = Files.readAttributes(fs.getPath("b"), BasicFileAttributes.class);
+        final BasicFileAttributes bAttr = Files.readAttributes(fs.getPath("/b"), BasicFileAttributes.class);
         Assert.assertTrue(bAttr.isDirectory());
 
-        final BasicFileAttributes cAttr = Files.readAttributes(fs.getPath("b", "c"), BasicFileAttributes.class);
+        final BasicFileAttributes cAttr = Files.readAttributes(fs.getPath("/b", "c"), BasicFileAttributes.class);
         Assert.assertTrue(cAttr.isDirectory());
 
-        final BasicFileAttributes bc1Attr = Files.readAttributes(fs.getPath("b", "c", "bc1"), BasicFileAttributes.class);
+        final BasicFileAttributes bc1Attr = Files.readAttributes(fs.getPath("/b", "c", "bc1"), BasicFileAttributes.class);
         Assert.assertFalse(bc1Attr.isDirectory());
         Assert.assertEquals(4, bc1Attr.size());
 
-        final BasicFileAttributes bc2Attr = Files.readAttributes(fs.getPath("b", "c", "bc2"), BasicFileAttributes.class);
+        final BasicFileAttributes bc2Attr = Files.readAttributes(fs.getPath("/b", "c", "bc2"), BasicFileAttributes.class);
         Assert.assertFalse(bc2Attr.isDirectory());
         Assert.assertEquals(4, bc2Attr.size());
 
-        final BasicFileAttributes bc3Attr = Files.readAttributes(fs.getPath("b", "c", "bc3"), BasicFileAttributes.class);
+        final BasicFileAttributes bc3Attr = Files.readAttributes(fs.getPath("/b", "c", "bc3"), BasicFileAttributes.class);
         Assert.assertFalse(bc3Attr.isDirectory());
         Assert.assertEquals(4, bc3Attr.size());
 
         Assert.assertEquals(Sets.newHashSet(
-                fs.getPath("a"),
-                fs.getPath("b")
+                fs.getPath("/a"),
+                fs.getPath("/b")
                 ),
-                FluentIterable.from(Files.newDirectoryStream(fs.getPath(""))).toSet());
+                FluentIterable.from(Files.newDirectoryStream(fs.getPath("/"))).toSet());
 
         Assert.assertEquals(
-                Collections.singletonList(fs.getPath("b", "c")),
-                FluentIterable.from(Files.newDirectoryStream(fs.getPath("b"))).toList());
+                Collections.singletonList(fs.getPath("/b", "c")),
+                FluentIterable.from(Files.newDirectoryStream(fs.getPath("/b"))).toList());
 
         Assert.assertEquals(Sets.newHashSet(
-                fs.getPath("b", "c", "bc1"),
-                fs.getPath("b", "c", "bc2"),
-                fs.getPath("b", "c", "bc3")
-        ), FluentIterable.from(Files.newDirectoryStream(fs.getPath("b", "c"))).toSet());
+                fs.getPath("/b", "c", "bc1"),
+                fs.getPath("/b", "c", "bc2"),
+                fs.getPath("/b", "c", "bc3")
+        ), FluentIterable.from(Files.newDirectoryStream(fs.getPath("/b", "c"))).toSet());
     }
 
     @Test(expected = NotDirectoryException.class)
@@ -274,7 +274,7 @@ public class RemoteCachingFileSystemTest {
         writeToFile(new File(aDir, "aa1"), "this is a test", "here is another test");
 
         Assert.assertEquals(Sets.newHashSet(
-        ), FluentIterable.from(Files.newDirectoryStream(fs.getPath("a", "aa1"))).toSet());
+        ), FluentIterable.from(Files.newDirectoryStream(fs.getPath("/a", "aa1"))).toSet());
     }
 
     @Test(expected = NoSuchFileException.class)
@@ -282,7 +282,7 @@ public class RemoteCachingFileSystemTest {
         final RemoteCachingFileSystem fs = testContext.getFs();
 
         Assert.assertEquals(Sets.newHashSet(
-        ), FluentIterable.from(Files.newDirectoryStream(fs.getPath("a"))).toSet());
+        ), FluentIterable.from(Files.newDirectoryStream(fs.getPath("/a"))).toSet());
     }
 
     @Test

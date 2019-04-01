@@ -262,11 +262,12 @@ public class ImhotepDaemon implements Instrumentation.Provider {
         @Override
         public void run() {
             try {
-                final InetAddress remoteAddress = socket.getInetAddress();
                 NDC.push("DaemonWorker(" + socket.getRemoteSocketAddress() + ")");
                 try {
-                    while (!internalRun()) ;
+                    while (!internalRun()) {}
                 } finally {
+                    // in case socket isn't closed properly because of any exceptions in the internalRun
+                    Closeables2.closeQuietly(socket, log);
                     NDC.pop();
                 }
             } catch (final RuntimeException e) {
@@ -955,19 +956,19 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 final ImhotepRequest request,
                 final ImhotepResponse.Builder builder,
                 @WillNotClose final OutputStream os) throws IOException {
-            service.handleGetAndSendShardFile(request.getShardFilePath(), builder, os);
+            service.handleGetAndSendShardFile(request.getShardFileUri(), builder, os);
         }
 
         private ImhotepResponse getShardFileAttributes(
                 final ImhotepRequest request,
                 final ImhotepResponse.Builder builder) throws IOException {
-            return service.handleGetShardFileAttributes(request.getShardFilePath(), builder);
+            return service.handleGetShardFileAttributes(request.getShardFileUri(), builder);
         }
 
         private ImhotepResponse listShardFileAttributes(
                 final ImhotepRequest request,
                 final ImhotepResponse.Builder builder) throws IOException {
-            return service.handleListShardFileAttributes(request.getShardFilePath(), builder);
+            return service.handleListShardFileAttributes(request.getShardFileUri(), builder);
         }
 
         private void shutdown(

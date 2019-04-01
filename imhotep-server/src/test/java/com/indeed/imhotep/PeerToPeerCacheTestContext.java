@@ -11,9 +11,9 @@ import com.indeed.imhotep.service.ImhotepDaemonRunner;
 import com.indeed.imhotep.service.ImhotepShardCreator;
 import com.indeed.imhotep.service.ShardMasterAndImhotepDaemonClusterRunner;
 import org.joda.time.DateTime;
+import org.junit.rules.ExternalResource;
 import org.junit.rules.TemporaryFolder;
 
-import java.io.Closeable;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -36,7 +36,7 @@ import java.util.stream.StreamSupport;
 /**
  * @author xweng
  */
-public class PeerToPeerCacheTestContext implements Closeable {
+public class PeerToPeerCacheTestContext extends ExternalResource {
     DateTime DEFAULT_SHARD_START_DATE = new DateTime(2018, 1, 1, 0, 0);
 
     private final TemporaryFolder tempDir;
@@ -47,14 +47,25 @@ public class PeerToPeerCacheTestContext implements Closeable {
 
     private final int daemonCount;
 
-    PeerToPeerCacheTestContext() throws  IOException, TimeoutException, InterruptedException {
+    PeerToPeerCacheTestContext() {
         this(1);
     }
 
-    PeerToPeerCacheTestContext(final int daemonCount) throws  IOException, TimeoutException, InterruptedException {
+    PeerToPeerCacheTestContext(final int daemonCount) {
         tempDir = new TemporaryFolder();
         this.daemonCount = daemonCount;
+    }
+
+    @Override
+    protected void before() throws Throwable {
+        super.before();
         setUp();
+    }
+
+    @Override
+    protected void after() {
+        tearDown();
+        super.after();
     }
 
     private void setUp() throws IOException, TimeoutException, InterruptedException {
@@ -93,10 +104,12 @@ public class PeerToPeerCacheTestContext implements Closeable {
         }
     }
 
-    private void tearDown() throws IOException {
+    private void tearDown() {
         try {
             new RemoteCachingFileSystemProvider().clearFileSystem();
             clusterRunner.stop();
+        } catch (final IOException e) {
+            throw new RuntimeException(e);
         } finally {
             tempDir.delete();
         }
@@ -104,6 +117,10 @@ public class PeerToPeerCacheTestContext implements Closeable {
 
     Path getRootPath() {
         return rootPath;
+    }
+
+    TemporaryFolder getTempDir() {
+        return tempDir;
     }
 
     List<Host> getDaemonHosts() {
@@ -184,10 +201,5 @@ public class PeerToPeerCacheTestContext implements Closeable {
                 .put("imhotep.fs.p2p.cache.size.gb", "1")
                 .put("imhotep.fs.p2p.cache.block.size.bytes", "4096")
                 .build();
-    }
-
-    @Override
-    public void close() throws IOException {
-        tearDown();
     }
 }

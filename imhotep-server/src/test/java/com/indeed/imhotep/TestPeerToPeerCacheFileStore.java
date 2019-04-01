@@ -3,8 +3,8 @@ package com.indeed.imhotep;
 import com.indeed.imhotep.fs.PeerToPeerCachePath;
 import com.indeed.imhotep.fs.RemoteCachingPath;
 import org.apache.commons.io.FileUtils;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
+import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -20,7 +20,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.StreamSupport;
@@ -33,21 +32,17 @@ import static org.junit.Assert.fail;
  * @author xweng
  */
 public class TestPeerToPeerCacheFileStore {
-    private static PeerToPeerCacheTestContext testContext;
-    private static RemoteCachingPath rootPath;
-    private static RemoteCachingPath shardPath;
+    @Rule
+    public PeerToPeerCacheTestContext testContext = new PeerToPeerCacheTestContext();
 
-    @BeforeClass
-    public static void setUp() throws IOException, TimeoutException, InterruptedException {
-        testContext = new PeerToPeerCacheTestContext();
+    private RemoteCachingPath rootPath;
+    private RemoteCachingPath shardPath;
+
+    @Before
+    public void before() throws IOException {
         testContext.createDailyShard("dataset", 1, false);
         rootPath = (RemoteCachingPath) testContext.getRootPath();
         shardPath = (RemoteCachingPath) testContext.getShardPaths("dataset").get(0);
-    }
-
-    @AfterClass
-    public static void tearDown() throws IOException {
-        testContext.close();
     }
 
     @Test

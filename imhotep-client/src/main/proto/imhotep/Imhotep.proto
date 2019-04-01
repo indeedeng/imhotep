@@ -329,7 +329,7 @@ message ImhotepRequest {
   optional StatsSortOrder statsSortOrder = 73;
 
   // for download shard files
-  optional string shardFilePath = 74;
+  optional string shardFileUri = 74;
 }
 
 message DocStat {

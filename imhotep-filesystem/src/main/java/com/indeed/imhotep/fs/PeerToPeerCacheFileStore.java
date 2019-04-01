@@ -8,6 +8,7 @@ import com.indeed.imhotep.io.Streams;
 import com.indeed.imhotep.protobuf.FileAttributeMessage;
 import com.indeed.imhotep.protobuf.ImhotepRequest;
 import com.indeed.imhotep.protobuf.ImhotepResponse;
+import com.indeed.imhotep.scheduling.ImhotepTask;
 import com.indeed.imhotep.service.MetricStatsEmitter;
 import com.indeed.util.core.Throwables2;
 import com.indeed.util.core.io.Closeables2;
@@ -88,11 +89,11 @@ public class PeerToPeerCacheFileStore extends RemoteFileStore {
     @Override
     List<RemoteFileAttributes> listDir(final RemoteCachingPath path) throws IOException {
         final PeerToPeerCachePath peerToPeerCachePath = (PeerToPeerCachePath) path;
-        final Host remoteHost = peerToPeerCachePath.getPeerHost();
-        final String localFilePath = peerToPeerCachePath.getRealPath().toUri().toString();
+        final Host remoteHost = peerToPeerCachePath.getRemoteHost();
+        final String localFileUri = peerToPeerCachePath.getRealPath().toUri().toString();
         final ImhotepRequest newRequest = ImhotepRequest.newBuilder()
                 .setRequestType(ImhotepRequest.RequestType.LIST_SHARD_FILE_ATTRIBUTES)
-                .setShardFilePath(localFilePath)
+                .setShardFileUri(localFileUri)
                 .build();
 
         final List<FileAttributeMessage> attributeList = handleRequest(newRequest, peerToPeerCachePath,
@@ -111,10 +112,10 @@ public class PeerToPeerCacheFileStore extends RemoteFileStore {
     @Override
     RemoteFileAttributes getRemoteAttributes(final RemoteCachingPath path) throws IOException {
         final PeerToPeerCachePath peerToPeerCachePath = (PeerToPeerCachePath) path;
-        final String realFilePath = peerToPeerCachePath.getRealPath().toUri().toString();
+        final String realFileUri = peerToPeerCachePath.getRealPath().toUri().toString();
         final ImhotepRequest newRequest = ImhotepRequest.newBuilder()
                 .setRequestType(ImhotepRequest.RequestType.GET_SHARD_FILE_ATTRIBUTES)
-                .setShardFilePath(realFilePath)
+                .setShardFileUri(realFileUri)
                 .build();
 
         final FileAttributeMessage attributes = handleRequest(newRequest, peerToPeerCachePath,
@@ -155,11 +156,11 @@ public class PeerToPeerCacheFileStore extends RemoteFileStore {
 
     private InputStream getInputStream(final RemoteCachingPath path) throws IOException {
         final PeerToPeerCachePath srcPath = (PeerToPeerCachePath) path;
-        final String realFilePath = srcPath.getRealPath().toUri().toString();
+        final String realFileUri = srcPath.getRealPath().toUri().toString();
         final long downloadStartMillis = System.currentTimeMillis();
         final ImhotepRequest newRequest = ImhotepRequest.newBuilder()
                 .setRequestType(ImhotepRequest.RequestType.GET_SHARD_FILE)
-                .setShardFilePath(realFilePath)
+                .setShardFileUri(realFileUri)
                 .build();
 
         return handleRequest(newRequest, srcPath, (response, is) -> {
@@ -187,7 +188,7 @@ public class PeerToPeerCacheFileStore extends RemoteFileStore {
             final PeerToPeerCachePath peerToPeerCachePath,
             final ThrowingFunction<ImhotepResponse, InputStream, R> function) throws IOException {
         final ImhotepConnectionPool pool = ImhotepConnectionPool.INSTANCE;
-        final Host srcHost = peerToPeerCachePath.getPeerHost();
+        final Host srcHost = peerToPeerCachePath.getRemoteHost();
 
         return pool.withConnection(srcHost, FETCH_CONNECTION_TIMEOUT, connection -> {
             final Socket socket = connection.getSocket();
@@ -215,5 +216,11 @@ public class PeerToPeerCacheFileStore extends RemoteFileStore {
             final long duration) {
         statsEmitter.histogram("p2p.file.downloaded.size", size);
         statsEmitter.histogram("p2p.file.downloaded.time", duration);
+
+        final ImhotepTask currentThreadTask = ImhotepTask.THREAD_LOCAL_TASK.get();
+        // in case of tests
+        if (currentThreadTask != null) {
+            currentThreadTask.getSession().setDownloadedBytesInPeerToPeerCache(size);
+        }
     }
 }

@@ -178,6 +178,10 @@ class SqarRemoteFileStore extends RemoteFileStore implements Closeable {
      * true if the contents is within a 'sqar' directory
      */
     boolean isInSqarDirectory(final RemoteCachingPath path) throws IOException {
+        // IMTEPD-483: Files with PeerToPeerCachePath must be in uncompressed non-sqar directory
+        if (path instanceof PeerToPeerCachePath) {
+            return false;
+        }
         final RemoteCachingPath shardPath = SqarMetaDataUtil.getShardPath(path);
         if (shardPath == null) {
             return false;

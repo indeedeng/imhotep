@@ -87,9 +87,9 @@ public interface ImhotepServiceCore {
 
     // non-session-based methods
     ImhotepStatusDump handleGetStatusDump(boolean includeShardList);
-    void handleGetAndSendShardFile(String filePath, ImhotepResponse.Builder builder, OutputStream os) throws IOException;
-    ImhotepResponse handleGetShardFileAttributes(String filePath, ImhotepResponse.Builder builder) throws IOException;
-    ImhotepResponse handleListShardFileAttributes(String filePath, ImhotepResponse.Builder builder) throws IOException;
+    void handleGetAndSendShardFile(String fileUri, ImhotepResponse.Builder builder, OutputStream os) throws IOException;
+    ImhotepResponse handleGetShardFileAttributes(String fileUri, ImhotepResponse.Builder builder) throws IOException;
+    ImhotepResponse handleListShardFileAttributes(String fileUri, ImhotepResponse.Builder builder) throws IOException;
 
     void close();
 }

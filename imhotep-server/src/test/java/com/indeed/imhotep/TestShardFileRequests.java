@@ -12,9 +12,13 @@ import com.indeed.imhotep.protobuf.ImhotepRequest;
 import com.indeed.imhotep.protobuf.ImhotepResponse;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
+import org.junit.After;
 import org.junit.AfterClass;
+import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -31,6 +35,7 @@ import java.nio.file.Paths;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.TimeoutException;
 
 import static com.indeed.imhotep.utils.ImhotepExceptionUtils.buildIOExceptionFromResponse;
@@ -45,19 +50,11 @@ import static org.junit.Assert.fail;
  * @author xweng
  */
 public class TestShardFileRequests {
-    private static PeerToPeerCacheTestContext testContext;
-    private static RemoteCachingPath rootPath;
+    @Rule
+    public ExpectedException thrown = ExpectedException.none();
 
-    @BeforeClass
-    public static void setUp() throws IOException, TimeoutException, InterruptedException {
-        testContext = new PeerToPeerCacheTestContext();
-        rootPath = (RemoteCachingPath) testContext.getRootPath();
-    }
-
-    @AfterClass
-    public static void tearDown() throws IOException  {
-        testContext.close();
-    }
+    @Rule
+    public PeerToPeerCacheTestContext testContext = new PeerToPeerCacheTestContext();
 
     @Test
     public void testGetShardFile() throws IOException {
@@ -68,13 +65,11 @@ public class TestShardFileRequests {
 
     @Test
     public void testFailToGetShardFile() throws IOException {
+        thrown.expect(NoSuchFileException.class);
+
         testContext.createDailyShard("dataset11", 1, false);
         final Path shardPath = testContext.getShardPaths("dataset11").get(0);
-
-        try {
-            internalTestGetShardFile(shardPath, ImmutableList.of("fld-if3.intdocs"));
-            fail("NoSuchFileException is expected");
-        } catch (final NoSuchFileException e) {}
+        internalTestGetShardFile(shardPath, ImmutableList.of("fld-if3.intdocs"));
     }
 
     @Test
@@ -86,12 +81,11 @@ public class TestShardFileRequests {
 
     @Test
     public void testFailToGetShardFileSqar() throws IOException {
+        thrown.expect(NoSuchFileException.class);
+
         testContext.createDailyShard("dataset21", 1, true);
         final Path shardPath = testContext.getShardPaths("dataset21").get(0);
-        try {
-            internalTestGetShardFile(shardPath, ImmutableList.of("fld-if3.intdocs", "fld-sf3.strdocs", "metadata.json"));
-            fail("NoSuchFileException is expected");
-        } catch (final NoSuchFileException e) {}
+        internalTestGetShardFile(shardPath, ImmutableList.of("fld-if3.intdocs", "fld-sf3.strdocs", "metadata.json"));
     }
 
 
@@ -119,7 +113,7 @@ public class TestShardFileRequests {
         testContext.createDailyShard("dataset4", 1, false);
         final Path shardPath = testContext.getShardPaths("dataset4").get(0);
 
-        final Path remoteDirPath = rootPath.resolve(shardPath);
+        final Path remoteDirPath = testContext.getRootPath().resolve(shardPath);
         final List<FileAttributeMessage> subFileAttributes = listShardFileAttributes(remoteDirPath);
         final Map<Path, FileAttributeMessage> pathToAttributesMap = Maps.newHashMap();
         subFileAttributes.forEach(attribute ->  pathToAttributesMap.put(
@@ -144,8 +138,7 @@ public class TestShardFileRequests {
     private void internalTestGetShardFile(final Path datasetIndexDir, final List<String> fileNames) throws IOException {
         for (final String filename : fileNames) {
             final Path fieldPath = datasetIndexDir.resolve(filename);
-            final File downloadedFile = File.createTempFile("temp-downloaded", "");
-            downloadedFile.deleteOnExit();
+            final File downloadedFile = testContext.getTempDir().newFile("temp-downloaded" + UUID.randomUUID());
             downloadShardFiles(fieldPath.toUri().toString(), downloadedFile);
             assertTrue(FileUtils.contentEquals(fieldPath.toFile(), downloadedFile));
         }
@@ -154,7 +147,7 @@ public class TestShardFileRequests {
     private FileAttributeMessage getShardFileAttributes(final Path path) throws IOException {
         final ImhotepRequest newRequest = ImhotepRequest.newBuilder()
                 .setRequestType(ImhotepRequest.RequestType.GET_SHARD_FILE_ATTRIBUTES)
-                .setShardFilePath(path.toUri().toString())
+                .setShardFileUri(path.toUri().toString())
                 .build();
         return handleRequest(newRequest, (response, is) -> response.getFileAttributes());
     }
@@ -162,15 +155,15 @@ public class TestShardFileRequests {
     private List<FileAttributeMessage> listShardFileAttributes(final Path path) throws IOException {
         final ImhotepRequest newRequest = ImhotepRequest.newBuilder()
                 .setRequestType(ImhotepRequest.RequestType.LIST_SHARD_FILE_ATTRIBUTES)
-                .setShardFilePath(path.toUri().toString())
+                .setShardFileUri(path.toUri().toString())
                 .build();
         return handleRequest(newRequest, (response, is) -> response.getSubFilesAttributesList());
     }
 
-    private void downloadShardFiles(final String remoteFilePath, final File destFile) throws IOException {
+    private void downloadShardFiles(final String remoteFileUri, final File destFile) throws IOException {
         final ImhotepRequest newRequest = ImhotepRequest.newBuilder()
                 .setRequestType(ImhotepRequest.RequestType.GET_SHARD_FILE)
-                .setShardFilePath(remoteFilePath)
+                .setShardFileUri(remoteFileUri)
                 .build();
         handleRequest(newRequest, (response, is) -> {
             try (final OutputStream outputStream = new FileOutputStream(destFile)) {
