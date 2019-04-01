@@ -75,7 +75,6 @@ public class RemoteCachingFileSystemProvider extends FileSystemProvider {
                 throw new FileSystemAlreadyExistsException("Multiple file systems not supported");
             }
             fileSystem = new RemoteCachingFileSystem(fileSystemProvider, env, STATS_EMITTER);
-            Runtime.getRuntime().addShutdownHook(new Thread(() -> clear()));
             return fileSystem;
         }
 
@@ -107,6 +106,27 @@ public class RemoteCachingFileSystemProvider extends FileSystemProvider {
     }
 
     private static final FileSystemHolder FILE_SYSTEM_HOLDER = new FileSystemHolder();
+
+    public static FileSystem newFileSystem(final File fsConfigFile) throws IOException {
+        return FILE_SYSTEM_HOLDER.create(fsConfigFile);
+    }
+
+    public static FileSystem newFileSystem() throws IOException {
+        final String fsFilePath = System.getProperty("imhotep.fs.config.file");
+        if (fsFilePath != null) {
+            return newFileSystem(new File(fsFilePath));
+        } else {
+            return null;
+        }
+    }
+
+    public static void closeFileSystem() {
+        FILE_SYSTEM_HOLDER.clear();
+    }
+
+    static {
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> closeFileSystem()));
+    }
 
     public static void setStatsEmitter(MetricStatsEmitter statsEmitter){
         STATS_EMITTER = statsEmitter;
@@ -140,23 +160,6 @@ public class RemoteCachingFileSystemProvider extends FileSystemProvider {
         Preconditions.checkArgument(uri.getPath() != null, "URI path must be present");
         Preconditions.checkArgument(uri.getQuery() == null, "URI query must be absent");
         Preconditions.checkArgument(uri.getFragment() == null, "URI fragment must be absent");
-    }
-
-    public static FileSystem newFileSystem(final File fsConfigFile) throws IOException {
-        return FILE_SYSTEM_HOLDER.create(fsConfigFile);
-    }
-
-    public static FileSystem newFileSystem() throws IOException {
-        final String fsFilePath = System.getProperty("imhotep.fs.config.file");
-        if (fsFilePath != null) {
-            return newFileSystem(new File(fsFilePath));
-        } else {
-            return null;
-        }
-    }
-
-    public static void closeFileSystem() {
-        FILE_SYSTEM_HOLDER.clear();
     }
 
     @Override
