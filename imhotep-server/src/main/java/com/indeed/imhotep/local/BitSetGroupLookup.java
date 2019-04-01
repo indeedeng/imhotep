@@ -32,6 +32,7 @@ final class BitSetGroupLookup extends GroupLookup {
     }
 
     BitSetGroupLookup(final int size, final int nonZeroGroup) {
+        Preconditions.checkArgument(nonZeroGroup > 0, "nonZeroGroup must be positive");
         this.size = size;
         this.bitSet = new FastBitSet(size);
         this.nonZeroGroup = nonZeroGroup;
@@ -42,6 +43,7 @@ final class BitSetGroupLookup extends GroupLookup {
     }
 
     void setNonZeroGroup(final int nonZeroGroup) {
+        Preconditions.checkArgument(nonZeroGroup > 0, "nonZeroGroup must be positive");
         this.nonZeroGroup = nonZeroGroup;
     }
 
@@ -98,7 +100,7 @@ final class BitSetGroupLookup extends GroupLookup {
             if (ImhotepLocalSession.checkIntCondition(remapRules[group].condition, intField, itrTerm)) {
                 continue;
             }
-            bitSet.set(docId, remapRules[group].positiveGroup == nonZeroGroup);
+            set(docId, remapRules[group].positiveGroup);
             docRemapped.set(docId);
         }
     }
@@ -123,7 +125,7 @@ final class BitSetGroupLookup extends GroupLookup {
             if (ImhotepLocalSession.checkStringCondition(remapRules[group].condition, stringField, itrTerm)) {
                 continue;
             }
-            bitSet.set(docId, remapRules[group].positiveGroup == nonZeroGroup);
+            set(docId, remapRules[group].positiveGroup);
             docRemapped.set(docId);
         }
     }
