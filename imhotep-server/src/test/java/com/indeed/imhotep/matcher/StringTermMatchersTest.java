@@ -1,9 +1,12 @@
 package com.indeed.imhotep.matcher;
 
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.indeed.flamdex.api.StringTermIterator;
 import org.junit.Test;
 
+import javax.annotation.Nullable;
 import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.Collections;
@@ -23,12 +26,25 @@ public class StringTermMatchersTest {
         private final Function<Integer, Integer> lcpTransform;
         private final List<String> terms;
         private int currentPos = -1;
+        @Nullable
+        private final byte[] buffer;
 
-        private MockStringTermIterator(final Function<Integer, Integer> lcpTransform, final Collection<String> terms) {
+        private MockStringTermIterator(final Function<Integer, Integer> lcpTransform, final boolean useBuffer, final Collection<String> terms) {
             this.lcpTransform = lcpTransform;
             this.terms = terms.stream()
                     .sorted()
                     .collect(Collectors.toList());
+            if (useBuffer) {
+                final int bufferSize = terms.stream()
+                        .map(term -> term.getBytes(StandardCharsets.UTF_8))
+                        .mapToInt(x -> x.length)
+                        .max()
+                        .orElse(0)
+                        + 10; // to give buffer larger size to test buffered situation.
+                buffer = new byte[bufferSize];
+            } else {
+                buffer = null;
+            }
         }
 
         @Override
@@ -46,14 +62,25 @@ public class StringTermMatchersTest {
             return terms.get(currentPos);
         }
 
-        @Override
-        public byte[] termStringBytes() {
+        private byte[] termStringExactBytes() {
             return term().getBytes(StandardCharsets.UTF_8);
         }
 
         @Override
+        public byte[] termStringBytes() {
+            final byte[] bytes = termStringExactBytes();
+            if (buffer != null) {
+                Preconditions.checkState(bytes.length <= buffer.length);
+                System.arraycopy(bytes, 0, buffer, 0, bytes.length);
+                return buffer;
+            } else {
+                return bytes;
+            }
+        }
+
+        @Override
         public int termStringLength() {
-            return termStringBytes().length;
+            return termStringExactBytes().length;
         }
 
         @Override
@@ -62,7 +89,7 @@ public class StringTermMatchersTest {
                 return lcpTransform.apply(0);
             } else {
                 final byte[] previous = terms.get(currentPos - 1).getBytes(StandardCharsets.UTF_8);
-                final byte[] current = termStringBytes();
+                final byte[] current = termStringExactBytes();
                 for (int i = 0; (i < previous.length) && (i < current.length); ++i) {
                     if (current[i] != previous[i]) {
                         return lcpTransform.apply(i);
@@ -105,25 +132,25 @@ public class StringTermMatchersTest {
                         })
                         .collect(Collectors.toSet())
         );
-        try (final MockStringTermIterator iterator = new MockStringTermIterator(Function.identity(), terms)) {
-            assertEquals(expected, runMatcher(stringTermMatcher, iterator));
-        }
-        try (final MockStringTermIterator iterator = new MockStringTermIterator(ignored -> 0, terms)) {
-            assertEquals(expected, runMatcher(stringTermMatcher, iterator));
-        }
-        try (final MockStringTermIterator iterator = new MockStringTermIterator(x -> x / 2, terms)) {
-            assertEquals(expected, runMatcher(stringTermMatcher, iterator));
-        }
         final Random random = new Random(0);
-        try (final MockStringTermIterator iterator = new MockStringTermIterator(x -> random.nextInt(x + 1), terms)) {
-            assertEquals(expected, runMatcher(stringTermMatcher, iterator));
+        final List<Function<Integer, Integer>> lcpTransforms = ImmutableList.of(
+                Function.identity(),
+                ignored -> 0,
+                x -> x / 2,
+                x -> random.nextInt(x + 1)
+        );
+        for (final Function<Integer, Integer> lcpTransform : lcpTransforms) {
+            try (final MockStringTermIterator iterator = new MockStringTermIterator(lcpTransform, false, terms)) {
+                assertEquals(expected, runMatcher(stringTermMatcher, iterator));
+            }
+            try (final MockStringTermIterator iterator = new MockStringTermIterator(lcpTransform, true, terms)) {
+                assertEquals(expected, runMatcher(stringTermMatcher, iterator));
+            }
         }
     }
 
     @Test
     public void testAlterImplementation() {
-        // disabled as hotfix for IQL-891
-        /*
         assertThat(
                 StringTermMatchers.forRegex(".*"),
                 instanceOf(AllMatchStringTermMatcher.class)
@@ -236,7 +263,6 @@ public class StringTermMatchersTest {
                 StringTermMatchers.forRegex("<1-3>.*"),
                 instanceOf(AutomatonStringTermMatcher.class)
         );
-        */
     }
 
     @Test
@@ -258,6 +284,11 @@ public class StringTermMatchersTest {
         validateMatcher(
                 ImmutableSet.of("\u307b\u3052"),
                 new ExactStringTermMatcher("\u307b\u3052"),
+                ImmutableSet.of("foo", "bar", "\u307b\u3052")
+        );
+        validateMatcher(
+                ImmutableSet.of("foo"),
+                new ExactStringTermMatcher("foo"),
                 ImmutableSet.of("foo", "bar", "\u307b\u3052")
         );
     }
