@@ -248,13 +248,7 @@ final class BitSetGroupLookup extends GroupLookup {
 
     @Override
     protected void recalculateNumGroups() {
-        for (int i = 0; i < bitSet.size(); ++i) {
-            if (bitSet.get(i)) {
-                this.numGroups = nonZeroGroup + 1;
-                return;
-            }
-        }
-        this.numGroups = 1;
+        this.numGroups = bitSet.isEmpty() ? 1 : (nonZeroGroup + 1);
     }
 
     @Override
