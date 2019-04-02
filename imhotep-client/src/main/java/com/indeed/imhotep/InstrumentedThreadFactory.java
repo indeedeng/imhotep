@@ -13,6 +13,7 @@
  */
 package com.indeed.imhotep;
 
+import it.unimi.dsi.fastutil.longs.LongIterator;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import org.apache.log4j.Logger;
 
@@ -146,8 +147,9 @@ public class InstrumentedThreadFactory
             synchronized(activeThreads) {
                 long totalCpuTime  = finishedThreadsCpuTime;
                 long totalUserTime = finishedThreadsUserTime;
-
-                for (final long id : activeThreads) {
+                final LongIterator iter = activeThreads.iterator();
+                while(iter.hasNext()) {
+                    final long id = iter.nextLong();
                     final long userTime = mxb.getThreadUserTime(id);
                     final long cpuTime = mxb.getThreadCpuTime(id);
                     totalUserTime += userTime;
