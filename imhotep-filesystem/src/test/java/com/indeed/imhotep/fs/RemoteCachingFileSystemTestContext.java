@@ -224,7 +224,7 @@ public class RemoteCachingFileSystemTestContext extends ExternalResource {
 
     @Override
     protected void after() {
-        ((RemoteCachingFileSystemProvider) fs.provider()).clearFileSystem();
+        RemoteCachingFileSystemProvider.closeFileSystem();
         tempDir.delete();
         super.after();
     }
