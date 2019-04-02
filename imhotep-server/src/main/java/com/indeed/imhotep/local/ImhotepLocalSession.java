@@ -24,6 +24,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Multimaps;
 import com.google.common.io.Closer;
 import com.google.common.math.IntMath;
+import com.google.common.math.LongMath;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -117,6 +118,7 @@ import org.joda.time.Interval;
 import javax.annotation.Nullable;
 import java.io.Closeable;
 import java.io.IOException;
+import java.math.BigInteger;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -1204,13 +1206,17 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             return docIdToGroup.getNumGroups();
         }
 
-        final int numBuckets = (int) (((max - 1) - min) / intervalSize + 1);
-        final int totalBuckets = noGutters ? numBuckets : (numBuckets + 2);
-        final long newMaxGroupLong = ((long)docIdToGroup.getNumGroups()-1)*(noGutters ? numBuckets : numBuckets+2);
-        if (newMaxGroupLong > Integer.MAX_VALUE) {
-            throw new IllegalArgumentException("Attempted to create more than Integer.MAX_VALUE groups! New max group = " + newMaxGroupLong);
-        }
-        final int newMaxGroup = (int)newMaxGroupLong;
+        final int numBuckets = BigInteger
+                .valueOf(max)
+                .subtract(BigInteger.ONE)
+                .subtract(BigInteger.valueOf(min))
+                .divide(BigInteger.valueOf(intervalSize))
+                .add(BigInteger.ONE)
+                .intValueExact();
+        final int totalBuckets = noGutters ? numBuckets : BigInteger.valueOf(numBuckets).add(BigInteger.valueOf(2)).intValueExact();
+        final int newMaxGroup = BigInteger.valueOf(docIdToGroup.getNumGroups() - 1)
+                .multiply(BigInteger.valueOf(noGutters ? numBuckets : ((long) numBuckets + 2)))
+                .intValueExact();
 
         if ((shardTimeRange != null) && Collections.singletonList("unixtime").equals(stat)) {
             final long minValueInclusive = shardTimeRange.getStartMillis() / 1000;
