@@ -1215,7 +1215,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                 .intValueExact();
         final int totalBuckets = noGutters ? numBuckets : BigInteger.valueOf(numBuckets).add(BigInteger.valueOf(2)).intValueExact();
         final int newMaxGroup = BigInteger.valueOf(docIdToGroup.getNumGroups() - 1)
-                .multiply(BigInteger.valueOf(noGutters ? numBuckets : ((long) numBuckets + 2)))
+                .multiply(BigInteger.valueOf(totalBuckets))
                 .intValueExact();
 
         if ((shardTimeRange != null) && Collections.singletonList("unixtime").equals(stat)) {
