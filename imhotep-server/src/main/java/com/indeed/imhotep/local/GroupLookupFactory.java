@@ -128,6 +128,13 @@ public class GroupLookupFactory {
         return resize(existingGL, maxGroup, memory, false);
     }
 
+    // This method is used in two different fashions.
+    // The first is to ensure that the group lookup is capable of setting values in anticipation of performing a regroup
+    // with a series of set() calls.
+    // The second is to attempt to free up some memory *after* performing a regroup when we notice dynamically that
+    // we've ended up creating a group lookup that supports more than we need.
+    // In order to disambiguate the two cases, we add the shrinkOnly parameter to use when we're attempting to shrink
+    // but do not care whether it's valid to set values up to the given maxGroup.
     public static GroupLookup resize(final GroupLookup existingGL,
                                      final int maxGroup,
                                      final MemoryReserver memory,
