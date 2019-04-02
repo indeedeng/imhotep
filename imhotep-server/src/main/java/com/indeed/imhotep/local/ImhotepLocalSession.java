@@ -23,6 +23,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Multimaps;
 import com.google.common.io.Closer;
+import com.google.common.math.IntMath;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -1205,7 +1206,11 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
 
         final int numBuckets = (int) (((max - 1) - min) / intervalSize + 1);
         final int totalBuckets = noGutters ? numBuckets : (numBuckets + 2);
-        final int newMaxGroup = (docIdToGroup.getNumGroups()-1)*(noGutters ? numBuckets : numBuckets+2);
+        final long newMaxGroupLong = ((long)docIdToGroup.getNumGroups()-1)*(noGutters ? numBuckets : numBuckets+2);
+        if (newMaxGroupLong > Integer.MAX_VALUE) {
+            throw new IllegalArgumentException("Attempted to create more than Integer.MAX_VALUE groups! New max group = " + newMaxGroupLong);
+        }
+        final long newMaxGroup = (int)newMaxGroupLong;
 
         if ((shardTimeRange != null) && Collections.singletonList("unixtime").equals(stat)) {
             final long minValueInclusive = shardTimeRange.getStartMillis() / 1000;
