@@ -13,8 +13,8 @@
  */
 package com.indeed.imhotep;
 
-import it.unimi.dsi.fastutil.longs.LongBidirectionalIterator;
-import it.unimi.dsi.fastutil.longs.LongRBTreeSet;
+import it.unimi.dsi.fastutil.longs.LongIterator;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import org.apache.log4j.Logger;
 
 import javax.annotation.Nonnull;
@@ -23,7 +23,6 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadMXBean;
-import java.util.Hashtable;
 import java.util.concurrent.ThreadFactory;
 
 public class InstrumentedThreadFactory
@@ -34,11 +33,12 @@ public class InstrumentedThreadFactory
     private final Instrumentation.ProviderSupport instrumentation =
         new Instrumentation.ProviderSupport();
 
-    /* Note that Hashtable is used for its thread-safe properties. */
-    private final Hashtable<Long, Long> threadToCPUUser  = new Hashtable<>();
-    private final Hashtable<Long, Long> threadToCPUTotal = new Hashtable<>();
+    // stats for finished threads. Access only inside synchronized block over activeThreads
+    private long finishedThreadsUserTime = 0;
+    private long finishedThreadsCpuTime = 0;
+    private long finishedThreadsCount = 0;
 
-    private final LongRBTreeSet ids = new LongRBTreeSet();
+    private final LongOpenHashSet activeThreads = new LongOpenHashSet();
 
     public static class CPUEvent extends Instrumentation.Event {
         protected CPUEvent(final String name, final long user, final long total) {
@@ -84,16 +84,24 @@ public class InstrumentedThreadFactory
         }
 
         private void snapshot() {
+            synchronized (activeThreads) {
+                if (!activeThreads.contains(getId())) {
+                    // already added thread stats to finishedThreads* variables
+                    return;
+                }
+            }
             try {
                 final ThreadMXBean mxb      = ManagementFactory.getThreadMXBean();
                 final long         id       = getId();
                 final long         userTime = mxb.getThreadUserTime(id);
                 final long         cpuTime  = mxb.getThreadCpuTime(id);
-                if (userTime > 0) {
-                    InstrumentedThreadFactory.this.threadToCPUUser.put(id, userTime);
-                }
-                if (cpuTime  > 0) {
-                    InstrumentedThreadFactory.this.threadToCPUTotal.put(id, cpuTime);
+                synchronized (activeThreads) {
+                    if (activeThreads.remove(getId())) {
+                        // checking result of remove() to add stats only once.
+                        finishedThreadsUserTime += userTime;
+                        finishedThreadsCpuTime += cpuTime;
+                        finishedThreadsCount++;
+                    }
                 }
             }
             catch (final Exception ex) {
@@ -102,31 +110,11 @@ public class InstrumentedThreadFactory
         }
     }
 
-    public Long cpuUser(final ThreadMXBean mxb, final long id) {
-        final long userTime = mxb.getThreadUserTime(id);
-        if (userTime > 0) {
-            return userTime;
-        }
-
-        final Long result = threadToCPUUser.get(id);
-        return result != null ? result : 0;
-    }
-
-    public Long cpuTotal(final ThreadMXBean mxb, final long id) {
-        final long totalTime = mxb.getThreadCpuTime(id);
-        if (totalTime > 0) {
-            return totalTime;
-        }
-
-        final Long result = threadToCPUTotal.get(id);
-        return result != null ? result : 0;
-    }
-
     @Override
     public Thread newThread(@Nonnull final Runnable runnable) {
         final Thread result = new InstrumentedThread(runnable);
-        synchronized(ids) {
-            ids.add(result.getId());
+        synchronized(activeThreads) {
+            activeThreads.add(result.getId());
         }
         return result;
     }
@@ -144,7 +132,7 @@ public class InstrumentedThreadFactory
         public final long cpuUserTime;
         public final long threadCount;
 
-        public PerformanceStats(long cpuTotalTime, long cpuUserTime, long threadCount) {
+        public PerformanceStats(final long cpuTotalTime, final long cpuUserTime, final long threadCount) {
             this.cpuTotalTime = cpuTotalTime;
             this.cpuUserTime = cpuUserTime;
             this.threadCount = threadCount;
@@ -155,20 +143,20 @@ public class InstrumentedThreadFactory
     public PerformanceStats getPerformanceStats() {
         try {
             final ThreadMXBean mxb = ManagementFactory.getThreadMXBean();
-            long totalCpuTime  = 0;
-            long totalUserTime = 0;
 
-            synchronized(ids) {
-                final LongBidirectionalIterator it = ids.iterator();
-                while (it.hasNext()) {
-                    final long id        = it.next();
-                    final long userTime  = cpuUser(mxb, id);
-                    final long cpuTime   = cpuTotal(mxb, id);
-                    totalUserTime       += userTime;
-                    totalCpuTime        += cpuTime;
+            synchronized(activeThreads) {
+                long totalCpuTime  = finishedThreadsCpuTime;
+                long totalUserTime = finishedThreadsUserTime;
+                final LongIterator iter = activeThreads.iterator();
+                while(iter.hasNext()) {
+                    final long id = iter.nextLong();
+                    final long userTime = mxb.getThreadUserTime(id);
+                    final long cpuTime = mxb.getThreadCpuTime(id);
+                    totalUserTime += userTime;
+                    totalCpuTime += cpuTime;
                 }
+                return new PerformanceStats(totalCpuTime, totalUserTime, activeThreads.size() + finishedThreadsCount);
             }
-            return new PerformanceStats(totalCpuTime, totalUserTime, ids.size());
         }
         catch (final Exception ex) {
             log.warn("problem while capturing per-thread cpu use", ex);
@@ -199,7 +187,7 @@ public class InstrumentedThreadFactory
             final PerformanceStats totalStats = getPerformanceStats();
             if(totalStats != null) {
                 final TotalCPUEvent tcpu =
-                        new TotalCPUEvent(totalStats.cpuUserTime, totalStats.cpuTotalTime, ids.size());
+                        new TotalCPUEvent(totalStats.cpuUserTime, totalStats.cpuTotalTime, totalStats.threadCount);
                 instrumentation.fire(tcpu);
             }
         }

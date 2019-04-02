@@ -60,7 +60,7 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
     private static final Logger log = Logger.getLogger(ImhotepJavaLocalSession.class);
 
     private final String optimizedIndexesDir;
-    private final File optimizationLog;
+    private File optimizationLog;
 
     private FlamdexReader originalReader;
     private SharedReference<FlamdexReader> originalReaderRef;
@@ -81,8 +81,6 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
         super(sessionId, flamdexReader, memory, tempFileSizeBytesLeft);
 
         this.optimizedIndexesDir = optimizedIndexDirectory;
-        this.optimizationLog =
-            new File(this.optimizedIndexesDir, UUID.randomUUID().toString() + ".optimization_log");
     }
 
     /*
@@ -225,6 +223,9 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
              * save a record of the merge, so it can be unwound later if the
              * shards are reset
              */
+                if (optimizationLog == null) {
+                    optimizationLog = new File(this.optimizedIndexesDir, UUID.randomUUID().toString() + ".optimization_log");
+                }
                 try (ObjectOutputStream oos = this.optimizationLog.exists() ? new AppendingObjectOutputStream(new FileOutputStream(this.optimizationLog,
                         true)) : // plain ObjectOutputStream does not append correctly
                         new ObjectOutputStream(new FileOutputStream(this.optimizationLog, true))) {
@@ -318,7 +319,7 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
         }
 
         /* check for space in memory */
-        memoryUse = this.optimizationLog.length();
+        memoryUse = optimizationLog == null ? 0 : this.optimizationLog.length();
         if (!this.memory.claimMemory(memoryUse)) {
             throw newImhotepOutOfMemoryException();
         }
@@ -330,32 +331,34 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
         }
         metricStack.clearStatCommands();
 
-        /* read in all the optimization records */
-        try {
-            ois = new ObjectInputStream(new FileInputStream(this.optimizationLog));
-            while (true) {
-                /*
-                 * adds the records so the last written record is first in the
-                 * list
-                 */
-                records.add(0, (OptimizationRecord) ois.readObject());
-            }
-        } catch (final EOFException e) {
-            // read all the records
+        if (optimizationLog != null) {
+            /* read in all the optimization records */
             try {
-                if (ois != null) {
-                    ois.close();
-                    this.optimizationLog.delete();
+                ois = new ObjectInputStream(new FileInputStream(this.optimizationLog));
+                while (true) {
+                    /*
+                     * adds the records so the last written record is first in the
+                     * list
+                     */
+                    records.add(0, (OptimizationRecord) ois.readObject());
                 }
-            } catch (final IOException e1) {
-                /* do nothing */
-                e.printStackTrace();
+            } catch (final EOFException e) {
+                // read all the records
+                try {
+                    if (ois != null) {
+                        ois.close();
+                        this.optimizationLog.delete();
+                    }
+                } catch (final IOException e1) {
+                    /* do nothing */
+                    e.printStackTrace();
+                }
+            } catch (final ClassNotFoundException | IOException e) {
+                throw newRuntimeException(e);
+            } finally {
+                /* the log is no longer needed, so remove it */
+                this.optimizationLog.delete();
             }
-        } catch (final ClassNotFoundException | IOException e) {
-            throw newRuntimeException(e);
-        } finally {
-            /* the log is no longer needed, so remove it */
-            this.optimizationLog.delete();
         }
 
         /* reconstruct the dynamic metrics */
@@ -505,7 +508,7 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
     @Override
     protected void tryClose() {
         /* clean up the optimization log */
-        if (this.optimizationLog.exists()) {
+        if ((this.optimizationLog != null) && optimizationLog.exists()) {
             this.optimizationLog.delete();
         }
         try {
