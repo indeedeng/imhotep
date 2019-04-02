@@ -4,7 +4,6 @@ import com.google.common.base.Preconditions;
 import com.indeed.flamdex.api.StringTermIterator;
 
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
 import java.util.function.Consumer;
 
 public class ExactStringTermMatcher implements StringTermMatcher {
@@ -27,7 +26,12 @@ public class ExactStringTermMatcher implements StringTermMatcher {
         if (termBytesLength != patternBytes.length) {
             return false;
         }
-        return Arrays.equals(patternBytes, termBytes);
+        for (int i = 0; i < patternBytes.length; ++i) {
+            if (patternBytes[i] != termBytes[i]) {
+                return false;
+            }
+        }
+        return true;
     }
 
     @Override
