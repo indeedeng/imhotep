@@ -1210,7 +1210,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         if (newMaxGroupLong > Integer.MAX_VALUE) {
             throw new IllegalArgumentException("Attempted to create more than Integer.MAX_VALUE groups! New max group = " + newMaxGroupLong);
         }
-        final long newMaxGroup = (int)newMaxGroupLong;
+        final int newMaxGroup = (int)newMaxGroupLong;
 
         if ((shardTimeRange != null) && Collections.singletonList("unixtime").equals(stat)) {
             final long minValueInclusive = shardTimeRange.getStartMillis() / 1000;
