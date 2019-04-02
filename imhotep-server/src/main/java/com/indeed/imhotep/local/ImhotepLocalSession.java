@@ -1254,7 +1254,6 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
 
             {
                 // check if all doc in shard go to one group
-                // this often happens when grouping by unixtime (1h, 1d or 1mo for example)
                 final int commonGroup = calculateCommonGroup(lookup.getMin(), lookup.getMax(), min, max, intervalSize, noGutters);
                 if (commonGroup == 0) {
                     resetGroupsTo(0);

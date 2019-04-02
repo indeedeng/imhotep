@@ -99,6 +99,13 @@ public final class FastBitSet {
         }
     }
 
+    public void andNot(final FastBitSet other) {
+        final int end = Math.min(other.bits.length, bits.length);
+        for (int i = 0; i < end; ++i) {
+            bits[i] &= ~other.bits[i];
+        }
+    }
+
     public void or(final FastBitSet other) {
         final int end = Math.min(other.bits.length, bits.length);
         for (int i = 0; i < end; ++i) {

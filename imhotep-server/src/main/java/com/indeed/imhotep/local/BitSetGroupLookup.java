@@ -88,21 +88,14 @@ final class BitSetGroupLookup extends GroupLookup {
             final GroupRemapRule[] remapRules,
             final String intField,
             final long itrTerm) {
-        for (int i = 0; i < n; i++) {
-            final int docId = docIdBuf[i];
-            if (docRemapped.get(docId)) {
-                continue;
-            }
-            final int group = bitSet.get(docId) ? nonZeroGroup : 0;
-            if (remapRules[group] == null) {
-                continue;
-            }
-            if (ImhotepLocalSession.checkIntCondition(remapRules[group].condition, intField, itrTerm)) {
-                continue;
-            }
-            set(docId, remapRules[group].positiveGroup);
-            docRemapped.set(docId);
+        Preconditions.checkArgument(remapRules[0] == null, "Can't remap out of group 0");
+        if (remapRules[nonZeroGroup] == null) {
+            return;
         }
+        if (ImhotepLocalSession.checkIntCondition(remapRules[nonZeroGroup].condition, intField, itrTerm)) {
+            return;
+        }
+        applyCheckedConditions(n, docIdBuf, docRemapped, remapRules[nonZeroGroup]);
     }
 
     @Override
@@ -113,20 +106,39 @@ final class BitSetGroupLookup extends GroupLookup {
             final GroupRemapRule[] remapRules,
             final String stringField,
             final String itrTerm) {
+        Preconditions.checkArgument(remapRules[0] == null, "Can't remap out of group 0");
+        if (remapRules[nonZeroGroup] == null) {
+            return;
+        }
+        if (ImhotepLocalSession.checkStringCondition(remapRules[nonZeroGroup].condition, stringField, itrTerm)) {
+            return;
+        }
+        applyCheckedConditions(n, docIdBuf, docRemapped, remapRules[nonZeroGroup]);
+    }
+
+    private void applyCheckedConditions(final int n, final int[] docIdBuf, final ThreadSafeBitSet docRemapped, final GroupRemapRule remapRule) {
+        if (remapRule.positiveGroup == nonZeroGroup) {
+            // Not moving anything, but still need to know they were matched.
+            for (int i = 0; i < n; i++) {
+                final int docId = docIdBuf[i];
+                if (bitSet.get(docId)) {
+                    docRemapped.set(docId);
+                }
+            }
+            return;
+        }
+        if (remapRule.positiveGroup != 0) {
+            throw new IllegalArgumentException("Can only remap BitSetGroupLookup to {0, nonZeroGroup (" + nonZeroGroup + ")}");
+        }
         for (int i = 0; i < n; i++) {
             final int docId = docIdBuf[i];
             if (docRemapped.get(docId)) {
                 continue;
             }
-            final int group = bitSet.get(docId) ? nonZeroGroup : 0;
-            if (remapRules[group] == null) {
-                continue;
+            if (bitSet.get(docId)) {
+                bitSet.clear(docId);
+                docRemapped.set(docId);
             }
-            if (ImhotepLocalSession.checkStringCondition(remapRules[group].condition, stringField, itrTerm)) {
-                continue;
-            }
-            set(docId, remapRules[group].positiveGroup);
-            docRemapped.set(docId);
         }
     }
 
@@ -210,19 +222,27 @@ final class BitSetGroupLookup extends GroupLookup {
             final int positiveGroup) {
         Preconditions.checkArgument((negativeGroup == 0) || (negativeGroup == nonZeroGroup), "negativeGroup must be in {0, nonZeroGroup}");
         Preconditions.checkArgument((positiveGroup == 0) || (positiveGroup == nonZeroGroup), "positiveGroup must be in {0, nonZeroGroup}");
+        if (targetGroup == 0) {
+            throw new IllegalArgumentException("Can't remap out of group 0");
+        }
         if (targetGroup != nonZeroGroup) {
             // No work to do!
             return;
         }
         // Can now assume targetGroup == nonZeroGroup
         if ((negativeGroup == 0) && (positiveGroup == nonZeroGroup)) {
+            // 1 iff this.bitSet[i]==1 && bitSet[i] == 1 -- aka AND
             this.bitSet.and(bitSet);
+        } else if ((negativeGroup == nonZeroGroup) && (positiveGroup == nonZeroGroup)) {
+            // moving 1s to 1 ...
+        } else if ((negativeGroup == 0) && (positiveGroup == 0)) {
+            // moving 1s to 0 -- maybe we should actually turn into a Constant(0) ?
+            bitSet.clearAll();
+        } else if ((negativeGroup == nonZeroGroup) && (positiveGroup == 0)) {
+            // 1 iff this.bitSet[i]==1 && bitSet[i] == 0 -- aka AND_NOT
+            this.bitSet.andNot(bitSet);
         } else {
-            for (int doc = 0; doc < this.bitSet.size(); ++doc) {
-                if (this.bitSet.get(doc)) {
-                    this.bitSet.set(doc, bitSet.get(doc) ? (positiveGroup == nonZeroGroup) : (negativeGroup == nonZeroGroup));
-                }
-            }
+            throw new IllegalStateException("Preceding branches were expected to cover all cases. Please report this bug to Imhotep team.");
         }
     }
 
