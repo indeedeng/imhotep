@@ -154,7 +154,7 @@ public final class FastBitSet {
                 return false;
             }
         }
-        return (bits[bits.length - 1] & ~(1L << (size & 0x3f))) == 0;
+        return (bits[bits.length - 1] & ((1L << (size & 0x3f)) - 1)) == 0;
     }
 
     public int size() {

@@ -137,4 +137,16 @@ public class TestFastBitSet {
         iterator = bitSet.iterator();
         assertFalse(iterator.next());
     }
+
+    @Test
+    public void testIsEmpty() {
+        final FastBitSet bitSet = new FastBitSet(10);
+        assertTrue(bitSet.isEmpty());
+        bitSet.set(5);
+        assertFalse(bitSet.isEmpty());
+        bitSet.setAll();
+        assertFalse(bitSet.isEmpty());
+        bitSet.clearRange(0, 10);
+        assertTrue(bitSet.isEmpty());
+    }
 }
