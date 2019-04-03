@@ -108,7 +108,7 @@ public class TestPeerToPeerCacheQuery {
         final ImhotepClient.SessionBuilder builder = client.sessionBuilder("dataset", date, date.plusDays(DURATION));
 
         final Host firstHost = daemonHosts.get(0);
-        final List<Shard> shards = builder.getChosenShards().stream().map(shard -> shard.withOwner(firstHost)).collect(Collectors.toList());
+        final List<Shard> shards = builder.getChosenShards().stream().map(shard -> shard.withServer(firstHost)).collect(Collectors.toList());
         return builder.shardsOverride(shards).allowPeerToPeerCache(true).build();
     }
 }
