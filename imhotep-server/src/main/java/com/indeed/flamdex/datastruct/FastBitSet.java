@@ -99,6 +99,13 @@ public final class FastBitSet {
         }
     }
 
+    public void andNot(final FastBitSet other) {
+        final int end = Math.min(other.bits.length, bits.length);
+        for (int i = 0; i < end; ++i) {
+            bits[i] &= ~other.bits[i];
+        }
+    }
+
     public void or(final FastBitSet other) {
         final int end = Math.min(other.bits.length, bits.length);
         for (int i = 0; i < end; ++i) {
@@ -147,7 +154,7 @@ public final class FastBitSet {
                 return false;
             }
         }
-        return (bits[bits.length - 1] & ~(1L << (size & 0x3f))) == 0;
+        return (bits[bits.length - 1] & ((1L << (size & 0x3f)) - 1)) == 0;
     }
 
     public int size() {

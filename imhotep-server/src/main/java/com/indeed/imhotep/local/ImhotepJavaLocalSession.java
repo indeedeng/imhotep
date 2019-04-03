@@ -25,13 +25,16 @@ import com.indeed.flamdex.utils.ShardMetadataUtils;
 import com.indeed.imhotep.ImhotepMemoryPool;
 import com.indeed.imhotep.MemoryReservationContext;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
+import com.indeed.imhotep.metrics.Constant;
 import com.indeed.imhotep.metrics.Count;
 import com.indeed.imhotep.service.CachedFlamdexReader;
 import com.indeed.util.core.reference.SharedReference;
 import com.indeed.util.core.shell.PosixFileOperations;
 import org.apache.log4j.Logger;
+import org.joda.time.Interval;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.io.EOFException;
 import java.io.File;
 import java.io.FileInputStream;
@@ -65,20 +68,21 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
     private FlamdexReader originalReader;
     private SharedReference<FlamdexReader> originalReaderRef;
 
-    public ImhotepJavaLocalSession(final String sessionId, final FlamdexReader flamdexReader)
+    public ImhotepJavaLocalSession(final String sessionId, final FlamdexReader flamdexReader, @Nullable final Interval shardTimeRange)
         throws ImhotepOutOfMemoryException {
-        this(sessionId, flamdexReader, null,
+        this(sessionId, flamdexReader, shardTimeRange, null,
              new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE)), null);
     }
 
     public ImhotepJavaLocalSession(final String sessionId,
                                    final FlamdexReader flamdexReader,
+                                   @Nullable final Interval shardTimeRange,
                                    final String optimizedIndexDirectory,
                                    final MemoryReservationContext memory,
                                    final AtomicLong tempFileSizeBytesLeft)
         throws ImhotepOutOfMemoryException {
 
-        super(sessionId, flamdexReader, memory, tempFileSizeBytesLeft);
+        super(sessionId, flamdexReader, shardTimeRange, memory, tempFileSizeBytesLeft);
 
         this.optimizedIndexesDir = optimizedIndexDirectory;
     }
@@ -495,8 +499,12 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
             for (int i = 0; i < n; i++) {
                 results[docGrpBuffer[i]] += 1;
             }
-        }
-        else {
+        } else if (statLookup instanceof Constant) {
+            final long value = ((Constant) statLookup).getValue();
+            for (int i = 0; i < n; i++) {
+                results[docGrpBuffer[i]] += value;
+            }
+        } else {
             statLookup.lookup(docIdBuf, valBuf, n);
             for (int i = 0; i < n; i++) {
                 results[docGrpBuffer[i]] += valBuf[i];
