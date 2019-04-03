@@ -91,7 +91,7 @@ public class Shard extends ShardInfo {
     }
 
     public Shard withServer(final Host newServer) {
-        return new Shard(shardId, numDocs, version, owner, newServer, fileName);
+        return new Shard(shardId, numDocs, version, newServer, owner, fileName);
     }
 
     // change both owner and server, it's called when ShardMaster assigns owner/server for the shard
