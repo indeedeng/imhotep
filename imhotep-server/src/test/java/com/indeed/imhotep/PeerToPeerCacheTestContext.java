@@ -189,7 +189,6 @@ public class PeerToPeerCacheTestContext extends ExternalResource {
                 // p2pcache
                 .put("imhotep.fs.p2p.cache.root.uri", p2pCacheDir.toURI().toString())
                 .put("imhotep.fs.p2p.cache.enable", "true")
-                .put("imhotep.fs.enabled", "true")
                 // local
                 .put("imhotep.fs.filestore.local.root.uri", localStoreDir.toURI().toString())
                 // hdfs

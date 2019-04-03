@@ -83,7 +83,10 @@ class SqarRemoteFileStore extends RemoteFileStore implements Closeable {
     }
 
     RemoteFileStore getBackingFileStore(final RemoteCachingPath path) {
-        if (peerToPeerFileStore != null && path instanceof PeerToPeerCachePath) {
+        if (path instanceof PeerToPeerCachePath) {
+            if (peerToPeerFileStore == null) {
+                throw new UnsupportedOperationException("PeerToPeerCacheFileStore is not supported from the filesystem configuration");
+            }
             return peerToPeerFileStore;
         }
         return defaultBackingFileStore;
