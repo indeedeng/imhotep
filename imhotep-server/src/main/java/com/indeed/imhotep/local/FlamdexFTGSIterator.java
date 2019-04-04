@@ -33,11 +33,12 @@ class FlamdexFTGSIterator extends AbstractFlamdexFTGSIterator {
 
     public FlamdexFTGSIterator(
             final ImhotepLocalSession imhotepLocalSession,
+            final GroupLookup docIdToGroup,
             final SharedReference<FlamdexReader> flamdexReader,
             final String[] intFields,
             final String[] stringFields,
             final ImhotepLocalSession.MetricStack stack) throws ImhotepOutOfMemoryException {
-        super(imhotepLocalSession, flamdexReader, stack);
+        super(imhotepLocalSession, docIdToGroup, flamdexReader, stack);
         this.intFields = intFields;
         this.stringFields = stringFields;
     }

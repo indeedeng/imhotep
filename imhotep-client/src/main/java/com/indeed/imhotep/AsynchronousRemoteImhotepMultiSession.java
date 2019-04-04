@@ -4,6 +4,7 @@ import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.api.FTGSParams;
 import com.indeed.imhotep.api.GroupStatsIterator;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
+import com.indeed.imhotep.api.RegroupParams;
 import com.indeed.imhotep.io.RequestTools;
 import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
 
@@ -32,76 +33,76 @@ public class AsynchronousRemoteImhotepMultiSession extends AbstractImhotepMultiS
     //       the per-session result, and then waited for the combined future
 
     @Override
-    public long[] getGroupStats(final List<String> stat) throws ImhotepOutOfMemoryException {
+    public long[] getGroupStats(final String groupsName, final List<String> stat) throws ImhotepOutOfMemoryException {
         synchronizeAll();
-        return original.getGroupStats(stat);
+        return original.getGroupStats(groupsName, stat);
     }
 
     @Override
-    public GroupStatsIterator getGroupStatsIterator(final List<String> stat) throws ImhotepOutOfMemoryException {
+    public GroupStatsIterator getGroupStatsIterator(final String groupsName, final List<String> stat) throws ImhotepOutOfMemoryException {
         synchronizeAll();
-        return original.getGroupStatsIterator(stat);
+        return original.getGroupStatsIterator(groupsName, stat);
     }
 
     @Override
-    public FTGSIterator getSubsetFTGSIterator(final Map<String, long[]> intFields, final Map<String, String[]> stringFields, @Nullable final List<List<String>> stats) throws ImhotepOutOfMemoryException {
+    public FTGSIterator getSubsetFTGSIterator(final String groupsName, final Map<String, long[]> intFields, final Map<String, String[]> stringFields, @Nullable final List<List<String>> stats) throws ImhotepOutOfMemoryException {
         synchronizeAll();
-        return original.getSubsetFTGSIterator(intFields, stringFields, stats);
+        return original.getSubsetFTGSIterator(groupsName, intFields, stringFields, stats);
     }
 
     @Override
-    public FTGSIterator getFTGSIterator(final FTGSParams params) throws ImhotepOutOfMemoryException {
+    public FTGSIterator getFTGSIterator(final String groupsName, final FTGSParams params) throws ImhotepOutOfMemoryException {
         synchronizeAll();
-        return original.getFTGSIterator(params);
+        return original.getFTGSIterator(groupsName, params);
     }
 
     @Override
-    public GroupStatsIterator getDistinct(final String field, final boolean isIntField) {
+    public GroupStatsIterator getDistinct(final String groupsName, final String field, final boolean isIntField) {
         synchronizeAll();
-        return original.getDistinct(field, isIntField);
+        return original.getDistinct(groupsName, field, isIntField);
     }
 
     @Override
-    public int regroup(final GroupMultiRemapRule[] rawRules, final boolean errorOnCollisions) throws ImhotepOutOfMemoryException {
+    public int regroup(final RegroupParams regroupParams, final GroupMultiRemapRule[] rawRules, final boolean errorOnCollisions) throws ImhotepOutOfMemoryException {
         for (final AsynchronousRemoteImhotepSession session : sessions) {
-            session.regroup(rawRules, errorOnCollisions);
+            session.regroup(regroupParams, rawRules, errorOnCollisions);
         }
         return -999;
     }
 
     @Override
-    public void intOrRegroup(final String field, final long[] terms, final int targetGroup, final int negativeGroup, final int positiveGroup) throws ImhotepOutOfMemoryException {
+    public void intOrRegroup(final RegroupParams regroupParams, final String field, final long[] terms, final int targetGroup, final int negativeGroup, final int positiveGroup) throws ImhotepOutOfMemoryException {
         for (final AsynchronousRemoteImhotepSession session : sessions) {
-            session.intOrRegroup(field, terms, targetGroup, negativeGroup, positiveGroup);
+            session.intOrRegroup(regroupParams, field, terms, targetGroup, negativeGroup, positiveGroup);
         }
     }
 
     @Override
-    public void stringOrRegroup(final String field, final String[] terms, final int targetGroup, final int negativeGroup, final int positiveGroup) throws ImhotepOutOfMemoryException {
+    public void stringOrRegroup(final RegroupParams regroupParams, final String field, final String[] terms, final int targetGroup, final int negativeGroup, final int positiveGroup) throws ImhotepOutOfMemoryException {
         for (final AsynchronousRemoteImhotepSession session : sessions) {
-            session.stringOrRegroup(field, terms, targetGroup, negativeGroup, positiveGroup);
+            session.stringOrRegroup(regroupParams, field, terms, targetGroup, negativeGroup, positiveGroup);
         }
     }
 
     @Override
-    public int regroup(final int[] fromGroups, final int[] toGroups, final boolean filterOutNotTargeted) throws ImhotepOutOfMemoryException {
+    public int regroup(final RegroupParams regroupParams, final int[] fromGroups, final int[] toGroups, final boolean filterOutNotTargeted) throws ImhotepOutOfMemoryException {
         for (final AsynchronousRemoteImhotepSession session : sessions) {
-            session.regroup(fromGroups, toGroups, filterOutNotTargeted);
+            session.regroup(regroupParams, fromGroups, toGroups, filterOutNotTargeted);
         }
         return -999;
     }
 
     @Override
-    public int regroupWithProtos(final GroupMultiRemapMessage[] rawRuleMessages, final boolean errorOnCollisions) throws ImhotepOutOfMemoryException {
+    public int regroupWithProtos(final RegroupParams regroupParams, final GroupMultiRemapMessage[] rawRuleMessages, final boolean errorOnCollisions) throws ImhotepOutOfMemoryException {
         for (final AsynchronousRemoteImhotepSession session : sessions) {
-            session.regroupWithProtos(rawRuleMessages, errorOnCollisions);
+            session.regroupWithProtos(regroupParams, rawRuleMessages, errorOnCollisions);
         }
         return -999;
     }
 
-    public void regroupWithRuleSender(final RequestTools.GroupMultiRemapRuleSender sender, final boolean errorOnCollisions) {
+    public void regroupWithRuleSender(final RegroupParams regroupParams, final RequestTools.GroupMultiRemapRuleSender sender, final boolean errorOnCollisions) {
         for (final AsynchronousRemoteImhotepSession session : sessions) {
-            session.regroupWithRuleSender(sender, errorOnCollisions);
+            session.regroupWithRuleSender(regroupParams, sender, errorOnCollisions);
         }
     }
 

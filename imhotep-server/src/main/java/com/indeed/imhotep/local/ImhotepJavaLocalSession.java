@@ -25,6 +25,7 @@ import com.indeed.flamdex.utils.ShardMetadataUtils;
 import com.indeed.imhotep.ImhotepMemoryPool;
 import com.indeed.imhotep.MemoryReservationContext;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
+import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.metrics.Constant;
 import com.indeed.imhotep.metrics.Count;
 import com.indeed.imhotep.service.CachedFlamdexReader;
@@ -199,8 +200,10 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
     }
 
     @Override
-    public synchronized void rebuildAndFilterIndexes(@Nonnull final List<String> intFields,
-                                                     @Nonnull final List<String> stringFields)
+    public synchronized void rebuildAndFilterIndexes(
+            final String groupsName,
+            final List<String> intFields,
+            final List<String> stringFields)
         throws ImhotepOutOfMemoryException {
 
         final long time = System.currentTimeMillis();
@@ -215,7 +218,7 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
         final Path writerOutputDir;
         try {
             try (MemoryReservationContext rewriterMemory = new MemoryReservationContext(memory)) {
-                final IndexReWriter rewriter = new IndexReWriter(Collections.singletonList(this), this, rewriterMemory);
+                final IndexReWriter rewriter = new IndexReWriter(Collections.singletonList(this), this, groupsName, rewriterMemory);
                 final OptimizationRecord record;
                 final ShardMergeInfo info;
                 try (SimpleFlamdexWriter w = createNewTempWriter(this.numDocs)) {
@@ -223,10 +226,10 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
                     writerOutputDir = w.getOutputDirectory();
                 }
 
-            /*
-             * save a record of the merge, so it can be unwound later if the
-             * shards are reset
-             */
+                /*
+                 * save a record of the merge, so it can be unwound later if the
+                 * shards are reset
+                 */
                 if (optimizationLog == null) {
                     optimizationLog = new File(this.optimizedIndexesDir, UUID.randomUUID().toString() + ".optimization_log");
                 }
@@ -251,10 +254,8 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
                     oos.writeObject(record);
                 }
 
-            /* use rebuilt structures */
-                memory.releaseMemory(this.docIdToGroup.memoryUsed());
-                rewriterMemory.hoist(rewriter.getNewGroupLookup().memoryUsed());
-                this.docIdToGroup = rewriter.getNewGroupLookup();
+                /* use rebuilt structures */
+                namedGroupLookups = rewriter.getNewGroupLookups();
 
                 for (final DynamicMetric dm : this.dynamicMetrics.values()) {
                     memory.releaseMemory(dm.memoryUsed());
@@ -263,9 +264,6 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
                     rewriterMemory.hoist(dm.memoryUsed());
                 }
                 this.dynamicMetrics = rewriter.getDynamicMetrics();
-
-            /* release memory used by the index rewriter */
-                rewriterMemory.close();
             }
 
             // replace flamdexReader pointers, but keep the originals in case
@@ -291,7 +289,6 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
 
         // alter tracking fields to reflect the removal of group 0 docs
         this.numDocs = this.flamdexReader.getNumDocs();
-        this.setZeroGroupDocCount(0);
 
         // push the stats back on
         for (final String stat : statsCopy) {
@@ -435,15 +432,16 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
     }
 
     @Override
-    public synchronized void resetGroups() throws ImhotepOutOfMemoryException {
+    public synchronized void resetGroups(final String groupsName) throws ImhotepOutOfMemoryException {
+        // TODO: When do we actually want to reset optimized readers?
+        // TODO: Do we actually care? It only affects model builders.
         resetOptimizedReaders();
-        resetGroupsTo(1);
+        resetGroupsTo(ImhotepSession.DEFAULT_GROUPS, 1);
     }
 
     @Override
-    protected void addGroupStats(final List<String> stat, final long[] partialResult) throws ImhotepOutOfMemoryException {
-
-        if (isFilteredOut()) {
+    protected void addGroupStats(final GroupLookup docIdToGroup, final List<String> stat, final long[] partialResult) throws ImhotepOutOfMemoryException {
+        if (docIdToGroup.isFilteredOut()) {
             return;
         }
 

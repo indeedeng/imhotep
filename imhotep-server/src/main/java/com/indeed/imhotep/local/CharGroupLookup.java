@@ -27,6 +27,10 @@ final class CharGroupLookup extends GroupLookup implements ArrayBasedGroupLookup
         docIdToGroup = new char[size];
     }
 
+    private CharGroupLookup(final char[] docIdToGroup) {
+        this.docIdToGroup = docIdToGroup;
+    }
+
     char[] getDocIdToGroup() { return docIdToGroup; }
 
     @Override
@@ -135,6 +139,11 @@ final class CharGroupLookup extends GroupLookup implements ArrayBasedGroupLookup
         }
 
         Arrays.fill(docIdToGroup, (char)group);
+    }
+
+    @Override
+    public GroupLookup makeCopy() {
+        return new CharGroupLookup(Arrays.copyOf(docIdToGroup, docIdToGroup.length));
     }
 
     @Override

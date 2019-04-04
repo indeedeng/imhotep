@@ -33,6 +33,7 @@ import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.api.FTGSParams;
 import com.indeed.imhotep.api.GroupStatsIterator;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
+import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.api.PerformanceStats;
 import com.indeed.imhotep.group.IterativeHasher;
 import com.indeed.imhotep.group.IterativeHasherUtils;
@@ -281,7 +282,7 @@ public class TestImhotepLocalSession {
         final DateTime firstShardEnd = firstShardStart.plusHours(1);
         try (ImhotepLocalSession session = new ImhotepJavaLocalSession("testLocalSession", r, new Interval(firstShardStart, firstShardEnd))) {
             assertEquals(2, session.metricRegroup(Collections.singletonList("unixtime"), queryStart.getMillis()/1000, queryEnd.getMillis()/1000, 3600));
-            assertTrue(session.docIdToGroup instanceof ConstantGroupLookup);
+            assertTrue(session.namedGroupLookups.get(ImhotepSession.DEFAULT_GROUPS) instanceof ConstantGroupLookup);
             final int[] docIdToGroup = new int[100];
             session.exportDocIdToGroupId(docIdToGroup);
             assertEquals(Ints.asList(IntStream.generate(() -> 1).limit(100).toArray()), Ints.asList(docIdToGroup));
@@ -291,7 +292,7 @@ public class TestImhotepLocalSession {
         final DateTime noonShardEnd = queryStart.plusHours(13);
         try (ImhotepLocalSession session = new ImhotepJavaLocalSession("testLocalSession", r, new Interval(noonShardStart, noonShardEnd))) {
             assertEquals(14, session.metricRegroup(Collections.singletonList("unixtime"), queryStart.getMillis()/1000, queryEnd.getMillis()/1000, 3600));
-            assertTrue(session.docIdToGroup instanceof ConstantGroupLookup);
+            assertTrue(session.namedGroupLookups.get(ImhotepSession.DEFAULT_GROUPS) instanceof ConstantGroupLookup);
             final int[] docIdToGroup = new int[100];
             session.exportDocIdToGroupId(docIdToGroup);
             assertEquals(Ints.asList(IntStream.generate(() -> 13).limit(100).toArray()), Ints.asList(docIdToGroup));
@@ -306,15 +307,15 @@ public class TestImhotepLocalSession {
         }
 
         try (ImhotepLocalSession session = new ImhotepJavaLocalSession("testLocalSession", r, new Interval(noonShardStart, noonShardEnd))) {
-            assertTrue(session.docIdToGroup instanceof ConstantGroupLookup);
+            assertTrue(session.namedGroupLookups.get(ImhotepSession.DEFAULT_GROUPS) instanceof ConstantGroupLookup);
 
             assertEquals(2, session.regroup(new QueryRemapRule(1, Query.newTermQuery(Term.stringTerm("testField", "term")), 0, 1)));
-            assertTrue(session.docIdToGroup instanceof BitSetGroupLookup);
+            assertTrue(session.namedGroupLookups.get(ImhotepSession.DEFAULT_GROUPS) instanceof BitSetGroupLookup);
             Assert.assertArrayEquals(new long[]{0, 4}, session.getGroupStats(Collections.singletonList("count()")));
 
             assertEquals(14, session.metricRegroup(Collections.singletonList("unixtime"), queryStart.getMillis() / 1000, queryEnd.getMillis() / 1000, 3600));
 
-            assertTrue(session.docIdToGroup instanceof BitSetGroupLookup);
+            assertTrue(session.namedGroupLookups.get(ImhotepSession.DEFAULT_GROUPS) instanceof BitSetGroupLookup);
 
             final int[] expectedGroups = new int[100];
             expectedGroups[0] = 13;
@@ -1819,9 +1820,9 @@ public class TestImhotepLocalSession {
             assertEquals(1, stats1[4]);
 
         /* optimize session */
-            session1.rebuildAndFilterIndexes(Arrays.asList("if1", "if3"), Arrays.asList("sf1", "sf3", "sf4"));
+            session1.rebuildAndFilterIndexes(ImhotepSession.DEFAULT_GROUPS, Arrays.asList("if1", "if3"), Arrays.asList("sf1", "sf3", "sf4"));
 
-            GroupLookup gl = session1.docIdToGroup;
+            GroupLookup gl = session1.namedGroupLookups.get(ImhotepSession.DEFAULT_GROUPS);
             assertEquals(5, gl.getNumGroups());
             assertEquals(10, gl.size());
             for (int i = 0; i < gl.size(); i++) {
@@ -1905,14 +1906,14 @@ public class TestImhotepLocalSession {
             session1.updateDynamicMetric("foo", foo2);
 
         /* optimize session */
-            session1.rebuildAndFilterIndexes(Arrays.asList("if1", "if3"), Arrays.asList("sf1", "sf3", "sf4"));
+            session1.rebuildAndFilterIndexes(ImhotepSession.DEFAULT_GROUPS, Arrays.asList("if1", "if3"), Arrays.asList("sf1", "sf3", "sf4"));
 
             stats1 = session1.getGroupStats(singletonList("count()"));
             assertEquals(0, stats1[0]);
             assertEquals(5, stats1[1]);
             assertEquals(4, stats1[2]);
 
-            gl = session1.docIdToGroup;
+            gl = session1.namedGroupLookups.get(ImhotepSession.DEFAULT_GROUPS);
             assertEquals(3, gl.getNumGroups());
             assertEquals(9, gl.size());
             for (int i = 0; i < gl.size(); i++) {
@@ -1989,7 +1990,7 @@ public class TestImhotepLocalSession {
             session1.updateDynamicMetric("foo", fo);
 
         /* optimize session */
-            session1.rebuildAndFilterIndexes(Arrays.asList("if1", "if3"), Arrays.asList("sf1", "sf3", "sf4"));
+            session1.rebuildAndFilterIndexes(ImhotepSession.DEFAULT_GROUPS, Arrays.asList("if1", "if3"), Arrays.asList("sf1", "sf3", "sf4"));
 
         /* try another regroup */
             session1.createDynamicMetric("cat");
@@ -2014,7 +2015,7 @@ public class TestImhotepLocalSession {
             session1.updateDynamicMetric("foo", foo2);
 
         /* optimize session */
-            session1.rebuildAndFilterIndexes(Arrays.asList("if1", "if3"), Arrays.asList("sf1", "sf3", "sf4"));
+            session1.rebuildAndFilterIndexes(ImhotepSession.DEFAULT_GROUPS, Arrays.asList("if1", "if3"), Arrays.asList("sf1", "sf3", "sf4"));
 
             final int[] foo3 = {0, 0, 1};
             session1.updateDynamicMetric("foo", foo3);
@@ -2023,7 +2024,7 @@ public class TestImhotepLocalSession {
             session1.resetGroups();
 
         /* check groups */
-            final GroupLookup gl = session1.docIdToGroup;
+            final GroupLookup gl = session1.namedGroupLookups.get(ImhotepSession.DEFAULT_GROUPS);
             assertEquals(2, gl.getNumGroups());
             assertEquals(20, gl.size());
 
@@ -2190,21 +2191,21 @@ public class TestImhotepLocalSession {
                 session.metricRegroup(Lists.newArrayList("if1", "5", "%"), (long) 0, (long) 5, (long) 1);
                 final GroupStatsIterator distinct = session.getDistinct("if1", true);
                 assertTrue(isEqual(distinct, new long[]{0, 1, 1, 1, 1}));
-                session.resetGroupsTo(1);
+                session.resetGroupsTo(ImhotepSession.DEFAULT_GROUPS, 1);
             }
 
             {
                 session.metricRegroup(Lists.newArrayList("if1", "2", "%"), (long) 0, (long) 5, (long) 1);
                 final GroupStatsIterator distinct = session.getDistinct("if1", true);
                 assertTrue(isEqual(distinct, new long[]{0, 1, 3}));
-                session.resetGroupsTo(1);
+                session.resetGroupsTo(ImhotepSession.DEFAULT_GROUPS, 1);
             }
 
             {
                 session.metricRegroup(singletonList("docId()"), (long) 0, (long) 20, (long) 1);
                 final GroupStatsIterator distinct = session.getDistinct("sf2", false);
                 assertTrue(isEqual(distinct, new long[]{0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1}));
-                session.resetGroupsTo(1);
+                session.resetGroupsTo(ImhotepSession.DEFAULT_GROUPS, 1);
             }
 
         } finally {

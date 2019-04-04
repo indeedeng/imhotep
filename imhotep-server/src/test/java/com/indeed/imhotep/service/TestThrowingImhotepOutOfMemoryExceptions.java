@@ -60,7 +60,7 @@ public class TestThrowingImhotepOutOfMemoryExceptions {
         }
         clusterRunner.createDailyShard(DATASET, START, shard);
 
-        clusterRunner.setMemoryCapacity(ImhotepLocalSession.BUFFERS_TOTAL_SIZE + 500);
+        clusterRunner.setMemoryCapacity(500);
         clusterRunner.startDaemon();
         client = clusterRunner.createClient();
     }

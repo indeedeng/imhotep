@@ -27,6 +27,10 @@ final class ByteGroupLookup extends GroupLookup implements ArrayBasedGroupLookup
         docIdToGroup = new byte[size];
     }
 
+    private ByteGroupLookup(final byte[] docIdToGroup) {
+        this.docIdToGroup = docIdToGroup;
+    }
+
     byte[] getDocIdToGroup() { return docIdToGroup; }
 
     @Override
@@ -135,6 +139,11 @@ final class ByteGroupLookup extends GroupLookup implements ArrayBasedGroupLookup
         }
 
         Arrays.fill(docIdToGroup, (byte)group);
+    }
+
+    @Override
+    public GroupLookup makeCopy() {
+        return new ByteGroupLookup(Arrays.copyOf(docIdToGroup, docIdToGroup.length));
     }
 
     @Override

@@ -334,6 +334,9 @@ message ImhotepRequest {
 
   // Number of individual requests in ImhotepBatchRequest
   optional uint32 imhotepRequestCount = 75;
+
+  optional string input_groups = 76;
+  optional string output_groups = 77;
 }
 
 message DocStat {
@@ -371,6 +374,7 @@ message MultiFTGSRequest {
     optional string field = 3;
     repeated DocStat stats = 4;
     optional bool hasStats = 5 [default=false];
+    optional string groups_name = 6 [default="DEFAULT"];
   }
 
   repeated MultiFTGSSession sessionInfo = 1;

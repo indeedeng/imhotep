@@ -38,6 +38,12 @@ final class BitSetGroupLookup extends GroupLookup {
         this.nonZeroGroup = nonZeroGroup;
     }
 
+    private BitSetGroupLookup(final FastBitSet bitSet, final int size, final int nonZeroGroup) {
+        this.bitSet = bitSet;
+        this.size = size;
+        this.nonZeroGroup = nonZeroGroup;
+    }
+
     int getNonZeroGroup() {
         return nonZeroGroup;
     }
@@ -171,6 +177,13 @@ final class BitSetGroupLookup extends GroupLookup {
         } else {
             throw new IllegalArgumentException("only groups in {0, " + nonZeroGroup + "} allowed. Was passed " + group);
         }
+    }
+
+    @Override
+    public GroupLookup makeCopy() {
+        final FastBitSet bitSet = new FastBitSet(this.bitSet.size());
+        bitSet.or(this.bitSet);
+        return new BitSetGroupLookup(bitSet, size, nonZeroGroup);
     }
 
     @Override

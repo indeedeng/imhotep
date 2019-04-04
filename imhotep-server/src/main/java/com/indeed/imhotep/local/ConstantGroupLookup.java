@@ -101,6 +101,11 @@ final class ConstantGroupLookup extends GroupLookup {
     }
 
     @Override
+    public GroupLookup makeCopy() {
+        return new ConstantGroupLookup(constant, size);
+    }
+
+    @Override
     public void copyInto(final GroupLookup other) {
         other.fill(constant);
         other.numGroups = this.numGroups;

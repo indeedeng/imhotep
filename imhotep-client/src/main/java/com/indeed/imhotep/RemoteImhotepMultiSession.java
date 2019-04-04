@@ -27,6 +27,7 @@ import com.indeed.imhotep.api.ImhotepCommand;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.api.PerformanceStats;
+import com.indeed.imhotep.api.RegroupParams;
 import com.indeed.imhotep.io.ImhotepProtobufShipping;
 import com.indeed.imhotep.io.RequestTools;
 import com.indeed.imhotep.io.RequestTools.GroupMultiRemapRuleSender;
@@ -85,8 +86,8 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
     }
 
     @Override
-    public long[] getGroupStats(final List<String> stat) throws ImhotepOutOfMemoryException {
-        try(final GroupStatsIterator it = getGroupStatsIterator(stat)) {
+    public long[] getGroupStats(final String groupsName, final List<String> stat) throws ImhotepOutOfMemoryException {
+        try(final GroupStatsIterator it = getGroupStatsIterator(groupsName, stat)) {
             return LongIterators.unwrap(it, it.getNumGroups());
         } catch (final IOException e) {
             throw Throwables.propagate(e);
@@ -94,7 +95,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
     }
 
     @Override
-    public GroupStatsIterator getGroupStatsIterator(final List<String> stat) throws ImhotepOutOfMemoryException {
+    public GroupStatsIterator getGroupStatsIterator(final String groupsName, final List<String> stat) throws ImhotepOutOfMemoryException {
         // there is two ways to create GroupStatsIterator in multisession:
         // create iterator over result of getGroupStats method or create merger for iterators.
         // In case of remote multisession we creating readers over socket streams.
@@ -104,7 +105,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
         executeMemoryException(statsBuffer, new ThrowingFunction<ImhotepRemoteSession, GroupStatsIterator>() {
             @Override
             public GroupStatsIterator apply(final ImhotepRemoteSession session) throws ImhotepOutOfMemoryException {
-                return session.getGroupStatsIterator(stat);
+                return session.getGroupStatsIterator(groupsName, stat);
             }
         });
 
@@ -116,11 +117,11 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
     }
 
     @Override
-    public FTGSIterator getFTGSIterator(final FTGSParams params) throws ImhotepOutOfMemoryException {
+    public FTGSIterator getFTGSIterator(final String groupsName, final FTGSParams params) throws ImhotepOutOfMemoryException {
         if (sessions.length == 1) {
-            return sessions[0].getFTGSIterator(params);
+            return sessions[0].getFTGSIterator(groupsName, params);
         }
-        final FTGSIterator[] mergers = getFTGSIteratorSplits(params);
+        final FTGSIterator[] mergers = getFTGSIteratorSplits(groupsName, params);
         FTGSIterator interleaver = params.sorted ? new SortedFTGSInterleaver(mergers) : new UnsortedFTGSIterator(mergers);
         if (params.isTopTerms()) {
             interleaver = FTGSIteratorUtil.getTopTermsFTGSIterator(interleaver, params.termLimit, params.sortStat, params.statsSortOrder);
@@ -130,15 +131,15 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
         return interleaver;
     }
 
-    public FTGSIterator[] getFTGSIteratorSplits(final String[] intFields, final String[] stringFields, final long termLimit) throws ImhotepOutOfMemoryException {
+    public FTGSIterator[] getFTGSIteratorSplits(final String groupsName, final String[] intFields, final String[] stringFields, final long termLimit) throws ImhotepOutOfMemoryException {
         if (sessions.length == 1) {
-            final FTGSIterator result = sessions[0].getFTGSIterator(intFields, stringFields, termLimit, null);
+            final FTGSIterator result = sessions[0].getFTGSIterator(groupsName, intFields, stringFields, termLimit, null);
             return new FTGSIterator[] {result};
         }
-        return getFTGSIteratorSplits(new FTGSParams(intFields, stringFields, termLimit, -1, true, null, StatsSortOrder.UNDEFINED));
+        return getFTGSIteratorSplits(groupsName, new FTGSParams(intFields, stringFields, termLimit, -1, true, null, StatsSortOrder.UNDEFINED));
     }
 
-    private FTGSIterator[] getFTGSIteratorSplits(final FTGSParams params) throws ImhotepOutOfMemoryException {
+    private FTGSIterator[] getFTGSIteratorSplits(final String groupsName, final FTGSParams params) throws ImhotepOutOfMemoryException {
         checkSplitParams(sessions.length);
         final Pair<Integer, ImhotepRemoteSession>[] indexesAndSessions = new Pair[sessions.length];
         for (int i = 0; i < sessions.length; i++) {
@@ -155,7 +156,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
                 public FTGSIterator apply(final Pair<Integer, ImhotepRemoteSession> indexSessionPair) throws ImhotepOutOfMemoryException {
                     final ImhotepRemoteSession session = indexSessionPair.getSecond();
                     final int index = indexSessionPair.getFirst();
-                    return session.mergeFTGSSplit(perSplitParams, nodes, index);
+                    return session.mergeFTGSSplit(groupsName, perSplitParams, nodes, index);
                 }
             });
         } catch (final Throwable t) {
@@ -169,15 +170,15 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
     }
 
     @Override
-    public FTGSIterator getSubsetFTGSIterator(final Map<String, long[]> intFields, final Map<String, String[]> stringFields, @Nullable final List<List<String>> stats) throws ImhotepOutOfMemoryException {
+    public FTGSIterator getSubsetFTGSIterator(final String groupsName, final Map<String, long[]> intFields, final Map<String, String[]> stringFields, @Nullable final List<List<String>> stats) throws ImhotepOutOfMemoryException {
         if (sessions.length == 1) {
-            return sessions[0].getSubsetFTGSIterator(intFields, stringFields, stats);
+            return sessions[0].getSubsetFTGSIterator(groupsName, intFields, stringFields, stats);
         }
-        final FTGSIterator[] mergers = getSubsetFTGSIteratorSplits(intFields, stringFields, stats);
+        final FTGSIterator[] mergers = getSubsetFTGSIteratorSplits(groupsName, intFields, stringFields, stats);
         return new SortedFTGSInterleaver(mergers);
     }
 
-    private FTGSIterator[] getSubsetFTGSIteratorSplits(final Map<String, long[]> intFields, final Map<String, String[]> stringFields, @Nullable final List<List<String>> stats) throws ImhotepOutOfMemoryException {
+    private FTGSIterator[] getSubsetFTGSIteratorSplits(final String groupsName, final Map<String, long[]> intFields, final Map<String, String[]> stringFields, @Nullable final List<List<String>> stats) throws ImhotepOutOfMemoryException {
         final Pair<Integer, ImhotepRemoteSession>[] indexesAndSessions = new Pair[sessions.length];
         for (int i = 0; i < sessions.length; i++) {
             indexesAndSessions[i] = Pair.of(i, sessions[i]);
@@ -190,7 +191,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
                 public FTGSIterator apply(final Pair<Integer, ImhotepRemoteSession> indexSessionPair) throws ImhotepOutOfMemoryException {
                     final ImhotepRemoteSession session = indexSessionPair.getSecond();
                     final int index = indexSessionPair.getFirst();
-                    return session.mergeSubsetFTGSSplit(intFields, stringFields, stats, nodes, index);
+                    return session.mergeSubsetFTGSSplit(groupsName, intFields, stringFields, stats, nodes, index);
                 }
             });
         } catch (final Throwable t) {
@@ -204,7 +205,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
     }
 
     @Override
-    public GroupStatsIterator getDistinct(final String field, final boolean isIntField) {
+    public GroupStatsIterator getDistinct(final String groupsName, final String field, final boolean isIntField) {
         if (sessions.length == 1) {
             return sessions[0].getDistinct(field, isIntField);
         }
@@ -221,7 +222,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
                 public GroupStatsIterator apply(final Pair<Integer, ImhotepRemoteSession> indexSessionPair) {
                     final ImhotepRemoteSession session = indexSessionPair.getSecond();
                     final int index = indexSessionPair.getFirst();
-                    return session.mergeDistinctSplit(field, isIntField, nodes, index);
+                    return session.mergeDistinctSplit(groupsName, field, isIntField, nodes, index);
                 }
             });
         } catch (final Throwable t) {
@@ -233,25 +234,25 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
     }
 
     @Override
-    public int regroup(final GroupMultiRemapRule[] rawRules, final boolean errorOnCollisions) throws ImhotepOutOfMemoryException {
+    public int regroup(final RegroupParams regroupParams, final GroupMultiRemapRule[] rawRules, final boolean errorOnCollisions) throws ImhotepOutOfMemoryException {
         final GroupMultiRemapRuleSender ruleSender =
                 GroupMultiRemapRuleSender.createFromRules(
                         Arrays.asList(rawRules).iterator(),
                         sessions.length > 1);
-        return regroupWithRuleSender(ruleSender, errorOnCollisions);
+        return regroupWithRuleSender(regroupParams, ruleSender, errorOnCollisions);
     }
 
     @Override
-    public int regroupWithProtos(final GroupMultiRemapMessage[] rawRuleMessages, final boolean errorOnCollisions) throws ImhotepOutOfMemoryException {
+    public int regroupWithProtos(final RegroupParams regroupParams, final GroupMultiRemapMessage[] rawRuleMessages, final boolean errorOnCollisions) throws ImhotepOutOfMemoryException {
         final GroupMultiRemapRuleSender ruleSender =
                 GroupMultiRemapRuleSender.createFromMessages(
                         Arrays.asList(rawRuleMessages).iterator(),
                         sessions.length > 1);
-        return regroupWithRuleSender(ruleSender, errorOnCollisions);
+        return regroupWithRuleSender(regroupParams, ruleSender, errorOnCollisions);
     }
 
-    public int regroupWithRuleSender(final GroupMultiRemapRuleSender ruleSender, final boolean errorOnCollisions) throws ImhotepOutOfMemoryException {
-        executeMemoryException(integerBuf, session -> session.regroupWithSender(ruleSender, errorOnCollisions));
+    public int regroupWithRuleSender(final RegroupParams regroupParams, final GroupMultiRemapRuleSender ruleSender, final boolean errorOnCollisions) throws ImhotepOutOfMemoryException {
+        executeMemoryException(integerBuf, session -> session.regroupWithSender(regroupParams, ruleSender, errorOnCollisions));
 
         return Collections.max(Arrays.asList(integerBuf));
     }
@@ -283,8 +284,8 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
     }
 
     @Override
-    public void stringOrRegroup(String field, String[] terms, int targetGroup, int negativeGroup, int positiveGroup) throws ImhotepOutOfMemoryException {
-        final ImhotepRequestSender request = createSender(sessions[0].buildStringOrRegroupRequest(field, terms, targetGroup, negativeGroup, positiveGroup));
+    public void stringOrRegroup(final RegroupParams regroupParams, String field, String[] terms, int targetGroup, int negativeGroup, int positiveGroup) throws ImhotepOutOfMemoryException {
+        final ImhotepRequestSender request = createSender(sessions[0].buildStringOrRegroupRequest(regroupParams, field, terms, targetGroup, negativeGroup, positiveGroup));
         executeMemoryException(nullBuf, session -> {
             session.sendVoidRequest(request);
             return null;
@@ -292,8 +293,8 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
     }
 
     @Override
-    public void intOrRegroup(String field, long[] terms, int targetGroup, int negativeGroup, int positiveGroup) throws ImhotepOutOfMemoryException {
-        final ImhotepRequestSender request = createSender(sessions[0].buildIntOrRegroupRequest(field, terms, targetGroup, negativeGroup, positiveGroup));
+    public void intOrRegroup(final RegroupParams regroupParams, String field, long[] terms, int targetGroup, int negativeGroup, int positiveGroup) throws ImhotepOutOfMemoryException {
+        final ImhotepRequestSender request = createSender(sessions[0].buildIntOrRegroupRequest(regroupParams, field, terms, targetGroup, negativeGroup, positiveGroup));
         executeMemoryException(nullBuf, session -> {
             session.sendVoidRequest(request);
             return null;
@@ -301,8 +302,8 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
     }
 
     @Override
-    public int regroup(final int[] fromGroups, final int[] toGroups, final boolean filterOutNotTargeted) throws ImhotepOutOfMemoryException {
-        final ImhotepRequestSender request = createSender(sessions[0].buildGroupRemapRequest(fromGroups, toGroups, filterOutNotTargeted));
+    public int regroup(final RegroupParams regroupParams, final int[] fromGroups, final int[] toGroups, final boolean filterOutNotTargeted) throws ImhotepOutOfMemoryException {
+        final ImhotepRequestSender request = createSender(sessions[0].buildGroupRemapRequest(regroupParams, fromGroups, toGroups, filterOutNotTargeted));
         executeMemoryException(integerBuf, session -> session.sendRegroupRequest(request));
 
         return Collections.max(Arrays.asList(integerBuf));

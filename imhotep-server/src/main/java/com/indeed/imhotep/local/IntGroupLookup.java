@@ -138,6 +138,11 @@ final class IntGroupLookup extends GroupLookup implements ArrayBasedGroupLookup 
     }
 
     @Override
+    public GroupLookup makeCopy() {
+        return new IntGroupLookup(Arrays.copyOf(docIdToGroup, docIdToGroup.length));
+    }
+
+    @Override
     public void copyInto(final GroupLookup other) {
         if (docIdToGroup.length != other.size()) {
             throw new IllegalArgumentException("size != other.size: size="+docIdToGroup.length+", other.size="+other.size());
