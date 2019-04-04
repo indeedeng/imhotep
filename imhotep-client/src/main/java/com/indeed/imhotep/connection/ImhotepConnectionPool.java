@@ -16,13 +16,13 @@ import java.net.Socket;
  *
  * recommended usage:
  *
- * testConnnectionPool.withConnection(host, timeoutMillis, connection -> {
+ * testConnnectionPool.withConnection(host, timeoutMillis, connection -&gt; {
  *     // do something with the connection and return a value
  * });
  *
  * or without timeout
  *
- * testConnnectionPool.withConnection(host, connection -> {
+ * testConnnectionPool.withConnection(host, connection -&gt; {
  *     // do something with the connection and return a value
  * });
  */
