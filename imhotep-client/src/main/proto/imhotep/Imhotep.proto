@@ -28,6 +28,7 @@ message ShardMessage {
   required HostAndPort host = 5;
   optional string path = 6;
   optional string extension = 7;
+  required HostAndPort owner = 8;
 }
 
 message StatusDumpMessage {
@@ -90,9 +91,10 @@ message GroupMultiRemapMessage {
   optional uint32 negative_group = 4 [default = 0];
 }
 
-message ShardNameNumDocsPair {
+message ShardBasicInfoMessage {
     optional int32 num_docs = 1 [default = -1];
     required string shard_name = 2;
+    optional HostAndPort shard_owner = 3;
 }
 
 enum StatsSortOrder {
@@ -155,6 +157,9 @@ message ImhotepRequest {
     REMAP_GROUPS = 50;
     MERGE_MULTI_FTGS_SPLIT = 51;
     MERGE_MULTI_DISTINCT_SPLIT = 52;
+    GET_SHARD_FILE = 53;
+    GET_SHARD_FILE_ATTRIBUTES = 54;
+    LIST_SHARD_FILE_ATTRIBUTES = 55;
     SHUTDOWN = 255;
   }
 
@@ -306,7 +311,7 @@ message ImhotepRequest {
   optional bool sortedFTGS = 64 [default = true];
 
   // used in openSession()
-  repeated ShardNameNumDocsPair shards = 65;
+  repeated ShardBasicInfoMessage shards = 65;
 
   // for remapping groups
   repeated int32 fromGroups = 66 [packed = true];
@@ -322,6 +327,9 @@ message ImhotepRequest {
 
   //for topK and bottomK
   optional StatsSortOrder statsSortOrder = 73;
+
+  // for download shard files
+  optional string shardFileUri = 74;
 }
 
 message DocStat {
@@ -438,6 +446,15 @@ message ImhotepResponse {
 
   // for openSession() forwarding the session to a different port
   optional uint32 new_port = 17 [default = 0];
+
+  // for download shard files
+  optional uint64 fileLength = 18;
+
+  // for get shard file attributes
+  optional FileAttributeMessage fileAttributes = 19;
+
+  // for list shard file attributes
+  repeated FileAttributeMessage subFilesAttributes = 20;
 }
 
 enum Operator {
@@ -548,4 +565,10 @@ message ShardMasterRequest {
   optional string dataset = 5;
   // for REFRESH_FIELDS_FOR_DATASET
   optional string dataset_to_refresh = 6;
+}
+
+message FileAttributeMessage {
+  optional string path = 1;
+  required bool isDirectory = 2;
+  required uint64 size = 3;
 }

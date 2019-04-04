@@ -76,28 +76,28 @@ public class HdfsRemoteFileStoreTest {
         Assert.assertEquals("bc2\n", readFromPath(fs.getPath("/b", "c", "bc2")));
         Assert.assertEquals("bc3\n", readFromPath(fs.getPath("/b", "c", "bc3")));
 
-        final BasicFileAttributes bAttr = Files.readAttributes(fs.getPath("b"), BasicFileAttributes.class);
+        final BasicFileAttributes bAttr = Files.readAttributes(fs.getPath("/b"), BasicFileAttributes.class);
         Assert.assertTrue(bAttr.isDirectory());
 
-        final BasicFileAttributes cAttr = Files.readAttributes(fs.getPath("b", "c"), BasicFileAttributes.class);
+        final BasicFileAttributes cAttr = Files.readAttributes(fs.getPath("/b", "c"), BasicFileAttributes.class);
         Assert.assertTrue(cAttr.isDirectory());
 
-        final BasicFileAttributes bc1Attr = Files.readAttributes(fs.getPath("b", "c", "bc1"), BasicFileAttributes.class);
+        final BasicFileAttributes bc1Attr = Files.readAttributes(fs.getPath("/b", "c", "bc1"), BasicFileAttributes.class);
         Assert.assertFalse(bc1Attr.isDirectory());
         Assert.assertEquals(4, bc1Attr.size());
 
-        final BasicFileAttributes bc2Attr = Files.readAttributes(fs.getPath("b", "c", "bc2"), BasicFileAttributes.class);
+        final BasicFileAttributes bc2Attr = Files.readAttributes(fs.getPath("/b", "c", "bc2"), BasicFileAttributes.class);
         Assert.assertFalse(bc2Attr.isDirectory());
         Assert.assertEquals(4, bc2Attr.size());
 
         Assert.assertEquals(Sets.newHashSet(
-                fs.getPath("b", "c", "bc1"),
-                fs.getPath("b", "c", "bc2"),
-                fs.getPath("b", "c", "bc3")
-        ), FluentIterable.from(Files.newDirectoryStream(fs.getPath("b", "c"))).toSet());
+                fs.getPath("/b", "c", "bc1"),
+                fs.getPath("/b", "c", "bc2"),
+                fs.getPath("/b", "c", "bc3")
+        ), FluentIterable.from(Files.newDirectoryStream(fs.getPath("/b", "c"))).toSet());
 
         Assert.assertEquals(Sets.newHashSet(
-        ), FluentIterable.from(Files.newDirectoryStream(fs.getPath("d"))).toSet());
+        ), FluentIterable.from(Files.newDirectoryStream(fs.getPath("/d"))).toSet());
     }
 
     @Test(expected = NotDirectoryException.class)
@@ -111,7 +111,7 @@ public class HdfsRemoteFileStoreTest {
         writeToFile(new File(aDir, "aa1"), "this is a test", "here is another test");
 
         Assert.assertEquals(Sets.newHashSet(
-        ), FluentIterable.from(Files.newDirectoryStream(fs.getPath("a", "aa1"))).toSet());
+        ), FluentIterable.from(Files.newDirectoryStream(fs.getPath("/a", "aa1"))).toSet());
     }
 
     @Test(expected = NoSuchFileException.class)
@@ -119,6 +119,6 @@ public class HdfsRemoteFileStoreTest {
         final RemoteCachingFileSystem fs = testContext.getFs();
 
         Assert.assertEquals(Sets.newHashSet(
-        ), FluentIterable.from(Files.newDirectoryStream(fs.getPath("a"))).toSet());
+        ), FluentIterable.from(Files.newDirectoryStream(fs.getPath("/a"))).toSet());
     }
 }

@@ -49,8 +49,8 @@ import com.indeed.imhotep.protobuf.AggregateStat;
 import com.indeed.imhotep.protobuf.HostAndPort;
 import com.indeed.imhotep.protobuf.ImhotepResponse;
 import com.indeed.imhotep.protobuf.MultiFTGSRequest;
+import com.indeed.imhotep.protobuf.ShardBasicInfoMessage;
 import com.indeed.imhotep.protobuf.StatsSortOrder;
-import com.indeed.imhotep.protobuf.ShardNameNumDocsPair;
 import com.indeed.imhotep.scheduling.ImhotepTask;
 import com.indeed.imhotep.scheduling.SilentCloseable;
 import com.indeed.util.core.io.Closeables2;
@@ -744,7 +744,7 @@ public abstract class AbstractImhotepServiceCore
 
     public abstract String handleOpenSession(
             String dataset,
-            List<ShardNameNumDocsPair> shardRequestList,
+            List<ShardBasicInfoMessage> shardRequestList,
             String username,
             String clientName,
             String ipAddress,

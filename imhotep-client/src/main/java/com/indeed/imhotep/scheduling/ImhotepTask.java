@@ -36,7 +36,7 @@ import java.util.concurrent.atomic.AtomicLong;
 public class ImhotepTask implements Comparable<ImhotepTask> {
     private static final Logger LOGGER = Logger.getLogger(ImhotepTask.class);
 
-    static final ThreadLocal<ImhotepTask> THREAD_LOCAL_TASK = new ThreadLocal<>();
+    public static final ThreadLocal<ImhotepTask> THREAD_LOCAL_TASK = new ThreadLocal<>();
     private static final AtomicLong nextTaskId = new AtomicLong(0);
 
     private final long creationTimestamp;
@@ -227,6 +227,11 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
 
     public long getTotalExecutionTime() {
         return totalExecutionTime;
+    }
+
+    @Nullable
+    public AbstractImhotepMultiSession getSession() {
+        return session;
     }
 
     /**

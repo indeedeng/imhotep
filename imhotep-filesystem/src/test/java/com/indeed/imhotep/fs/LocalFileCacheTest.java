@@ -146,7 +146,7 @@ public class LocalFileCacheTest {
                 public Void call() throws ExecutionException {
                     for (int i = 1; i <= numIterations; i++) {
                         final RemoteCachingPath file = rootPath.resolve("opened").resolve("opened." + (i % maxEntries * 2) + ".file");
-                        try (LocalFileCache.ScopedCacheFile openedFile = localFileCache.getForOpen(file)) {
+                        try (ScopedCacheFile openedFile = localFileCache.getForOpen(file)) {
                             Assert.assertEquals(generateFileData(file, fileSize), readPath(openedFile.getCachePath()));
                         }
                     }
@@ -215,13 +215,13 @@ public class LocalFileCacheTest {
         }
         Assert.assertEquals(cacheCount, cacheFileLoader.loadCount.get());
 
-        final List<LocalFileCache.ScopedCacheFile> scopedCacheFiles = new ArrayList<>();
+        final List<ScopedCacheFile> scopedCacheFiles = new ArrayList<>();
 
         // open some files to evict the cache only files
         // ensure that cache files are evicted in the order they are cached
         for (int i = 1; i <= (maxEntries * 2); i++) {
             final RemoteCachingPath file = rootPath.resolve("opened").resolve("opened." + i + ".file");
-            final LocalFileCache.ScopedCacheFile openedFile = localFileCache.getForOpen(file);
+            final ScopedCacheFile openedFile = localFileCache.getForOpen(file);
             Assert.assertEquals(generateFileData(file, fileSize), readPath(openedFile.getCachePath()));
             scopedCacheFiles.add(openedFile);
             ++cacheCount;
@@ -236,7 +236,7 @@ public class LocalFileCacheTest {
                 }
             }
         }
-        for (final LocalFileCache.ScopedCacheFile scopedCacheFile : scopedCacheFiles) {
+        for (final ScopedCacheFile scopedCacheFile : scopedCacheFiles) {
             Assert.assertTrue(java.nio.file.Files.exists(scopedCacheFile.getCachePath()));
         }
         Assert.assertEquals(cacheCount, cacheFileLoader.loadCount.get());
@@ -268,12 +268,12 @@ public class LocalFileCacheTest {
         }
         Assert.assertEquals(cacheCount, cacheFileLoader.loadCount.get());
 
-        final List<LocalFileCache.ScopedCacheFile> scopedCacheFiles = new ArrayList<>();
+        final List<ScopedCacheFile> scopedCacheFiles = new ArrayList<>();
 
         // open some files
         for (int i = 1; i <= (maxEntries * 3); i++) {
             final RemoteCachingPath file = rootPath.resolve("opened").resolve("opened." + i + ".file");
-            final LocalFileCache.ScopedCacheFile openedFile = localFileCache.getForOpen(file);
+            final ScopedCacheFile openedFile = localFileCache.getForOpen(file);
             Assert.assertEquals(generateFileData(file, fileSize), readPath(openedFile.getCachePath()));
             scopedCacheFiles.add(openedFile);
             ++cacheCount;
@@ -290,7 +290,7 @@ public class LocalFileCacheTest {
         Assert.assertEquals(cacheCount, cacheFileLoader.loadCount.get());
 
         // ensure all opened files are in the cache
-        for (final LocalFileCache.ScopedCacheFile scopedCacheFile : scopedCacheFiles) {
+        for (final ScopedCacheFile scopedCacheFile : scopedCacheFiles) {
             Assert.assertTrue(java.nio.file.Files.exists(scopedCacheFile.getCachePath()));
         }
 
@@ -298,20 +298,20 @@ public class LocalFileCacheTest {
         Assert.assertTrue(getCacheUsage(cacheBasePath) > maxCapacity);
         Assert.assertEquals(getCacheUsage(cacheBasePath), localFileCache.getCacheUsage());
 
-        final List<LocalFileCache.ScopedCacheFile> moreScopedCacheFiles = new ArrayList<>();
+        final List<ScopedCacheFile> moreScopedCacheFiles = new ArrayList<>();
 
         // open the same files again
         // the load count shouldn't change
         for (int i = 1; i <= (maxEntries * 2); i++) {
             final RemoteCachingPath file = rootPath.resolve("opened").resolve("opened." + i + ".file");
-            final LocalFileCache.ScopedCacheFile openedFile = localFileCache.getForOpen(file);
+            final ScopedCacheFile openedFile = localFileCache.getForOpen(file);
             Assert.assertEquals(generateFileData(file, fileSize), readPath(openedFile.getCachePath()));
             moreScopedCacheFiles.add(openedFile);
         }
         Assert.assertEquals(cacheCount, cacheFileLoader.loadCount.get());
 
         // close all opened files and ensure that the cache directory space goes back down
-        for (final LocalFileCache.ScopedCacheFile scopedCacheFile : scopedCacheFiles) {
+        for (final ScopedCacheFile scopedCacheFile : scopedCacheFiles) {
             scopedCacheFile.close();
         }
 
@@ -320,7 +320,7 @@ public class LocalFileCacheTest {
         Assert.assertEquals(getCacheUsage(cacheBasePath), localFileCache.getCacheUsage());
 
         // close all opened files and ensure that the cache directory space goes back below the threshold
-        for (final LocalFileCache.ScopedCacheFile scopedCacheFile : moreScopedCacheFiles) {
+        for (final ScopedCacheFile scopedCacheFile : moreScopedCacheFiles) {
             scopedCacheFile.close();
         }
 
@@ -367,18 +367,18 @@ public class LocalFileCacheTest {
                 Assert.assertEquals(getCacheUsage(cacheBasePath), localFileCache.getCacheUsage());
             }
 
-            final List<LocalFileCache.ScopedCacheFile> scopedCacheFiles = new ArrayList<>();
+            final List<ScopedCacheFile> scopedCacheFiles = new ArrayList<>();
 
             // open some files
             for (int i = 1; i <= (maxEntries * 2); i++) {
                 final RemoteCachingPath file = rootPath.resolve("opened").resolve("opened." + i + ".file");
-                final LocalFileCache.ScopedCacheFile openedFile = localFileCache.getForOpen(file);
+                final ScopedCacheFile openedFile = localFileCache.getForOpen(file);
                 Assert.assertEquals(generateFileData(file, fileSize), readPath(openedFile.getCachePath()));
                 scopedCacheFiles.add(openedFile);
             }
 
             // ensure all opened files are in the cache
-            for (final LocalFileCache.ScopedCacheFile scopedCacheFile : scopedCacheFiles) {
+            for (final ScopedCacheFile scopedCacheFile : scopedCacheFiles) {
                 Assert.assertTrue(java.nio.file.Files.exists(scopedCacheFile.getCachePath()));
             }
             // do not close it
@@ -395,12 +395,12 @@ public class LocalFileCacheTest {
             Assert.assertTrue(getCacheUsage(cacheBasePath) <= maxCapacity);
             Assert.assertEquals(getCacheUsage(cacheBasePath), localFileCache.getCacheUsage());
 
-            final List<LocalFileCache.ScopedCacheFile> scopedCacheFiles = new ArrayList<>();
+            final List<ScopedCacheFile> scopedCacheFiles = new ArrayList<>();
 
             // open some files
             for (int i = 1; i <= (maxEntries * 2); i++) {
                 final RemoteCachingPath file = rootPath.resolve("opened").resolve("opened." + i + ".file");
-                final LocalFileCache.ScopedCacheFile openedFile = localFileCache.getForOpen(file);
+                final ScopedCacheFile openedFile = localFileCache.getForOpen(file);
                 Assert.assertEquals(generateFileData(file, fileSize), readPath(openedFile.getCachePath()));
                 scopedCacheFiles.add(openedFile);
             }
@@ -413,12 +413,12 @@ public class LocalFileCacheTest {
             }
 
             // ensure all opened files are in the cache
-            for (final LocalFileCache.ScopedCacheFile scopedCacheFile : scopedCacheFiles) {
+            for (final ScopedCacheFile scopedCacheFile : scopedCacheFiles) {
                 Assert.assertTrue(java.nio.file.Files.exists(scopedCacheFile.getCachePath()));
             }
 
             // close all opened files and ensure that the cache directory space goes back below the threshold
-            for (final LocalFileCache.ScopedCacheFile scopedCacheFile : scopedCacheFiles) {
+            for (final ScopedCacheFile scopedCacheFile : scopedCacheFiles) {
                 scopedCacheFile.close();
             }
 
