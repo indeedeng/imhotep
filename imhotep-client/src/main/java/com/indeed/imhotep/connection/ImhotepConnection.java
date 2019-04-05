@@ -31,6 +31,7 @@ public class ImhotepConnection implements Closeable {
      */
     void markAsInvalid() {
         try {
+            closed.getAndSet(true);
             sourcePool.invalidateObject(host, socket);
         } catch (final Exception e) {
             logger.warn("Errors happened when setting socket as invalid, socket is " + socket, e);
