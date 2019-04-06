@@ -45,8 +45,7 @@ public class StringOrRegroup extends VoidAbstractImhotepCommand {
 
 
     @Override
-    public Void apply(final ImhotepSession session) throws ImhotepOutOfMemoryException {
+    public void applyVoid(final ImhotepSession session) throws ImhotepOutOfMemoryException {
         session.stringOrRegroup(field, terms.toArray(new String[0]), targetGroup, negativeGroup, positiveGroup);
-        return null;
     }
 }

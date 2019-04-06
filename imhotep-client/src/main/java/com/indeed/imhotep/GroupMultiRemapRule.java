@@ -13,10 +13,12 @@
  */
  package com.indeed.imhotep;
 
+import lombok.EqualsAndHashCode;
 import org.apache.commons.lang.StringEscapeUtils;
 
 import java.util.Arrays;
 
+@EqualsAndHashCode
 public class GroupMultiRemapRule {
     public final int targetGroup;
     public final int negativeGroup;

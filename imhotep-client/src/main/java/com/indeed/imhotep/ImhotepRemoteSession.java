@@ -22,6 +22,7 @@ import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
 import com.indeed.flamdex.query.Query;
 import com.indeed.imhotep.Instrumentation.Keys;
+import com.indeed.imhotep.api.CommandSerializationParameters;
 import com.indeed.imhotep.api.FTGAIterator;
 import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.api.FTGSParams;
@@ -89,7 +90,7 @@ import java.util.stream.Collectors;
  */
 public class ImhotepRemoteSession
     extends AbstractImhotepSession
-    implements HasSessionId {
+    implements HasSessionId, CommandSerializationParameters {
     private static final Logger log = Logger.getLogger(ImhotepRemoteSession.class);
 
     public static final int DEFAULT_MERGE_THREAD_LIMIT =
@@ -1263,6 +1264,15 @@ public class ImhotepRemoteSession
         return host;
     }
 
+    public int getPort() {
+        return port;
+    }
+
+    @Override
+    public AtomicLong getTempFileSizeBytesLeft() {
+        return tempFileSizeBytesLeft;
+    }
+
     private static ImhotepRequest.Builder getBuilderForType(final ImhotepRequest.RequestType requestType) {
         return ImhotepRequest.newBuilder().setRequestType(requestType);
     }
@@ -1294,7 +1304,7 @@ public class ImhotepRemoteSession
         }
     }
 
-    private int sendMultisplitRegroupRequest(
+    public int sendMultisplitRegroupRequest(
             final GroupMultiRemapRuleSender rulesSender,
             final boolean errorOnCollisions) throws IOException, ImhotepOutOfMemoryException {
         final ImhotepRequest initialRequest = getBuilderForType(ImhotepRequest.RequestType.EXPLODED_MULTISPLIT_REGROUP)
@@ -1352,19 +1362,6 @@ public class ImhotepRemoteSession
         return checkMemoryException(request.getSessionId(), response);
     }
 
-    public static void sendRequestReadNoResponseNoFlush(
-            final ImhotepRequestSender request,
-            final OutputStream os ) throws IOException {
-            request.writeToStreamNoFlush(os);
-    }
-
-    public static void sendRequestReadNoResponseFlush(
-            final ImhotepRequestSender request,
-            final OutputStream os ) throws IOException {
-        request.writeToStreamNoFlush(os);
-        os.flush();
-    }
-
     private static ImhotepResponse sendRequest(
             final ImhotepRequestSender request,
             final InputStream is,
@@ -1374,7 +1371,8 @@ public class ImhotepRemoteSession
         final Tracer tracer = GlobalTracer.get();
         final String sessionId = request.getSessionId();
         try (final ActiveSpan activeSpan = tracer.buildSpan(request.getRequestType().name()).withTag("sessionid", sessionId).withTag("host", host + ":" + port).startActive()) {
-            sendRequestReadNoResponseFlush(request, os);
+            request.writeToStreamNoFlush(os);
+            os.flush();
             final ImhotepResponse response = ImhotepProtobufShipping.readResponse(is);
             if (response.getResponseCode() == ImhotepResponse.ResponseCode.KNOWN_ERROR) {
                 throw buildImhotepKnownExceptionFromResponse(response, host, port, sessionId);
@@ -1408,8 +1406,10 @@ public class ImhotepRemoteSession
             throw buildIOExceptionFromResponse(response, host, port, sessionId);
         } else if (response.getResponseCode() == ImhotepResponse.ResponseCode.OUT_OF_MEMORY) {
             throw newImhotepOutOfMemoryException(sessionId);
-        } else {
+        } else if (response.getResponseCode() == ImhotepResponse.ResponseCode.OK) {
             return response;
+        } else {
+            throw new IllegalStateException("Can't recognize ResponseCode of imhotepResponse " + response);
         }
     }
 
@@ -1527,14 +1527,15 @@ public class ImhotepRemoteSession
                     .build();
 
             final ImhotepRequestSender imhotepRequestSender = new RequestTools.ImhotepRequestSender.Simple(batchRequestHeader);
-            sendRequestReadNoResponseFlush(imhotepRequestSender, os);
+            imhotepRequestSender.writeToStreamNoFlush(os);
+            os.flush();
 
             for (final ImhotepCommand command : commands) {
                 command.writeToOutputStream(os);
             }
             os.flush();
 
-            return lastCommand.readResponse(is, new CommandSerializationUtil(host, port, tempFileSizeBytesLeft));
+            return lastCommand.readResponse(is, this);
         } catch (final SocketTimeoutException e) {
             throw newRuntimeException(buildExceptionAfterSocketTimeout(e, host, port, null));
         }

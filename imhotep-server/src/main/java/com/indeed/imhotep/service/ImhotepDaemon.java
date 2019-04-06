@@ -948,9 +948,9 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 final ImhotepResponse.Builder builder) throws IOException, ImhotepOutOfMemoryException {
 
             final int imhotepRequestCount = batchImhotepRequest.getImhotepRequestCount();
-            Pair<ImhotepResponse, GroupStatsIterator> imhotepResponseGroupStatsIteratorPair = Pair.of(null, null);
+            final Pair<ImhotepResponse, GroupStatsIterator> imhotepResponseGroupStatsIteratorPair;
 
-            final List<ImhotepCommand> commands = new ArrayList<ImhotepCommand>();
+            final List<ImhotepCommand> commands = new ArrayList<>();
             for (int i = 0; i < imhotepRequestCount; i++) {
                 commands.add(ImhotepCommand.readFromInputStream(is));
             }
@@ -961,9 +961,11 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             } else if (lastCommand.getResultClass() == Integer.class) {
                 final int numGroup = (Integer) service.handleBatchRequest(batchImhotepRequest.getSessionId(), commands, lastCommand);
                 imhotepResponseGroupStatsIteratorPair = Pair.of(builder.setNumGroups(numGroup).build(), null);
-            } else {
+            } else if (lastCommand.getResultClass() == Void.class) {
                 service.handleBatchRequest(batchImhotepRequest.getSessionId(), commands, lastCommand);
                 imhotepResponseGroupStatsIteratorPair = Pair.of(builder.build(), null);
+            } else {
+                throw new IllegalArgumentException("Class type of the last command of batch not recognizable." + lastCommand + " Supported Class types: GroupStatsIterator, Integer, Void");
             }
             return imhotepResponseGroupStatsIteratorPair;
         }
@@ -1126,9 +1128,10 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                     response = remapGroups(request, builder);
                     break;
                 case BATCH_REQUESTS:
-                    Pair<ImhotepResponse, GroupStatsIterator> responseGroupStatsIteratorPair = executeBatchRequest(request, is, builder);
+                    final Pair<ImhotepResponse, GroupStatsIterator> responseGroupStatsIteratorPair = executeBatchRequest(request, is, builder);
                     response = responseGroupStatsIteratorPair.getFirst();
                     groupStats = responseGroupStatsIteratorPair.getSecond();
+                    break;
                 case SHUTDOWN:
                     shutdown(request, is, os);
                     break;

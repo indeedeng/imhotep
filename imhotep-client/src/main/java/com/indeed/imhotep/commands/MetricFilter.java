@@ -18,40 +18,36 @@ import java.util.List;
 
 @EqualsAndHashCode
 @ToString
-public class MetricRegroup extends AbstractImhotepCommand<Integer> {
+public class MetricFilter extends AbstractImhotepCommand<Integer> {
 
-    private final List<String> stats;
+    private final List<String> stat;
     private final long min;
     private final long max;
-    private final long intervalSize;
-    private final boolean noGutters;
+    private final int targetGroup;
+    private final int negativeGroup;
+    private final int positiveGroup;
 
-    private MetricRegroup(final List<String> stats, final long min, final long max, final long intervalSize, final boolean noGutters, final String sessionId) {
+    public MetricFilter(final List<String> stat, final long min, final long max, final int targetGroup, final int negativeGroup, final int positiveGroup, final String sessionId) {
         super(sessionId, Integer.class);
-        this.stats = stats;
+        this.stat = stat;
         this.min = min;
         this.max = max;
-        this.intervalSize = intervalSize;
-        this.noGutters = noGutters;
-    }
-
-    public static MetricRegroup createMetricRegroup(final List<String> stat, final long min, final long max, final long intervalSize, final boolean noGutters, final String sessionId) {
-        return new MetricRegroup(stat, min, max, intervalSize, noGutters, sessionId);
-    }
-
-    public static MetricRegroup createMetricRegroup(final List<String> stat, final long min, final long max, final long intervalSize, final String sessionId) {
-        return new MetricRegroup(stat, min, max, intervalSize, false, sessionId);
+        this.targetGroup = targetGroup;
+        this.negativeGroup = negativeGroup;
+        this.positiveGroup = positiveGroup;
     }
 
     @Override
     protected ImhotepRequestSender imhotepRequestSenderInitializer() {
-        final ImhotepRequest request = ImhotepRequest.newBuilder().setRequestType(ImhotepRequest.RequestType.METRIC_REGROUP)
+        final ImhotepRequest request = ImhotepRequest.newBuilder()
+                .setRequestType(ImhotepRequest.RequestType.METRIC_FILTER)
                 .setSessionId(getSessionId())
-                .setXStatDocstat(DocStat.newBuilder().addAllStat(stats))
+                .setXStatDocstat(DocStat.newBuilder().addAllStat(stat))
                 .setXMin(min)
                 .setXMax(max)
-                .setXIntervalSize(intervalSize)
-                .setNoGutters(noGutters)
+                .setTargetGroup(targetGroup)
+                .setPositiveGroup(positiveGroup)
+                .setNegativeGroup(negativeGroup)
                 .build();
 
         return ImhotepRequestSender.Cached.create(request);
@@ -63,13 +59,13 @@ public class MetricRegroup extends AbstractImhotepCommand<Integer> {
     }
 
     @Override
-    public Integer apply(final ImhotepSession session) throws ImhotepOutOfMemoryException {
-        return session.metricRegroup(stats, min, max, intervalSize, noGutters);
-    }
-
-    @Override
     public Integer readResponse(final InputStream is, final CommandSerializationParameters serializationParameters) throws IOException, ImhotepOutOfMemoryException {
         final ImhotepResponse imhotepResponse = ImhotepRemoteSession.readResponseWithMemoryExceptionSessionId(is, serializationParameters.getHost(), serializationParameters.getPort(), getSessionId());
         return imhotepResponse.getNumGroups();
+    }
+
+    @Override
+    public Integer apply(final ImhotepSession session) throws ImhotepOutOfMemoryException {
+        return session.metricFilter(stat, min, max, targetGroup, negativeGroup, positiveGroup);
     }
 }

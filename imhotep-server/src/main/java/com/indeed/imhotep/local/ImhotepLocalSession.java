@@ -3278,6 +3278,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     }
 
     <T> T executeBatchRequest(final List<ImhotepCommand> commands, final ImhotepCommand<T> lastCommand) throws ImhotepOutOfMemoryException {
+        Preconditions.checkState((commands.size() > 0) && (commands.get(commands.size() - 1) == lastCommand));
         for (final ImhotepCommand command: commands.subList(0, commands.size() - 1)) {
             command.apply(this);
         }

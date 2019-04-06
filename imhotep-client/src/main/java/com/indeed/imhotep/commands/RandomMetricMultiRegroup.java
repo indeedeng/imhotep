@@ -49,8 +49,7 @@ public class RandomMetricMultiRegroup extends VoidAbstractImhotepCommand {
      }
 
     @Override
-    public Void apply(final ImhotepSession session) throws ImhotepOutOfMemoryException {
+    public void applyVoid(final ImhotepSession session) throws ImhotepOutOfMemoryException {
         session.randomMetricMultiRegroup(stat, salt, targetGroup, percentages, resultGroups);
-        return null;
     }
 }

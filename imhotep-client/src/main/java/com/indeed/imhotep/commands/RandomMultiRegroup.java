@@ -47,8 +47,7 @@ public class RandomMultiRegroup extends VoidAbstractImhotepCommand {
         return ImhotepRequestSender.Cached.create(request);
     }
     @Override
-    public Void apply(final ImhotepSession session) throws ImhotepOutOfMemoryException {
+    public void applyVoid(final ImhotepSession session) throws ImhotepOutOfMemoryException {
         session.randomMultiRegroup(field, isIntField, salt, targetGroup, percentages, resultGroups);
-        return null;
     }
 }

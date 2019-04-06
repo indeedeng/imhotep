@@ -1,8 +1,8 @@
 package com.indeed.imhotep.commands;
 
-import com.indeed.imhotep.CommandSerializationUtil;
 import com.indeed.imhotep.GroupStatsIteratorCombiner;
 import com.indeed.imhotep.ImhotepRemoteSession;
+import com.indeed.imhotep.api.CommandSerializationParameters;
 import com.indeed.imhotep.api.GroupStatsIterator;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
@@ -26,7 +26,7 @@ public class GetGroupStats extends AbstractImhotepCommand<GroupStatsIterator> {
     private final List<String> stats;
 
     public GetGroupStats(final List<String> stats, final String sessionId) {
-        super(sessionId);
+        super(sessionId, GroupStatsIterator.class);
         this.stats = stats;
     }
 
@@ -52,17 +52,13 @@ public class GetGroupStats extends AbstractImhotepCommand<GroupStatsIterator> {
     }
 
     @Override
-    public GroupStatsIterator readResponse(final InputStream is, final CommandSerializationUtil serializationUtil) throws IOException, ImhotepOutOfMemoryException {
-        final ImhotepResponse response = ImhotepRemoteSession.readResponseWithMemoryExceptionSessionId(is, serializationUtil.getHost(), serializationUtil.getPort(), getSessionId());
-        final BufferedInputStream tempFileStream = ImhotepRemoteSession.saveResponseToFileFromStream(is, "groupStatsIterator", serializationUtil.getTempFileSizeBytesLeft(), getSessionId());
+    public GroupStatsIterator readResponse(final InputStream is, final CommandSerializationParameters serializationParameters) throws IOException, ImhotepOutOfMemoryException {
+        final ImhotepResponse response = ImhotepRemoteSession.readResponseWithMemoryExceptionSessionId(is, serializationParameters.getHost(), serializationParameters.getPort(), getSessionId());
+        final BufferedInputStream tempFileStream = ImhotepRemoteSession.saveResponseToFileFromStream(is, "batchGroupStatsIterator", serializationParameters.getTempFileSizeBytesLeft(), getSessionId());
         final GroupStatsIterator groupStatsIterator = ImhotepProtobufShipping.readGroupStatsIterator(
                 tempFileStream, response.getGroupStatSize(), false
         );
         return groupStatsIterator;
     }
 
-    @Override
-    public Class<GroupStatsIterator> getResultClass() {
-        return GroupStatsIterator.class;
-    }
 }

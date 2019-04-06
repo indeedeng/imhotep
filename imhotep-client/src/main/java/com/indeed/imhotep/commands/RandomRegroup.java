@@ -50,8 +50,7 @@ public class RandomRegroup extends VoidAbstractImhotepCommand {
     }
 
     @Override
-    public Void apply(final ImhotepSession session) throws ImhotepOutOfMemoryException {
+    public void applyVoid(final ImhotepSession session) throws ImhotepOutOfMemoryException {
         session.randomRegroup(field, isIntField, salt, p, targetGroup, negativeGroup, positiveGroup);
-        return null;
     }
 }

@@ -1,9 +1,9 @@
 package com.indeed.imhotep.commands;
 
-import com.indeed.imhotep.CommandSerializationUtil;
 import com.indeed.imhotep.GroupRemapRule;
 import com.indeed.imhotep.GroupRemapRuleArray;
 import com.indeed.imhotep.ImhotepRemoteSession;
+import com.indeed.imhotep.api.CommandSerializationParameters;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.io.RequestTools.ImhotepRequestSender;
@@ -26,7 +26,7 @@ public class Regroup extends AbstractImhotepCommand<Integer> {
     private final GroupRemapRule[] rules;
 
     private Regroup(final GroupRemapRule[] rules, final String sessionId) {
-        super(sessionId);
+        super(sessionId, Integer.class);
         this.rules = rules;
     }
 
@@ -63,8 +63,8 @@ public class Regroup extends AbstractImhotepCommand<Integer> {
     }
 
     @Override
-    public Integer readResponse(final InputStream is, final CommandSerializationUtil serializationUtil) throws IOException, ImhotepOutOfMemoryException {
-        final ImhotepResponse imhotepResponse = ImhotepRemoteSession.readResponseWithMemoryExceptionSessionId(is, serializationUtil.getHost(), serializationUtil.getPort(), getSessionId());
+    public Integer readResponse(final InputStream is, final CommandSerializationParameters serializationParameters) throws IOException, ImhotepOutOfMemoryException {
+        final ImhotepResponse imhotepResponse = ImhotepRemoteSession.readResponseWithMemoryExceptionSessionId(is, serializationParameters.getHost(), serializationParameters.getPort(), getSessionId());
         return imhotepResponse.getNumGroups();
     }
 

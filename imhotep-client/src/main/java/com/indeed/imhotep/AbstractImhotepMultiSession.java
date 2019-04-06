@@ -25,7 +25,6 @@ import com.indeed.imhotep.exceptions.QueryCancelledException;
 import com.indeed.imhotep.scheduling.ImhotepTask;
 import com.indeed.imhotep.scheduling.SchedulerType;
 import com.indeed.imhotep.scheduling.TaskScheduler;
-import com.indeed.util.core.Throwables2;
 import com.indeed.util.core.threads.LogOnUncaughtExceptionHandler;
 import io.opentracing.ActiveSpan;
 import io.opentracing.Tracer;

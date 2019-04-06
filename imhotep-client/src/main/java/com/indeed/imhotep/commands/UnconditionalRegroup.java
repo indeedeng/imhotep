@@ -1,8 +1,8 @@
 package com.indeed.imhotep.commands;
 
 import com.google.common.primitives.Ints;
-import com.indeed.imhotep.CommandSerializationUtil;
 import com.indeed.imhotep.ImhotepRemoteSession;
+import com.indeed.imhotep.api.CommandSerializationParameters;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.io.RequestTools.ImhotepRequestSender;
@@ -18,14 +18,14 @@ import java.util.List;
 
 @EqualsAndHashCode
 @ToString
-public class RegroupUncondictional extends AbstractImhotepCommand<Integer> {
+public class UnconditionalRegroup extends AbstractImhotepCommand<Integer> {
 
     private final int[] fromGroups;
     private final int[] toGroups;
     private final boolean filterOutNotTargeted;
 
-    public RegroupUncondictional(final int[] fromGroups, final int[] toGroups, final boolean filterOutNotTargeted, final String sessionId) {
-        super(sessionId);
+    public UnconditionalRegroup(final int[] fromGroups, final int[] toGroups, final boolean filterOutNotTargeted, final String sessionId) {
+        super(sessionId, Integer.class);
         this.fromGroups = fromGroups;
         this.toGroups = toGroups;
         this.filterOutNotTargeted = filterOutNotTargeted;
@@ -56,8 +56,8 @@ public class RegroupUncondictional extends AbstractImhotepCommand<Integer> {
     }
 
     @Override
-    public Integer readResponse(final InputStream is, final CommandSerializationUtil serializationUtil) throws IOException, ImhotepOutOfMemoryException {
-        final ImhotepResponse imhotepResponse = ImhotepRemoteSession.readResponseWithMemoryExceptionSessionId(is, serializationUtil.getHost(), serializationUtil.getPort(), getSessionId());
+    public Integer readResponse(final InputStream is, final CommandSerializationParameters serializationParameters) throws IOException, ImhotepOutOfMemoryException {
+        final ImhotepResponse imhotepResponse = ImhotepRemoteSession.readResponseWithMemoryExceptionSessionId(is, serializationParameters.getHost(), serializationParameters.getPort(), getSessionId());
         return imhotepResponse.getNumGroups();
     }
 

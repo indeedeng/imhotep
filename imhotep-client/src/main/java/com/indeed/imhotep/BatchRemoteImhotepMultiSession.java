@@ -1,6 +1,7 @@
 package com.indeed.imhotep;
 
 
+import com.google.common.base.Throwables;
 import com.indeed.flamdex.query.Query;
 import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.api.FTGSParams;
@@ -11,16 +12,20 @@ import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.api.PerformanceStats;
 import com.indeed.imhotep.commands.GetGroupStats;
 import com.indeed.imhotep.commands.IntOrRegroup;
+import com.indeed.imhotep.commands.MetricFilter;
 import com.indeed.imhotep.commands.MultiRegroup;
 import com.indeed.imhotep.commands.MetricRegroup;
+import com.indeed.imhotep.commands.MultiRegroupIterator;
 import com.indeed.imhotep.commands.MultiRegroupMessagesSender;
+import com.indeed.imhotep.commands.NegateMetricFilter;
+import com.indeed.imhotep.commands.QueryRemapRuleRegroup;
 import com.indeed.imhotep.commands.RandomMetricMultiRegroup;
 import com.indeed.imhotep.commands.RandomMetricRegroup;
 import com.indeed.imhotep.commands.RandomMultiRegroup;
 import com.indeed.imhotep.commands.RandomRegroup;
 import com.indeed.imhotep.commands.RegexRegroup;
 import com.indeed.imhotep.commands.Regroup;
-import com.indeed.imhotep.commands.RegroupUncondictional;
+import com.indeed.imhotep.commands.UnconditionalRegroup;
 import com.indeed.imhotep.commands.StringOrRegroup;
 import com.indeed.imhotep.io.RequestTools;
 import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
@@ -29,6 +34,7 @@ import it.unimi.dsi.fastutil.longs.LongIterators;
 import org.apache.log4j.Logger;
 
 import javax.annotation.Nullable;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
@@ -40,37 +46,47 @@ import java.util.Map;
  * Only requests for Regroups and GetGroupStats are included because of cross daemon synchronization needed for FTGS requests.
  * Therefore the batch request will be of the form ((Regroup)*(GetGroupStats)*)
  */
-public class BatchRemoteImhotepSession implements ImhotepSession {
+public class BatchRemoteImhotepMultiSession implements ImhotepSession {
 
     final RemoteImhotepMultiSession remoteImhotepMultiSession;
 
-    private static final Logger log = Logger.getLogger(BatchRemoteImhotepSession.class);
+    private static final Logger log = Logger.getLogger(BatchRemoteImhotepMultiSession.class);
 
     private final List<ImhotepCommand> commands = new ArrayList<ImhotepCommand>();
 
-    private Object executeBatch() throws ImhotepOutOfMemoryException {
+    private <T> T executeBatchAndGetResult(final ImhotepCommand<T> lastCommand) throws ImhotepOutOfMemoryException {
+        try {
+            commands.add(lastCommand);
+            return remoteImhotepMultiSession.processImhotepBatchRequest(commands, lastCommand);
+        } finally {
+            commands.clear();
+        }
+    }
+
+    private Void executeBatch() throws ImhotepOutOfMemoryException {
         if (commands.isEmpty()) {
             return null;
         }
 
         try {
-            final ImhotepCommand lastCommand = commands.get(commands.size() - 1);
-            return remoteImhotepMultiSession.processImhotepBatchRequest(commands, lastCommand);
-        }
-        finally {
+            final ImhotepCommand<?> lastCommand = commands.get(commands.size() - 1);
+            remoteImhotepMultiSession.processImhotepBatchRequest(commands, lastCommand);
+            return null;
+        } finally {
             commands.clear();
         }
-}
+    }
 
-    public Object executeBatchNoMemoryException() {
+    public Void executeBatchNoMemoryException() {
         try {
-            return executeBatch();
+            executeBatch();
+            return null;
         } catch (final ImhotepOutOfMemoryException e) {
             throw new RuntimeException(e);
         }
     }
 
-    BatchRemoteImhotepSession(final RemoteImhotepMultiSession remoteImhotepMultiSession) {
+    BatchRemoteImhotepMultiSession(final RemoteImhotepMultiSession remoteImhotepMultiSession) {
         this.remoteImhotepMultiSession = remoteImhotepMultiSession;
     }
 
@@ -81,21 +97,21 @@ public class BatchRemoteImhotepSession implements ImhotepSession {
 
     @Override
     public long getTotalDocFreq(final String[] intFields, final String[] stringFields) {
-        executeBatchNoMemoryException();
         return remoteImhotepMultiSession.getTotalDocFreq(intFields, stringFields);
     }
 
     @Override
     public long[] getGroupStats(final List<String> stat) throws ImhotepOutOfMemoryException {
-        commands.add(new GetGroupStats(stat, remoteImhotepMultiSession.getSessionId()));
-        final GroupStatsIterator groupStatsIterator = (GroupStatsIterator) executeBatch();
-        return LongIterators.unwrap(groupStatsIterator, groupStatsIterator.getNumGroups());
+        try ( final GroupStatsIterator groupStatsIterator = executeBatchAndGetResult(new GetGroupStats(stat, remoteImhotepMultiSession.getSessionId()))) {
+            return LongIterators.unwrap(groupStatsIterator, groupStatsIterator.getNumGroups());
+        } catch (IOException e) {
+            throw Throwables.propagate(e);
+        }
     }
 
     @Override
     public GroupStatsIterator getGroupStatsIterator(final List<String> stat) throws ImhotepOutOfMemoryException {
-        commands.add(new GetGroupStats(stat, remoteImhotepMultiSession.getSessionId()));
-        return (GroupStatsIterator) executeBatch();
+        return executeBatchAndGetResult(new GetGroupStats(stat, remoteImhotepMultiSession.getSessionId()));
     }
 
     @Override
@@ -142,7 +158,7 @@ public class BatchRemoteImhotepSession implements ImhotepSession {
 
     @Override
     public int regroup(final int numRawRules, final Iterator<GroupMultiRemapRule> rawRules) throws ImhotepOutOfMemoryException {
-        commands.add(MultiRegroup.createMultiRegroupCommand(numRawRules, rawRules, false, remoteImhotepMultiSession.getSessionId()));
+        commands.add(new MultiRegroupIterator(numRawRules, rawRules, false, remoteImhotepMultiSession.getSessionId()));
         return -999;
     }
 
@@ -158,9 +174,14 @@ public class BatchRemoteImhotepSession implements ImhotepSession {
         return -999;
     }
 
+    public int regroupWithRuleSender(final RequestTools.GroupMultiRemapRuleSender ruleSender, final boolean errorOnCollisions) throws ImhotepOutOfMemoryException {
+        commands.add(MultiRegroupMessagesSender.createMultiRegroupMessagesSender(ruleSender, errorOnCollisions, remoteImhotepMultiSession.getSessionId()));
+        return -999;
+    }
+
     @Override
     public int regroup(final int numRawRules, final Iterator<GroupMultiRemapRule> rawRules, final boolean errorOnCollisions) throws ImhotepOutOfMemoryException {
-        commands.add(MultiRegroup.createMultiRegroupCommand(numRawRules, rawRules, errorOnCollisions, remoteImhotepMultiSession.getSessionId()));
+        commands.add(new MultiRegroupIterator(numRawRules, rawRules, errorOnCollisions, remoteImhotepMultiSession.getSessionId()));
         return -999;
     }
 
@@ -178,8 +199,8 @@ public class BatchRemoteImhotepSession implements ImhotepSession {
 
     @Override
     public int regroup(final QueryRemapRule rule) throws ImhotepOutOfMemoryException {
-        executeBatch();
-        return remoteImhotepMultiSession.regroup(rule);
+        commands.add(new QueryRemapRuleRegroup(rule, remoteImhotepMultiSession.getSessionId()));
+        return -999;
     }
 
     @Override
@@ -231,20 +252,20 @@ public class BatchRemoteImhotepSession implements ImhotepSession {
 
     @Override
     public int regroup(final int[] fromGroups, final int[] toGroups, final boolean filterOutNotTargeted) throws ImhotepOutOfMemoryException {
-        commands.add(new RegroupUncondictional(fromGroups, toGroups, filterOutNotTargeted, remoteImhotepMultiSession.getSessionId()));
+        commands.add(new UnconditionalRegroup(fromGroups, toGroups, filterOutNotTargeted, remoteImhotepMultiSession.getSessionId()));
         return -999;
     }
 
     @Override
     public int metricFilter(final List<String> stat, final long min, final long max, final boolean negate) throws ImhotepOutOfMemoryException {
-        executeBatch();
-        return remoteImhotepMultiSession.metricFilter(stat, min, max, negate);
+        commands.add(new NegateMetricFilter(stat, min, max, negate, remoteImhotepMultiSession.getSessionId()));
+        return -999;
     }
 
     @Override
     public int metricFilter(final List<String> stat, final long min, final long max, final int targetGroup, final int negativeGroup, final int positiveGroup) throws ImhotepOutOfMemoryException {
-        executeBatch();
-        return remoteImhotepMultiSession.metricFilter(stat, min, max, targetGroup, negativeGroup, positiveGroup);
+        commands.add(new MetricFilter(stat, min, max, targetGroup, negativeGroup, positiveGroup, remoteImhotepMultiSession.getSessionId()));
+        return -999;
     }
 
     @Override
@@ -273,7 +294,6 @@ public class BatchRemoteImhotepSession implements ImhotepSession {
 
     @Override
     public int getNumStats() {
-        executeBatchNoMemoryException();
         return remoteImhotepMultiSession.getNumStats();
     }
 
@@ -336,7 +356,6 @@ public class BatchRemoteImhotepSession implements ImhotepSession {
 
     @Override
     public long getNumDocs() {
-        executeBatchNoMemoryException();
         return remoteImhotepMultiSession.getNumDocs();
     }
 
@@ -362,10 +381,5 @@ public class BatchRemoteImhotepSession implements ImhotepSession {
 
     public long getTempFilesBytesWritten() {
         return remoteImhotepMultiSession.getTempFilesBytesWritten();
-    }
-
-    public int regroupWithRuleSender(final RequestTools.GroupMultiRemapRuleSender ruleSender, final boolean errorOnCollisions) throws ImhotepOutOfMemoryException {
-        commands.add(MultiRegroupMessagesSender.createMultiRegroupMessagesSender(ruleSender, errorOnCollisions, remoteImhotepMultiSession.getSessionId()));
-        return -999;
     }
 }

@@ -314,8 +314,8 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
         return new AsynchronousRemoteImhotepMultiSession(asyncSessions, this);
     }
 
-    public BatchRemoteImhotepSession toBatch(){
-        return new BatchRemoteImhotepSession(this);
+    public BatchRemoteImhotepMultiSession toBatch(){
+        return new BatchRemoteImhotepMultiSession(this);
     }
 
     public static class SessionField {
@@ -339,13 +339,12 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
             } else if (session instanceof RemoteImhotepMultiSession) {
                 this.session = (RemoteImhotepMultiSession) session;
                 this.synchronizeCallback = () -> {};
-            } else if (session instanceof  BatchRemoteImhotepSession) {
-                final BatchRemoteImhotepSession batchRemoteImhotepSession = (BatchRemoteImhotepSession) session;
-                this.session = batchRemoteImhotepSession.remoteImhotepMultiSession;
-                this.synchronizeCallback = batchRemoteImhotepSession::executeBatchNoMemoryException;
-            }
-            else {
-                throw new IllegalArgumentException("Can only use RemoteImhotepMultiSession::multiFtgs on RemoteImhotepMultiSession/AsynchronousRemoteImhotepMultiSession/BatchRemoteImhotepSession instances.");
+            } else if (session instanceof BatchRemoteImhotepMultiSession) {
+                final BatchRemoteImhotepMultiSession batchRemoteImhotepMultiSession = (BatchRemoteImhotepMultiSession) session;
+                this.session = batchRemoteImhotepMultiSession.remoteImhotepMultiSession;
+                this.synchronizeCallback = batchRemoteImhotepMultiSession::executeBatchNoMemoryException;
+            } else {
+                throw new IllegalArgumentException("Can only use RemoteImhotepMultiSession::multiFtgs on RemoteImhotepMultiSession/AsynchronousRemoteImhotepMultiSession/BatchRemoteImhotepMultiSession instances.");
             }
             this.field = field;
             this.stats = stats;

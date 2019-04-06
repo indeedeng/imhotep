@@ -11,9 +11,11 @@ public abstract class AbstractImhotepCommand<T> implements ImhotepCommand<T> {
 
     @Getter final String sessionId;
     @Getter(lazy = true) private final ImhotepRequestSender imhotepRequestSender = imhotepRequestSenderInitializer();
+    @Getter final Class<T> resultClass;
 
-    AbstractImhotepCommand(final String sessionId) {
+    AbstractImhotepCommand(final String sessionId, final Class<T> resultClass) {
         this.sessionId = sessionId;
+        this.resultClass = resultClass;
     }
 
     protected abstract ImhotepRequestSender imhotepRequestSenderInitializer();
@@ -21,5 +23,15 @@ public abstract class AbstractImhotepCommand<T> implements ImhotepCommand<T> {
     @Override
     public void writeToOutputStream(final OutputStream os) throws IOException {
         getImhotepRequestSender().writeToStreamNoFlush(os);
+    }
+
+    @Override
+    public String getSessionId() {
+        return sessionId;
+    }
+
+    @Override
+    public Class<T> getResultClass() {
+        return resultClass;
     }
 }

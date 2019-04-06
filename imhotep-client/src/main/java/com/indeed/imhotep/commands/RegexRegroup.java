@@ -43,8 +43,7 @@ public class RegexRegroup extends VoidAbstractImhotepCommand {
     }
 
     @Override
-    public Void apply(final ImhotepSession session) throws ImhotepOutOfMemoryException {
+    public void applyVoid(final ImhotepSession session) throws ImhotepOutOfMemoryException {
         session.regexRegroup(field, regex, targetGroup, negativeGroup, positiveGroup);
-        return null;
     }
 }

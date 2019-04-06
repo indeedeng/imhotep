@@ -1,7 +1,7 @@
 package com.indeed.imhotep.commands;
 
-import com.indeed.imhotep.CommandSerializationUtil;
 import com.indeed.imhotep.ImhotepRemoteSession;
+import com.indeed.imhotep.api.CommandSerializationParameters;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.io.RequestTools.ImhotepRequestSender;
@@ -17,13 +17,16 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
+/**
+ *
+ */
 public class MultiRegroupMessagesSender extends AbstractImhotepCommand<Integer> {
 
     private final GroupMultiRemapRuleSender groupMultiRemapRuleSender;
     private final boolean errorOnCollision;
 
     private MultiRegroupMessagesSender(final GroupMultiRemapRuleSender groupMultiRemapRuleSender, final boolean errorOnCollision, final String sessionId) {
-        super(sessionId);
+        super(sessionId, Integer.class);
         this.groupMultiRemapRuleSender = groupMultiRemapRuleSender;
         this.errorOnCollision = errorOnCollision;
     }
@@ -56,24 +59,19 @@ public class MultiRegroupMessagesSender extends AbstractImhotepCommand<Integer> 
 
     @Override
     public void writeToOutputStream(final OutputStream os) throws IOException {
-        ImhotepRemoteSession.sendRequestReadNoResponseNoFlush(getImhotepRequestSender(), os);
+        getImhotepRequestSender().writeToStreamNoFlush(os);
         groupMultiRemapRuleSender.writeToStreamNoFlush(os);
         os.flush();
     }
 
     @Override
     public Integer apply(final ImhotepSession imhotepSession) throws ImhotepOutOfMemoryException {
-        throw new IllegalStateException("This command is only for client side and shouldn't be deserialized on the server side.");
+        throw new UnsupportedOperationException("This command is only for client side and shouldn't be deserialized on the server side.");
     }
 
     @Override
-    public Integer readResponse(final InputStream is, final CommandSerializationUtil serializationUtil) throws IOException, ImhotepOutOfMemoryException {
-        final ImhotepResponse imhotepResponse = ImhotepRemoteSession.readResponseWithMemoryExceptionSessionId(is, serializationUtil.getHost(), serializationUtil.getPort(), getSessionId());
+    public Integer readResponse(final InputStream is, final CommandSerializationParameters serializationParameters) throws IOException, ImhotepOutOfMemoryException {
+        final ImhotepResponse imhotepResponse = ImhotepRemoteSession.readResponseWithMemoryExceptionSessionId(is, serializationParameters.getHost(), serializationParameters.getPort(), getSessionId());
         return imhotepResponse.getNumGroups();
-    }
-
-    @Override
-    public Class<Integer> getResultClass() {
-        return Integer.class;
     }
 }

@@ -43,8 +43,7 @@ public class IntOrRegroup extends VoidAbstractImhotepCommand {
     }
 
     @Override
-    public Void apply(final ImhotepSession session) throws ImhotepOutOfMemoryException {
+    public void applyVoid(final ImhotepSession session) throws ImhotepOutOfMemoryException {
         session.intOrRegroup(field, terms, targetGroup, negativeGroup, positiveGroup);
-        return null;
     }
 }
