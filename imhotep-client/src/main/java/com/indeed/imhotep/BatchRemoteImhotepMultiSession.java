@@ -1,6 +1,7 @@
 package com.indeed.imhotep;
 
 
+import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.indeed.flamdex.query.Query;
 import com.indeed.imhotep.api.FTGSIterator;
@@ -270,7 +271,6 @@ public class BatchRemoteImhotepMultiSession implements ImhotepSession {
 
     @Override
     public List<TermCount> approximateTopTerms(final String field, final boolean isIntField, final int k) {
-        executeBatchNoMemoryException();
         return remoteImhotepMultiSession.approximateTopTerms(field, isIntField, k);
     }
 
@@ -336,7 +336,7 @@ public class BatchRemoteImhotepMultiSession implements ImhotepSession {
     @Override
     public void close() {
         if (!commands.isEmpty()) {
-            log.warn("Requested to close a session without using the regroup calls");
+            log.warn("Requested to close a session with id: " + getSessionId() + " without using the regroup calls: " + commands);
         }
         commands.clear();
         remoteImhotepMultiSession.close();
@@ -366,6 +366,9 @@ public class BatchRemoteImhotepMultiSession implements ImhotepSession {
 
     @Override
     public PerformanceStats closeAndGetPerformanceStats() {
+        if (!commands.isEmpty()) {
+            log.warn("Requested to close a session with id: " + getSessionId() + " without using the regroup calls: " + commands);
+        }
         return remoteImhotepMultiSession.closeAndGetPerformanceStats();
     }
 

@@ -1,6 +1,7 @@
 package com.indeed.imhotep.api;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Ints;
@@ -65,9 +66,7 @@ public interface ImhotepCommand<T> extends HasSessionId {
                 .map(docStat -> Lists.newArrayList(docStat.getStatList()))
                 .collect(Collectors.toList());
 
-        Preconditions.checkNotNull(requestStats);
-        Preconditions.checkArgument(requestStats.size() == 1);
-        return requestStats.get(0);
+        return Iterables.getOnlyElement(requestStats);
     }
 
     static ImhotepCommand readFromInputStream(final InputStream is) throws IOException {
