@@ -20,7 +20,6 @@ import com.indeed.imhotep.ShardInfo;
 import com.indeed.imhotep.protobuf.DatasetShardsMessage;
 import com.indeed.imhotep.protobuf.ShardMasterRequest;
 import com.indeed.imhotep.protobuf.ShardMasterResponse;
-import com.indeed.imhotep.protobuf.ShardMessage;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -42,7 +41,7 @@ class ShardMasterRequestHandler implements RequestHandler {
     }
 
     @Override
-    public Iterable<ShardMasterResponse> handleRequest(final ShardMasterRequest request) throws IllegalArgumentException {
+    public Iterable<ShardMasterResponse> handleRequest(final ShardMasterRequest request) {
         switch (request.getRequestType()) {
             case GET_DATASET_METADATA:
                 return handleDatasetMetadata();
@@ -53,7 +52,7 @@ class ShardMasterRequestHandler implements RequestHandler {
             case REFRESH_FIELDS_FOR_DATASET:
                 return handleRefreshFieldsForDataet(request);
         }
-        throw new IllegalArgumentException("request " + request +" does not have a valid type");
+        throw new IllegalArgumentException("request " + request + " does not have a valid type");
     }
 
     private Iterable<ShardMasterResponse> handleRefreshFieldsForDataet(final ShardMasterRequest request) {
@@ -69,10 +68,10 @@ class ShardMasterRequestHandler implements RequestHandler {
         try {
             final Map<String, Collection<ShardInfo>> shardList = shardMaster.getShardList();
             final ShardMasterResponse.Builder response = ShardMasterResponse.newBuilder();
-            for(final String dataset: shardList.keySet()) {
+            for (final String dataset : shardList.keySet()) {
                 final DatasetShardsMessage.Builder message = DatasetShardsMessage.newBuilder().setDataset(dataset);
 
-                for(final ShardInfo shard: shardList.get(dataset)) {
+                for (final ShardInfo shard : shardList.get(dataset)) {
                     message.addShards(shard.toProto());
                 }
 
@@ -93,7 +92,7 @@ class ShardMasterRequestHandler implements RequestHandler {
             }
             return Collections.singletonList(builder.setResponseCode(ShardMasterResponse.ResponseCode.OK).build());
         } catch (final IOException e) {
-            throw new IllegalStateException("Failed to get shards in time "+request.getStartTime()+"-"+request.getEndTime()+" for dataset "+request.getDataset(), e);
+            throw new IllegalStateException("Failed to get shards in time " + request.getStartTime() + "-" + request.getEndTime() + " for dataset " + request.getDataset(), e);
         }
     }
 

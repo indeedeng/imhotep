@@ -38,9 +38,10 @@ import java.util.Set;
  * It results in non-perfect distribution for queries unless either:
  * 1) replication factor is at least 2 which lets the client to balance by picking less loaded servers
  * 2) #shards in query is many times higher than #servers
- *
+ * <p>
  * The advantage of this assigner is that it allows only minimal number of shards to move during rebalancing
  * when expanding the cluster.
+ *
  * @author kenh
  */
 @ThreadSafe
@@ -50,7 +51,7 @@ class MinHashShardAssigner implements ShardAssigner {
     private static final ThreadLocal<HashFunction> HASH_FUNCTION = new ThreadLocal<HashFunction>() {
         @Override
         protected HashFunction initialValue() {
-            return Hashing.murmur3_32((int)1515546902721L);
+            return Hashing.murmur3_32((int) 1515546902721L);
         }
     };
 
@@ -73,6 +74,10 @@ class MinHashShardAssigner implements ShardAssigner {
     }
 
     public static Iterable<Shard> assign(final List<Host> hosts, final String dataset, final Iterable<ShardInfo> shards, final int replicationFactorUsed) {
+        if (hosts.isEmpty()) {
+            throw new IllegalStateException("No hosts to assign");
+        }
+
         int maxPerHostname = 0;
         for (final Collection<Host> ofSameHostName : FluentIterable.from(hosts).filter(Objects::nonNull).index(Host.GET_HOSTNAME).asMap().values()) {
             maxPerHostname = Math.max(maxPerHostname, ofSameHostName.size());
@@ -87,7 +92,7 @@ class MinHashShardAssigner implements ShardAssigner {
                         Ordering.from(comparator).reverse());
 
                 for (final Host host : hosts) {
-                    if(host == null) {
+                    if (host == null) {
                         continue;   // this host is disabled
                     }
                     final long hash = getMinHash(dataset, shard, host);

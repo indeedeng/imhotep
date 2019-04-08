@@ -44,21 +44,21 @@ public class MultiplexingRequestHandler implements RequestHandler {
     public Iterable<ShardMasterResponse> handleRequest(final ShardMasterRequest request) {
         final Stopwatch stopwatch = Stopwatch.createStarted();
         try {
-                try {
-                    final Iterable<ShardMasterResponse> result = requestHandler.handleRequest(request);
-                    final long elapsed = stopwatch.elapsed(TimeUnit.MILLISECONDS);
-                    statsEmitter.processed(METRIC_PROCESSED, request.getRequestType(), elapsed);
-                    LOGGER.debug("Finished handling request " + request.getRequestType() + " from " + request.getNode().getHost() + " in " + elapsed +" ms");
-                    return result;
-                } catch (final IllegalArgumentException e) {
-                    final Iterable<ShardMasterResponse> result = Collections.singletonList(ShardMasterResponse.newBuilder()
-                            .setResponseCode(ShardMasterResponse.ResponseCode.ERROR)
-                            .setErrorMessage("Unhandled request type " + request.getRequestType())
-                            .build());
-                    statsEmitter.processed(METRIC_ERROR, request.getRequestType(), stopwatch.elapsed(TimeUnit.MILLISECONDS));
-                    LOGGER.warn("Not handling unknown request " + request.getRequestType() + " from " + request.getNode().getHost(), e);
-                    return result;
-                }
+            try {
+                final Iterable<ShardMasterResponse> result = requestHandler.handleRequest(request);
+                final long elapsed = stopwatch.elapsed(TimeUnit.MILLISECONDS);
+                statsEmitter.processed(METRIC_PROCESSED, request.getRequestType(), elapsed);
+                LOGGER.debug("Finished handling request " + request.getRequestType() + " from " + request.getNode().getHost() + " in " + elapsed + " ms");
+                return result;
+            } catch (final RuntimeException e) {
+                final Iterable<ShardMasterResponse> result = Collections.singletonList(ShardMasterResponse.newBuilder()
+                        .setResponseCode(ShardMasterResponse.ResponseCode.ERROR)
+                        .setErrorMessage(e.getMessage())
+                        .build());
+                statsEmitter.processed(METRIC_ERROR, request.getRequestType(), stopwatch.elapsed(TimeUnit.MILLISECONDS));
+                LOGGER.warn("Failed to handle a request from host " + request.getNode().getHost(), e);
+                return result;
+            }
         } catch (final Throwable e) {
             final long elapsed = stopwatch.elapsed(TimeUnit.MILLISECONDS);
             statsEmitter.processed(METRIC_ERROR, request.getRequestType(), elapsed);
