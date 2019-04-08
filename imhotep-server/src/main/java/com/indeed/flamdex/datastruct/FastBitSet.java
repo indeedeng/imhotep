@@ -194,7 +194,6 @@ public final class FastBitSet {
             return false;
         }
         final long mask = ~(-1L << (size & 0x3F));
-        final long mask2 = (1L << (size & 0x3F)) - 1;
         if ((bits[bits.length - 1] & mask) != (that.bits[that.bits.length - 1] & mask)) {
             return false;
         }
