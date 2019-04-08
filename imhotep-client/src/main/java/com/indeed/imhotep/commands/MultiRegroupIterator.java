@@ -22,7 +22,7 @@ public class MultiRegroupIterator extends AbstractImhotepCommand<Integer> {
 
     private final int numRawRules;
     private final Iterator<GroupMultiRemapRule> rules;
-    @Getter(lazy = true) private final GroupMultiRemapRuleSender groupMultiRemapRuleSender =  GroupMultiRemapRuleSender.createFromRules(rules, true);
+    @Getter(lazy = true) private final GroupMultiRemapRuleSender groupMultiRemapRuleSender =  groupMultiRemapRuleSenderInitializer();
     private final boolean errorOnCollision;
 
     public MultiRegroupIterator(final int numRawRules, final Iterator<GroupMultiRemapRule> rules, final boolean errorOnCollision, final String sessionId) {
@@ -30,6 +30,10 @@ public class MultiRegroupIterator extends AbstractImhotepCommand<Integer> {
         this.numRawRules = numRawRules;
         this.rules = rules;
         this.errorOnCollision = errorOnCollision;
+    }
+
+    public GroupMultiRemapRuleSender groupMultiRemapRuleSenderInitializer() {
+        return GroupMultiRemapRuleSender.createFromRules(rules, true);
     }
 
     @Override

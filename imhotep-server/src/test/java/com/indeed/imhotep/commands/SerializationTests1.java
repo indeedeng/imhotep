@@ -14,7 +14,6 @@ import org.junit.Test;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 
 public class SerializationTests1 {
@@ -63,11 +62,11 @@ public class SerializationTests1 {
     @Test
     public void testMultiRegroup() throws IOException {
         final GroupMultiRemapRule[] rawRules = new GroupMultiRemapRule[] {
-                new GroupMultiRemapRule(1, 10, new int[]{10}, new RegroupCondition[]{new RegroupCondition("field", false, 2, "string", false)})
+                new GroupMultiRemapRule(1, 10, new int[]{10}, new RegroupCondition[]{new RegroupCondition("field", false, 0, "strTerm", false)})
         };
         final MultiRegroup multiRegroup = MultiRegroup.createMultiRegroupCommand(rawRules, true , SESSION_ID);
-        final MultiRegroup deserializedMultiRegroup = (MultiRegroup) getDeserialized(multiRegroup);
-        Assert.assertEquals(multiRegroup, deserializedMultiRegroup);
+        final MultiRegroup deserialized = ((MultiRegroup) getDeserialized(multiRegroup));
+        Assert.assertEquals(multiRegroup, deserialized);
     }
 
     @Test

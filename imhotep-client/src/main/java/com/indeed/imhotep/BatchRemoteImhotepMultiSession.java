@@ -47,7 +47,7 @@ import java.util.Map;
  * Only requests for Regroups and GetGroupStats are included because of cross daemon synchronization needed for FTGS requests.
  * Therefore the batch request will be of the form ((Regroup)*(GetGroupStats)*)
  */
-public class BatchRemoteImhotepMultiSession implements ImhotepSession {
+public class BatchRemoteImhotepMultiSession extends AbstractImhotepSession {
 
     final RemoteImhotepMultiSession remoteImhotepMultiSession;
 
@@ -83,17 +83,14 @@ public class BatchRemoteImhotepMultiSession implements ImhotepSession {
             executeBatch();
             return null;
         } catch (final ImhotepOutOfMemoryException e) {
+            log.error("ImhotepOutOfMemoryException while executing Imhotep Batch commands. SessionId: " + getSessionId() + " commands List: " + commands);
             throw new RuntimeException(e);
         }
     }
 
     BatchRemoteImhotepMultiSession(final RemoteImhotepMultiSession remoteImhotepMultiSession) {
+        super(remoteImhotepMultiSession.getSessionId());
         this.remoteImhotepMultiSession = remoteImhotepMultiSession;
-    }
-
-    @Override
-    public String getSessionId() {
-        return remoteImhotepMultiSession.getSessionId();
     }
 
     @Override
@@ -116,24 +113,6 @@ public class BatchRemoteImhotepMultiSession implements ImhotepSession {
     }
 
     @Override
-    public FTGSIterator getFTGSIterator(final String[] intFields, final String[] stringFields, @Nullable final List<List<String>> stats) throws ImhotepOutOfMemoryException {
-        executeBatch();
-        return remoteImhotepMultiSession.getFTGSIterator(intFields, stringFields, stats);
-    }
-
-    @Override
-    public FTGSIterator getFTGSIterator(final String[] intFields, final String[] stringFields, final long termLimit, @Nullable final List<List<String>> stats) throws ImhotepOutOfMemoryException {
-        executeBatch();
-        return remoteImhotepMultiSession.getFTGSIterator(intFields, stringFields, termLimit, stats);
-    }
-
-    @Override
-    public FTGSIterator getFTGSIterator(final String[] intFields, final String[] stringFields, final long termLimit, final int sortStat, @Nullable final List<List<String>> stats, final StatsSortOrder statsSortOrder) throws ImhotepOutOfMemoryException {
-        executeBatch();
-        return remoteImhotepMultiSession.getFTGSIterator(intFields, stringFields, termLimit, sortStat, stats, statsSortOrder);
-    }
-
-    @Override
     public FTGSIterator getSubsetFTGSIterator(final Map<String, long[]> intFields, final Map<String, String[]> stringFields, @Nullable final List<List<String>> stats) throws ImhotepOutOfMemoryException {
         executeBatch();
         return remoteImhotepMultiSession.getSubsetFTGSIterator(intFields, stringFields, stats);
@@ -149,18 +128,6 @@ public class BatchRemoteImhotepMultiSession implements ImhotepSession {
     public GroupStatsIterator getDistinct(final String field, final boolean isIntField) {
         executeBatchNoMemoryException();
         return remoteImhotepMultiSession.getDistinct(field, isIntField);
-    }
-
-    @Override
-    public int regroup(final GroupMultiRemapRule[] rawRules) throws ImhotepOutOfMemoryException {
-        commands.add(MultiRegroup.createMultiRegroupCommand(rawRules, false, remoteImhotepMultiSession.getSessionId()));
-        return -999;
-    }
-
-    @Override
-    public int regroup(final int numRawRules, final Iterator<GroupMultiRemapRule> rawRules) throws ImhotepOutOfMemoryException {
-        commands.add(new MultiRegroupIterator(numRawRules, rawRules, false, remoteImhotepMultiSession.getSessionId()));
-        return -999;
     }
 
     @Override
@@ -237,12 +204,6 @@ public class BatchRemoteImhotepMultiSession implements ImhotepSession {
     @Override
     public void randomMetricMultiRegroup(final List<String> stat, final String salt, final int targetGroup, final double[] percentages, final int[] resultGroups) throws ImhotepOutOfMemoryException {
         commands.add(new RandomMetricMultiRegroup(stat, salt, targetGroup, percentages, resultGroups, remoteImhotepMultiSession.getSessionId()));
-    }
-
-    @Override
-    public int metricRegroup(final List<String> stat, final long min, final long max, final long intervalSize) throws ImhotepOutOfMemoryException {
-        commands.add(MetricRegroup.createMetricRegroup(stat, min, max, intervalSize, remoteImhotepMultiSession.getSessionId()));
-        return -999;
     }
 
     @Override
@@ -383,6 +344,7 @@ public class BatchRemoteImhotepMultiSession implements ImhotepSession {
     }
 
     public long getTempFilesBytesWritten() {
+        executeBatchNoMemoryException();
         return remoteImhotepMultiSession.getTempFilesBytesWritten();
     }
 }

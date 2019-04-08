@@ -212,9 +212,11 @@ public class TestImhotepCommands {
                 new GroupMultiRemapRule(1, 1, new int[]{2, 3}, new RegroupCondition[]{
                         new RegroupCondition("metric", true, 3, null, false), new RegroupCondition("if2", true, 50, null, false)}),
         };
-        final Iterator<GroupMultiRemapRule> groupMultiRemapRuleIterator = Arrays.asList(rules).iterator();
-        imhotepMultiSession.regroup(1, groupMultiRemapRuleIterator, true);
-        batchRemoteImhotepMultiSession.regroup(1, groupMultiRemapRuleIterator, true);
+        Iterator<GroupMultiRemapRule> groupMultiRemapRuleIterator = Arrays.asList(rules).iterator();
+        imhotepMultiSession.regroup(1, groupMultiRemapRuleIterator, false);
+
+        groupMultiRemapRuleIterator = Arrays.asList(rules).iterator();
+        batchRemoteImhotepMultiSession.regroup(1, groupMultiRemapRuleIterator, false);
         assertEqualGroupStatsInternal();
     }
 

@@ -78,7 +78,7 @@ public class TestImhotepClient {
         daemon2 = new ImhotepDaemonRunner(tempDir2, tempOptDir2, getFreePort());
     }
 
-    public static int getFreePort() throws IOException {
+    private static int getFreePort() throws IOException {
         try (final ServerSocket ss = new ServerSocket(0)) {
             return ss.getLocalPort();
         }

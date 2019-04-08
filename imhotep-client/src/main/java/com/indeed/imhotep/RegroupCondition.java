@@ -13,9 +13,6 @@
  */
  package com.indeed.imhotep;
 
-import lombok.EqualsAndHashCode;
-
-@EqualsAndHashCode
 public class RegroupCondition {
     public final String field;
     public final boolean intType;

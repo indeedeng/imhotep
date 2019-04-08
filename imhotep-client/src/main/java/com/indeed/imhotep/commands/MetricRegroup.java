@@ -39,10 +39,6 @@ public class MetricRegroup extends AbstractImhotepCommand<Integer> {
         return new MetricRegroup(stat, min, max, intervalSize, noGutters, sessionId);
     }
 
-    public static MetricRegroup createMetricRegroup(final List<String> stat, final long min, final long max, final long intervalSize, final String sessionId) {
-        return new MetricRegroup(stat, min, max, intervalSize, false, sessionId);
-    }
-
     @Override
     protected ImhotepRequestSender imhotepRequestSenderInitializer() {
         final ImhotepRequest request = ImhotepRequest.newBuilder().setRequestType(ImhotepRequest.RequestType.METRIC_REGROUP)
