@@ -149,4 +149,21 @@ public class TestFastBitSet {
         bitSet.clearRange(0, 10);
         assertTrue(bitSet.isEmpty());
     }
+
+    @Test
+    public void testEqual() {
+        final FastBitSet a = new FastBitSet(10);
+        final FastBitSet b = new FastBitSet(10);
+        assertEquals(a, b);
+        assertEquals(b, a);
+        a.set(5);
+        b.set(5);
+        assertEquals(a, b);
+        assertEquals(b, a);
+        a.invertAll();
+        b.setRange(0, 10);
+        b.clear(5);
+        assertEquals(a, b);
+        assertEquals(b, a);
+    }
 }
