@@ -92,7 +92,7 @@ class ShardMasterRequestHandler implements RequestHandler {
             }
             return Collections.singletonList(builder.setResponseCode(ShardMasterResponse.ResponseCode.OK).build());
         } catch (final IOException e) {
-            throw new IllegalStateException("Failed to get shards in time " + request.getStartTime() + "-" + request.getEndTime() + " for dataset " + request.getDataset(), e);
+            throw new IllegalStateException("Failed to get shards for time range " + request.getStartTime() + "-" + request.getEndTime() + " for dataset " + request.getDataset(), e);
         }
     }
 
