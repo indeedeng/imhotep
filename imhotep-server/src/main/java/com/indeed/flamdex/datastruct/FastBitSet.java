@@ -11,7 +11,7 @@
  * express or implied. See the License for the specific language governing permissions and
  * limitations under the License.
  */
- package com.indeed.flamdex.datastruct;
+package com.indeed.flamdex.datastruct;
 
 import javax.annotation.Nonnull;
 import java.nio.ByteBuffer;
@@ -139,7 +139,7 @@ public final class FastBitSet {
             return 0;
         }
         int count = Long.bitCount(bits[bits.length - 1] & ~(-1L << (size & 0x3F)));
-        for (int i = (bits.length - 2); i >= 0 ; --i) {
+        for (int i = (bits.length - 2); i >= 0; --i) {
             count += Long.bitCount(bits[i]);
         }
         return count;
@@ -149,7 +149,7 @@ public final class FastBitSet {
         if (size == 0) {
             return true;
         }
-        for (int i = bits.length - 2; i >= 0; --i){
+        for (int i = bits.length - 2; i >= 0; --i) {
             if (bits[i] != 0) {
                 return false;
             }
@@ -193,10 +193,11 @@ public final class FastBitSet {
         if ((size != that.size) || (bits.length != that.bits.length)) {
             return false;
         }
-        if((bits[bits.length - 1] & ~(-1L << (size & 0x3F))) != (that.bits[that.bits.length - 1] & ~(1L << (that.size & 0x3F)))){
+        final long mask = ~(-1L << (size & 0x3F));
+        if ((bits[bits.length - 1] & mask) != (that.bits[that.bits.length - 1] & mask)) {
             return false;
         }
-        for (int i = (bits.length - 2); i >= 0 ; --i) {
+        for (int i = (bits.length - 2); i >= 0; --i) {
             if (bits[i] != that.bits[i]) {
                 return false;
             }
@@ -218,8 +219,8 @@ public final class FastBitSet {
                 index++;
             }
             final long lowBit = Long.lowestOneBit(bitBuffer);
-            final int bitIndex = Long.bitCount(lowBit-1);
-            value = ((index-1)<<6)+bitIndex;
+            final int bitIndex = Long.bitCount(lowBit - 1);
+            value = ((index - 1) << 6) + bitIndex;
             bitBuffer ^= lowBit;
 
             // We need to check this because the state of the next bits of the last bit is unsure. (See setAll() for example)
