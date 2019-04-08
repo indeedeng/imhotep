@@ -1,5 +1,8 @@
 package com.indeed.imhotep.fs;
 
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
 import com.google.common.io.ByteStreams;
 import com.indeed.imhotep.client.Host;
 import com.indeed.imhotep.connection.ImhotepConnectionPool;
@@ -40,10 +43,12 @@ import static com.indeed.imhotep.utils.ImhotepExceptionUtils.buildImhotepKnownEx
 public class PeerToPeerCacheFileStore extends RemoteFileStore {
     private static final Logger logger = Logger.getLogger(PeerToPeerCacheFileStore.class);
     private static final int FETCH_CONNECTION_TIMEOUT = (int) TimeUnit.SECONDS.toMillis(30);
+    private static final int REMOTE_ATTRIBUTES_CACHE_CAPACITY = 2 ^ 11;
 
     private final LocalFileCache fileCache;
     private final MetricStatsEmitter statsEmitter;
     private final Path cacheRootPath;
+    private final LoadingCache<PeerToPeerCachePath, RemoteFileAttributes> remoteFileAttributesCache;
 
     PeerToPeerCacheFileStore(final RemoteCachingFileSystem fs,
                              final Map<String, ?> configuration,
@@ -66,6 +71,17 @@ public class PeerToPeerCacheFileStore extends RemoteFileStore {
                 "p2p.cache",
                 false
         );
+
+        remoteFileAttributesCache = CacheBuilder.newBuilder()
+                .maximumSize(REMOTE_ATTRIBUTES_CACHE_CAPACITY)
+                .build(
+                        new CacheLoader<PeerToPeerCachePath, RemoteFileAttributes>() {
+                            @Override
+                            public RemoteFileAttributes load(final PeerToPeerCachePath path) throws IOException {
+                                return getRemoteAttributesImpl(path);
+                            }
+                        }
+                );
     }
 
     @Override
@@ -99,19 +115,31 @@ public class PeerToPeerCacheFileStore extends RemoteFileStore {
         final List<FileAttributeMessage> attributeList = handleRequest(newRequest, peerToPeerCachePath,
                 (response, is) -> response.getSubFilesAttributesList());
         return attributeList.stream()
-                .map(attr -> new RemoteFileAttributes(
+                .map(attr -> {
+                    final RemoteFileAttributes remoteAttributes = new RemoteFileAttributes(
                         PeerToPeerCachePath.toPeerToPeerCachePath(
                                 peerToPeerCachePath.getRoot(),
                                 attr.getPath(),
                                 remoteHost),
                         attr.getSize(),
-                        !attr.getIsDirectory()))
+                        !attr.getIsDirectory());
+                    remoteFileAttributesCache.put((PeerToPeerCachePath) remoteAttributes.getPath(), remoteAttributes);
+                    return remoteAttributes;
+                })
                 .collect(Collectors.toList());
     }
 
     @Override
     RemoteFileAttributes getRemoteAttributes(final RemoteCachingPath path) throws IOException {
         final PeerToPeerCachePath peerToPeerCachePath = (PeerToPeerCachePath) path;
+        try {
+            return remoteFileAttributesCache.get(peerToPeerCachePath);
+        } catch (final ExecutionException e) {
+            throw Throwables2.propagate(e, IOException.class, RuntimeException.class);
+        }
+    }
+
+    private RemoteFileAttributes getRemoteAttributesImpl(final PeerToPeerCachePath peerToPeerCachePath) throws IOException {
         final String realFileUri = peerToPeerCachePath.getRealPath().toUri().toString();
         final ImhotepRequest newRequest = ImhotepRequest.newBuilder()
                 .setRequestType(ImhotepRequest.RequestType.GET_SHARD_FILE_ATTRIBUTES)
