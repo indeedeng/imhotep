@@ -8,8 +8,10 @@ import org.junit.Rule;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.util.Iterator;
 import java.util.List;
@@ -25,6 +27,7 @@ import java.util.stream.IntStream;
 import java.util.stream.StreamSupport;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -88,6 +91,24 @@ public class TestPeerToPeerCacheFileStore {
         assertTrue(internalTestRemote("fld-shardId.intdocs"));
         assertTrue(internalTestRemote("fld-sf1.strdocs"));
         assertTrue(internalTestRemote("metadata.txt"));
+    }
+
+    @Test(expected = NoSuchFileException.class)
+    public void testListNotExistingDir() throws IOException {
+        final Path remotePath = toLocalHostP2PCachingPath(rootPath, shardPath.resolve("fld-if2.intdocs"));
+        try(final InputStream fileInputStream = Files.newInputStream(remotePath)) { }
+    }
+
+    @Test(expected = NoSuchFileException.class)
+    public void testRemotePathNotExisting() throws IOException {
+        final Path remotePath = toLocalHostP2PCachingPath(rootPath, shardPath.resolve("not-existing-dir"));
+        try (final DirectoryStream<Path> dirStream = Files.newDirectoryStream(remotePath)) {}
+    }
+
+    @Test
+    public void testReadRemoteAttributesNotExisting() throws IOException {
+        final Path remotePath = toLocalHostP2PCachingPath(rootPath, shardPath.resolve("not-existing-dir"));
+        assertFalse(Files.exists(remotePath));
     }
 
     @Test
