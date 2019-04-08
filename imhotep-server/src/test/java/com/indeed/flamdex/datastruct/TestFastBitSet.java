@@ -38,7 +38,7 @@ public class TestFastBitSet {
         }
         bs.clearRange(500, 750);
         for (int i = 0; i < 1000; i += 3) {
-            if (i < 500 || i >= 750) {
+            if ((i < 500) || (i >= 750)) {
                 assertTrue(bs.get(i));
             }
         }
@@ -62,7 +62,7 @@ public class TestFastBitSet {
             bs.setRange(i, i + 64);
             assertEquals(64, bs.cardinality());
             for (int j = 0; j < 128; ++j) {
-                if (j < i || j >= i + 64) {
+                if ((j < i) || (j >= (i + 64))) {
                     assertFalse(bs.get(j));
                 } else {
                     assertTrue(bs.get(j));
@@ -71,7 +71,7 @@ public class TestFastBitSet {
             bs.clearRange(i + 32, i + 64);
             assertEquals(32, bs.cardinality());
             for (int j = 0; j < 128; ++j) {
-                if (j < i || j >= i + 32) {
+                if ((j < i) || (j >= (i + 32))) {
                     assertFalse(bs.get(j));
                 } else {
                     assertTrue(bs.get(j));
