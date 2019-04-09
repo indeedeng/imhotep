@@ -11,7 +11,7 @@
  * express or implied. See the License for the specific language governing permissions and
  * limitations under the License.
  */
- package com.indeed.flamdex.datastruct;
+package com.indeed.flamdex.datastruct;
 
 import javax.annotation.Nonnull;
 import java.nio.ByteBuffer;
@@ -22,11 +22,19 @@ import java.util.Arrays;
  */
 public final class FastBitSet {
     private final int size;
+    /**
+     * Unused bits are undefined until we call {@link FastBitSet#fixLastElement()}.
+     */
     private final long[] bits;
 
     public FastBitSet(final int size) {
         this.size = size;
         bits = new long[(size + 64) >> 6];
+    }
+
+    private void fixLastElement() {
+        final long mask = ~(-1L << (size & 0x3F));
+        bits[bits.length - 1] &= mask;
     }
 
     @Deprecated
@@ -138,9 +146,10 @@ public final class FastBitSet {
         if (size == 0) {
             return 0;
         }
-        int count = Long.bitCount(bits[bits.length - 1] & ~(-1L << (size & 0x3F)));
-        for (int i = (bits.length - 2); i >= 0 ; --i) {
-            count += Long.bitCount(bits[i]);
+        fixLastElement();
+        int count = 0;
+        for (final long word : bits) {
+            count += Long.bitCount(word);
         }
         return count;
     }
@@ -149,12 +158,13 @@ public final class FastBitSet {
         if (size == 0) {
             return true;
         }
-        for (int i = bits.length - 2; i >= 0; --i){
-            if (bits[i] != 0) {
+        fixLastElement();
+        for (final long word : bits) {
+            if (word != 0) {
                 return false;
             }
         }
-        return (bits[bits.length - 1] & ((1L << (size & 0x3f)) - 1)) == 0;
+        return true;
     }
 
     public int size() {
@@ -177,7 +187,11 @@ public final class FastBitSet {
         return 8L * numLongs;
     }
 
+    /**
+     * As other collections, modifying the backing {@link FastBitSet} is not allowed during an iteration.
+     */
     public IntIterator iterator() {
+        fixLastElement();
         return new IntIterator();
     }
 
@@ -193,15 +207,9 @@ public final class FastBitSet {
         if ((size != that.size) || (bits.length != that.bits.length)) {
             return false;
         }
-        if((bits[bits.length - 1] & ~(-1L << (size & 0x3F))) != (that.bits[that.bits.length - 1] & ~(1L << (that.size & 0x3F)))){
-            return false;
-        }
-        for (int i = (bits.length - 2); i >= 0 ; --i) {
-            if (bits[i] != that.bits[i]) {
-                return false;
-            }
-        }
-        return true;
+        this.fixLastElement();
+        that.fixLastElement();
+        return Arrays.equals(this.bits, that.bits);
     }
 
     public final class IntIterator {
@@ -218,12 +226,10 @@ public final class FastBitSet {
                 index++;
             }
             final long lowBit = Long.lowestOneBit(bitBuffer);
-            final int bitIndex = Long.bitCount(lowBit-1);
-            value = ((index-1)<<6)+bitIndex;
+            final int bitIndex = Long.bitCount(lowBit - 1);
+            value = ((index - 1) << 6) + bitIndex;
             bitBuffer ^= lowBit;
-
-            // We need to check this because the state of the next bits of the last bit is unsure. (See setAll() for example)
-            return value < size;
+            return true;
         }
 
         public int getValue() {

@@ -38,7 +38,7 @@ public class TestFastBitSet {
         }
         bs.clearRange(500, 750);
         for (int i = 0; i < 1000; i += 3) {
-            if (i < 500 || i >= 750) {
+            if ((i < 500) || (i >= 750)) {
                 assertTrue(bs.get(i));
             }
         }
@@ -62,7 +62,7 @@ public class TestFastBitSet {
             bs.setRange(i, i + 64);
             assertEquals(64, bs.cardinality());
             for (int j = 0; j < 128; ++j) {
-                if (j < i || j >= i + 64) {
+                if ((j < i) || (j >= (i + 64))) {
                     assertFalse(bs.get(j));
                 } else {
                     assertTrue(bs.get(j));
@@ -71,7 +71,7 @@ public class TestFastBitSet {
             bs.clearRange(i + 32, i + 64);
             assertEquals(32, bs.cardinality());
             for (int j = 0; j < 128; ++j) {
-                if (j < i || j >= i + 32) {
+                if ((j < i) || (j >= (i + 32))) {
                     assertFalse(bs.get(j));
                 } else {
                     assertTrue(bs.get(j));
@@ -148,5 +148,22 @@ public class TestFastBitSet {
         assertFalse(bitSet.isEmpty());
         bitSet.clearRange(0, 10);
         assertTrue(bitSet.isEmpty());
+    }
+
+    @Test
+    public void testEqual() {
+        final FastBitSet a = new FastBitSet(10);
+        final FastBitSet b = new FastBitSet(10);
+        assertEquals(a, b);
+        assertEquals(b, a);
+        a.set(5);
+        b.set(5);
+        assertEquals(a, b);
+        assertEquals(b, a);
+        a.invertAll();
+        b.setRange(0, 10);
+        b.clear(5);
+        assertEquals(a, b);
+        assertEquals(b, a);
     }
 }
