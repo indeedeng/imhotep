@@ -2,7 +2,6 @@ package com.indeed.imhotep.commands;
 
 import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Ints;
-
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.io.RequestTools.ImhotepRequestSender;
@@ -46,7 +45,7 @@ public class RandomMetricMultiRegroup extends VoidAbstractImhotepCommand {
                 .build();
 
         return ImhotepRequestSender.Cached.create(request);
-     }
+    }
 
     @Override
     public void applyVoid(final ImhotepSession session) throws ImhotepOutOfMemoryException {

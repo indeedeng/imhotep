@@ -1,6 +1,5 @@
 package com.indeed.imhotep.commands;
 
-
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.io.RequestTools.ImhotepRequestSender;

@@ -780,7 +780,7 @@ public abstract class AbstractImhotepServiceCore
     }
 
     @Override
-    public <T> T handleBatchRequest(final String sessionId, final List<ImhotepCommand> commands, final ImhotepCommand<T> lastCommand) throws ImhotepOutOfMemoryException {
-        return doWithSession(sessionId, (ThrowingFunction<MTImhotepLocalMultiSession, T, ImhotepOutOfMemoryException>) session -> session.executeBatchRequest(commands, lastCommand));
+    public <T> T handleBatchRequest(final String sessionId, final List<ImhotepCommand> firstCommands, final ImhotepCommand<T> lastCommand) throws ImhotepOutOfMemoryException {
+        return doWithSession(sessionId, (ThrowingFunction<MTImhotepLocalMultiSession, T, ImhotepOutOfMemoryException>) session -> session.executeBatchRequest(firstCommands, lastCommand));
     }
 }

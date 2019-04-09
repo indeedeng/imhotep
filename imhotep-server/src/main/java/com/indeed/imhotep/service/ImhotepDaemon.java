@@ -955,6 +955,8 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             }
 
             final ImhotepCommand lastCommand = commands.get(commands.size() - 1);
+            commands.remove(commands.size() - 1);
+
             if (lastCommand.getResultClass() == GroupStatsIterator.class) {
                 final GroupStatsIterator groupStatsIterator = (GroupStatsIterator) service.handleBatchRequest(batchImhotepRequest.getSessionId(), commands, lastCommand);
                 return Pair.of(builder.setGroupStatSize(groupStatsIterator.getNumGroups()).build(), groupStatsIterator);

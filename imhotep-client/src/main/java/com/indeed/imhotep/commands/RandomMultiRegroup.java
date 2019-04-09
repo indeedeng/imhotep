@@ -9,7 +9,6 @@ import com.indeed.imhotep.protobuf.ImhotepRequest;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
 
-
 @EqualsAndHashCode
 @ToString
 public class RandomMultiRegroup extends VoidAbstractImhotepCommand {
@@ -46,6 +45,7 @@ public class RandomMultiRegroup extends VoidAbstractImhotepCommand {
 
         return ImhotepRequestSender.Cached.create(request);
     }
+
     @Override
     public void applyVoid(final ImhotepSession session) throws ImhotepOutOfMemoryException {
         session.randomMultiRegroup(field, isIntField, salt, targetGroup, percentages, resultGroups);

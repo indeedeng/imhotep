@@ -17,8 +17,6 @@ package com.indeed.imhotep;
 import com.indeed.imhotep.api.GroupStatsIterator;
 import com.indeed.util.core.io.Closeables2;
 import it.unimi.dsi.fastutil.longs.AbstractLongIterator;
-import lombok.EqualsAndHashCode;
-import lombok.ToString;
 import org.apache.log4j.Logger;
 
 import java.util.Iterator;

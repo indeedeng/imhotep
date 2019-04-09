@@ -44,7 +44,6 @@ public class UnconditionalRegroup extends AbstractImhotepCommand<Integer> {
         return ImhotepRequestSender.Cached.create(request);
     }
 
-
     @Override
     public Integer combine(final List<Integer> subResults) {
         return Collections.max(subResults);

@@ -9,9 +9,12 @@ import java.io.OutputStream;
 
 public abstract class AbstractImhotepCommand<T> implements ImhotepCommand<T> {
 
-    @Getter final String sessionId;
-    @Getter(lazy = true) private final ImhotepRequestSender imhotepRequestSender = imhotepRequestSenderInitializer();
-    @Getter final Class<T> resultClass;
+    @Getter
+    final String sessionId;
+    @Getter(lazy = true)
+    private final ImhotepRequestSender imhotepRequestSender = imhotepRequestSenderInitializer();
+    @Getter
+    final Class<T> resultClass;
 
     AbstractImhotepCommand(final String sessionId, final Class<T> resultClass) {
         this.sessionId = sessionId;

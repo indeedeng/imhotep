@@ -4,8 +4,8 @@ import com.indeed.imhotep.ImhotepRemoteSession;
 import com.indeed.imhotep.api.CommandSerializationParameters;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
-import com.indeed.imhotep.io.RequestTools.ImhotepRequestSender;
 import com.indeed.imhotep.io.RequestTools.GroupMultiRemapRuleSender;
+import com.indeed.imhotep.io.RequestTools.ImhotepRequestSender;
 import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
 import com.indeed.imhotep.protobuf.ImhotepRequest;
 import com.indeed.imhotep.protobuf.ImhotepResponse;
@@ -17,9 +17,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-/**
- *
- */
 public class MultiRegroupMessagesSender extends AbstractImhotepCommand<Integer> {
 
     private final GroupMultiRemapRuleSender groupMultiRemapRuleSender;
@@ -50,7 +47,6 @@ public class MultiRegroupMessagesSender extends AbstractImhotepCommand<Integer> 
 
         return ImhotepRequestSender.Cached.create(header);
     }
-
 
     @Override
     public Integer combine(final List<Integer> subResults) {

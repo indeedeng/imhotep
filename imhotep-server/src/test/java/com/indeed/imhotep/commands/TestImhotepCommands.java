@@ -161,14 +161,14 @@ public class TestImhotepCommands implements CommandsTest {
     }
 
     @Test
-    public void testGetGroupStats() throws  ImhotepOutOfMemoryException {
+    public void testGetGroupStats() throws ImhotepOutOfMemoryException {
         assertEqualGroupStatsInternal();
     }
 
     @Test
     public void testIntOrRegroup() throws ImhotepOutOfMemoryException {
         assertEqualGroupStatsVoid(imhotepSession -> {
-            imhotepSession.intOrRegroup("metric", new long[]{1,4,5}, 1, 2, 3);
+            imhotepSession.intOrRegroup("metric", new long[]{1, 4, 5}, 1, 2, 3);
         });
     }
 
@@ -192,7 +192,7 @@ public class TestImhotepCommands implements CommandsTest {
 
     @Test
     public void testMultiRegroup() throws ImhotepOutOfMemoryException {
-        final GroupMultiRemapRule[] rules =  new GroupMultiRemapRule[]{
+        final GroupMultiRemapRule[] rules = new GroupMultiRemapRule[]{
                 new GroupMultiRemapRule(1, 1, new int[]{2}, new RegroupCondition[]{new RegroupCondition("metric", true, 3, null, false)})};
         assertEqualGroupStats(imhotepSession -> {
             return imhotepSession.regroup(rules, true);
@@ -201,7 +201,7 @@ public class TestImhotepCommands implements CommandsTest {
 
     @Test
     public void testMultiRegroupMessagesSender() throws ImhotepOutOfMemoryException {
-        final GroupMultiRemapRule[] rules =  new GroupMultiRemapRule[] {
+        final GroupMultiRemapRule[] rules = new GroupMultiRemapRule[]{
                 new GroupMultiRemapRule(1, 1, new int[]{2, 3}, new RegroupCondition[]{
                         new RegroupCondition("metric", true, 3, null, false), new RegroupCondition("if2", true, 50, null, false)}),
         };
@@ -213,7 +213,7 @@ public class TestImhotepCommands implements CommandsTest {
 
     @Test
     public void testMultiRegroupMessagesIterator() throws ImhotepOutOfMemoryException {
-        final GroupMultiRemapRule[] rules =  new GroupMultiRemapRule[] {
+        final GroupMultiRemapRule[] rules = new GroupMultiRemapRule[]{
                 new GroupMultiRemapRule(1, 1, new int[]{2, 3}, new RegroupCondition[]{
                         new RegroupCondition("metric", true, 3, null, false), new RegroupCondition("if2", true, 50, null, false)}),
         };
@@ -275,7 +275,7 @@ public class TestImhotepCommands implements CommandsTest {
 
     @Test
     public void testRegroup() throws ImhotepOutOfMemoryException {
-        final GroupRemapRule[] rawRules = new GroupRemapRule[] {
+        final GroupRemapRule[] rawRules = new GroupRemapRule[]{
                 new GroupRemapRule(1, new RegroupCondition("if1", true, 20, "6a", true), 2, 3)
         };
         assertEqualGroupStats(imhotepSession -> {
@@ -285,7 +285,7 @@ public class TestImhotepCommands implements CommandsTest {
 
     @Test
     public void testQueryRegroup() throws ImhotepOutOfMemoryException {
-        final QueryRemapRule rule = new QueryRemapRule(1, Query.newTermQuery(new Term("if2", true, 0, "a")),1, 2);
+        final QueryRemapRule rule = new QueryRemapRule(1, Query.newTermQuery(new Term("if2", true, 0, "a")), 1, 2);
         assertEqualGroupStats(imhotepSession -> {
             return imhotepSession.regroup(rule);
         });

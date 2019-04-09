@@ -28,7 +28,7 @@ public class TestImhotepCommandDeserialization implements CommandsTest {
         final ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         command.writeToOutputStream(outputStream);
         final ByteArrayInputStream inputStream = new ByteArrayInputStream(outputStream.toByteArray());
-        final ImhotepCommand deserializedCommand =  ImhotepCommand.readFromInputStream(inputStream);
+        final ImhotepCommand deserializedCommand = ImhotepCommand.readFromInputStream(inputStream);
         Assert.assertEquals(0, inputStream.available());
         Assert.assertEquals(command, deserializedCommand);
     }
@@ -41,7 +41,7 @@ public class TestImhotepCommandDeserialization implements CommandsTest {
 
     @Test
     public void testIntOrRegroup() throws IOException {
-        assertEqualDeserialize(new IntOrRegroup( "field", new long[]{1, 3, 4}, 1, 2, 3, SESSION_ID));
+        assertEqualDeserialize(new IntOrRegroup("field", new long[]{1, 3, 4}, 1, 2, 3, SESSION_ID));
     }
 
     @Test
@@ -49,7 +49,6 @@ public class TestImhotepCommandDeserialization implements CommandsTest {
         final List<String> stats = Lists.newArrayList("1");
         assertEqualDeserialize(new MetricFilter(stats, 1, 5, 1, 2, 3, SESSION_ID));
     }
-
 
     @Test
     public void testMetricRegroup() throws IOException {
@@ -59,10 +58,10 @@ public class TestImhotepCommandDeserialization implements CommandsTest {
 
     @Test
     public void testMultiRegroup() throws IOException {
-        final GroupMultiRemapRule[] rawRules = new GroupMultiRemapRule[] {
+        final GroupMultiRemapRule[] rawRules = new GroupMultiRemapRule[]{
                 new GroupMultiRemapRule(1, 10, new int[]{10}, new RegroupCondition[]{new RegroupCondition("field", false, 0, "strTerm", false)})
         };
-        assertEqualDeserialize(MultiRegroup.createMultiRegroupCommand(rawRules, true , SESSION_ID));
+        assertEqualDeserialize(MultiRegroup.createMultiRegroupCommand(rawRules, true, SESSION_ID));
     }
 
     public void testMultiRegroupMessagesSender() throws IOException {
@@ -70,7 +69,7 @@ public class TestImhotepCommandDeserialization implements CommandsTest {
     }
 
     public void testMultiRegroupMessagesIterator() throws IOException {
-         // This command isn't serialized on the server side
+        // This command isn't serialized on the server side
     }
 
     @Test
@@ -91,7 +90,6 @@ public class TestImhotepCommandDeserialization implements CommandsTest {
         assertEqualDeserialize(new RandomMetricRegroup(stats, RANDOM_SALT, 0.4, 1, 2, 3, SESSION_ID));
     }
 
-
     @Test
     public void testRandomMultiRegroup() throws IOException {
         assertEqualDeserialize(new RandomMultiRegroup("fieldName", false, RANDOM_SALT, 1, new double[]{0.4, 0.8}, new int[]{3, 4, 6}, SESSION_ID));
@@ -109,7 +107,7 @@ public class TestImhotepCommandDeserialization implements CommandsTest {
 
     @Test
     public void testRegroup() throws IOException {
-        final GroupRemapRule[] rawRules = new GroupRemapRule[] {
+        final GroupRemapRule[] rawRules = new GroupRemapRule[]{
                 new GroupRemapRule(1, new RegroupCondition("fieldName", false, 0, "strTerm", false), 1000000, 1000000)
         };
         assertEqualDeserialize(Regroup.createRegroup(rawRules, SESSION_ID));
@@ -117,7 +115,7 @@ public class TestImhotepCommandDeserialization implements CommandsTest {
 
     @Test
     public void testQueryRegroup() throws IOException {
-        final QueryRemapRule rule = new QueryRemapRule(1, Query.newTermQuery(new Term("if2", true, 0, "a")),1, 2);
+        final QueryRemapRule rule = new QueryRemapRule(1, Query.newTermQuery(new Term("if2", true, 0, "a")), 1, 2);
         assertEqualDeserialize(new QueryRegroup(rule, SESSION_ID));
     }
 

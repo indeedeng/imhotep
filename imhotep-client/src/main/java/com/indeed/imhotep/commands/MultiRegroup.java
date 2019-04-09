@@ -25,7 +25,8 @@ import java.util.List;
 public class MultiRegroup extends AbstractImhotepCommand<Integer> {
 
     private final GroupMultiRemapRule[] rules;
-    @Getter(lazy = true) private final GroupMultiRemapRuleSender groupMultiRemapRuleSender = GroupMultiRemapRuleSender.createFromRules(Arrays.asList(rules).iterator(), true);
+    @Getter(lazy = true)
+    private final GroupMultiRemapRuleSender groupMultiRemapRuleSender = GroupMultiRemapRuleSender.createFromRules(Arrays.asList(rules).iterator(), true);
     private final boolean errorOnCollision;
 
     private MultiRegroup(final GroupMultiRemapRule[] rules, final boolean errorOnCollision, final String sessionId) {

@@ -44,7 +44,7 @@ public interface ImhotepCommand<T> extends HasSessionId {
     T combine(List<T> subResults);
 
     /**
-     * Write the serialized Imhotep Request
+     * Write Imhotep Request to outputStream.
      */
     void writeToOutputStream(OutputStream os) throws IOException;
 
