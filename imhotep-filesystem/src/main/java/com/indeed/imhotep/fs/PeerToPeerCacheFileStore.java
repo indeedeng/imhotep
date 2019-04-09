@@ -43,7 +43,7 @@ import static com.indeed.imhotep.utils.ImhotepExceptionUtils.buildImhotepKnownEx
 public class PeerToPeerCacheFileStore extends RemoteFileStore {
     private static final Logger logger = Logger.getLogger(PeerToPeerCacheFileStore.class);
     private static final int FETCH_CONNECTION_TIMEOUT = (int) TimeUnit.SECONDS.toMillis(30);
-    private static final int REMOTE_ATTRIBUTES_CACHE_CAPACITY = 2 ^ 11;
+    private static final int REMOTE_ATTRIBUTES_CACHE_CAPACITY = 65536;
 
     private final LocalFileCache fileCache;
     private final MetricStatsEmitter statsEmitter;
@@ -89,7 +89,7 @@ public class PeerToPeerCacheFileStore extends RemoteFileStore {
         try {
             return Optional.of(fileCache.cache(path));
         } catch (final ExecutionException e) {
-            throw Throwables2.propagate(e, IOException.class, RuntimeException.class);
+            throw Throwables2.propagate(e.getCause(), IOException.class, RuntimeException.class);
         }
     }
 
@@ -98,7 +98,7 @@ public class PeerToPeerCacheFileStore extends RemoteFileStore {
         try {
             return Optional.of(fileCache.getForOpen(path));
         } catch (final ExecutionException e) {
-            throw Throwables2.propagate(e, IOException.class, RuntimeException.class);
+            throw Throwables2.propagate(e.getCause(), IOException.class, RuntimeException.class);
         }
     }
 
@@ -123,6 +123,10 @@ public class PeerToPeerCacheFileStore extends RemoteFileStore {
                                 remoteHost),
                         attr.getSize(),
                         !attr.getIsDirectory());
+
+                    // put all paths from listDir into the cache.
+                    // It could avoid future remoteAttributes requests under the directory although there are some redundant fields path in the cache.
+                    // putIfAbsent is expected, but LoadingCache doesn't provide that
                     remoteFileAttributesCache.put((PeerToPeerCachePath) remoteAttributes.getPath(), remoteAttributes);
                     return remoteAttributes;
                 })
@@ -135,7 +139,7 @@ public class PeerToPeerCacheFileStore extends RemoteFileStore {
         try {
             return remoteFileAttributesCache.get(peerToPeerCachePath);
         } catch (final ExecutionException e) {
-            throw Throwables2.propagate(e, IOException.class, RuntimeException.class);
+            throw Throwables2.propagate(e.getCause(), IOException.class, RuntimeException.class);
         }
     }
 

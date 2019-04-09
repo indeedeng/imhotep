@@ -94,20 +94,20 @@ public class TestPeerToPeerCacheFileStore {
     }
 
     @Test(expected = NoSuchFileException.class)
-    public void testListNotExistingDir() throws IOException {
-        final Path remotePath = toLocalHostP2PCachingPath(rootPath, shardPath.resolve("fld-if2.intdocs"));
-        try(final InputStream fileInputStream = Files.newInputStream(remotePath)) { }
-    }
-
-    @Test(expected = NoSuchFileException.class)
-    public void testRemotePathNotExisting() throws IOException {
-        final Path remotePath = toLocalHostP2PCachingPath(rootPath, shardPath.resolve("not-existing-dir"));
+    public void testListNonexistentDir() throws IOException {
+        final Path remotePath = toLocalHostP2PCachingPath(rootPath, shardPath.resolve("nonexistent-dir"));
         try (final DirectoryStream<Path> dirStream = Files.newDirectoryStream(remotePath)) {}
     }
 
+    @Test(expected = NoSuchFileException.class)
+    public void testOpenNonexistentRemotePath() throws IOException {
+        final Path remotePath = toLocalHostP2PCachingPath(rootPath, shardPath.resolve("nonexistent-file"));
+        try(final InputStream fileInputStream = Files.newInputStream(remotePath)) { }
+    }
+
     @Test
-    public void testReadRemoteAttributesNotExisting() throws IOException {
-        final Path remotePath = toLocalHostP2PCachingPath(rootPath, shardPath.resolve("not-existing-dir"));
+    public void testReadNonexistentRemoteAttributes() {
+        final Path remotePath = toLocalHostP2PCachingPath(rootPath, shardPath.resolve("nonexistent-dir"));
         assertFalse(Files.exists(remotePath));
     }
 
