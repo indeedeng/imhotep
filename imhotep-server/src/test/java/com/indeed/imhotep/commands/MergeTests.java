@@ -18,9 +18,10 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 
-public class MergeTests {
+public class MergeTests implements CommandsTest {
 
     public static final String SESSION_ID = "RandomSessionIdString";
     public static final String RANDOM_SALT = "RandomSaltString";
@@ -60,6 +61,13 @@ public class MergeTests {
     }
 
     @Test
+    public void testNegateMetricFilter() {
+        final List<String> stats = Lists.newArrayList("1");
+        final NegateMetricFilter negateMetricFilter = new NegateMetricFilter(stats, -5, 5, true, SESSION_ID);
+        assertMaxMerge(negateMetricFilter);
+    }
+
+    @Test
     public void testMetricRegroup() {
         final List<String> stats = Lists.newArrayList("1");
         final MetricRegroup metricRegroup = MetricRegroup.createMetricRegroup(stats, 1, 5, 3, true, SESSION_ID);
@@ -85,6 +93,17 @@ public class MergeTests {
         final GroupMultiRemapRuleSender groupMultiRemapRuleSender = GroupMultiRemapRuleSender.createFromRules(Arrays.asList(rules).iterator(), true);
         final MultiRegroupMessagesSender multiRegroupMessagesSender = MultiRegroupMessagesSender.createMultiRegroupMessagesSender(groupMultiRemapRuleSender, true, SESSION_ID);
         assertMaxMerge(multiRegroupMessagesSender);
+    }
+
+    @Test
+    public void testMultiRegroupMessagesIterator() {
+        final GroupMultiRemapRule[] rules =  new GroupMultiRemapRule[] {
+                new GroupMultiRemapRule(1, 1, new int[]{2, 3}, new RegroupCondition[]{
+                        new RegroupCondition("metric", true, 3, null, false), new RegroupCondition("if2", true, 50, null, false)}),
+        };
+        final Iterator<GroupMultiRemapRule> groupMultiRemapRuleIterator = Arrays.asList(rules).iterator();
+        final MultiRegroupIterator multiRegroupIterator = new MultiRegroupIterator(1, groupMultiRemapRuleIterator, false, SESSION_ID);
+        assertMaxMerge(multiRegroupIterator);
     }
 
     @Test
@@ -136,7 +155,7 @@ public class MergeTests {
     }
 
     @Test
-    public void testUncondictionalRegroup() {
+    public void testUnconditionalRegroup() {
         final UnconditionalRegroup unconditionalRegroup = new UnconditionalRegroup(new int[]{1,2,3}, new int[]{12,43,12}, true, SESSION_ID);
         assertMaxMerge(unconditionalRegroup);
     }

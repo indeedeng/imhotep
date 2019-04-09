@@ -16,7 +16,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.List;
 
-public class SerializationTests1 {
+public class SerializationTests1 implements CommandsTest {
 
     public static final String SESSION_ID = "RandomSessionIdString";
     public static final String RANDOM_SALT = "RandomSaltString";

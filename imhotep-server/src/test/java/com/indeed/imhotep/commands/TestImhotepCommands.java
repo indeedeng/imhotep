@@ -31,7 +31,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
 
-public class TestImhotepCommands {
+public class TestImhotepCommands implements CommandsTest {
 
     private static final String DATASET = "dataset";
     private static final DateTime TODAY = DateTime.now().withTimeAtStartOfDay();
@@ -279,7 +279,7 @@ public class TestImhotepCommands {
     }
 
     @Test
-    public void testQueryRemapRule() throws ImhotepOutOfMemoryException {
+    public void testQueryRemapRuleRegroup() throws ImhotepOutOfMemoryException {
         final QueryRemapRule rule = new QueryRemapRule(1, Query.newTermQuery(new Term("if2", true, 0, "a")),1, 2);
         assertEqualGroupStats(imhotepSession -> {
             return imhotepSession.regroup(rule);
@@ -287,7 +287,7 @@ public class TestImhotepCommands {
     }
 
     @Test
-    public void testUncondictionalRegroup() throws ImhotepOutOfMemoryException {
+    public void testUnconditionalRegroup() throws ImhotepOutOfMemoryException {
         assertEqualGroupStats(imhotepSession -> {
             return imhotepSession.regroup(new int[]{1}, new int[]{5}, false);
         });

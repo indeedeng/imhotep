@@ -25,7 +25,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicLong;
 
-public class SerializationTests2 {
+public class SerializationTests2 implements CommandsTest {
 
     public static final String SESSION_ID = "RandomSessionIdString";
     public static final String RANDOM_SALT = "RandomSaltString";
@@ -179,14 +179,14 @@ public class SerializationTests2 {
     }
 
     @Test
-    public void testQueryReampRule() throws ImhotepOutOfMemoryException, ExecutionException, InterruptedException {
+    public void testQueryRemapRuleRegroup() throws ImhotepOutOfMemoryException, ExecutionException, InterruptedException {
         final QueryRemapRule rule = new QueryRemapRule(1, Query.newTermQuery(new Term("if2", true, 0, "a")),1, 2);
         imhotepRemoteSession.regroup(rule);
         Assert.assertEquals(holder.futureCommand.get(), new QueryRemapRuleRegroup(rule, SESSION_ID));
     }
 
     @Test
-    public void testUncondictionalRegroup() throws ImhotepOutOfMemoryException, ExecutionException, InterruptedException {
+    public void testUnconditionalRegroup() throws ImhotepOutOfMemoryException, ExecutionException, InterruptedException {
         final UnconditionalRegroup unconditionalRegroup = new UnconditionalRegroup(new int[]{1,2,3}, new int[]{12,43,12}, true, SESSION_ID);
         imhotepRemoteSession.regroup(new int[]{1, 2, 3}, new int[]{12, 43, 12}, true);
         Assert.assertEquals(holder.futureCommand.get(), unconditionalRegroup);
