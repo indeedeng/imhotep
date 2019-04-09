@@ -302,29 +302,25 @@ public class TestImhotepLocalSession {
         } catch (Exception ignored) {
         }
 
-        try {
-            try (ImhotepLocalSession session = new ImhotepJavaLocalSession("testLocalSession", r, new Interval(noonShardStart, noonShardEnd))) {
-                assertTrue(session.docIdToGroup instanceof ConstantGroupLookup);
+        try (ImhotepLocalSession session = new ImhotepJavaLocalSession("testLocalSession", r, new Interval(noonShardStart, noonShardEnd))) {
+            assertTrue(session.docIdToGroup instanceof ConstantGroupLookup);
 
-                assertEquals(2, session.regroup(new QueryRemapRule(1, Query.newTermQuery(Term.stringTerm("testField", "term")), 0, 1)));
-                assertTrue(session.docIdToGroup instanceof BitSetGroupLookup);
-                Assert.assertArrayEquals(new long[]{0, 4}, session.getGroupStats(Collections.singletonList("count()")));
+            assertEquals(2, session.regroup(new QueryRemapRule(1, Query.newTermQuery(Term.stringTerm("testField", "term")), 0, 1)));
+            assertTrue(session.docIdToGroup instanceof BitSetGroupLookup);
+            Assert.assertArrayEquals(new long[]{0, 4}, session.getGroupStats(Collections.singletonList("count()")));
 
-                assertEquals(14, session.metricRegroup(Collections.singletonList("unixtime"), queryStart.getMillis() / 1000, queryEnd.getMillis() / 1000, 1800));
+            assertEquals(14, session.metricRegroup(Collections.singletonList("unixtime"), queryStart.getMillis() / 1000, queryEnd.getMillis() / 1000, 3600));
 
-                assertTrue(session.docIdToGroup instanceof BitSetGroupLookup);
+            assertTrue(session.docIdToGroup instanceof BitSetGroupLookup);
 
-                final int[] expectedGroups = new int[100];
-                expectedGroups[0] = 13;
-                expectedGroups[5] = 13;
-                expectedGroups[20] = 13;
-                expectedGroups[53] = 13;
-                final int[] actualGroups = new int[100];
-                session.exportDocIdToGroupId(actualGroups);
-                Assert.assertArrayEquals(expectedGroups, actualGroups);
-            }
-            fail("Expected failure reading unixtime files");
-        } catch (Exception ignored) {
+            final int[] expectedGroups = new int[100];
+            expectedGroups[0] = 13;
+            expectedGroups[5] = 13;
+            expectedGroups[20] = 13;
+            expectedGroups[53] = 13;
+            final int[] actualGroups = new int[100];
+            session.exportDocIdToGroupId(actualGroups);
+            Assert.assertArrayEquals(expectedGroups, actualGroups);
         }
     }
 
