@@ -29,6 +29,8 @@ import com.indeed.imhotep.ImhotepMemoryPool;
 import com.indeed.imhotep.MemoryReservationContext;
 import com.indeed.imhotep.QueryRemapRule;
 import com.indeed.imhotep.RegroupCondition;
+import com.indeed.imhotep.api.FTGSIterator;
+import com.indeed.imhotep.api.FTGSParams;
 import com.indeed.imhotep.api.GroupStatsIterator;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.PerformanceStats;
@@ -53,6 +55,7 @@ import java.util.stream.IntStream;
 import static java.util.Collections.singletonList;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -321,6 +324,18 @@ public class TestImhotepLocalSession {
             final int[] actualGroups = new int[100];
             session.exportDocIdToGroupId(actualGroups);
             Assert.assertArrayEquals(expectedGroups, actualGroups);
+
+            // Ensure that FTGS iterator with no stats works correctly (see IMTEPD-512)
+            try (final FTGSIterator ftgsIterator = session.getFTGSIterator(new String[0], new String[]{"testField"}, Collections.emptyList())) {
+                assertTrue(ftgsIterator.nextField());
+                assertTrue(ftgsIterator.nextTerm());
+                assertEquals("term", ftgsIterator.termStringVal());
+                assertTrue(ftgsIterator.nextGroup());
+                assertEquals(13, ftgsIterator.group());
+                assertFalse(ftgsIterator.nextGroup());
+                assertFalse(ftgsIterator.nextTerm());
+                assertFalse(ftgsIterator.nextField());
+            }
         }
     }
 
