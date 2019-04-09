@@ -1,6 +1,5 @@
 package com.indeed.imhotep.api;
 
-import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.primitives.Doubles;
@@ -14,7 +13,7 @@ import com.indeed.imhotep.commands.MetricFilter;
 import com.indeed.imhotep.commands.MetricRegroup;
 import com.indeed.imhotep.commands.MultiRegroup;
 import com.indeed.imhotep.commands.NegateMetricFilter;
-import com.indeed.imhotep.commands.QueryRemapRuleRegroup;
+import com.indeed.imhotep.commands.QueryRegroup;
 import com.indeed.imhotep.commands.RandomMetricMultiRegroup;
 import com.indeed.imhotep.commands.RandomMetricRegroup;
 import com.indeed.imhotep.commands.RandomMultiRegroup;
@@ -34,18 +33,18 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * Interface for each command that will be send in a Imhotep Batch Request.
+ * Interface for each command that will be sent in a Imhotep Batch Request.
  * Each command corresponds to an individual ImhotepRequest on both client and server side.
  */
 public interface ImhotepCommand<T> extends HasSessionId {
 
     /**
-     * Merge results from all the local session in the server and remote session in the client.
+     * Merge results from all the local sessions in the server and remote session in the client.
      */
     T combine(List<T> subResults);
 
     /**
-     * Writing the serialized Imhotep Request to the output stream
+     * Write the serialized Imhotep Request
      */
     void writeToOutputStream(OutputStream os) throws IOException;
 
@@ -59,6 +58,9 @@ public interface ImhotepCommand<T> extends HasSessionId {
      */
     Class<T> getResultClass();
 
+    /**
+     * Apply the command on imhotepSession
+     */
     T apply(ImhotepSession session) throws ImhotepOutOfMemoryException;
 
     static List<String> getSingleDocStatsList(final ImhotepRequest request) {
@@ -183,7 +185,7 @@ public interface ImhotepCommand<T> extends HasSessionId {
                         ImhotepDaemonMarshaller.marshalGroupRemapMessageList(request.getRemapRulesList());
                 return Regroup.createRegroup(groupRemapRules, request.getSessionId());
             case QUERY_REGROUP:
-                return new QueryRemapRuleRegroup(
+                return new QueryRegroup(
                         ImhotepDaemonMarshaller.marshal(request.getQueryRemapRule()),
                         request.getSessionId()
                 );

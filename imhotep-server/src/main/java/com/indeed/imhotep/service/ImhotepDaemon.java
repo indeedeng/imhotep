@@ -948,26 +948,25 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 final ImhotepResponse.Builder builder) throws IOException, ImhotepOutOfMemoryException {
 
             final int imhotepRequestCount = batchImhotepRequest.getImhotepRequestCount();
-            final Pair<ImhotepResponse, GroupStatsIterator> imhotepResponseGroupStatsIteratorPair;
 
             final List<ImhotepCommand> commands = new ArrayList<>();
             for (int i = 0; i < imhotepRequestCount; i++) {
                 commands.add(ImhotepCommand.readFromInputStream(is));
             }
+
             final ImhotepCommand lastCommand = commands.get(commands.size() - 1);
             if (lastCommand.getResultClass() == GroupStatsIterator.class) {
                 final GroupStatsIterator groupStatsIterator = (GroupStatsIterator) service.handleBatchRequest(batchImhotepRequest.getSessionId(), commands, lastCommand);
-                imhotepResponseGroupStatsIteratorPair = Pair.of(builder.setGroupStatSize(groupStatsIterator.getNumGroups()).build(), groupStatsIterator);
+                return Pair.of(builder.setGroupStatSize(groupStatsIterator.getNumGroups()).build(), groupStatsIterator);
             } else if (lastCommand.getResultClass() == Integer.class) {
                 final int numGroup = (Integer) service.handleBatchRequest(batchImhotepRequest.getSessionId(), commands, lastCommand);
-                imhotepResponseGroupStatsIteratorPair = Pair.of(builder.setNumGroups(numGroup).build(), null);
+                return Pair.of(builder.setNumGroups(numGroup).build(), null);
             } else if (lastCommand.getResultClass() == Void.class) {
                 service.handleBatchRequest(batchImhotepRequest.getSessionId(), commands, lastCommand);
-                imhotepResponseGroupStatsIteratorPair = Pair.of(builder.build(), null);
+                return Pair.of(builder.build(), null);
             } else {
                 throw new IllegalArgumentException("Class type of the last command of batch not recognizable." + lastCommand + " Supported Class types: GroupStatsIterator, Integer, Void");
             }
-            return imhotepResponseGroupStatsIteratorPair;
         }
 
 

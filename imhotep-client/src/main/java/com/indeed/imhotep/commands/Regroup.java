@@ -50,7 +50,6 @@ public class Regroup extends AbstractImhotepCommand<Integer> {
         return ImhotepRequestSender.Cached.create(regroupRequest);
     }
 
-
     @Override
     public Integer combine(final List<Integer> subResults) {
         return Collections.max(subResults);

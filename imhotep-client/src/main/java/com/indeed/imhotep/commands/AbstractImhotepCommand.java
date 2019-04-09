@@ -24,14 +24,4 @@ public abstract class AbstractImhotepCommand<T> implements ImhotepCommand<T> {
     public void writeToOutputStream(final OutputStream os) throws IOException {
         getImhotepRequestSender().writeToStreamNoFlush(os);
     }
-
-    @Override
-    public String getSessionId() {
-        return sessionId;
-    }
-
-    @Override
-    public Class<T> getResultClass() {
-        return resultClass;
-    }
 }

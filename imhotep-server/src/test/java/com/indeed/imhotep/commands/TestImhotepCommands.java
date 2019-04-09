@@ -17,9 +17,10 @@ import com.indeed.imhotep.client.ImhotepClient;
 import com.indeed.imhotep.io.RequestTools.GroupMultiRemapRuleSender;
 import com.indeed.imhotep.service.ShardMasterAndImhotepDaemonClusterRunner;
 import org.joda.time.DateTime;
-import org.junit.After;
+import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -36,7 +37,10 @@ public class TestImhotepCommands implements CommandsTest {
     private static final String DATASET = "dataset";
     private static final DateTime TODAY = DateTime.now().withTimeAtStartOfDay();
 
-    private ShardMasterAndImhotepDaemonClusterRunner clusterRunner;
+    @Rule
+    public static final TemporaryFolder rootDir = new TemporaryFolder();
+
+    private static ShardMasterAndImhotepDaemonClusterRunner clusterRunner;
     private static final MemoryFlamdex memoryFlamdex1 = setFlamdex1();
     private static final MemoryFlamdex memoryFlamdex2 = setFlamdex2();
 
@@ -109,23 +113,24 @@ public class TestImhotepCommands implements CommandsTest {
 
     }
 
-    @Rule
-    public final TemporaryFolder rootDir = new TemporaryFolder();
-
-    @Before
-    public void setUpMultiSessions() throws IOException, TimeoutException, InterruptedException {
+    @BeforeClass
+    public static void imhotepClusterSetup() throws IOException, TimeoutException, InterruptedException {
         clusterRunner = new ShardMasterAndImhotepDaemonClusterRunner(rootDir.newFolder("shards"), rootDir.newFolder("temp"));
         clusterRunner.createDailyShard(DATASET, TODAY.minusDays(1), memoryFlamdex1);
-        clusterRunner.createDailyShard(DATASET, TODAY.minusDays(2), memoryFlamdex1);
+        clusterRunner.createDailyShard(DATASET, TODAY.minusDays(2), memoryFlamdex2);
         clusterRunner.startDaemon();
         clusterRunner.startDaemon();
+    }
+
+    @Before
+    public void setUpMultiSessions() throws InterruptedException, IOException, TimeoutException {
         final ImhotepClient imhotepClient = clusterRunner.createClient();
         imhotepMultiSession = (RemoteImhotepMultiSession) imhotepClient.sessionBuilder(DATASET, TODAY.minusDays(2), TODAY).build();
         batchRemoteImhotepMultiSession = ((RemoteImhotepMultiSession) imhotepClient.sessionBuilder(DATASET, TODAY.minusDays(2), TODAY).build()).toBatch();
     }
 
-    @After
-    public void tearDown() throws IOException {
+    @AfterClass
+    public static void tearDown() throws IOException {
         clusterRunner.stop();
     }
 
@@ -140,7 +145,7 @@ public class TestImhotepCommands implements CommandsTest {
     private void assertEqualGroupStatsInternal() throws ImhotepOutOfMemoryException {
         final List<String> stats = new ArrayList<>();
         stats.add("1");
-        Assert.assertTrue(Arrays.equals(imhotepMultiSession.getGroupStats(stats), batchRemoteImhotepMultiSession.getGroupStats(stats)));
+        Assert.assertArrayEquals(imhotepMultiSession.getGroupStats(stats), batchRemoteImhotepMultiSession.getGroupStats(stats));
     }
 
     public <T> void assertEqualGroupStats(final ThrowingFunction<ImhotepSession, T> sessionApplyFunction) throws ImhotepOutOfMemoryException {
@@ -279,7 +284,7 @@ public class TestImhotepCommands implements CommandsTest {
     }
 
     @Test
-    public void testQueryRemapRuleRegroup() throws ImhotepOutOfMemoryException {
+    public void testQueryRegroup() throws ImhotepOutOfMemoryException {
         final QueryRemapRule rule = new QueryRemapRule(1, Query.newTermQuery(new Term("if2", true, 0, "a")),1, 2);
         assertEqualGroupStats(imhotepSession -> {
             return imhotepSession.regroup(rule);

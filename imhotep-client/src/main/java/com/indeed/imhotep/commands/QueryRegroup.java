@@ -19,11 +19,11 @@ import java.util.List;
 
 @EqualsAndHashCode
 @ToString
-public class QueryRemapRuleRegroup extends AbstractImhotepCommand<Integer> {
+public class QueryRegroup extends AbstractImhotepCommand<Integer> {
 
     final QueryRemapRule rule;
 
-    public QueryRemapRuleRegroup(final QueryRemapRule rule, final String sessionId) {
+    public QueryRegroup(final QueryRemapRule rule, final String sessionId) {
         super(sessionId, Integer.class);
         this.rule = rule;
     }

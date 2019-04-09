@@ -18,6 +18,7 @@ import com.indeed.imhotep.api.GroupStatsIterator;
 import com.indeed.util.core.io.Closeables2;
 import it.unimi.dsi.fastutil.longs.AbstractLongIterator;
 import lombok.EqualsAndHashCode;
+import lombok.ToString;
 import org.apache.log4j.Logger;
 
 import java.util.Iterator;
@@ -32,7 +33,6 @@ import java.util.NoSuchElementException;
  * @author aibragimov
  */
 
-@EqualsAndHashCode
 public class GroupStatsIteratorCombiner extends AbstractLongIterator implements GroupStatsIterator {
 
     private static final Logger log = Logger.getLogger( GroupStatsIteratorCombiner.class);

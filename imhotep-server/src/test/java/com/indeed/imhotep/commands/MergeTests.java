@@ -6,7 +6,6 @@ import com.indeed.flamdex.query.Term;
 import com.indeed.imhotep.GroupMultiRemapRule;
 import com.indeed.imhotep.GroupRemapRule;
 import com.indeed.imhotep.GroupStatsDummyIterator;
-import com.indeed.imhotep.GroupStatsIteratorCombiner;
 import com.indeed.imhotep.QueryRemapRule;
 import com.indeed.imhotep.RegroupCondition;
 import com.indeed.imhotep.api.GroupStatsIterator;
@@ -17,7 +16,6 @@ import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
@@ -34,7 +32,16 @@ public class MergeTests implements CommandsTest {
 
     public void assertMaxMerge(final ImhotepCommand imhotepCommand) {
         final List<Integer> subResults = Lists.newArrayList(100, 1, 350, 1, 5, 10);
-        Assert.assertEquals(Collections.max(subResults), imhotepCommand.combine(subResults));
+        Assert.assertEquals(350, imhotepCommand.combine(subResults));
+    }
+
+    private void assertEqualGroupStatsIterators(final GroupStatsIterator iterator1, final GroupStatsIterator iterator2) {
+        while ( iterator1.hasNext() || iterator2.hasNext() ) {
+            if ( (iterator1.hasNext() && !iterator2.hasNext()) || (!iterator1.hasNext() && iterator2.hasNext()) ) {
+                throw new AssertionError("GroupStatts Iterator of unequal size. ");
+            }
+            Assert.assertEquals(iterator1.next(), iterator2.next());
+        }
     }
 
     @Test
@@ -44,34 +51,30 @@ public class MergeTests implements CommandsTest {
         final List<GroupStatsIterator> groupStatsDummyIterators = new ArrayList<>();
         groupStatsDummyIterators.add(new GroupStatsDummyIterator(new long[]{1, 10, 30, 123}));
         groupStatsDummyIterators.add(new GroupStatsDummyIterator(new long[]{112, 110, 390, 123}));
-        Assert.assertEquals(getGroupStats.combine(groupStatsDummyIterators), new GroupStatsIteratorCombiner(groupStatsDummyIterators.toArray(new GroupStatsIterator[0])));
+        assertEqualGroupStatsIterators(new GroupStatsDummyIterator(new long[]{113, 120, 420, 246}), getGroupStats.combine(groupStatsDummyIterators));
     }
 
     @Test
     public void testIntOrRegroup() {
-        final IntOrRegroup intOrRegroup = new IntOrRegroup( "field", new long[]{1,3,4}, 1, 2, 3, SESSION_ID);
-        assertVoidMerge(intOrRegroup);
+        assertVoidMerge(new IntOrRegroup( "field", new long[]{1 ,3 ,4}, 1, 2, 3, SESSION_ID));
     }
 
     @Test
     public void testMetricFilter() {
         final List<String> stats = Lists.newArrayList("1");
-        final MetricFilter metricFilter = new MetricFilter(stats, 1, 5, 1, 2, 3, SESSION_ID);
-        assertMaxMerge(metricFilter);
+        assertMaxMerge(new MetricFilter(stats, 1, 5, 1, 2, 3, SESSION_ID));
     }
 
     @Test
     public void testNegateMetricFilter() {
         final List<String> stats = Lists.newArrayList("1");
-        final NegateMetricFilter negateMetricFilter = new NegateMetricFilter(stats, -5, 5, true, SESSION_ID);
-        assertMaxMerge(negateMetricFilter);
+        assertMaxMerge(new NegateMetricFilter(stats, -5, 5, true, SESSION_ID));
     }
 
     @Test
     public void testMetricRegroup() {
         final List<String> stats = Lists.newArrayList("1");
-        final MetricRegroup metricRegroup = MetricRegroup.createMetricRegroup(stats, 1, 5, 3, true, SESSION_ID);
-        assertMaxMerge(metricRegroup);
+        assertMaxMerge(MetricRegroup.createMetricRegroup(stats, 1, 5, 3, true, SESSION_ID));
     }
 
     @Test
@@ -79,8 +82,7 @@ public class MergeTests implements CommandsTest {
         final GroupMultiRemapRule[] rawRules = new GroupMultiRemapRule[] {
                 new GroupMultiRemapRule(1, 10, new int[]{10}, new RegroupCondition[]{new RegroupCondition("field", false, 2, "string", false)})
         };
-        final MultiRegroup multiRegroup = MultiRegroup.createMultiRegroupCommand(rawRules, true , SESSION_ID);
-        assertMaxMerge(multiRegroup);
+        assertMaxMerge(MultiRegroup.createMultiRegroupCommand(rawRules, true , SESSION_ID));
 
     }
 
@@ -91,8 +93,7 @@ public class MergeTests implements CommandsTest {
                         new RegroupCondition("metric", true, 3, null, false), new RegroupCondition("if2", true, 50, null, false)}),
         };
         final GroupMultiRemapRuleSender groupMultiRemapRuleSender = GroupMultiRemapRuleSender.createFromRules(Arrays.asList(rules).iterator(), true);
-        final MultiRegroupMessagesSender multiRegroupMessagesSender = MultiRegroupMessagesSender.createMultiRegroupMessagesSender(groupMultiRemapRuleSender, true, SESSION_ID);
-        assertMaxMerge(multiRegroupMessagesSender);
+        assertMaxMerge(MultiRegroupMessagesSender.createMultiRegroupMessagesSender(groupMultiRemapRuleSender, true, SESSION_ID));
     }
 
     @Test
@@ -102,40 +103,34 @@ public class MergeTests implements CommandsTest {
                         new RegroupCondition("metric", true, 3, null, false), new RegroupCondition("if2", true, 50, null, false)}),
         };
         final Iterator<GroupMultiRemapRule> groupMultiRemapRuleIterator = Arrays.asList(rules).iterator();
-        final MultiRegroupIterator multiRegroupIterator = new MultiRegroupIterator(1, groupMultiRemapRuleIterator, false, SESSION_ID);
-        assertMaxMerge(multiRegroupIterator);
+        assertMaxMerge(new MultiRegroupIterator(1, groupMultiRemapRuleIterator, false, SESSION_ID));
     }
 
     @Test
     public void testRandomMetricMultiRegroup() {
         final List<String> stats = Lists.newArrayList("1");
-        final RandomMetricMultiRegroup randomMetricMultiRegroup = new RandomMetricMultiRegroup(stats, RANDOM_SALT, 1, new double[]{0.4, 0.8}, new int[]{3, 4, 6}, SESSION_ID);
-        assertVoidMerge(randomMetricMultiRegroup);
+        assertVoidMerge(new RandomMetricMultiRegroup(stats, RANDOM_SALT, 1, new double[]{0.4, 0.8}, new int[]{3, 4, 6}, SESSION_ID));
     }
 
     @Test
     public void testRandomMetricRegroup() {
         final List<String> stats = Lists.newArrayList("1");
-        final RandomMetricRegroup randomMetricRegroup = new RandomMetricRegroup(stats, RANDOM_SALT, 0.4, 1, 2, 3, SESSION_ID);
-        assertVoidMerge(randomMetricRegroup);
+        assertVoidMerge(new RandomMetricRegroup(stats, RANDOM_SALT, 0.4, 1, 2, 3, SESSION_ID));
     }
 
     @Test
     public void testRandomMultiRegroup() {
-        final RandomMultiRegroup randomMultiRegroup = new RandomMultiRegroup("fieldName", false, RANDOM_SALT, 1, new double[]{0.4, 0.8}, new int[]{3, 4, 6}, SESSION_ID);
-        assertVoidMerge(randomMultiRegroup);
+        assertVoidMerge(new RandomMultiRegroup("fieldName", false, RANDOM_SALT, 1, new double[]{0.4, 0.8}, new int[]{3, 4, 6}, SESSION_ID));
     }
 
     @Test
     public void testRandomRegroup() {
-        final RandomRegroup randomRegroup = new RandomRegroup("fieldName", true, RANDOM_SALT, 0.03, 1, 2, 3, SESSION_ID);
-        assertVoidMerge(randomRegroup);
+        assertVoidMerge(new RandomRegroup("fieldName", true, RANDOM_SALT, 0.03, 1, 2, 3, SESSION_ID));
     }
 
     @Test
     public void testRegexRegroup() {
-        final RegexRegroup regexRegroup = new RegexRegroup("fieldName", ".*.*", 1, 2, 3, SESSION_ID);
-        assertVoidMerge(regexRegroup);
+        assertVoidMerge(new RegexRegroup("fieldName", ".*.*", 1, 2, 3, SESSION_ID));
     }
 
     @Test
@@ -143,27 +138,23 @@ public class MergeTests implements CommandsTest {
         final GroupRemapRule[] rawRules = new GroupRemapRule[] {
                 new GroupRemapRule(1, new RegroupCondition("fieldName", false, 0, "strTerm", false), 1000000, 1000000)
         };
-        final Regroup regroup = Regroup.createRegroup(rawRules, SESSION_ID);
-        assertMaxMerge(regroup);
+        assertMaxMerge(Regroup.createRegroup(rawRules, SESSION_ID));
     }
 
     @Test
-    public void testQueryRemapRuleRegroup() {
+    public void testQueryRegroup() {
         final QueryRemapRule rule = new QueryRemapRule(1, Query.newTermQuery(new Term("if2", true, 0, "a")),1, 2);
-        final QueryRemapRuleRegroup queryRemapRuleRegroup = new QueryRemapRuleRegroup(rule, SESSION_ID);
-        assertMaxMerge(queryRemapRuleRegroup);
+        assertMaxMerge(new QueryRegroup(rule, SESSION_ID));
     }
 
     @Test
     public void testUnconditionalRegroup() {
-        final UnconditionalRegroup unconditionalRegroup = new UnconditionalRegroup(new int[]{1,2,3}, new int[]{12,43,12}, true, SESSION_ID);
-        assertMaxMerge(unconditionalRegroup);
+        assertMaxMerge(new UnconditionalRegroup(new int[]{1,2,3}, new int[]{12,43,12}, true, SESSION_ID));
     }
 
     @Test
     public void testStringOrRegroup() {
         final List<String> terms = Lists.newArrayList("1");
-        final StringOrRegroup stringOrRegroup = new StringOrRegroup("fieldName", terms, 1, 2, 3, SESSION_ID);
-        assertVoidMerge(stringOrRegroup);
+        assertVoidMerge(new StringOrRegroup("fieldName", terms, 1, 2, 3, SESSION_ID));
     }
 }
