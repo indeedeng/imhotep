@@ -63,9 +63,6 @@ import org.apache.log4j.Logger;
 
 import javax.annotation.Nullable;
 import java.io.BufferedInputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -73,6 +70,8 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
@@ -582,12 +581,12 @@ public class ImhotepRemoteSession
         final InputStream is = Streams.newBufferedInputStream(socket.getInputStream());
         final OutputStream os = Streams.newBufferedOutputStream(socket.getOutputStream());
         final ImhotepResponse response;
-        File tmp = null;
+        Path tmp = null;
         try {
             response = checkMemoryException(getSessionId(), sendRequest(createSender(request), is, os, host, port));
-            tmp = File.createTempFile(tempFilePrefix, ".tmp");
+            tmp = Files.createTempFile(tempFilePrefix, ".tmp");
             final long start = System.currentTimeMillis();
-            try (final OutputStream out = new LimitedBufferedOutputStream(new FileOutputStream(tmp), tempFileSizeBytesLeft)) {
+            try (final OutputStream out = new LimitedBufferedOutputStream(Files.newOutputStream(tmp), tempFileSizeBytesLeft)) {
                 ByteStreams.copy(is, out);
             } catch (final WriteLimitExceededException t) {
                 final String messageWithSessionId = createMessageWithSessionId(
@@ -596,20 +595,16 @@ public class ImhotepRemoteSession
             } finally {
                 if(log.isDebugEnabled()) {
                     log.debug("[" + getSessionId() + "] time to copy split data to file: " + (System.currentTimeMillis()
-                            - start) + " ms, file length: " + tmp.length());
+                            - start) + " ms, file length: " + Files.size(tmp));
                 }
             }
-            final BufferedInputStream bufferedInputStream = new BufferedInputStream(new FileInputStream(tmp));
+            final BufferedInputStream bufferedInputStream = new BufferedInputStream(Files.newInputStream(tmp));
             return new Pair<>(response, bufferedInputStream);
         } finally {
             if (tmp != null) {
-                boolean deleteFailed;
                 try {
-                    deleteFailed = !tmp.delete();
+                    Files.delete(tmp);
                 } catch (final Exception e) {
-                    deleteFailed = true;
-                }
-                if (deleteFailed) {
                     log.warn("[" + getSessionId() + "] Failed to delete temp file " + tmp);
                 }
             }
