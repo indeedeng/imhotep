@@ -374,8 +374,9 @@ public abstract class AbstractFlamdexFTGSIterator implements FTGSIterator {
         }
 
         if (session.docIdToGroup instanceof BitSetGroupLookup) {
+            final BitSetGroupLookup bitSetGroupLookup = (BitSetGroupLookup) session.docIdToGroup;
             if(stack.getNumStats() == 0) {
-                return new BitSetGroupNoStatsCalculator(1);
+                return new BitSetGroupNoStatsCalculator(bitSetGroupLookup.getNonZeroGroup());
             }
         }
 

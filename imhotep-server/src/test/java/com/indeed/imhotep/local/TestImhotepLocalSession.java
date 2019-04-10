@@ -29,6 +29,8 @@ import com.indeed.imhotep.ImhotepMemoryPool;
 import com.indeed.imhotep.MemoryReservationContext;
 import com.indeed.imhotep.QueryRemapRule;
 import com.indeed.imhotep.RegroupCondition;
+import com.indeed.imhotep.api.FTGSIterator;
+import com.indeed.imhotep.api.FTGSParams;
 import com.indeed.imhotep.api.GroupStatsIterator;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.PerformanceStats;
@@ -53,6 +55,7 @@ import java.util.stream.IntStream;
 import static java.util.Collections.singletonList;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -302,29 +305,37 @@ public class TestImhotepLocalSession {
         } catch (Exception ignored) {
         }
 
-        try {
-            try (ImhotepLocalSession session = new ImhotepJavaLocalSession("testLocalSession", r, new Interval(noonShardStart, noonShardEnd))) {
-                assertTrue(session.docIdToGroup instanceof ConstantGroupLookup);
+        try (ImhotepLocalSession session = new ImhotepJavaLocalSession("testLocalSession", r, new Interval(noonShardStart, noonShardEnd))) {
+            assertTrue(session.docIdToGroup instanceof ConstantGroupLookup);
 
-                assertEquals(2, session.regroup(new QueryRemapRule(1, Query.newTermQuery(Term.stringTerm("testField", "term")), 0, 1)));
-                assertTrue(session.docIdToGroup instanceof BitSetGroupLookup);
-                Assert.assertArrayEquals(new long[]{0, 4}, session.getGroupStats(Collections.singletonList("count()")));
+            assertEquals(2, session.regroup(new QueryRemapRule(1, Query.newTermQuery(Term.stringTerm("testField", "term")), 0, 1)));
+            assertTrue(session.docIdToGroup instanceof BitSetGroupLookup);
+            Assert.assertArrayEquals(new long[]{0, 4}, session.getGroupStats(Collections.singletonList("count()")));
 
-                assertEquals(14, session.metricRegroup(Collections.singletonList("unixtime"), queryStart.getMillis() / 1000, queryEnd.getMillis() / 1000, 1800));
+            assertEquals(14, session.metricRegroup(Collections.singletonList("unixtime"), queryStart.getMillis() / 1000, queryEnd.getMillis() / 1000, 3600));
 
-                assertTrue(session.docIdToGroup instanceof BitSetGroupLookup);
+            assertTrue(session.docIdToGroup instanceof BitSetGroupLookup);
 
-                final int[] expectedGroups = new int[100];
-                expectedGroups[0] = 13;
-                expectedGroups[5] = 13;
-                expectedGroups[20] = 13;
-                expectedGroups[53] = 13;
-                final int[] actualGroups = new int[100];
-                session.exportDocIdToGroupId(actualGroups);
-                Assert.assertArrayEquals(expectedGroups, actualGroups);
+            final int[] expectedGroups = new int[100];
+            expectedGroups[0] = 13;
+            expectedGroups[5] = 13;
+            expectedGroups[20] = 13;
+            expectedGroups[53] = 13;
+            final int[] actualGroups = new int[100];
+            session.exportDocIdToGroupId(actualGroups);
+            Assert.assertArrayEquals(expectedGroups, actualGroups);
+
+            // Ensure that FTGS iterator with no stats works correctly (see IMTEPD-512)
+            try (final FTGSIterator ftgsIterator = session.getFTGSIterator(new String[0], new String[]{"testField"}, Collections.emptyList())) {
+                assertTrue(ftgsIterator.nextField());
+                assertTrue(ftgsIterator.nextTerm());
+                assertEquals("term", ftgsIterator.termStringVal());
+                assertTrue(ftgsIterator.nextGroup());
+                assertEquals(13, ftgsIterator.group());
+                assertFalse(ftgsIterator.nextGroup());
+                assertFalse(ftgsIterator.nextTerm());
+                assertFalse(ftgsIterator.nextField());
             }
-            fail("Expected failure reading unixtime files");
-        } catch (Exception ignored) {
         }
     }
 
