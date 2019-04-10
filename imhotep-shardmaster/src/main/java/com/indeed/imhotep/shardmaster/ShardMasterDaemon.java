@@ -16,8 +16,10 @@ package com.indeed.imhotep.shardmaster;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 import com.indeed.imhotep.ZkEndpointPersister;
@@ -50,7 +52,9 @@ import java.net.ServerSocket;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.CountDownLatch;
@@ -153,7 +157,7 @@ public class ShardMasterDaemon {
                 }
             }, config.getRefreshInterval().getMillis(), config.getRefreshInterval().getMillis(), TimeUnit.MILLISECONDS);
 
-            final DatabaseShardMaster datasetShardMaster = new DatabaseShardMaster(config.createAssigner(), shardData, hostsReloader, refresher);
+            final DatabaseShardMaster datasetShardMaster = new DatabaseShardMaster(config.createAssigner(), shardData, hostsReloader, refresher, config.getDatasetHostLimitMap());
             final ShardMaster shardMaster = (config.dynamicShardMaster == null) ? datasetShardMaster : new CombiningShardMaster(datasetShardMaster, config.dynamicShardMaster);
 
             server = new RequestResponseServer(config.getServerSocket(), new MultiplexingRequestHandler(
@@ -240,6 +244,8 @@ public class ShardMasterDaemon {
     }
 
     public static class Config {
+        private static Splitter COMMA_SPLITTER = Splitter.on(",");
+
         private String zkNodes;
         private String imhotepDaemonsZkPath;
         private String shardMastersZkPath;
@@ -265,6 +271,8 @@ public class ShardMasterDaemon {
         private boolean initialRefreshReadFilesystem = false;
         @Nullable
         private ShardMaster dynamicShardMaster = null;
+        @Nullable
+        private String datasetHostLimitMap;
 
         /*
          * Local mode does:
@@ -389,6 +397,18 @@ public class ShardMasterDaemon {
             return this;
         }
 
+        public Config setDatasetHostLimitMap(final String datasetHostLimitMap) {
+            this.datasetHostLimitMap = datasetHostLimitMap;
+            return this;
+        }
+
+        public Map<String, Integer> getDatasetHostLimitMap() {
+            if (StringUtils.isBlank(datasetHostLimitMap)) {
+                return Collections.emptyMap();
+            }
+            return parseDatasetHostLimitMap(datasetHostLimitMap);
+        }
+
         boolean hasStaticHostsList() {
             return StringUtils.isNotBlank(hostsListStatic);
         }
@@ -418,6 +438,19 @@ public class ShardMasterDaemon {
                 }
             }
             return hostsBuilder.build();
+        }
+
+        private Map<String, Integer> parseDatasetHostLimitMap(final String value) {
+            final Map<String, Integer> hostLimitMap = new HashMap<>();
+            for (final String datasetHostLimitPair : COMMA_SPLITTER.split(value)) {
+                try {
+                    final String[] pair = datasetHostLimitPair.split(":");
+                    hostLimitMap.put(pair[0], Integer.valueOf(pair[1]));
+                } catch (final IndexOutOfBoundsException | NumberFormatException e) {
+                    LOGGER.warn("Failed to parse datasetHostsLimitPair " + datasetHostLimitPair, e);
+                }
+            }
+            return ImmutableMap.copyOf(hostLimitMap);
         }
 
         ExecutorService createExecutorService() {
