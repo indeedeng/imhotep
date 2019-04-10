@@ -170,7 +170,7 @@ public class AsynchronousRemoteImhotepSession extends AbstractImhotepSession {
     }
 
     public void regroupWithRuleSender(final RequestTools.GroupMultiRemapRuleSender sender, final boolean errorOnCollisions) {
-        doIt(session -> session.regroupWithSender(sender, errorOnCollisions, session.newTimer()));
+        doIt(session -> session.regroupWithSender(sender, errorOnCollisions));
     }
 
     @Override
