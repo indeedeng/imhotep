@@ -18,14 +18,14 @@ import java.util.List;
 
 @EqualsAndHashCode
 @ToString
-public class NegateMetricFilter extends AbstractImhotepCommand<Integer> {
+public class UntargetedMetricFilter extends AbstractImhotepCommand<Integer> {
 
     private final List<String> stat;
     private final long min;
     private final long max;
     private final boolean negate;
 
-    public NegateMetricFilter(final List<String> stat, final long min, final long max, final boolean negate, final String sessionId) {
+    public UntargetedMetricFilter(final List<String> stat, final long min, final long max, final boolean negate, final String sessionId) {
         super(sessionId, Integer.class);
         this.stat = stat;
         this.min = min;

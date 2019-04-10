@@ -60,15 +60,15 @@ public class MergeTests implements CommandsTest {
     }
 
     @Test
-    public void testMetricFilter() {
+    public void testTargetedMetricFilter() {
         final List<String> stats = Lists.newArrayList("1");
-        assertMaxMerge(new MetricFilter(stats, 1, 5, 1, 2, 3, SESSION_ID));
+        assertMaxMerge(new TargetedMetricFilter(stats, 1, 5, 1, 2, 3, SESSION_ID));
     }
 
     @Test
-    public void testNegateMetricFilter() {
+    public void testUntargetedMetricFilter() {
         final List<String> stats = Lists.newArrayList("1");
-        assertMaxMerge(new NegateMetricFilter(stats, -5, 5, true, SESSION_ID));
+        assertMaxMerge(new UntargetedMetricFilter(stats, -5, 5, true, SESSION_ID));
     }
 
     @Test

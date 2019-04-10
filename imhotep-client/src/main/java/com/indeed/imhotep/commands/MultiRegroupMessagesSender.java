@@ -17,6 +17,9 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
+/**
+ * GroupMultiRemapRuleSender already passed as an argument. No lazy creation required.
+ */
 public class MultiRegroupMessagesSender extends AbstractImhotepCommand<Integer> {
 
     private final GroupMultiRemapRuleSender groupMultiRemapRuleSender;

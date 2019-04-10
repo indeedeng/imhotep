@@ -10,12 +10,12 @@ import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.PerformanceStats;
 import com.indeed.imhotep.commands.GetGroupStats;
 import com.indeed.imhotep.commands.IntOrRegroup;
-import com.indeed.imhotep.commands.MetricFilter;
+import com.indeed.imhotep.commands.TargetedMetricFilter;
 import com.indeed.imhotep.commands.MetricRegroup;
 import com.indeed.imhotep.commands.MultiRegroup;
 import com.indeed.imhotep.commands.MultiRegroupIterator;
 import com.indeed.imhotep.commands.MultiRegroupMessagesSender;
-import com.indeed.imhotep.commands.NegateMetricFilter;
+import com.indeed.imhotep.commands.UntargetedMetricFilter;
 import com.indeed.imhotep.commands.QueryRegroup;
 import com.indeed.imhotep.commands.RandomMetricMultiRegroup;
 import com.indeed.imhotep.commands.RandomMetricRegroup;
@@ -37,6 +37,7 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * ImhotepSession implementation to send a Batch of Imhotep Requests in a single socket stream.
@@ -79,7 +80,7 @@ public class BatchRemoteImhotepMultiSession extends AbstractImhotepSession {
             executeBatch();
             return null;
         } catch (final ImhotepOutOfMemoryException e) {
-            log.error("ImhotepOutOfMemoryException while executing Imhotep Batch commands. SessionId: " + getSessionId() + " commands List: " + commands);
+            log.error("ImhotepOutOfMemoryException while executing Imhotep Batch commands. SessionId: " + getSessionId() + " commands class List: " + getLogCommandClassNameList());
             throw Throwables.propagate(e);
         }
     }
@@ -216,13 +217,13 @@ public class BatchRemoteImhotepMultiSession extends AbstractImhotepSession {
 
     @Override
     public int metricFilter(final List<String> stat, final long min, final long max, final boolean negate) throws ImhotepOutOfMemoryException {
-        commands.add(new NegateMetricFilter(stat, min, max, negate, remoteImhotepMultiSession.getSessionId()));
+        commands.add(new UntargetedMetricFilter(stat, min, max, negate, remoteImhotepMultiSession.getSessionId()));
         return -999;
     }
 
     @Override
     public int metricFilter(final List<String> stat, final long min, final long max, final int targetGroup, final int negativeGroup, final int positiveGroup) throws ImhotepOutOfMemoryException {
-        commands.add(new MetricFilter(stat, min, max, targetGroup, negativeGroup, positiveGroup, remoteImhotepMultiSession.getSessionId()));
+        commands.add(new TargetedMetricFilter(stat, min, max, targetGroup, negativeGroup, positiveGroup, remoteImhotepMultiSession.getSessionId()));
         return -999;
     }
 
@@ -293,7 +294,7 @@ public class BatchRemoteImhotepMultiSession extends AbstractImhotepSession {
     @Override
     public void close() {
         if (!commands.isEmpty()) {
-            log.warn("Requested to close a session with id: " + getSessionId() + " without using the regroup calls: " + commands);
+            log.warn("Requested to close a session with id: " + getSessionId() + " without using the regroup calls: " + getLogCommandClassNameList());
         }
         commands.clear();
         remoteImhotepMultiSession.close();
@@ -324,7 +325,7 @@ public class BatchRemoteImhotepMultiSession extends AbstractImhotepSession {
     @Override
     public PerformanceStats closeAndGetPerformanceStats() {
         if (!commands.isEmpty()) {
-            log.warn("Requested to close a session with id: " + getSessionId() + " without using the regroup calls: " + commands);
+            log.warn("Requested to close a session with id: " + getSessionId() + " without using the regroup calls: " + getLogCommandClassNameList());
         }
         return remoteImhotepMultiSession.closeAndGetPerformanceStats();
     }
@@ -342,5 +343,9 @@ public class BatchRemoteImhotepMultiSession extends AbstractImhotepSession {
     public long getTempFilesBytesWritten() {
         executeBatchNoMemoryException();
         return remoteImhotepMultiSession.getTempFilesBytesWritten();
+    }
+
+    private List<String> getLogCommandClassNameList() {
+        return commands.stream().map(x -> x.getClass().getSimpleName()).collect(Collectors.toList());
     }
 }

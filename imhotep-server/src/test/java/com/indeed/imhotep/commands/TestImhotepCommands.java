@@ -16,16 +16,17 @@ import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.client.ImhotepClient;
 import com.indeed.imhotep.io.RequestTools.GroupMultiRemapRuleSender;
 import com.indeed.imhotep.service.ShardMasterAndImhotepDaemonClusterRunner;
+import org.apache.commons.io.FileUtils;
 import org.joda.time.DateTime;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
 
+import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
@@ -37,8 +38,8 @@ public class TestImhotepCommands implements CommandsTest {
     private static final String DATASET = "dataset";
     private static final DateTime TODAY = DateTime.now().withTimeAtStartOfDay();
 
-    @Rule
-    public static final TemporaryFolder rootDir = new TemporaryFolder();
+    static File tempShardDir;
+    static File tempDir;
 
     private static ShardMasterAndImhotepDaemonClusterRunner clusterRunner;
     private static final MemoryFlamdex memoryFlamdex1 = setFlamdex1();
@@ -115,7 +116,9 @@ public class TestImhotepCommands implements CommandsTest {
 
     @BeforeClass
     public static void imhotepClusterSetup() throws IOException, TimeoutException, InterruptedException {
-        clusterRunner = new ShardMasterAndImhotepDaemonClusterRunner(rootDir.newFolder("shards"), rootDir.newFolder("temp"));
+        tempShardDir = Files.createTempDirectory("shardDir").toFile();
+        tempDir = Files.createTempDirectory("tempDir").toFile();
+        clusterRunner = new ShardMasterAndImhotepDaemonClusterRunner(tempShardDir, tempDir);
         clusterRunner.createDailyShard(DATASET, TODAY.minusDays(1), memoryFlamdex1);
         clusterRunner.createDailyShard(DATASET, TODAY.minusDays(2), memoryFlamdex2);
         clusterRunner.startDaemon();
@@ -132,6 +135,8 @@ public class TestImhotepCommands implements CommandsTest {
     @AfterClass
     public static void tearDown() throws IOException {
         clusterRunner.stop();
+        FileUtils.deleteDirectory(tempShardDir);
+        FileUtils.deleteDirectory(tempDir);
     }
 
     private interface ThrowingFunction<K, V> {
@@ -148,13 +153,13 @@ public class TestImhotepCommands implements CommandsTest {
         Assert.assertArrayEquals(imhotepMultiSession.getGroupStats(stats), batchRemoteImhotepMultiSession.getGroupStats(stats));
     }
 
-    public <T> void assertEqualGroupStats(final ThrowingFunction<ImhotepSession, T> sessionApplyFunction) throws ImhotepOutOfMemoryException {
+    private  <T> void assertEqualGroupStats(final ThrowingFunction<ImhotepSession, T> sessionApplyFunction) throws ImhotepOutOfMemoryException {
         sessionApplyFunction.apply(imhotepMultiSession);
         sessionApplyFunction.apply(batchRemoteImhotepMultiSession);
         assertEqualGroupStatsInternal();
     }
 
-    public void assertEqualGroupStatsVoid(final VoidThrowingFunction<ImhotepSession> sessionApplyFunction) throws ImhotepOutOfMemoryException {
+    private void assertEqualGroupStatsVoid(final VoidThrowingFunction<ImhotepSession> sessionApplyFunction) throws ImhotepOutOfMemoryException {
         sessionApplyFunction.apply(imhotepMultiSession);
         sessionApplyFunction.apply(batchRemoteImhotepMultiSession);
         assertEqualGroupStatsInternal();
@@ -173,11 +178,11 @@ public class TestImhotepCommands implements CommandsTest {
     }
 
     @Test
-    public void testMetricFilter() throws ImhotepOutOfMemoryException {
+    public void testTargetedMetricFilter() throws ImhotepOutOfMemoryException {
         final List<String> stat = new ArrayList<String>();
         stat.add("1");
         assertEqualGroupStats(imhotepSession -> {
-            return imhotepSession.metricFilter(stat, -5, 5, false);
+            return imhotepSession.metricFilter(stat, -5, 5, 1, 2, 3);
         });
     }
 
@@ -226,7 +231,7 @@ public class TestImhotepCommands implements CommandsTest {
     }
 
     @Test
-    public void testNegateMetricFilter() throws ImhotepOutOfMemoryException {
+    public void testUntargetedMetricFilter() throws ImhotepOutOfMemoryException {
         final List<String> stats = Lists.newArrayList("1");
         assertEqualGroupStats(imhotepSession -> {
             return imhotepSession.metricFilter(stats, -5, 5, true);

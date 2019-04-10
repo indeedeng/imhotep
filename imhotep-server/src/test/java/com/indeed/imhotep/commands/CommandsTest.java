@@ -2,9 +2,11 @@ package com.indeed.imhotep.commands;
 
  interface CommandsTest {
 
+     void testGetGroupStats() throws Exception;
+
      void testIntOrRegroup() throws Exception;
 
-     void testMetricFilter() throws Exception;
+     void testTargetedMetricFilter() throws Exception;
     
      void testMetricRegroup() throws Exception; 
     
@@ -14,7 +16,7 @@ package com.indeed.imhotep.commands;
     
      void testMultiRegroupMessagesIterator() throws Exception; 
 
-     void testNegateMetricFilter() throws Exception; 
+     void testUntargetedMetricFilter() throws Exception;
     
      void testRandomMetricMultiRegroup() throws Exception; 
     

@@ -18,7 +18,7 @@ import java.util.List;
 
 @EqualsAndHashCode
 @ToString
-public class MetricFilter extends AbstractImhotepCommand<Integer> {
+public class TargetedMetricFilter extends AbstractImhotepCommand<Integer> {
 
     private final List<String> stat;
     private final long min;
@@ -27,7 +27,7 @@ public class MetricFilter extends AbstractImhotepCommand<Integer> {
     private final int negativeGroup;
     private final int positiveGroup;
 
-    public MetricFilter(final List<String> stat, final long min, final long max, final int targetGroup, final int negativeGroup, final int positiveGroup, final String sessionId) {
+    public TargetedMetricFilter(final List<String> stat, final long min, final long max, final int targetGroup, final int negativeGroup, final int positiveGroup, final String sessionId) {
         super(sessionId, Integer.class);
         this.stat = stat;
         this.min = min;

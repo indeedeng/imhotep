@@ -9,10 +9,10 @@ import com.indeed.imhotep.GroupMultiRemapRule;
 import com.indeed.imhotep.GroupRemapRule;
 import com.indeed.imhotep.commands.GetGroupStats;
 import com.indeed.imhotep.commands.IntOrRegroup;
-import com.indeed.imhotep.commands.MetricFilter;
+import com.indeed.imhotep.commands.TargetedMetricFilter;
 import com.indeed.imhotep.commands.MetricRegroup;
 import com.indeed.imhotep.commands.MultiRegroup;
-import com.indeed.imhotep.commands.NegateMetricFilter;
+import com.indeed.imhotep.commands.UntargetedMetricFilter;
 import com.indeed.imhotep.commands.QueryRegroup;
 import com.indeed.imhotep.commands.RandomMetricMultiRegroup;
 import com.indeed.imhotep.commands.RandomMetricRegroup;
@@ -155,7 +155,7 @@ public interface ImhotepCommand<T> extends HasSessionId {
                 );
             case METRIC_FILTER:
                 if (request.getTargetGroup() > 0) {
-                    return new MetricFilter(
+                    return new TargetedMetricFilter(
                             request.getXStatDocstat().getStatList(),
                             request.getXMin(),
                             request.getXMax(),
@@ -165,7 +165,7 @@ public interface ImhotepCommand<T> extends HasSessionId {
                             request.getSessionId()
                     );
                 } else {
-                    return new NegateMetricFilter(
+                    return new UntargetedMetricFilter(
                             request.getXStatDocstat().getStatList(),
                             request.getXMin(),
                             request.getXMax(),

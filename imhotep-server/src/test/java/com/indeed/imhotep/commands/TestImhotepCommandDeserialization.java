@@ -45,9 +45,9 @@ public class TestImhotepCommandDeserialization implements CommandsTest {
     }
 
     @Test
-    public void testMetricFilter() throws IOException {
+    public void testTargetedMetricFilter() throws IOException {
         final List<String> stats = Lists.newArrayList("1");
-        assertEqualDeserialize(new MetricFilter(stats, 1, 5, 1, 2, 3, SESSION_ID));
+        assertEqualDeserialize(new TargetedMetricFilter(stats, 1, 5, 1, 2, 3, SESSION_ID));
     }
 
     @Test
@@ -73,9 +73,9 @@ public class TestImhotepCommandDeserialization implements CommandsTest {
     }
 
     @Test
-    public void testNegateMetricFilter() throws IOException {
+    public void testUntargetedMetricFilter() throws IOException {
         final List<String> stats = Lists.newArrayList("1");
-        assertEqualDeserialize(new NegateMetricFilter(stats, 0, 5, true, SESSION_ID));
+        assertEqualDeserialize(new UntargetedMetricFilter(stats, 0, 5, true, SESSION_ID));
     }
 
     @Test

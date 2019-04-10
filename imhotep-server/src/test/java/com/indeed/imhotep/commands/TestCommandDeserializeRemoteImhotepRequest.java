@@ -107,10 +107,10 @@ public class TestCommandDeserializeRemoteImhotepRequest implements CommandsTest 
     }
 
     @Test
-    public void testMetricFilter() throws ImhotepOutOfMemoryException, ExecutionException, InterruptedException {
+    public void testTargetedMetricFilter() throws ImhotepOutOfMemoryException, ExecutionException, InterruptedException {
         final List<String> stats = Lists.newArrayList("1");
         imhotepRemoteSession.metricFilter(stats, 0, 100, 1, 2, 3);
-        Assert.assertEquals(new MetricFilter(stats, 0, 100, 1, 2, 3, SESSION_ID), holder.futureCommand.get());
+        Assert.assertEquals(new TargetedMetricFilter(stats, 0, 100, 1, 2, 3, SESSION_ID), holder.futureCommand.get());
     }
 
     @Test
@@ -138,10 +138,10 @@ public class TestCommandDeserializeRemoteImhotepRequest implements CommandsTest 
     }
 
     @Test
-    public void testNegateMetricFilter() throws ImhotepOutOfMemoryException, ExecutionException, InterruptedException {
+    public void testUntargetedMetricFilter() throws ImhotepOutOfMemoryException, ExecutionException, InterruptedException {
         final List<String> stats = Lists.newArrayList("1");
         imhotepRemoteSession.metricFilter(stats, 0, 5, true);
-        Assert.assertEquals(new NegateMetricFilter(stats, 0, 5, true, SESSION_ID), holder.futureCommand.get());
+        Assert.assertEquals(new UntargetedMetricFilter(stats, 0, 5, true, SESSION_ID), holder.futureCommand.get());
     }
 
     @Test
@@ -183,7 +183,6 @@ public class TestCommandDeserializeRemoteImhotepRequest implements CommandsTest 
         };
         imhotepRemoteSession.regroup(rawRules);
         Assert.assertEquals(Regroup.createRegroup(rawRules, SESSION_ID), holder.futureCommand.get());
-
     }
 
     @Test
