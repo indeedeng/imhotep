@@ -249,7 +249,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
     }
 
     public int regroupWithRuleSender(final GroupMultiRemapRuleSender ruleSender, final boolean errorOnCollisions) throws ImhotepOutOfMemoryException {
-        executeMemoryException(integerBuf, session -> session.regroupWithSender(ruleSender, errorOnCollisions, session.newTimer()));
+        executeMemoryException(integerBuf, session -> session.regroupWithSender(ruleSender, errorOnCollisions));
 
         return Collections.max(Arrays.asList(integerBuf));
     }
