@@ -112,27 +112,6 @@ public class ImhotepRemoteSession
     private final String sourceAddr;
     private final String targetAddr;
 
-    private final class SubmitRequestEvent extends Instrumentation.Event {
-
-        public SubmitRequestEvent(final ImhotepRequest request,
-                                  final long           beginTimeMillis,
-                                  final long           elapsedTimeMillis) {
-            this(request.getRequestType(), beginTimeMillis, elapsedTimeMillis);
-        }
-
-        public SubmitRequestEvent(final ImhotepRequest.RequestType requestType,
-                                  final long                       beginTimeMillis,
-                                  final long                       elapsedTimeMillis) {
-            super(SubmitRequestEvent.class.getSimpleName());
-            getProperties().put(Keys.SESSION_ID,          ImhotepRemoteSession.this.getSessionId());
-            getProperties().put(Keys.REQUEST_TYPE,        requestType.toString());
-            getProperties().put(Keys.BEGIN_TIME_MILLIS,   beginTimeMillis);
-            getProperties().put(Keys.ELAPSED_TIME_MILLIS, elapsedTimeMillis);
-            getProperties().put(Keys.SOURCE_ADDR,         ImhotepRemoteSession.this.sourceAddr);
-            getProperties().put(Keys.TARGET_ADDR,         ImhotepRemoteSession.this.targetAddr);
-        }
-    }
-
     public ImhotepRemoteSession(final String host, final int port, final String sessionId,
                                 final AtomicLong tempFileSizeBytesLeft) {
         this(host, port, sessionId, tempFileSizeBytesLeft, DEFAULT_SOCKET_TIMEOUT);
