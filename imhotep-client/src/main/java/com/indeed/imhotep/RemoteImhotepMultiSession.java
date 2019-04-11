@@ -576,10 +576,10 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
         }
     }
 
-    <T> T processImhotepBatchRequest(final List<ImhotepCommand> commands, final ImhotepCommand<T> lastCommand ) throws ImhotepOutOfMemoryException {
+    <T> T processImhotepBatchRequest(final List<ImhotepCommand> firstCommands, final ImhotepCommand<T> lastCommand ) throws ImhotepOutOfMemoryException {
             final T[] buffer = (T[]) Array.newInstance(lastCommand.getResultClass(), sessions.length);
             executeMemoryException(buffer, session -> {
-                return session.sendImhotepBatchRequest(commands, lastCommand);
+                return session.sendImhotepBatchRequest(firstCommands, lastCommand);
             });
             return lastCommand.combine(Arrays.asList(buffer));
     }

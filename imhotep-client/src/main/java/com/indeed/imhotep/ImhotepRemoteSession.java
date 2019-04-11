@@ -1396,14 +1396,14 @@ public class ImhotepRemoteSession
         this.numStats = numStats;
     }
 
-    public <T> T sendImhotepBatchRequest(final List<ImhotepCommand> commands, final ImhotepCommand<T> lastCommand) throws IOException, ImhotepOutOfMemoryException {
+    public <T> T sendImhotepBatchRequest(final List<ImhotepCommand> firstCommands, final ImhotepCommand<T> lastCommand) throws IOException, ImhotepOutOfMemoryException {
         final Socket socket = newSocket(host, port, socketTimeout);
         final OutputStream os = Streams.newBufferedOutputStream(socket.getOutputStream());
         final InputStream is = Streams.newBufferedInputStream(socket.getInputStream());
 
         try {
             final ImhotepRequest batchRequestHeader = getBuilderForType(ImhotepRequest.RequestType.BATCH_REQUESTS)
-                    .setImhotepRequestCount(commands.size())
+                    .setImhotepRequestCount(firstCommands.size() + 1)
                     .setSessionId(getSessionId())
                     .build();
 
@@ -1411,9 +1411,10 @@ public class ImhotepRemoteSession
             imhotepRequestSender.writeToStreamNoFlush(os);
             os.flush();
 
-            for (final ImhotepCommand command : commands) {
+            for (final ImhotepCommand command : firstCommands) {
                 command.writeToOutputStream(os);
             }
+            lastCommand.writeToOutputStream(os);
             os.flush();
 
             return lastCommand.readResponse(is, this);
