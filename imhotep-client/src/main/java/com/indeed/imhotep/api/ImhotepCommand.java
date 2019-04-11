@@ -199,7 +199,7 @@ public interface ImhotepCommand<T> extends HasSessionId {
             default:
                 throw new IllegalArgumentException("unsupported request type in batch request: " +
                         request.getRequestType() +
-                        "Batch Mode only supports Regroup and GetGroupStats Request."
+                        "Batch Mode only supports Regroups and GetGroupStats requests."
                 );
         }
     }

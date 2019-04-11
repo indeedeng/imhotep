@@ -874,45 +874,40 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             return builder.build();
         }
 
-        private UnmodifiableIterator<GroupMultiRemapRule> getGroupMultiRemapRule(
-                final int numRules,
-                final InputStream inputStream) {
-            return new UnmodifiableIterator<GroupMultiRemapRule>() {
-                private int i = 0;
-
-                @Override
-                public boolean hasNext() {
-                    return i < numRules;
-                }
-
-                @Override
-                public GroupMultiRemapRule next() {
-                    try {
-                        final GroupMultiRemapMessage message =
-                                ImhotepProtobufShipping.readGroupMultiRemapMessage(inputStream);
-                        final GroupMultiRemapRule rule =
-                                ImhotepDaemonMarshaller.marshal(message);
-                        i++;
-                        return rule;
-                    } catch (final IOException e) {
-                        throw Throwables.propagate(e);
-                    }
-                }
-            };
-        }
-
         private ImhotepResponse explodedMultisplitRegroup(
                 final ImhotepRequest          request,
                 final ImhotepResponse.Builder builder,
                 final InputStream             is)
-            throws ImhotepOutOfMemoryException {
+                throws ImhotepOutOfMemoryException {
             final int numRules = request.getLength();
-            final UnmodifiableIterator<GroupMultiRemapRule> it = getGroupMultiRemapRule(numRules, is);
+            final UnmodifiableIterator<GroupMultiRemapRule> it =
+                    new UnmodifiableIterator<GroupMultiRemapRule>() {
+                        private int i = 0;
+
+                        @Override
+                        public boolean hasNext() {
+                            return i < numRules;
+                        }
+
+                        @Override
+                        public GroupMultiRemapRule next() {
+                            try {
+                                final GroupMultiRemapMessage message =
+                                        ImhotepProtobufShipping.readGroupMultiRemapMessage(is);
+                                final GroupMultiRemapRule rule =
+                                        ImhotepDaemonMarshaller.marshal(message);
+                                i++;
+                                return rule;
+                            } catch (final IOException e) {
+                                throw Throwables.propagate(e);
+                            }
+                        }
+                    };
             final int numGroups =
-                service.handleMultisplitRegroup(request.getSessionId(),
-                                                numRules,
-                                                it,
-                                                request.getErrorOnCollisions());
+                    service.handleMultisplitRegroup(request.getSessionId(),
+                            numRules,
+                            it,
+                            request.getErrorOnCollisions());
             builder.setNumGroups(numGroups);
             return builder.build();
         }
@@ -988,7 +983,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
         private Pair<ImhotepResponse, GroupStatsIterator> handleImhotepRequest(
                 final ImhotepRequest request,
                 final InputStream is,
-                final OutputStream os) throws IOException, ImhotepOutOfMemoryException, RuntimeException {
+                final OutputStream os) throws IOException, ImhotepOutOfMemoryException {
             ImhotepResponse response = null;
             GroupStatsIterator groupStats = null;
 

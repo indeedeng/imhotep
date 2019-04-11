@@ -8,7 +8,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 
 /**
- * Initializes the imhotepRequestSender only when it's getter is called, top avoid it's creation on the server side.
+ * Initializes the imhotepRequestSender only when its getter is called, to avoid its creation on the server side.
  */
 public abstract class AbstractImhotepCommand<T> implements ImhotepCommand<T> {
 
