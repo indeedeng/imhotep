@@ -55,7 +55,7 @@ public class TestCommandApply implements CommandsTest {
         replayAndVerify(command);
     }
 
-    @Test
+    @Override @Test
     public void testGetGroupStats() throws Exception {
         final List<String> stats = Lists.newArrayList("1");
         EasyMock.expect(imhotepSession.getGroupStatsIterator(EasyMock.eq(stats))).andReturn(new GroupStatsDummyIterator(new long[]{1, 2, 3}));
@@ -66,14 +66,14 @@ public class TestCommandApply implements CommandsTest {
         EasyMock.verify(imhotepSession);
     }
 
-    @Test
+    @Override @Test
     public void testIntOrRegroup() throws ImhotepOutOfMemoryException {
         testApplyMethodCallVoid(new IntOrRegroup("field", new long[]{1, 3, 4}, 1, 2, 3, SESSION_ID), imhotepSession -> {
             imhotepSession.intOrRegroup(EasyMock.eq("field"), EasyMock.aryEq(new long[]{1, 3, 4}), EasyMock.eq(1), EasyMock.eq(2), EasyMock.eq(3));
         });
     }
 
-    @Test
+    @Override @Test
     public void testTargetedMetricFilter() throws ImhotepOutOfMemoryException {
         final List<String> stat = Lists.newArrayList("1");
         testApplyMethodCallInt(new TargetedMetricFilter(stat, 0, 100, 1, 2, 3, SESSION_ID), imhotepSession -> {
@@ -81,7 +81,7 @@ public class TestCommandApply implements CommandsTest {
         });
     }
 
-    @Test
+    @Override @Test
     public void testMetricRegroup() throws ImhotepOutOfMemoryException {
         final List<String> stats = Lists.newArrayList("1");
         testApplyMethodCallInt(MetricRegroup.createMetricRegroup(stats, 0, 100, 10, false, SESSION_ID), imhotepSession -> {
@@ -89,7 +89,7 @@ public class TestCommandApply implements CommandsTest {
         });
     }
 
-    @Test
+    @Override @Test
     public void testMultiRegroup() throws ImhotepOutOfMemoryException {
         final GroupMultiRemapRule[] rules = new GroupMultiRemapRule[]{
                 new GroupMultiRemapRule(1, 1, new int[]{2}, new RegroupCondition[]{new RegroupCondition("metric", true, 3, null, false)})};
@@ -98,7 +98,7 @@ public class TestCommandApply implements CommandsTest {
         });
     }
 
-    @Test(expected = UnsupportedOperationException.class)
+    @Override @Test(expected = UnsupportedOperationException.class)
     public void testMultiRegroupMessagesSender() throws ImhotepOutOfMemoryException {
         final GroupMultiRemapRule[] rules = new GroupMultiRemapRule[]{
                 new GroupMultiRemapRule(1, 1, new int[]{2, 3}, new RegroupCondition[]{
@@ -110,7 +110,7 @@ public class TestCommandApply implements CommandsTest {
         });
     }
 
-    @Test(expected = UnsupportedOperationException.class)
+    @Override @Test(expected = UnsupportedOperationException.class)
     public void testMultiRegroupMessagesIterator() throws ImhotepOutOfMemoryException {
         final GroupMultiRemapRule[] rules = new GroupMultiRemapRule[]{
                 new GroupMultiRemapRule(1, 1, new int[]{2, 3}, new RegroupCondition[]{
@@ -121,7 +121,7 @@ public class TestCommandApply implements CommandsTest {
         });
     }
 
-    @Test
+    @Override @Test
     public void testUntargetedMetricFilter() throws ImhotepOutOfMemoryException {
         final List<String> stats = Lists.newArrayList("1");
         testApplyMethodCallInt(new UntargetedMetricFilter(stats, 0, 5, true, SESSION_ID), imhotepSession -> {
@@ -129,7 +129,7 @@ public class TestCommandApply implements CommandsTest {
         });
     }
 
-    @Test
+    @Override @Test
     public void testRandomMetricMultiRegroup() throws ImhotepOutOfMemoryException {
         final List<String> stats = Lists.newArrayList("1");
         testApplyMethodCallVoid(new RandomMetricMultiRegroup(stats, "RandomSaltString", 1, new double[]{0.4, 0.8}, new int[]{3, 4, 6}, SESSION_ID), imhotepSession -> {
@@ -137,7 +137,7 @@ public class TestCommandApply implements CommandsTest {
         });
     }
 
-    @Test
+    @Override @Test
     public void testRandomMetricRegroup() throws ImhotepOutOfMemoryException {
         final List<String> stats = Lists.newArrayList("1");
         testApplyMethodCallVoid(new RandomMetricRegroup(stats, RANDOM_SALT, 0.3, 1, 2, 3, SESSION_ID), imhotepSession -> {
@@ -145,28 +145,28 @@ public class TestCommandApply implements CommandsTest {
         });
     }
 
-    @Test
+    @Override @Test
     public void testRandomMultiRegroup() throws ImhotepOutOfMemoryException {
         testApplyMethodCallVoid(new RandomMultiRegroup("field", true, RANDOM_SALT, 1, new double[]{0.4, 0.8}, new int[]{3, 4, 6}, SESSION_ID), imhotepSession -> {
             imhotepSession.randomMultiRegroup(EasyMock.eq("field"), EasyMock.eq(true), EasyMock.eq(RANDOM_SALT), EasyMock.eq(1), EasyMock.aryEq(new double[]{0.4, 0.8}), EasyMock.aryEq(new int[]{3, 4, 6}));
         });
     }
 
-    @Test
+    @Override @Test
     public void testRandomRegroup() throws ImhotepOutOfMemoryException {
         testApplyMethodCallVoid(new RandomRegroup("field", true, RANDOM_SALT, 0.2, 1, 2, 3, SESSION_ID), imhotepSession -> {
             imhotepSession.randomRegroup(EasyMock.eq("field"), EasyMock.eq(true), EasyMock.eq(RANDOM_SALT), EasyMock.eq(0.2), EasyMock.eq(1), EasyMock.eq(2), EasyMock.eq(3));
         });
     }
 
-    @Test
+    @Override @Test
     public void testRegexRegroup() throws ImhotepOutOfMemoryException {
         testApplyMethodCallVoid(new RegexRegroup("field", ".*.*", 1, 2, 3, SESSION_ID), imhotepSession -> {
             imhotepSession.regexRegroup(EasyMock.eq("field"), EasyMock.eq(".*.*"), EasyMock.eq(1), EasyMock.eq(2), EasyMock.eq(3));
         });
     }
 
-    @Test
+    @Override @Test
     public void testRegroup() throws ImhotepOutOfMemoryException {
         final GroupRemapRule[] rawRules = new GroupRemapRule[]{
                 new GroupRemapRule(1, new RegroupCondition("fieldName", false, 0, "strTerm", false), 1000000, 1000000)
@@ -176,7 +176,7 @@ public class TestCommandApply implements CommandsTest {
         });
     }
 
-    @Test
+    @Override @Test
     public void testQueryRegroup() throws ImhotepOutOfMemoryException {
         final QueryRemapRule rule = new QueryRemapRule(1, Query.newTermQuery(new Term("if2", true, 0, "a")), 1, 2);
         testApplyMethodCallInt(new QueryRegroup(rule, SESSION_ID), imhotepSession -> {
@@ -184,14 +184,14 @@ public class TestCommandApply implements CommandsTest {
         });
     }
 
-    @Test
+    @Override @Test
     public void testUnconditionalRegroup() throws ImhotepOutOfMemoryException {
         testApplyMethodCallInt(new UnconditionalRegroup(new int[]{1, 2, 3}, new int[]{12, 43, 12}, true, SESSION_ID), imhotepSession -> {
             return imhotepSession.regroup(EasyMock.aryEq(new int[]{1, 2, 3}), EasyMock.aryEq(new int[]{12, 43, 12}), EasyMock.eq(true));
         });
     }
 
-    @Test
+    @Override @Test
     public void testStringOrRegroup() throws ImhotepOutOfMemoryException {
         final List<String> terms = Lists.newArrayList("1");
         testApplyMethodCallVoid(new StringOrRegroup("field", terms, 1, 2, 3, SESSION_ID), imhotepSession -> {

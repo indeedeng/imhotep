@@ -54,7 +54,6 @@ public class BatchRemoteImhotepMultiSession extends AbstractImhotepSession {
 
     private <T> T executeBatchAndGetResult(final ImhotepCommand<T> lastCommand) throws ImhotepOutOfMemoryException {
         try {
-            commands.add(lastCommand);
             return remoteImhotepMultiSession.processImhotepBatchRequest(commands, lastCommand);
         } finally {
             commands.clear();
@@ -68,6 +67,7 @@ public class BatchRemoteImhotepMultiSession extends AbstractImhotepSession {
 
         try {
             final ImhotepCommand<?> lastCommand = commands.get(commands.size() - 1);
+            commands.remove(commands.size() - 1);
             remoteImhotepMultiSession.processImhotepBatchRequest(commands, lastCommand);
             return null;
         } finally {

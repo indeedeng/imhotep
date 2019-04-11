@@ -91,14 +91,14 @@ public class TestCommandDeserializeRemoteImhotepRequest implements CommandsTest 
         imhotepRemoteSession = new ImhotepRemoteSession(holder.host, holder.port, SESSION_ID, tempFileSizeHolder);
     }
 
-    @Test
+    @Override @Test
     public void testGetGroupStats() throws ImhotepOutOfMemoryException, ExecutionException, InterruptedException {
         final List<String> stats = Lists.newArrayList("1");
         imhotepRemoteSession.getGroupStatsIterator(stats);
         Assert.assertEquals(new GetGroupStats(stats, SESSION_ID), holder.futureCommand.get());
     }
 
-    @Test
+    @Override @Test
     public void testIntOrRegroup() throws ImhotepOutOfMemoryException, ExecutionException, InterruptedException {
         final String field = "field";
         final long[] terms = new long[]{1, 3};
@@ -106,21 +106,21 @@ public class TestCommandDeserializeRemoteImhotepRequest implements CommandsTest 
         Assert.assertEquals(new IntOrRegroup(field, terms, 1, 2, 3, SESSION_ID), holder.futureCommand.get());
     }
 
-    @Test
+    @Override @Test
     public void testTargetedMetricFilter() throws ImhotepOutOfMemoryException, ExecutionException, InterruptedException {
         final List<String> stats = Lists.newArrayList("1");
         imhotepRemoteSession.metricFilter(stats, 0, 100, 1, 2, 3);
         Assert.assertEquals(new TargetedMetricFilter(stats, 0, 100, 1, 2, 3, SESSION_ID), holder.futureCommand.get());
     }
 
-    @Test
+    @Override @Test
     public void testMetricRegroup() throws ImhotepOutOfMemoryException, ExecutionException, InterruptedException {
         final List<String> stats = Lists.newArrayList("1");
         imhotepRemoteSession.metricRegroup(stats, 0, 100, 10, false);
         Assert.assertEquals(MetricRegroup.createMetricRegroup(stats, 0, 100, 10, false, SESSION_ID), holder.futureCommand.get());
     }
 
-    @Test
+    @Override @Test
     public void testMultiRegroup() throws ImhotepOutOfMemoryException, ExecutionException, InterruptedException {
         final GroupMultiRemapRule[] rawRules = new GroupMultiRemapRule[]{
                 new GroupMultiRemapRule(1, 10, new int[]{10}, new RegroupCondition[]{new RegroupCondition("field", false, 0, "strTerm", false)})
@@ -137,46 +137,46 @@ public class TestCommandDeserializeRemoteImhotepRequest implements CommandsTest 
         // This command isn't serialized on the server side
     }
 
-    @Test
+    @Override @Test
     public void testUntargetedMetricFilter() throws ImhotepOutOfMemoryException, ExecutionException, InterruptedException {
         final List<String> stats = Lists.newArrayList("1");
         imhotepRemoteSession.metricFilter(stats, 0, 5, true);
         Assert.assertEquals(new UntargetedMetricFilter(stats, 0, 5, true, SESSION_ID), holder.futureCommand.get());
     }
 
-    @Test
+    @Override @Test
     public void testRandomMetricMultiRegroup() throws ImhotepOutOfMemoryException, ExecutionException, InterruptedException {
         final List<String> stats = Lists.newArrayList("1");
         imhotepRemoteSession.randomMetricMultiRegroup(stats, RANDOM_SALT, 1, new double[]{0.4, 0.8}, new int[]{3, 4, 6});
         Assert.assertEquals(new RandomMetricMultiRegroup(stats, "RandomSaltString", 1, new double[]{0.4, 0.8}, new int[]{3, 4, 6}, SESSION_ID), holder.futureCommand.get());
     }
 
-    @Test
+    @Override @Test
     public void testRandomMetricRegroup() throws ImhotepOutOfMemoryException, ExecutionException, InterruptedException {
         final List<String> stats = Lists.newArrayList("1");
         imhotepRemoteSession.randomMetricRegroup(stats, RANDOM_SALT, 0.3, 1, 2, 3);
         Assert.assertEquals(new RandomMetricRegroup(stats, RANDOM_SALT, 0.3, 1, 2, 3, SESSION_ID), holder.futureCommand.get());
     }
 
-    @Test
+    @Override @Test
     public void testRandomMultiRegroup() throws ImhotepOutOfMemoryException, ExecutionException, InterruptedException {
         imhotepRemoteSession.randomMultiRegroup("field", true, RANDOM_SALT, 1, new double[]{0.4, 0.8}, new int[]{3, 4, 6});
         Assert.assertEquals(new RandomMultiRegroup("field", true, RANDOM_SALT, 1, new double[]{0.4, 0.8}, new int[]{3, 4, 6}, SESSION_ID), holder.futureCommand.get());
     }
 
-    @Test
+    @Override @Test
     public void testRandomRegroup() throws ImhotepOutOfMemoryException, ExecutionException, InterruptedException {
         imhotepRemoteSession.randomRegroup("field", true, RANDOM_SALT, 0.3, 1, 2, 3);
         Assert.assertEquals(new RandomRegroup("field", true, RANDOM_SALT, 0.3, 1, 2, 3, SESSION_ID), holder.futureCommand.get());
     }
 
-    @Test
+    @Override @Test
     public void testRegexRegroup() throws ImhotepOutOfMemoryException, ExecutionException, InterruptedException {
         imhotepRemoteSession.regexRegroup("field", ".*.*", 1, 2, 3);
         Assert.assertEquals(new RegexRegroup("field", ".*.*", 1, 2, 3, SESSION_ID), holder.futureCommand.get());
     }
 
-    @Test
+    @Override @Test
     public void testRegroup() throws ImhotepOutOfMemoryException, ExecutionException, InterruptedException {
         final GroupRemapRule[] rawRules = new GroupRemapRule[]{
                 new GroupRemapRule(1, new RegroupCondition("fieldName", false, 0, "strTerm", false), 1000000, 1000000)
@@ -185,21 +185,21 @@ public class TestCommandDeserializeRemoteImhotepRequest implements CommandsTest 
         Assert.assertEquals(Regroup.createRegroup(rawRules, SESSION_ID), holder.futureCommand.get());
     }
 
-    @Test
+    @Override @Test
     public void testQueryRegroup() throws ImhotepOutOfMemoryException, ExecutionException, InterruptedException {
         final QueryRemapRule rule = new QueryRemapRule(1, Query.newTermQuery(new Term("if2", true, 0, "a")), 1, 2);
         imhotepRemoteSession.regroup(rule);
         Assert.assertEquals(new QueryRegroup(rule, SESSION_ID), holder.futureCommand.get());
     }
 
-    @Test
+    @Override @Test
     public void testUnconditionalRegroup() throws ImhotepOutOfMemoryException, ExecutionException, InterruptedException {
         final UnconditionalRegroup unconditionalRegroup = new UnconditionalRegroup(new int[]{1, 2, 3}, new int[]{12, 43, 12}, true, SESSION_ID);
         imhotepRemoteSession.regroup(new int[]{1, 2, 3}, new int[]{12, 43, 12}, true);
         Assert.assertEquals(unconditionalRegroup, holder.futureCommand.get());
     }
 
-    @Test
+    @Override @Test
     public void testStringOrRegroup() throws ImhotepOutOfMemoryException, ExecutionException, InterruptedException {
         final List<String> terms = Lists.newArrayList("1");
         imhotepRemoteSession.stringOrRegroup("field", terms.toArray(new String[0]), 1, 2, 3);
