@@ -25,13 +25,16 @@ import com.indeed.flamdex.utils.ShardMetadataUtils;
 import com.indeed.imhotep.ImhotepMemoryPool;
 import com.indeed.imhotep.MemoryReservationContext;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
+import com.indeed.imhotep.metrics.Constant;
 import com.indeed.imhotep.metrics.Count;
 import com.indeed.imhotep.service.CachedFlamdexReader;
 import com.indeed.util.core.reference.SharedReference;
 import com.indeed.util.core.shell.PosixFileOperations;
 import org.apache.log4j.Logger;
+import org.joda.time.Interval;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.io.EOFException;
 import java.io.File;
 import java.io.FileInputStream;
@@ -60,29 +63,28 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
     private static final Logger log = Logger.getLogger(ImhotepJavaLocalSession.class);
 
     private final String optimizedIndexesDir;
-    private final File optimizationLog;
+    private File optimizationLog;
 
     private FlamdexReader originalReader;
     private SharedReference<FlamdexReader> originalReaderRef;
 
-    public ImhotepJavaLocalSession(final String sessionId, final FlamdexReader flamdexReader)
+    public ImhotepJavaLocalSession(final String sessionId, final FlamdexReader flamdexReader, @Nullable final Interval shardTimeRange)
         throws ImhotepOutOfMemoryException {
-        this(sessionId, flamdexReader, null,
+        this(sessionId, flamdexReader, shardTimeRange, null,
              new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE)), null);
     }
 
     public ImhotepJavaLocalSession(final String sessionId,
                                    final FlamdexReader flamdexReader,
+                                   @Nullable final Interval shardTimeRange,
                                    final String optimizedIndexDirectory,
                                    final MemoryReservationContext memory,
                                    final AtomicLong tempFileSizeBytesLeft)
         throws ImhotepOutOfMemoryException {
 
-        super(sessionId, flamdexReader, memory, tempFileSizeBytesLeft);
+        super(sessionId, flamdexReader, shardTimeRange, memory, tempFileSizeBytesLeft);
 
         this.optimizedIndexesDir = optimizedIndexDirectory;
-        this.optimizationLog =
-            new File(this.optimizedIndexesDir, UUID.randomUUID().toString() + ".optimization_log");
     }
 
     /*
@@ -225,6 +227,9 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
              * save a record of the merge, so it can be unwound later if the
              * shards are reset
              */
+                if (optimizationLog == null) {
+                    optimizationLog = new File(this.optimizedIndexesDir, UUID.randomUUID().toString() + ".optimization_log");
+                }
                 try (ObjectOutputStream oos = this.optimizationLog.exists() ? new AppendingObjectOutputStream(new FileOutputStream(this.optimizationLog,
                         true)) : // plain ObjectOutputStream does not append correctly
                         new ObjectOutputStream(new FileOutputStream(this.optimizationLog, true))) {
@@ -318,7 +323,7 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
         }
 
         /* check for space in memory */
-        memoryUse = this.optimizationLog.length();
+        memoryUse = optimizationLog == null ? 0 : this.optimizationLog.length();
         if (!this.memory.claimMemory(memoryUse)) {
             throw newImhotepOutOfMemoryException();
         }
@@ -330,32 +335,34 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
         }
         metricStack.clearStatCommands();
 
-        /* read in all the optimization records */
-        try {
-            ois = new ObjectInputStream(new FileInputStream(this.optimizationLog));
-            while (true) {
-                /*
-                 * adds the records so the last written record is first in the
-                 * list
-                 */
-                records.add(0, (OptimizationRecord) ois.readObject());
-            }
-        } catch (final EOFException e) {
-            // read all the records
+        if (optimizationLog != null) {
+            /* read in all the optimization records */
             try {
-                if (ois != null) {
-                    ois.close();
-                    this.optimizationLog.delete();
+                ois = new ObjectInputStream(new FileInputStream(this.optimizationLog));
+                while (true) {
+                    /*
+                     * adds the records so the last written record is first in the
+                     * list
+                     */
+                    records.add(0, (OptimizationRecord) ois.readObject());
                 }
-            } catch (final IOException e1) {
-                /* do nothing */
-                e.printStackTrace();
+            } catch (final EOFException e) {
+                // read all the records
+                try {
+                    if (ois != null) {
+                        ois.close();
+                        this.optimizationLog.delete();
+                    }
+                } catch (final IOException e1) {
+                    /* do nothing */
+                    e.printStackTrace();
+                }
+            } catch (final ClassNotFoundException | IOException e) {
+                throw newRuntimeException(e);
+            } finally {
+                /* the log is no longer needed, so remove it */
+                this.optimizationLog.delete();
             }
-        } catch (final ClassNotFoundException | IOException e) {
-            throw newRuntimeException(e);
-        } finally {
-            /* the log is no longer needed, so remove it */
-            this.optimizationLog.delete();
         }
 
         /* reconstruct the dynamic metrics */
@@ -492,8 +499,12 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
             for (int i = 0; i < n; i++) {
                 results[docGrpBuffer[i]] += 1;
             }
-        }
-        else {
+        } else if (statLookup instanceof Constant) {
+            final long value = ((Constant) statLookup).getValue();
+            for (int i = 0; i < n; i++) {
+                results[docGrpBuffer[i]] += value;
+            }
+        } else {
             statLookup.lookup(docIdBuf, valBuf, n);
             for (int i = 0; i < n; i++) {
                 results[docGrpBuffer[i]] += valBuf[i];
@@ -505,7 +516,7 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
     @Override
     protected void tryClose() {
         /* clean up the optimization log */
-        if (this.optimizationLog.exists()) {
+        if ((this.optimizationLog != null) && optimizationLog.exists()) {
             this.optimizationLog.delete();
         }
         try {

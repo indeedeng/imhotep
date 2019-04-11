@@ -21,8 +21,23 @@ class IncludeStringTermMatcher implements StringTermMatcher {
 
     @Override
     public boolean matches(final String term) {
-        // Current usage is for
+        // Current usage is for very rare case, so not worth optimizing this.
         return term.contains(patternString);
+    }
+
+    @Override
+    public boolean matches(final byte[] termBytes, final int termBytesLength) {
+        int state = 0;
+        for (int i = 0; i < termBytesLength; ++i) {
+            while ((state >= 0) && (pattern[state] != termBytes[i])) {
+                state = kmpTable[state];
+            }
+            ++state;
+            if (state == pattern.length) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Override

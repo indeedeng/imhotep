@@ -686,11 +686,11 @@ public class TestMultiDistinct {
         final String dataset1 = "windowDistinctDataset2_1";
         final String dataset2 = "windowDistinctDataset2_2";
 
-        final int[] counts1     = new int[]   {5,2,0,2,7,1,0};
-        // WINDOW(2):                         {5,7,2,2,9,8,1}
-        final int[] counts2     = new int[]   {1,2,1,3,1,1,1};
-        // WINDOW(2):                         {1,3,3,4,4,2,2}
-        final long[] window2GT1 = new long[]{0,0,0,1,1,0,0,1};
+        final int[] counts1 = new int[]{5, 2, 0, 2, 7, 1, 0};
+        // WINDOW(2):                  {5, 7, 2, 2, 9, 8, 1}
+        final int[] counts2 = new int[]{1, 2, 1, 3, 1, 1, 1};
+        // WINDOW(2):                  {1, 3, 3, 4, 4, 2, 2}
+        final long[] window2GT1 = new long[]{0, 0, 0, 1, 1, 0, 0, 1};
 
         for (int i = 0; i < 7; i++) {
             final MemoryFlamdex memoryFlamdex1 = new MemoryFlamdex();
@@ -753,6 +753,18 @@ public class TestMultiDistinct {
                     window2GT1,
                     sessionFields,
                     singletonList(count2.gt(count1.plus(count1_2).plus(zero1).divide(AggregateStatTree.constant(2)))),
+                    singletonList(2),
+                    parentGroups
+            );
+
+            // test some weird crazy thing from IMTEPD-501
+            testIntDistinctWindow(
+                    new long[]{0, 1,1,1,1,1,1,1},
+                    Lists.newArrayList(
+                            new SessionField(session1, "country", Arrays.asList(singletonList("count()"), singletonList("count()"))),
+                            new SessionField(session2, "country", singletonList(singletonList("0")))
+                    ),
+                    singletonList(AggregateStatTree.stat(session1, 0).eq(AggregateStatTree.stat(session1, 1))),
                     singletonList(2),
                     parentGroups
             );

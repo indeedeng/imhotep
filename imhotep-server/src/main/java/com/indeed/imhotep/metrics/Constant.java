@@ -27,6 +27,10 @@ public class Constant implements IntValueLookup {
         this.val = val;
     }
 
+    public long getValue() {
+        return val;
+    }
+
     @Override
     public long getMin() {
         return val;

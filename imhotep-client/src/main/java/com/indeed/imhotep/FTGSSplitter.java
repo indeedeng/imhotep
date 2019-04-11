@@ -30,6 +30,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.file.Files;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -60,7 +61,7 @@ public final class FTGSSplitter implements Closeable {
         this.largePrime = largePrime;
         outputStreams = new OutputStream[numSplits];
         try {
-            final File file = File.createTempFile("ftgsSplitter", ".tmp");
+            final File file = Files.createTempFile("ftgsSplitter", ".tmp").toFile();
             final MultiFile multiFile;
             try {
                 multiFile = MultiFile.create(file, numSplits, 256 * 1024, tempFileSizeBytesLeft);
