@@ -14,10 +14,12 @@
  package com.indeed.imhotep;
 
 import com.indeed.flamdex.query.Query;
+import lombok.EqualsAndHashCode;
 
 /**
  * @author jsgroth
  */
+@EqualsAndHashCode
 public class QueryRemapRule {
     private final int targetGroup;
     private final Query query;
