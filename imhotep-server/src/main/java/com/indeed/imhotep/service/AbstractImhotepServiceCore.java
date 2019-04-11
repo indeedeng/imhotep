@@ -570,7 +570,6 @@ public abstract class AbstractImhotepServiceCore
             session.randomRegroup(field, isIntField, salt, p, targetGroup, negativeGroup, positiveGroup);
             return null;
         });
-
     }
 
     @Override
