@@ -3281,7 +3281,6 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         for (final ImhotepCommand command: firstCommands) {
             command.apply(this);
         }
-        lastCommand.apply(this);
         return lastCommand.apply(this);
     }
 }
