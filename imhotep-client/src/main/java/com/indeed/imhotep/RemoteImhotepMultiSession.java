@@ -23,6 +23,7 @@ import com.indeed.imhotep.api.FTGSModifiers;
 import com.indeed.imhotep.api.FTGSParams;
 import com.indeed.imhotep.api.GroupStatsIterator;
 import com.indeed.imhotep.api.HasSessionId;
+import com.indeed.imhotep.api.ImhotepCommand;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.api.PerformanceStats;
@@ -45,6 +46,7 @@ import org.apache.log4j.Logger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.io.IOException;
+import java.lang.reflect.Array;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -312,6 +314,10 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
         return new AsynchronousRemoteImhotepMultiSession(asyncSessions, this);
     }
 
+    public BatchRemoteImhotepMultiSession toBatch(){
+        return new BatchRemoteImhotepMultiSession(this);
+    }
+
     public static class SessionField {
         private final RemoteImhotepMultiSession session;
         private final Runnable synchronizeCallback;
@@ -333,8 +339,12 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
             } else if (session instanceof RemoteImhotepMultiSession) {
                 this.session = (RemoteImhotepMultiSession) session;
                 this.synchronizeCallback = () -> {};
+            } else if (session instanceof BatchRemoteImhotepMultiSession) {
+                final BatchRemoteImhotepMultiSession batchRemoteImhotepMultiSession = (BatchRemoteImhotepMultiSession) session;
+                this.session = batchRemoteImhotepMultiSession.remoteImhotepMultiSession;
+                this.synchronizeCallback = batchRemoteImhotepMultiSession::executeBatchNoMemoryException;
             } else {
-                throw new IllegalArgumentException("Can only use RemoteImhotepMultiSession::multiFtgs on RemoteImhotepMultiSession/AsynchronousRemoteImhotepMultiSession instances.");
+                throw new IllegalArgumentException("Can only use RemoteImhotepMultiSession::multiFtgs on RemoteImhotepMultiSession/AsynchronousRemoteImhotepMultiSession/BatchRemoteImhotepMultiSession instances.");
             }
             this.field = field;
             this.stats = stats;
@@ -565,4 +575,13 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
             return RequestTools.ImhotepRequestSender.Cached.create(request);
         }
     }
+
+    <T> T processImhotepBatchRequest(final List<ImhotepCommand> firstCommands, final ImhotepCommand<T> lastCommand ) throws ImhotepOutOfMemoryException {
+            final T[] buffer = (T[]) Array.newInstance(lastCommand.getResultClass(), sessions.length);
+            executeMemoryException(buffer, session -> {
+                return session.sendImhotepBatchRequest(firstCommands, lastCommand);
+            });
+            return lastCommand.combine(Arrays.asList(buffer));
+    }
+
 }

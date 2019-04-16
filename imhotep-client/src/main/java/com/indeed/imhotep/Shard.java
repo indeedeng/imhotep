@@ -11,7 +11,7 @@
  * express or implied. See the License for the specific language governing permissions and
  * limitations under the License.
  */
- package com.indeed.imhotep;
+package com.indeed.imhotep;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
@@ -24,32 +24,51 @@ import javax.annotation.Nullable;
 import java.util.List;
 
 public class Shard extends ShardInfo {
+
+    /** the imhotep daemon server who will conduct computation of this shard */
     public final Host server;
 
+    /** the imhotep daemon server who holds the shard and other dameons will download the shard from it */
+    private final Host owner;
+
+    /** If no servers are specified for shard to compute, host is both for computation and storage */
     public Shard(final String shardId, final int numDocs, final long version, final Host host) {
-        super(shardId, numDocs, version);
-        this.server = host;
+        this(shardId, numDocs, version, host, host);
     }
 
-    public Shard(final String shardId, final int numDocs, final long version, final Host host, @Nullable final String fileName) {
+    public Shard(
+            final String shardId,
+            final int numDocs,
+            final long version,
+            final Host server,
+            final Host owner) {
+        this(shardId, numDocs, version, server, owner, null);
+    }
+
+    public Shard(
+            final String shardId,
+            final int numDocs,
+            final long version,
+            final Host server,
+            final Host owner,
+            @Nullable final String fileName) {
         super(fileName, shardId, numDocs, version);
-        this.server = host;
+        this.server = server;
+        this.owner = owner;
     }
 
     public Shard(final ShardInfo shardInfo, final Host host) {
-        super(shardInfo.fileName, shardInfo.shardId, shardInfo.numDocs, shardInfo.version);
-        this.server = host;
+        this(shardInfo.shardId, shardInfo.numDocs, shardInfo.version, host, host, shardInfo.fileName);
     }
 
     /** Only used in ShardLoaderUtil.findShards() in pigutil, Imhotep proper should always provide a host. */
     public Shard(final String shardId, final int numDocs, final long version) {
-        super(shardId, numDocs, version);
-        this.server = null;
+        this(shardId, numDocs, version, null, null, null);
     }
 
     public String getFileName() {
         if (fileName == null) {
-            return this.shardId + "." + this.version;
+            return shardId + "." + version;
         } else {
             return fileName;
         }
@@ -57,6 +76,10 @@ public class Shard extends ShardInfo {
 
     public Host getServer() {
         return server;
+    }
+
+    public Host getOwner() {
+        return owner;
     }
 
     public static List<String> keepShardIds(final List<Shard> shards) {
@@ -67,16 +90,22 @@ public class Shard extends ShardInfo {
         return result;
     }
 
-    public Shard withHost(final Host newHost) {
-        return new Shard(shardId, numDocs, version, newHost, fileName);
+    public Shard withServer(final Host newServer) {
+        return new Shard(shardId, numDocs, version, newServer, owner, fileName);
+    }
+
+    // change both owner and server, it's called when ShardMaster assigns owner/server for the shard
+    public Shard withHost(final Host host) {
+        return new Shard(shardId, numDocs, version, host, host, fileName);
     }
 
     public static Shard fromShardMessage(final ShardMessage message) {
         final Host host = new Host(message.getHost().getHost(), message.getHost().getPort());
+        final Host owner = new Host(message.getOwner().getHost(), message.getOwner().getPort());
         if (message.hasPath()) {
-            return new Shard(message.getShardId(), message.getNumDocs(), message.getVersion(), host, message.getPath());
+            return new Shard(message.getShardId(), message.getNumDocs(), message.getVersion(), owner, host, message.getPath());
         } else {
-            return new Shard(message.getShardId(), message.getNumDocs(), message.getVersion(), host);
+            return new Shard(message.getShardId(), message.getNumDocs(), message.getVersion(), owner, host);
         }
     }
 
@@ -84,6 +113,7 @@ public class Shard extends ShardInfo {
         Preconditions.checkNotNull(server);
         builder
                 .setHost(HostAndPort.newBuilder().setHost(server.hostname).setPort(server.port))
+                .setOwner(HostAndPort.newBuilder().setHost(owner.hostname).setPort(owner.port))
                 .setShardId(shardId)
                 .setNumDocs(numDocs)
                 .setVersion(version);

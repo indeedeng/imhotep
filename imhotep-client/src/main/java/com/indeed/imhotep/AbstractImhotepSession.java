@@ -193,6 +193,10 @@ public abstract class AbstractImhotepSession implements ImhotepSession {
         return new ImhotepOutOfMemoryException(createMessageWithSessionId("Not enough memory"));
     }
 
+    public static ImhotepOutOfMemoryException newImhotepOutOfMemoryException(final String sessionId) {
+        return new ImhotepOutOfMemoryException(createMessageWithSessionId("Not enough memory", sessionId));
+    }
+
     protected ImhotepOutOfMemoryException newImhotepOutOfMemoryException(final Throwable cause) {
         return new ImhotepOutOfMemoryException(createMessageWithSessionId(cause.toString()), cause);
     }

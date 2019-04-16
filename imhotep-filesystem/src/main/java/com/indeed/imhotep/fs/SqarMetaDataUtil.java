@@ -14,6 +14,8 @@
 
 package com.indeed.imhotep.fs;
 
+import com.google.common.base.Preconditions;
+
 import javax.annotation.Nullable;
 
 /**
@@ -37,20 +39,18 @@ class SqarMetaDataUtil {
 
     @Nullable
     static RemoteCachingPath getShardPath(final RemoteCachingPath path) {
+        Preconditions.checkArgument(path.isAbsolute());
         if (path.getNameCount() >= SHARD_PATH_COMPONENT) {
             final RemoteCachingPath relShardPath = (RemoteCachingPath) path.subpath(0, SHARD_PATH_COMPONENT);
-            if (path.isAbsolute()) {
-                return (RemoteCachingPath) RemoteCachingPath.getRoot(path.getFileSystem()).resolve(relShardPath);
-            } else {
-                return relShardPath;
-            }
+            final RemoteCachingPath rootPath = (path instanceof PeerToPeerCachePath) ? path.getRoot() : RemoteCachingPath.getRoot(path.getFileSystem());
+            return (RemoteCachingPath) rootPath.resolve(relShardPath);
         }
         return null;
     }
 
     @Nullable
     static RemoteCachingPath getFilePath(final RemoteCachingPath path) {
-         if (path.getNameCount() >= (SHARD_PATH_COMPONENT + 1)) {
+        if (path.getNameCount() >= (SHARD_PATH_COMPONENT + 1)) {
             return (RemoteCachingPath) path.subpath(SHARD_PATH_COMPONENT, path.getNameCount());
         } else if (path.getNameCount() == SHARD_PATH_COMPONENT) {
             return (RemoteCachingPath) path.getFileSystem().getPath("");

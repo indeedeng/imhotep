@@ -36,6 +36,7 @@ import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.api.FTGSModifiers;
 import com.indeed.imhotep.api.FTGSParams;
 import com.indeed.imhotep.api.GroupStatsIterator;
+import com.indeed.imhotep.api.ImhotepCommand;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepServiceCore;
 import com.indeed.imhotep.api.PerformanceStats;
@@ -49,8 +50,8 @@ import com.indeed.imhotep.protobuf.AggregateStat;
 import com.indeed.imhotep.protobuf.HostAndPort;
 import com.indeed.imhotep.protobuf.ImhotepResponse;
 import com.indeed.imhotep.protobuf.MultiFTGSRequest;
+import com.indeed.imhotep.protobuf.ShardBasicInfoMessage;
 import com.indeed.imhotep.protobuf.StatsSortOrder;
-import com.indeed.imhotep.protobuf.ShardNameNumDocsPair;
 import com.indeed.imhotep.scheduling.ImhotepTask;
 import com.indeed.imhotep.scheduling.SilentCloseable;
 import com.indeed.util.core.io.Closeables2;
@@ -744,7 +745,7 @@ public abstract class AbstractImhotepServiceCore
 
     public abstract String handleOpenSession(
             String dataset,
-            List<ShardNameNumDocsPair> shardRequestList,
+            List<ShardBasicInfoMessage> shardRequestList,
             String username,
             String clientName,
             String ipAddress,
@@ -775,5 +776,10 @@ public abstract class AbstractImhotepServiceCore
     public void close() {
         ftgsExecutor.shutdownNow();
         multiFtgsExecutor.shutdownNow();
+    }
+
+    @Override
+    public <T> T handleBatchRequest(final String sessionId, final List<ImhotepCommand> firstCommands, final ImhotepCommand<T> lastCommand) throws ImhotepOutOfMemoryException {
+        return doWithSession(sessionId, (ThrowingFunction<MTImhotepLocalMultiSession, T, ImhotepOutOfMemoryException>) session -> session.executeBatchRequest(firstCommands, lastCommand));
     }
 }

@@ -31,21 +31,21 @@ import java.nio.file.Path;
  */
 
 public interface ImhotepShardCreator {
-    void create(final File shardsDir, final String dataset, final String shardId, final FlamdexReader flamdexReader) throws IOException;
+    void create(final Path shardsDir, final String dataset, final String shardId, final FlamdexReader flamdexReader) throws IOException;
 
     ImhotepShardCreator DEFAULT = new ImhotepShardCreator() {
         @Override
-        public void create(final File shardsDir, final String dataset, final String shardId, final FlamdexReader flamdexReader) throws IOException {
-            final Path shardDir = shardsDir.toPath().resolve(dataset).resolve(shardId);
+        public void create(final Path shardsDir, final String dataset, final String shardId, final FlamdexReader flamdexReader) throws IOException {
+            final Path shardDir = shardsDir.resolve(dataset).resolve(shardId);
             SimpleFlamdexWriter.writeFlamdex(flamdexReader, new SimpleFlamdexWriter(shardDir, flamdexReader.getNumDocs()));
         }
     };
 
     ImhotepShardCreator GZIP_ARCHIVE = new ImhotepShardCreator() {
         @Override
-        public void create(final File shardsDir, final String dataset, final String shardId, final FlamdexReader flamdexReader) throws IOException {
-            final Path shardDir = shardsDir.toPath().resolve(dataset).resolve(shardId + ".sqar");
-            final Path shardTempDir = shardsDir.toPath().resolve(dataset).resolve(shardId + "-tmp");
+        public void create(final Path shardsDir, final String dataset, final String shardId, final FlamdexReader flamdexReader) throws IOException {
+            final Path shardDir = shardsDir.resolve(dataset).resolve(shardId + ".sqar");
+            final Path shardTempDir = shardsDir.resolve(dataset).resolve(shardId + "-tmp");
             try {
                 SimpleFlamdexWriter.writeFlamdex(flamdexReader, new SimpleFlamdexWriter(shardTempDir, flamdexReader.getNumDocs()));
 

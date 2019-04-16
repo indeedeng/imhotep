@@ -40,6 +40,7 @@ import java.nio.file.attribute.UserPrincipalLookupService;
 import java.nio.file.spi.FileSystemProvider;
 import java.util.Collections;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.regex.Pattern;
@@ -61,7 +62,9 @@ class RemoteCachingFileSystem extends FileSystem {
         final RemoteFileStore backingFileStore = RemoteFileStoreType.fromName((String) configuration.get("imhotep.fs.store.type"))
                 .getFactory().create(configuration, statsEmitter);
 
-        fileStore = new SqarRemoteFileStore(backingFileStore, configuration);
+        final boolean enableP2PCaching = Boolean.parseBoolean((String) configuration.get("imhotep.fs.p2p.cache.enable"));
+        final PeerToPeerCacheFileStore p2PCachingFileStore = enableP2PCaching ? new PeerToPeerCacheFileStore(this, configuration, statsEmitter) : null;
+        fileStore = new SqarRemoteFileStore(backingFileStore, p2PCachingFileStore, configuration);
 
         final URI cacheRootUri;
         try {
@@ -81,13 +84,18 @@ class RemoteCachingFileSystem extends FileSystem {
                         fileStore.downloadFile(src, dest);
                     }
                 },
-                statsEmitter
+                statsEmitter,
+                "file.cache",
+                true
         );
 
     }
 
-
     Path getCachePath(final RemoteCachingPath path) throws ExecutionException, IOException {
+        final Optional<Path> localCachedPath = fileStore.getCachedPath(path);
+        if (localCachedPath.isPresent()) {
+            return localCachedPath.get();
+        }
         return fileCache.cache(path);
     }
 
@@ -123,7 +131,7 @@ class RemoteCachingFileSystem extends FileSystem {
 
     @Override
     public Iterable<FileStore> getFileStores() {
-        return Collections.<FileStore>singletonList(fileStore.getBackingFileStore());
+        return fileStore.getBackingFileStores();
     }
 
     @Override
@@ -143,7 +151,19 @@ class RemoteCachingFileSystem extends FileSystem {
 
     @Override
     public Path getPath(final String first, final String... more) {
-        return new RemoteCachingPath(this, Joiner.on(RemoteCachingPath.PATH_SEPARATOR_STR).join(Lists.asList(first, more)));
+        return getPath(Joiner.on(RemoteCachingPath.PATH_SEPARATOR_STR).join(Lists.asList(first, more)));
+    }
+
+    private Path getPath(final String path) {
+        if (PeerToPeerCachePath.isAbsolutePeerToPeerCachePath(path)) {
+            return PeerToPeerCachePath.newPeerToPeerCachePath(this, path);
+        } else {
+            return new RemoteCachingPath(this, path);
+        }
+    }
+
+    FileStore getFileStore(final RemoteCachingPath path) {
+        return fileStore.getBackingFileStore(path);
     }
 
     Iterable<RemoteFileStore.RemoteFileAttributes> listDirWithAttributes(final RemoteCachingPath path) throws IOException {
@@ -160,9 +180,12 @@ class RemoteCachingFileSystem extends FileSystem {
     }
 
     SeekableByteChannel newByteChannel(final RemoteCachingPath path) throws IOException {
-        final LocalFileCache.ScopedCacheFile scopedCacheFile;
+        final Optional<ScopedCacheFile> optionalScopedCacheFile = fileStore.getForOpen(path);
+        final ScopedCacheFile scopedCacheFile;
         try {
-            scopedCacheFile = fileCache.getForOpen(path);
+            scopedCacheFile = optionalScopedCacheFile.isPresent() ?
+                    optionalScopedCacheFile.get() :
+                    fileCache.getForOpen(path);
         } catch (final ExecutionException e) {
             throw new IOException("Failed to access cache file for " + path, e);
         }
@@ -173,9 +196,9 @@ class RemoteCachingFileSystem extends FileSystem {
 
     private class CloseHookedSeekableByteChannel implements SeekableByteChannel {
         private final SeekableByteChannel wrapped;
-        private final LocalFileCache.ScopedCacheFile scopedCacheFile;
+        private final ScopedCacheFile scopedCacheFile;
 
-        CloseHookedSeekableByteChannel(final SeekableByteChannel wrapped, final LocalFileCache.ScopedCacheFile scopedCacheFile) {
+        CloseHookedSeekableByteChannel(final SeekableByteChannel wrapped, final ScopedCacheFile scopedCacheFile) {
             this.wrapped = wrapped;
             this.scopedCacheFile = scopedCacheFile;
         }

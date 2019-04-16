@@ -327,6 +327,7 @@ public class ImhotepClient
         private List<Shard> shardsOverride = null;
 
         private boolean allowSessionForwarding = false;
+        private boolean peerToPeerCache = false;
 
         private int hostCount = 0; // for logging
 
@@ -370,6 +371,11 @@ public class ImhotepClient
 
         public SessionBuilder shardsOverride(final Collection<Shard> requiredShards) {
             this.shardsOverride = Lists.newArrayList(requiredShards);
+            return this;
+        }
+
+        public SessionBuilder allowPeerToPeerCache(final boolean peerToPeerCache) {
+            this.peerToPeerCache = peerToPeerCache;
             return this;
         }
 
@@ -451,7 +457,7 @@ public class ImhotepClient
             return getSessionForShards(
                     dataset, hostsToShardsMap, mergeThreadLimit, username, clientName, optimizeGroupZeroLookups,
                     socketTimeout, localTempFileSizeLimit, daemonTempFileSizeLimit, sessionTimeout,
-                    allowSessionForwarding
+                    allowSessionForwarding, peerToPeerCache
             );
         }
     }
@@ -461,12 +467,15 @@ public class ImhotepClient
                                                final boolean optimizeGroupZeroLookups, final int socketTimeout,
                                                final long localTempFileSizeLimit, final long daemonTempFileSizeLimit,
                                                final long sessionTimeout,
-                                               final boolean allowSessionForwarding) {
+                                               final boolean allowSessionForwarding,
+                                               final boolean p2pCache) {
 
         final AtomicLong localTempFileSizeBytesLeft = localTempFileSizeLimit > 0 ? new AtomicLong(localTempFileSizeLimit) : null;
         try {
             final String sessionId = UUID.randomUUID().toString();
-            ImhotepRemoteSession[] remoteSessions = internalGetSession(dataset, hostToShardsMap, mergeThreadLimit, username, clientName, optimizeGroupZeroLookups, socketTimeout, sessionId, daemonTempFileSizeLimit, localTempFileSizeBytesLeft, sessionTimeout, allowSessionForwarding);
+            ImhotepRemoteSession[] remoteSessions = internalGetSession(dataset, hostToShardsMap, mergeThreadLimit, username,
+                    clientName, optimizeGroupZeroLookups, socketTimeout, sessionId, daemonTempFileSizeLimit,
+                    localTempFileSizeBytesLeft, sessionTimeout, allowSessionForwarding, p2pCache);
 
             final InetSocketAddress[] nodes = new InetSocketAddress[remoteSessions.length];
             for (int i = 0; i < remoteSessions.length; i++) {
@@ -492,7 +501,8 @@ public class ImhotepClient
                            final long tempFileSizeLimit,
                            @Nullable final AtomicLong tempFileSizeBytesLeft,
                            final long sessionTimeout,
-                           boolean allowSessionForwarding) {
+                           boolean allowSessionForwarding,
+                           final boolean p2pCache) {
 
         final ExecutorService executor = Executors.newCachedThreadPool();
         final List<Future<ImhotepRemoteSession>> futures = new ArrayList<>(shardRequestMap.size());
@@ -521,7 +531,8 @@ public class ImhotepClient
                                     tempFileSizeBytesLeft,
                                     sessionTimeout,
                                     allowSessionForwarding,
-                                    numDocs);
+                                    numDocs,
+                                    p2pCache);
                         }
                     }
                 }));

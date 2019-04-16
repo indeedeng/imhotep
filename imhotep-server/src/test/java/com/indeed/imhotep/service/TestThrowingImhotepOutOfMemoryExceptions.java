@@ -46,8 +46,8 @@ public class TestThrowingImhotepOutOfMemoryExceptions {
         storeDir = Files.createTempDirectory("temp-imhotep");
         tempDir = Files.createTempDirectory("temp-imhotep");
         clusterRunner = new ShardMasterAndImhotepDaemonClusterRunner(
-                storeDir.toFile(),
-                tempDir.toFile(),
+                storeDir,
+                tempDir,
                 ImhotepShardCreator.DEFAULT
         );
 

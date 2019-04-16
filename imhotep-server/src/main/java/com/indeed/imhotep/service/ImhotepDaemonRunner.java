@@ -15,8 +15,10 @@
 
 import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.reader.MockFlamdexReader;
+import com.indeed.imhotep.client.Host;
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.nio.file.Path;
 import java.util.concurrent.TimeoutException;
@@ -81,13 +83,19 @@ public class ImhotepDaemonRunner {
         if (currentlyRunning != null) {
             currentlyRunning.shutdown(false);
         }
+
+        String myHostName = config.getAdvertisedHostName();
+        if (myHostName == null) {
+            myHostName = InetAddress.getLocalHost().getCanonicalHostName();
+        }
         currentlyRunning =
                 new ImhotepDaemon(new ServerSocket(port),
                                   new LocalImhotepServiceCore(tempDir,
                                                               memoryCapacity,
                                                               flamdexFactory,
                                           config,
-                                          rootShardsDir),
+                                          rootShardsDir,
+                                          new Host(myHostName, port)),
                                   null, null, "localhost", port, null);
         actualPort = currentlyRunning.getPort();
 
