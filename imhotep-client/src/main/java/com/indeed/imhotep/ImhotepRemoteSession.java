@@ -1400,14 +1400,16 @@ public class ImhotepRemoteSession
         final Socket socket = newSocket(host, port, socketTimeout);
         final OutputStream os = Streams.newBufferedOutputStream(socket.getOutputStream());
         final InputStream is = Streams.newBufferedInputStream(socket.getInputStream());
+        final Tracer tracer = GlobalTracer.get();
 
-        try {
-            final ImhotepRequest batchRequestHeader = getBuilderForType(ImhotepRequest.RequestType.BATCH_REQUESTS)
-                    .setImhotepRequestCount(firstCommands.size() + 1)
-                    .setSessionId(getSessionId())
-                    .build();
 
-            final ImhotepRequestSender imhotepRequestSender = new RequestTools.ImhotepRequestSender.Simple(batchRequestHeader);
+        final ImhotepRequest batchRequestHeader = getBuilderForType(ImhotepRequest.RequestType.BATCH_REQUESTS)
+                .setImhotepRequestCount(firstCommands.size() + 1)
+                .setSessionId(getSessionId())
+                .build();
+
+        final ImhotepRequestSender imhotepRequestSender = new RequestTools.ImhotepRequestSender.Simple(batchRequestHeader);
+        try (final ActiveSpan activeSpan = tracer.buildSpan(imhotepRequestSender.getRequestType().name()).withTag("sessionid", getSessionId()).withTag("host", host + ":" + port).startActive()) {
             imhotepRequestSender.writeToStreamNoFlush(os);
             os.flush();
 
