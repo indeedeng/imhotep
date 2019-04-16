@@ -3,14 +3,17 @@ package com.indeed.imhotep.matcher;
 import com.google.common.base.Preconditions;
 import com.indeed.flamdex.api.StringTermIterator;
 
+import java.nio.charset.StandardCharsets;
 import java.util.function.Consumer;
 
 public class ExactStringTermMatcher implements StringTermMatcher {
     private final String patternString;
+    private final byte[] patternBytes;
 
     ExactStringTermMatcher(final String pattern) {
         Preconditions.checkArgument(!pattern.isEmpty());
         this.patternString = pattern;
+        this.patternBytes = patternString.getBytes(StandardCharsets.UTF_8);
     }
 
     @Override
@@ -19,10 +22,23 @@ public class ExactStringTermMatcher implements StringTermMatcher {
     }
 
     @Override
+    public boolean matches(final byte[] termBytes, final int termBytesLength) {
+        if (termBytesLength != patternBytes.length) {
+            return false;
+        }
+        for (int i = 0; i < patternBytes.length; ++i) {
+            if (patternBytes[i] != termBytes[i]) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    @Override
     public void run(final StringTermIterator termIterator, final Consumer<StringTermIterator> onMatch) {
         termIterator.reset(patternString);
         if (termIterator.next()) {
-            if (patternString.equals(termIterator.term())) {
+            if (matches(termIterator.termStringBytes(), termIterator.termStringLength())) {
                 onMatch.accept(termIterator);
             }
         }

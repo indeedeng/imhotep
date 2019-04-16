@@ -8,7 +8,7 @@ import java.util.regex.Pattern;
 
 public class StringTermMatchers {
     private static final String ANY_STRING_PATTERN = Pattern.quote(".*");
-    private static final String CAPTURED_NON_SPECIAL_NONEMPTY_STRING = "([^|&?*+{}~\\[\\].#@\"()<>\\\\^$]+)";
+    private static final String CAPTURED_NON_SPECIAL_NONEMPTY_STRING = "([^|?*+{}\\[\\].\"()\\\\^$]+)";
     private static final String ALL_MATCH = ".*";
     private static final Pattern EXACT_MATCH = Pattern.compile(CAPTURED_NON_SPECIAL_NONEMPTY_STRING);
     private static final Pattern PREFIX_MATCH = Pattern.compile(CAPTURED_NON_SPECIAL_NONEMPTY_STRING + ANY_STRING_PATTERN);

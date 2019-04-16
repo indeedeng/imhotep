@@ -160,6 +160,7 @@ message ImhotepRequest {
     GET_SHARD_FILE = 53;
     GET_SHARD_FILE_ATTRIBUTES = 54;
     LIST_SHARD_FILE_ATTRIBUTES = 55;
+    BATCH_REQUESTS = 56;
     SHUTDOWN = 255;
   }
 
@@ -330,6 +331,9 @@ message ImhotepRequest {
 
   // for download shard files
   optional string shardFileUri = 74;
+
+  // Number of individual requests in ImhotepBatchRequest
+  optional uint32 imhotepRequestCount = 75;
 }
 
 message DocStat {

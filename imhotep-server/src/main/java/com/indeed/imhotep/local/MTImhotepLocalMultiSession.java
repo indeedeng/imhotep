@@ -35,14 +35,15 @@ import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.api.FTGSModifiers;
 import com.indeed.imhotep.api.FTGSParams;
 import com.indeed.imhotep.api.GroupStatsIterator;
+import com.indeed.imhotep.api.ImhotepCommand;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.metrics.aggregate.AggregateStat;
 import com.indeed.imhotep.metrics.aggregate.MultiFTGSIterator;
 import com.indeed.imhotep.pool.GroupStatsPool;
 import com.indeed.imhotep.protobuf.HostAndPort;
-import com.indeed.imhotep.scheduling.SilentCloseable;
 import com.indeed.imhotep.protobuf.StatsSortOrder;
+import com.indeed.imhotep.scheduling.SilentCloseable;
 import com.indeed.imhotep.scheduling.TaskScheduler;
 import com.indeed.util.core.Either;
 import com.indeed.util.core.io.Closeables2;
@@ -53,6 +54,7 @@ import javax.annotation.WillClose;
 import javax.annotation.WillNotClose;
 import java.io.Closeable;
 import java.io.IOException;
+import java.lang.reflect.Array;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -96,6 +98,30 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
         if (closed.compareAndSet(false, true)) {
             super.preClose();
         }
+    }
+
+    // ImhotepLocalSession::getNumStats is a simple getter, don't need a task-per-shard
+    @Override
+    public int getNumStats() {
+        numStats = sessions[0].getNumStats();
+        for (int i = 1; i < sessions.length; ++i) {
+            if (sessions[i].getNumStats() != numStats) {
+                throw newRuntimeException("bug, one session did not return the same number of stats as the others");
+            }
+        }
+
+        return numStats;
+    }
+
+    // ImhotepLocalSession::getNumGroups is a simple getter, don't need a task-per-shard
+    @Override
+    public int getNumGroups() {
+        int maxNumGroup = 0;
+        for (final ImhotepLocalSession session : sessions) {
+            maxNumGroup = Math.max(maxNumGroup, session.getNumGroups());
+        }
+
+        return maxNumGroup;
     }
 
     @Override
@@ -627,7 +653,7 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
 
             final int[] iteratorOffsets = new int[numStats.length];
             for (int i = 1; i < iteratorOffsets.length; i++) {
-                iteratorOffsets[i] = iteratorOffsets[i - 1] + numStats[i];
+                iteratorOffsets[i] = iteratorOffsets[i - 1] + numStats[i - 1];
             }
 
             final long[] tmpRollingSumsBuffer = new long[totalNumStats];
@@ -825,5 +851,13 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
 
     private FTGAIterator persist(@WillClose final FTGAIterator iterator) throws IOException {
         return FTGSIteratorUtil.persist(log, getSessionId(), iterator);
+    }
+
+    public <T> T executeBatchRequest(final List<ImhotepCommand> firstCommands, final ImhotepCommand<T> lastCommand) throws ImhotepOutOfMemoryException {
+        final T[] buffer = (T[]) Array.newInstance(lastCommand.getResultClass(), sessions.length);
+        executeMemoryException(buffer, (ThrowingFunction<ImhotepLocalSession, Object>) session -> {
+            return session.executeBatchRequest(firstCommands, lastCommand);
+        });
+        return lastCommand.combine(Arrays.asList(buffer));
     }
 }

@@ -106,7 +106,7 @@ public class PeerToPeerCacheTestContext extends ExternalResource {
 
     private void tearDown() {
         try {
-            new RemoteCachingFileSystemProvider().clearFileSystem();
+            RemoteCachingFileSystemProvider.closeFileSystem();
             clusterRunner.stop();
         } catch (final IOException e) {
             throw new RuntimeException(e);

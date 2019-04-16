@@ -105,7 +105,7 @@ class RemoteCachingFileSystem extends FileSystem {
     }
 
     @Override
-    public void close() throws IOException {
+    public void close() {
         Closeables2.closeQuietly(fileStore, LOGGER);
     }
 

@@ -59,6 +59,8 @@ public abstract class GroupLookup {
     public abstract void fillDocGrpBufferSequential(int start, int[] docGrpBuffer, int n);
     public abstract void bitSetRegroup(FastBitSet bitSet, int targetGroup, int negativeGroup, int positiveGroup);
     protected abstract void recalculateNumGroups();
+    // returns true iff it's valid to call set(doc, N) for all values from 0 to maxGroup()
+    public abstract boolean canRepresentAllValuesUpToMaxGroup();
 
     // If this definition changes, please see ImhotepLocalSession::weakGetNumGroups
     public final int getNumGroups() {

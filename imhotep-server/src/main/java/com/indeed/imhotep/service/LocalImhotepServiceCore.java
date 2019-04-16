@@ -23,6 +23,7 @@ import com.indeed.imhotep.ImhotepMemoryPool;
 import com.indeed.imhotep.ImhotepStatusDump;
 import com.indeed.imhotep.MemoryReservationContext;
 import com.indeed.imhotep.MemoryReserver;
+import com.indeed.imhotep.ShardDir;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.client.Host;
 import com.indeed.imhotep.fs.RemoteCachingPath;
@@ -376,6 +377,7 @@ public class LocalImhotepServiceCore
                 try {
                     localSession = new ImhotepJavaLocalSession(sessionId,
                             flamdexForSession,
+                            new ShardDir(ShardDir.cleanPath(pathAndFlamdexReader.getKey())).getTimeInterval(),
                             this.shardTempDir.toString(),
                             new MemoryReservationContext(multiSessionMemoryContext),
                             tempFileSizeBytesLeft);

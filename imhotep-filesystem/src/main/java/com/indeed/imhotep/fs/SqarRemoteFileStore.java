@@ -72,7 +72,7 @@ class SqarRemoteFileStore extends RemoteFileStore implements Closeable {
     }
 
     @Override
-    public void close() throws IOException {
+    public void close() {
         Closeables2.closeQuietly(sqarMetaDataDao, log);
     }
 

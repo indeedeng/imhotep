@@ -90,6 +90,7 @@ public interface ImhotepServiceCore {
     void handleGetAndSendShardFile(String fileUri, ImhotepResponse.Builder builder, OutputStream os) throws IOException;
     ImhotepResponse handleGetShardFileAttributes(String fileUri, ImhotepResponse.Builder builder) throws IOException;
     ImhotepResponse handleListShardFileAttributes(String fileUri, ImhotepResponse.Builder builder) throws IOException;
+    <T> T handleBatchRequest(String sessionId, List<ImhotepCommand> commands, ImhotepCommand<T> lastCommand) throws ImhotepOutOfMemoryException;
 
     void close();
 }

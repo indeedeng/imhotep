@@ -52,6 +52,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -73,7 +74,7 @@ public class FTGSIteratorUtil {
             @WillClose final FTGSIterator iterator
     ) throws IOException {
         try {
-            final File tmp = File.createTempFile("ftgs", ".tmp");
+            final File tmp = Files.createTempFile("ftgs", ".tmp").toFile();
             final FieldStat[] stats;
             final long start = System.currentTimeMillis();
             try (final OutputStream out = new BufferedOutputStream(new FileOutputStream(tmp))) {
@@ -100,7 +101,7 @@ public class FTGSIteratorUtil {
             @WillClose final FTGAIterator iterator
     ) throws IOException {
         try {
-            final File tmp = File.createTempFile("ftgs", ".tmp");
+            final File tmp = Files.createTempFile("ftgs", ".tmp").toFile();
             final FieldStat[] stats;
             final long start = System.currentTimeMillis();
             try (final OutputStream out = new BufferedOutputStream(new FileOutputStream(tmp))) {

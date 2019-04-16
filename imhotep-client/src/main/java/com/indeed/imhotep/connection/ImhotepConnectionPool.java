@@ -1,5 +1,6 @@
 package com.indeed.imhotep.connection;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.indeed.imhotep.client.Host;
 import com.indeed.util.core.Throwables2;
 import com.indeed.util.core.io.Closeables2;
@@ -16,13 +17,13 @@ import java.net.Socket;
  *
  * recommended usage:
  *
- * testConnnectionPool.withConnection(host, timeoutMillis, connection -> {
+ * testConnnectionPool.withConnection(host, timeoutMillis, connection -&gt; {
  *     // do something with the connection and return a value
  * });
  *
  * or without timeout
  *
- * testConnnectionPool.withConnection(host, connection -> {
+ * testConnnectionPool.withConnection(host, connection -&gt; {
  *     // do something with the connection and return a value
  * });
  */
@@ -50,7 +51,8 @@ public enum ImhotepConnectionPool implements Closeable {
     /**
      * Get a connection from the pool until connection is returned or errors happen
      */
-    private ImhotepConnection getConnection(final Host host) throws IOException {
+    @VisibleForTesting
+    ImhotepConnection getConnection(final Host host) throws IOException {
         try {
             final Socket socket = sourcePool.borrowObject(host);
             return new ImhotepConnection(sourcePool, socket, host);
@@ -69,6 +71,11 @@ public enum ImhotepConnectionPool implements Closeable {
         } catch (final Exception e) {
             throw Throwables2.propagate(e, IOException.class);
         }
+    }
+
+    @VisibleForTesting
+    GenericKeyedObjectPool<Host, Socket> getSourcePool() {
+        return sourcePool;
     }
 
     /**

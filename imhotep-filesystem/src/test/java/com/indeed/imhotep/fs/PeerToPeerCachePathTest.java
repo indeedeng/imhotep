@@ -70,7 +70,7 @@ public class PeerToPeerCachePathTest {
 
     @AfterClass
     public static void tearDown() {
-        new RemoteCachingFileSystemProvider().clearFileSystem();
+        RemoteCachingFileSystemProvider.closeFileSystem();
     }
 
     @Test

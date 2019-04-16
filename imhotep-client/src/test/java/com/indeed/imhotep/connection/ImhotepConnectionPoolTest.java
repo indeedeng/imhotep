@@ -1,6 +1,7 @@
 package com.indeed.imhotep.connection;
 
 import com.indeed.imhotep.client.Host;
+import org.apache.commons.pool2.impl.GenericKeyedObjectPool;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -22,7 +23,6 @@ import java.util.stream.IntStream;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.fail;
 
 /**
@@ -75,32 +75,56 @@ public class ImhotepConnectionPoolTest {
         assertEquals(socket1, socket2);
     }
 
-    @Test
+    @Test(expected = SocketTimeoutException.class)
     public void testWithConnectionTimeout() throws IOException {
-        try {
-            testConnnectionPool.withConnection(new Host("www.google.com", 81), 5000, connection -> {
-                final Socket socket = connection.getSocket();
-                return socket.getInetAddress().getHostName();
-            });
-            fail("SocketTimeoutException is expected");
-        } catch (final SocketTimeoutException e) {
-            // succeed
-        }
+        testConnnectionPool.withConnection(new Host("www.google.com", 81), 5000, connection -> {
+            final Socket socket = connection.getSocket();
+            return socket.getInetAddress().getHostName();
+        });
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testDiscardConnection() throws IOException {
+        testConnnectionPool.withConnection(host1, connection -> {
+            throw new IllegalArgumentException("a test exception");
+        });
+    }
+
+
+    /** As methods close and markAsInvalid swallow exceptions happening inside with logging.
+     * Here following 4 tests manually close/markAsInvalid to ensure they work well */
+    @Test(expected = NullPointerException.class)
+    public void testDiscardConnectionIncorrectly() throws Exception {
+        final ImhotepConnection connection = testConnnectionPool.getConnection(host1);
+        final GenericKeyedObjectPool<Host, Socket> sourcePool = testConnnectionPool.getSourcePool();
+
+        sourcePool.invalidateObject(host1, connection.getSocket());
+        sourcePool.returnObject(host1, connection.getSocket());
     }
 
     @Test
-    public void testDiscardConnection() throws IOException {
-        Socket socket = null;
-        try {
-            socket = testConnnectionPool.withConnection(host1, connection -> {
-                throw new IllegalArgumentException("a test exception");
-            });
-        } catch (final IllegalArgumentException e) {
-            // do nothing
-        }
+    public void testDiscardConnectionCorrectly() throws Exception {
+        final ImhotepConnection connection = testConnnectionPool.getConnection(host1);
+        final GenericKeyedObjectPool<Host, Socket> sourcePool = testConnnectionPool.getSourcePool();
 
-        final Socket socket2 = testConnnectionPool.withConnection(host1, connection -> connection.getSocket());
-        assertNotSame(socket, socket2);
+        sourcePool.invalidateObject(host1, connection.getSocket());
+    }
+
+    @Test
+    public void testReturnConnectionCorrectly() throws Exception {
+        final ImhotepConnection connection = testConnnectionPool.getConnection(host1);
+        final GenericKeyedObjectPool<Host, Socket> sourcePool = testConnnectionPool.getSourcePool();
+
+        sourcePool.returnObject(host1, connection.getSocket());
+    }
+
+    @Test
+    public void testReturnConnectionIncorrectly() throws Exception {
+        final ImhotepConnection connection = testConnnectionPool.getConnection(host1);
+        final GenericKeyedObjectPool<Host, Socket> sourcePool = testConnnectionPool.getSourcePool();
+
+        sourcePool.returnObject(host1, connection.getSocket());
+        sourcePool.invalidateObject(host1, connection.getSocket());
     }
 
     @Test
