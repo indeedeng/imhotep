@@ -1397,18 +1397,17 @@ public class ImhotepRemoteSession
     }
 
     public <T> T sendImhotepBatchRequest(final List<ImhotepCommand> firstCommands, final ImhotepCommand<T> lastCommand) throws IOException, ImhotepOutOfMemoryException {
+        final ImhotepRequest batchRequestHeader = getBuilderForType(ImhotepRequest.RequestType.BATCH_REQUESTS)
+                .setImhotepRequestCount(firstCommands.size() + 1)
+                .setSessionId(getSessionId())
+                .build();
+        final ImhotepRequestSender imhotepRequestSender = new RequestTools.ImhotepRequestSender.Simple(batchRequestHeader);
+
         final Socket socket = newSocket(host, port, socketTimeout);
         final OutputStream os = Streams.newBufferedOutputStream(socket.getOutputStream());
         final InputStream is = Streams.newBufferedInputStream(socket.getInputStream());
         final Tracer tracer = GlobalTracer.get();
 
-
-        final ImhotepRequest batchRequestHeader = getBuilderForType(ImhotepRequest.RequestType.BATCH_REQUESTS)
-                .setImhotepRequestCount(firstCommands.size() + 1)
-                .setSessionId(getSessionId())
-                .build();
-
-        final ImhotepRequestSender imhotepRequestSender = new RequestTools.ImhotepRequestSender.Simple(batchRequestHeader);
         try (final ActiveSpan activeSpan = tracer.buildSpan(imhotepRequestSender.getRequestType().name()).withTag("sessionid", getSessionId()).withTag("host", host + ":" + port).startActive()) {
             imhotepRequestSender.writeToStreamNoFlush(os);
             os.flush();
