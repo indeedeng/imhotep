@@ -1409,6 +1409,8 @@ public class ImhotepRemoteSession
         final Tracer tracer = GlobalTracer.get();
 
         try (final ActiveSpan activeSpan = tracer.buildSpan(imhotepRequestSender.getRequestType().name()).withTag("sessionid", getSessionId()).withTag("host", host + ":" + port).startActive()) {
+            activeSpan.log(BatchRemoteImhotepMultiSession.getLogCommandClassNameList(firstCommands).toString());
+            activeSpan.log(BatchRemoteImhotepMultiSession.getLogCommandClassNameList(Arrays.asList(lastCommand)).toString());
             imhotepRequestSender.writeToStreamNoFlush(os);
             os.flush();
 
