@@ -105,7 +105,6 @@ public class TestShardFileRequests {
         final FileAttributeMessage dirAttributes = getShardFileAttributes(shardPath);
         assertNotNull(dirAttributes);
         assertTrue(dirAttributes.getIsDirectory());
-        assertEquals(4096, dirAttributes.getSize());
     }
 
     @Test
