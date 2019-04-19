@@ -4,6 +4,7 @@ import com.indeed.imhotep.ImhotepRemoteSession;
 import com.indeed.imhotep.api.CommandSerializationParameters;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
+import com.indeed.imhotep.api.RegroupParams;
 import com.indeed.imhotep.io.RequestTools.GroupMultiRemapRuleSender;
 import com.indeed.imhotep.io.RequestTools.ImhotepRequestSender;
 import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
@@ -22,27 +23,31 @@ import java.util.List;
  */
 public class MultiRegroupMessagesSender extends AbstractImhotepCommand<Integer> {
 
+    private final RegroupParams regroupParams;
     private final GroupMultiRemapRuleSender groupMultiRemapRuleSender;
     private final boolean errorOnCollision;
 
-    private MultiRegroupMessagesSender(final GroupMultiRemapRuleSender groupMultiRemapRuleSender, final boolean errorOnCollision, final String sessionId) {
+    private MultiRegroupMessagesSender(final RegroupParams regroupParams, final GroupMultiRemapRuleSender groupMultiRemapRuleSender, final boolean errorOnCollision, final String sessionId) {
         super(sessionId, Integer.class);
+        this.regroupParams = regroupParams;
         this.groupMultiRemapRuleSender = groupMultiRemapRuleSender;
         this.errorOnCollision = errorOnCollision;
     }
 
-    public static MultiRegroupMessagesSender createMultiRegroupMessagesSender(final GroupMultiRemapMessage[] messages, final boolean errorOnCollision, final String sessionId) {
-        return new MultiRegroupMessagesSender(GroupMultiRemapRuleSender.createFromMessages(Arrays.asList(messages).iterator(), true), errorOnCollision, sessionId);
+    public static MultiRegroupMessagesSender createMultiRegroupMessagesSender(final RegroupParams regroupParams, final GroupMultiRemapMessage[] messages, final boolean errorOnCollision, final String sessionId) {
+        return new MultiRegroupMessagesSender(regroupParams, GroupMultiRemapRuleSender.createFromMessages(Arrays.asList(messages).iterator(), true), errorOnCollision, sessionId);
     }
 
-    public static MultiRegroupMessagesSender createMultiRegroupMessagesSender(final GroupMultiRemapRuleSender groupMultiRemapRuleSender, final boolean errorOnCollision, final String sessionId) {
-        return new MultiRegroupMessagesSender(groupMultiRemapRuleSender, errorOnCollision, sessionId);
+    public static MultiRegroupMessagesSender createMultiRegroupMessagesSender(final RegroupParams regroupParams, final GroupMultiRemapRuleSender groupMultiRemapRuleSender, final boolean errorOnCollision, final String sessionId) {
+        return new MultiRegroupMessagesSender(regroupParams, groupMultiRemapRuleSender, errorOnCollision, sessionId);
     }
 
     @Override
     protected ImhotepRequestSender imhotepRequestSenderInitializer() {
         final ImhotepRequest header = ImhotepRequest.newBuilder()
                 .setRequestType(ImhotepRequest.RequestType.EXPLODED_MULTISPLIT_REGROUP)
+                .setInputGroups(regroupParams.getInputGroups())
+                .setOutputGroups(regroupParams.getOutputGroups())
                 .setSessionId(getSessionId())
                 .setLength(groupMultiRemapRuleSender.getRulesCount())
                 .setErrorOnCollisions(errorOnCollision)

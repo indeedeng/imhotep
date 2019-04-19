@@ -34,6 +34,8 @@ package com.indeed.imhotep.commands;
 
      void testUnconditionalRegroup() throws Exception; 
     
-     void testStringOrRegroup() throws Exception; 
+     void testStringOrRegroup() throws Exception;
+
+     void testConsolidateGroups() throws Exception;
 
 }

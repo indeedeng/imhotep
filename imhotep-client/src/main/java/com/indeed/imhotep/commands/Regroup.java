@@ -6,6 +6,7 @@ import com.indeed.imhotep.ImhotepRemoteSession;
 import com.indeed.imhotep.api.CommandSerializationParameters;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
+import com.indeed.imhotep.api.RegroupParams;
 import com.indeed.imhotep.io.RequestTools.ImhotepRequestSender;
 import com.indeed.imhotep.marshal.ImhotepClientMarshaller;
 import com.indeed.imhotep.protobuf.ImhotepRequest;
@@ -23,25 +24,29 @@ import java.util.List;
 @ToString
 public class Regroup extends AbstractImhotepCommand<Integer> {
 
+    private final RegroupParams regroupParams;
     private final GroupRemapRule[] rules;
 
-    private Regroup(final GroupRemapRule[] rules, final String sessionId) {
+    private Regroup(final RegroupParams regroupParams, final GroupRemapRule[] rules, final String sessionId) {
         super(sessionId, Integer.class);
+        this.regroupParams = regroupParams;
         this.rules = rules;
     }
 
-    public static Regroup createRegroup(final GroupRemapRule[] remapRules, final String sessionId) {
-        return new Regroup(remapRules, sessionId);
+    public static Regroup createRegroup(final RegroupParams regroupParams, final GroupRemapRule[] remapRules, final String sessionId) {
+        return new Regroup(regroupParams, remapRules, sessionId);
     }
 
-    public static Regroup createRegroup(final int numRawRules, final Iterator<GroupRemapRule> iterator, final String sessionId) {
-        return new Regroup(new GroupRemapRuleArray(numRawRules, iterator).elements(), sessionId);
+    public static Regroup createRegroup(final RegroupParams regroupParams, final int numRawRules, final Iterator<GroupRemapRule> iterator, final String sessionId) {
+        return new Regroup(regroupParams, new GroupRemapRuleArray(numRawRules, iterator).elements(), sessionId);
     }
 
     @Override
     protected ImhotepRequestSender imhotepRequestSenderInitializer() {
         final ImhotepRequest regroupRequest = ImhotepRequest.newBuilder()
                 .setRequestType(ImhotepRequest.RequestType.REGROUP)
+                .setInputGroups(regroupParams.getInputGroups())
+                .setOutputGroups(regroupParams.getOutputGroups())
                 .setSessionId(getSessionId())
                 .setLength(rules.length)
                 .addAllRemapRules(ImhotepClientMarshaller.marshal(rules))
@@ -57,7 +62,7 @@ public class Regroup extends AbstractImhotepCommand<Integer> {
 
     @Override
     public Integer apply(final ImhotepSession session) throws ImhotepOutOfMemoryException {
-        session.regroup(rules);
+        session.regroup(regroupParams, rules);
         return null;
     }
 

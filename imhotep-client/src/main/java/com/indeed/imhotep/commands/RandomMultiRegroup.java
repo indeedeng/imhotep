@@ -4,6 +4,7 @@ import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Ints;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
+import com.indeed.imhotep.api.RegroupParams;
 import com.indeed.imhotep.io.RequestTools.ImhotepRequestSender;
 import com.indeed.imhotep.protobuf.ImhotepRequest;
 import lombok.EqualsAndHashCode;
@@ -13,6 +14,7 @@ import lombok.ToString;
 @ToString
 public class RandomMultiRegroup extends VoidAbstractImhotepCommand {
 
+    private final RegroupParams regroupParams;
     private final String field;
     private final boolean isIntField;
     private final String salt;
@@ -20,8 +22,9 @@ public class RandomMultiRegroup extends VoidAbstractImhotepCommand {
     private final double[] percentages;
     private final int[] resultGroups;
 
-    public RandomMultiRegroup(final String field, final boolean isIntField, final String salt, final int targetGroup, final double[] percentages, final int[] resultGroups, final String sessionId) {
+    public RandomMultiRegroup(final RegroupParams regroupParams, final String field, final boolean isIntField, final String salt, final int targetGroup, final double[] percentages, final int[] resultGroups, final String sessionId) {
         super(sessionId);
+        this.regroupParams = regroupParams;
         this.field = field;
         this.isIntField = isIntField;
         this.salt = salt;
@@ -34,6 +37,8 @@ public class RandomMultiRegroup extends VoidAbstractImhotepCommand {
     protected ImhotepRequestSender imhotepRequestSenderInitializer() {
         final ImhotepRequest request = ImhotepRequest.newBuilder()
                 .setRequestType(ImhotepRequest.RequestType.RANDOM_MULTI_REGROUP)
+                .setInputGroups(regroupParams.getInputGroups())
+                .setOutputGroups(regroupParams.getOutputGroups())
                 .setSessionId(getSessionId())
                 .setField(field)
                 .setIsIntField(isIntField)
@@ -48,6 +53,6 @@ public class RandomMultiRegroup extends VoidAbstractImhotepCommand {
 
     @Override
     public void applyVoid(final ImhotepSession session) throws ImhotepOutOfMemoryException {
-        session.randomMultiRegroup(field, isIntField, salt, targetGroup, percentages, resultGroups);
+        session.randomMultiRegroup(regroupParams, field, isIntField, salt, targetGroup, percentages, resultGroups);
     }
 }

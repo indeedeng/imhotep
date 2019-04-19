@@ -13,8 +13,10 @@ import com.indeed.imhotep.RegroupCondition;
 import com.indeed.imhotep.RemoteImhotepMultiSession;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
+import com.indeed.imhotep.api.RegroupParams;
 import com.indeed.imhotep.client.ImhotepClient;
 import com.indeed.imhotep.io.RequestTools.GroupMultiRemapRuleSender;
+import com.indeed.imhotep.protobuf.Operator;
 import com.indeed.imhotep.service.ShardMasterAndImhotepDaemonClusterRunner;
 import org.apache.commons.io.FileUtils;
 import org.joda.time.DateTime;
@@ -165,19 +167,22 @@ public class TestImhotepCommands implements CommandsTest {
         assertEqualGroupStatsInternal();
     }
 
-    @Override @Test
+    @Override
+    @Test
     public void testGetGroupStats() throws ImhotepOutOfMemoryException {
         assertEqualGroupStatsInternal();
     }
 
-    @Override @Test
+    @Override
+    @Test
     public void testIntOrRegroup() throws ImhotepOutOfMemoryException {
         assertEqualGroupStatsVoid(imhotepSession -> {
             imhotepSession.intOrRegroup("metric", new long[]{1, 4, 5}, 1, 2, 3);
         });
     }
 
-    @Override @Test
+    @Override
+    @Test
     public void testTargetedMetricFilter() throws ImhotepOutOfMemoryException {
         final List<String> stat = new ArrayList<String>();
         stat.add("1");
@@ -186,7 +191,8 @@ public class TestImhotepCommands implements CommandsTest {
         });
     }
 
-    @Override @Test
+    @Override
+    @Test
     public void testMetricRegroup() throws ImhotepOutOfMemoryException {
         final List<String> stat = new ArrayList<String>();
         stat.add("1");
@@ -195,7 +201,8 @@ public class TestImhotepCommands implements CommandsTest {
         });
     }
 
-    @Override @Test
+    @Override
+    @Test
     public void testMultiRegroup() throws ImhotepOutOfMemoryException {
         final GroupMultiRemapRule[] rules = new GroupMultiRemapRule[]{
                 new GroupMultiRemapRule(1, 1, new int[]{2}, new RegroupCondition[]{new RegroupCondition("metric", true, 3, null, false)})};
@@ -204,19 +211,21 @@ public class TestImhotepCommands implements CommandsTest {
         });
     }
 
-    @Override @Test
+    @Override
+    @Test
     public void testMultiRegroupMessagesSender() throws ImhotepOutOfMemoryException {
         final GroupMultiRemapRule[] rules = new GroupMultiRemapRule[]{
                 new GroupMultiRemapRule(1, 1, new int[]{2, 3}, new RegroupCondition[]{
                         new RegroupCondition("metric", true, 3, null, false), new RegroupCondition("if2", true, 50, null, false)}),
         };
         final GroupMultiRemapRuleSender groupMultiRemapRuleSender = GroupMultiRemapRuleSender.createFromRules(Arrays.asList(rules).iterator(), true);
-        imhotepMultiSession.regroupWithRuleSender(groupMultiRemapRuleSender, true);
-        batchRemoteImhotepMultiSession.regroupWithRuleSender(groupMultiRemapRuleSender, true);
+        imhotepMultiSession.regroupWithRuleSender(RegroupParams.DEFAULT, groupMultiRemapRuleSender, true);
+        batchRemoteImhotepMultiSession.regroupWithRuleSender(RegroupParams.DEFAULT, groupMultiRemapRuleSender, true);
         assertEqualGroupStatsInternal();
     }
 
-    @Override @Test
+    @Override
+    @Test
     public void testMultiRegroupMessagesIterator() throws ImhotepOutOfMemoryException {
         final GroupMultiRemapRule[] rules = new GroupMultiRemapRule[]{
                 new GroupMultiRemapRule(1, 1, new int[]{2, 3}, new RegroupCondition[]{
@@ -230,7 +239,8 @@ public class TestImhotepCommands implements CommandsTest {
         assertEqualGroupStatsInternal();
     }
 
-    @Override @Test
+    @Override
+    @Test
     public void testUntargetedMetricFilter() throws ImhotepOutOfMemoryException {
         final List<String> stats = Lists.newArrayList("1");
         assertEqualGroupStats(imhotepSession -> {
@@ -238,7 +248,8 @@ public class TestImhotepCommands implements CommandsTest {
         });
     }
 
-    @Override @Test
+    @Override
+    @Test
     public void testRandomMetricMultiRegroup() throws ImhotepOutOfMemoryException {
         final List<String> stat = new ArrayList<String>();
         stat.add("if2");
@@ -248,7 +259,8 @@ public class TestImhotepCommands implements CommandsTest {
         });
     }
 
-    @Override @Test
+    @Override
+    @Test
     public void testRandomMetricRegroup() throws ImhotepOutOfMemoryException {
         final List<String> stat = new ArrayList<String>();
         stat.add("if1");
@@ -257,28 +269,32 @@ public class TestImhotepCommands implements CommandsTest {
         });
     }
 
-    @Override @Test
+    @Override
+    @Test
     public void testRandomMultiRegroup() throws ImhotepOutOfMemoryException {
         assertEqualGroupStatsVoid(imhotepSession -> {
             imhotepSession.randomMultiRegroup("if2", true, "salt", 1, new double[]{0.4, 0.8}, new int[]{3, 5, 6});
         });
     }
 
-    @Override @Test
+    @Override
+    @Test
     public void testRandomRegroup() throws ImhotepOutOfMemoryException {
         assertEqualGroupStatsVoid(imhotepSession -> {
             imhotepSession.randomRegroup("if1", true, "salt123", 0.60, 1, 2, 3);
         });
     }
 
-    @Override @Test
+    @Override
+    @Test
     public void testRegexRegroup() throws ImhotepOutOfMemoryException {
         assertEqualGroupStatsVoid(imhotepSession -> {
             imhotepSession.regexRegroup("sf1", ".*", 1, 2, 3);
         });
     }
 
-    @Override @Test
+    @Override
+    @Test
     public void testRegroup() throws ImhotepOutOfMemoryException {
         final GroupRemapRule[] rawRules = new GroupRemapRule[]{
                 new GroupRemapRule(1, new RegroupCondition("if1", true, 20, "6a", true), 2, 3)
@@ -288,7 +304,8 @@ public class TestImhotepCommands implements CommandsTest {
         });
     }
 
-    @Override @Test
+    @Override
+    @Test
     public void testQueryRegroup() throws ImhotepOutOfMemoryException {
         final QueryRemapRule rule = new QueryRemapRule(1, Query.newTermQuery(new Term("if2", true, 0, "a")), 1, 2);
         assertEqualGroupStats(imhotepSession -> {
@@ -296,17 +313,29 @@ public class TestImhotepCommands implements CommandsTest {
         });
     }
 
-    @Override @Test
+    @Override
+    @Test
     public void testUnconditionalRegroup() throws ImhotepOutOfMemoryException {
         assertEqualGroupStats(imhotepSession -> {
             return imhotepSession.regroup(new int[]{1}, new int[]{5}, false);
         });
     }
 
-    @Override @Test
+    @Override
+    @Test
     public void testStringOrRegroup() throws ImhotepOutOfMemoryException {
         assertEqualGroupStatsVoid(imhotepSession -> {
             imhotepSession.stringOrRegroup("sf1", new String[]{"1a", "a", "4a"}, 1, 2, 3);
+        });
+    }
+
+    @Override
+    @Test
+    public void testConsolidateGroups() throws ImhotepOutOfMemoryException {
+        assertEqualGroupStatsVoid(session -> {
+            session.intOrRegroup(new RegroupParams(ImhotepSession.DEFAULT_GROUPS, "input1"), "metric", new long[] {2, 3}, 1, 0, 1);
+            session.stringOrRegroup(new RegroupParams(ImhotepSession.DEFAULT_GROUPS, "input2"), "sf1", new String[] {"1a", "2a"}, 1, 0, 1);
+            session.consolidateGroups(Lists.newArrayList("input1", "input2"), Operator.AND, "outputGroups");
         });
     }
 }
