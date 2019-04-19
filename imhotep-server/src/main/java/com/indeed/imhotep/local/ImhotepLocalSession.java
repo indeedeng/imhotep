@@ -3272,7 +3272,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         ) {
             termLoop: while (termIterator.next()) {
                 final byte[] bytes = termIterator.termStringBytes();
-                if (termIterator.termStringLength() < 9) {
+                if (termIterator.termStringLength() != 16) {
                     continue;
                 }
 
