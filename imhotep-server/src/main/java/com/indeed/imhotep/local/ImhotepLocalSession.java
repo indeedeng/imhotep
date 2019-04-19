@@ -67,6 +67,7 @@ import com.indeed.imhotep.api.ImhotepCommand;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.PerformanceStats;
 import com.indeed.imhotep.exceptions.MultiValuedFieldStringLenException;
+import com.indeed.imhotep.exceptions.MultiValuedFieldUidTimestampException;
 import com.indeed.imhotep.group.IterativeHasher;
 import com.indeed.imhotep.group.IterativeHasherUtils;
 import com.indeed.imhotep.marshal.ImhotepDaemonMarshaller;
@@ -3244,19 +3245,16 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         return new MemoryReservingIntValueLookupWrapper(new IntArrayIntValueLookup(array, 0, percentages.length + 1));
     }
 
-    private static int decodeBase32(final char c) {
-        int ret = -1;
-        if (Character.isDigit(c)) {
-            ret = c - '0';
-        } else if (Character.isUpperCase(c)) {
-            ret = (c - 'A') + 10;
-        } else if (Character.isLowerCase(c)) {
-            ret = (c - 'a') + 10;
-        }
-        if ((0 > ret) || (31 < ret)) {
+    private static int decodeBase32(final byte c) {
+        if (('0' <= c) && (c <= '9')) {
+            return c - '0';
+        } else if (('A' <= c) && (c <= 'V')) {
+            return (c - 'A') + 10;
+        } else if (('a' <= c) && (c <= 'v')) {
+            return (c - 'a') + 10;
+        } else {
             return -1;
         }
-        return ret;
     }
 
     private IntValueLookup uidToUnixtimeLookup(final String field) throws ImhotepOutOfMemoryException {
@@ -3266,17 +3264,21 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             throw newImhotepOutOfMemoryException();
         }
         final long[] array = new long[flamdexReader.getNumDocs()];
+        Arrays.fill(array, -1);
 
         final int[] docIdBuf = memoryPool.getIntBuffer(BUFFER_SIZE, true);
         try (DocIdStream docIdStream = flamdexReader.getDocIdStream();
              StringTermIterator termIterator = flamdexReader.getStringTermIterator(field)
         ) {
             termLoop: while (termIterator.next()) {
-                final String term = termIterator.term();
+                final byte[] bytes = termIterator.termStringBytes();
+                if (termIterator.termStringLength() < 9) {
+                    continue;
+                }
 
                 long timestamp = 0;
                 for (int i = 8, p = 0; i >= 0; i--, p++) {
-                    final long charValue = decodeBase32(term.charAt(i));
+                    final long charValue = decodeBase32(bytes[i]);
                     if (charValue == -1) {
                         // not a valid leading timestamp
                         continue termLoop;
@@ -3290,7 +3292,11 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
 
                 while (true) {
                     final int n = docIdStream.fillDocIdBuffer(docIdBuf);
-                    for (final int docId : docIdBuf) {
+                    for (int i = 0; i < n; i++) {
+                        final int docId = docIdBuf[i];
+                        if (array[docId] != -1) {
+                            throw new MultiValuedFieldUidTimestampException("Can only compute uid_to_timestamp on single valued fields containing UIDs");
+                        }
                         array[docId] = timestamp;
                     }
                     if (n < docIdBuf.length) {
