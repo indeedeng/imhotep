@@ -30,7 +30,7 @@ public class Shard extends ShardInfo {
 
     /** the imhotep daemon server who holds the shard and other dameons will download the shard from it */
     @Nullable
-    private Host owner;
+    private final Host owner;
 
     /** If no servers are specified for shard to compute, host is both for computation and storage */
     public Shard(final String shardId, final int numDocs, final long version, final Host host) {
