@@ -28,7 +28,7 @@ message ShardMessage {
   required HostAndPort host = 5;
   optional string path = 6;
   optional string extension = 7;
-  required HostAndPort owner = 8;
+  optional HostAndPort owner = 8;
 }
 
 message StatusDumpMessage {
