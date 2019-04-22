@@ -24,9 +24,9 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
@@ -38,8 +38,8 @@ public class TestImhotepCommands implements CommandsTest {
     private static final String DATASET = "dataset";
     private static final DateTime TODAY = DateTime.now().withTimeAtStartOfDay();
 
-    static File tempShardDir;
-    static File tempDir;
+    static Path tempShardDir;
+    static Path tempDir;
 
     private static ShardMasterAndImhotepDaemonClusterRunner clusterRunner;
     private static final MemoryFlamdex memoryFlamdex1 = setFlamdex1();
@@ -116,8 +116,8 @@ public class TestImhotepCommands implements CommandsTest {
 
     @BeforeClass
     public static void imhotepClusterSetup() throws IOException, TimeoutException, InterruptedException {
-        tempShardDir = Files.createTempDirectory("shardDir").toFile();
-        tempDir = Files.createTempDirectory("tempDir").toFile();
+        tempShardDir = Files.createTempDirectory("shardDir");
+        tempDir = Files.createTempDirectory("tempDir");
         clusterRunner = new ShardMasterAndImhotepDaemonClusterRunner(tempShardDir, tempDir);
         clusterRunner.createDailyShard(DATASET, TODAY.minusDays(1), memoryFlamdex1);
         clusterRunner.createDailyShard(DATASET, TODAY.minusDays(2), memoryFlamdex2);
@@ -135,8 +135,8 @@ public class TestImhotepCommands implements CommandsTest {
     @AfterClass
     public static void tearDown() throws IOException {
         clusterRunner.stop();
-        FileUtils.deleteDirectory(tempShardDir);
-        FileUtils.deleteDirectory(tempDir);
+        FileUtils.deleteDirectory(tempShardDir.toFile());
+        FileUtils.deleteDirectory(tempDir.toFile());
     }
 
     private interface ThrowingFunction<K, V> {

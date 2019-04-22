@@ -31,8 +31,6 @@ import com.indeed.imhotep.api.HasSessionId;
 import com.indeed.imhotep.api.ImhotepCommand;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.PerformanceStats;
-import com.indeed.imhotep.exceptions.GenericImhotepKnownException;
-import com.indeed.imhotep.exceptions.ImhotepKnownException;
 import com.indeed.imhotep.io.ImhotepProtobufShipping;
 import com.indeed.imhotep.io.LimitedBufferedOutputStream;
 import com.indeed.imhotep.io.RequestTools;
@@ -53,7 +51,7 @@ import com.indeed.imhotep.protobuf.MultiFTGSRequest;
 import com.indeed.imhotep.protobuf.QueryMessage;
 import com.indeed.imhotep.protobuf.QueryRemapMessage;
 import com.indeed.imhotep.protobuf.RegroupConditionMessage;
-import com.indeed.imhotep.protobuf.ShardNameNumDocsPair;
+import com.indeed.imhotep.protobuf.ShardBasicInfoMessage;
 import com.indeed.imhotep.protobuf.StringFieldAndTerms;
 import com.indeed.util.core.Pair;
 import com.indeed.util.core.io.Closeables2;
@@ -82,6 +80,10 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
+
+import static com.indeed.imhotep.utils.ImhotepExceptionUtils.buildExceptionAfterSocketTimeout;
+import static com.indeed.imhotep.utils.ImhotepExceptionUtils.buildIOExceptionFromResponse;
+import static com.indeed.imhotep.utils.ImhotepExceptionUtils.buildImhotepKnownExceptionFromResponse;
 
 /**
  * @author jsgroth
@@ -189,7 +191,7 @@ public class ImhotepRemoteSession
                                                    @Nullable final AtomicLong tempFileSizeBytesLeft,
                                                    final long sessionTimeout, final long numDocs) throws ImhotepOutOfMemoryException, IOException {
 
-        return openSession(host, port, dataset, shards, mergeThreadLimit, username, "", optimizeGroupZeroLookups, socketTimeout, sessionId, tempFileSizeLimit, tempFileSizeBytesLeft, sessionTimeout, false, numDocs);
+        return openSession(host, port, dataset, shards, mergeThreadLimit, username, "", optimizeGroupZeroLookups, socketTimeout, sessionId, tempFileSizeLimit, tempFileSizeBytesLeft, sessionTimeout, false, numDocs, false);
     }
 
 
@@ -199,7 +201,8 @@ public class ImhotepRemoteSession
                                                    @Nullable String sessionId, final long tempFileSizeLimit,
                                                    @Nullable final AtomicLong tempFileSizeBytesLeft,
                                                    final long sessionTimeout,
-                                                   boolean allowSessionForwarding, final long numDocs) throws ImhotepOutOfMemoryException, IOException {
+                                                   boolean allowSessionForwarding, final long numDocs,
+                                                   final boolean p2pCache) throws ImhotepOutOfMemoryException, IOException {
         final Socket socket = newSocket(host, port, socketTimeout);
         final OutputStream os = Streams.newBufferedOutputStream(socket.getOutputStream());
         final InputStream is = Streams.newBufferedInputStream(socket.getInputStream());
@@ -211,7 +214,21 @@ public class ImhotepRemoteSession
                     .setClientName(clientName)
                     .setDataset(dataset)
                     .setMergeThreadLimit(mergeThreadLimit)
-                    .addAllShards(shards.stream().map(shard -> ShardNameNumDocsPair.newBuilder().setShardName(shard.getFileName()).setNumDocs(shard.numDocs).build()).collect(Collectors.toList()))
+                    .addAllShards(shards.stream().map(shard -> {
+                                final ShardBasicInfoMessage.Builder builder = ShardBasicInfoMessage.newBuilder()
+                                    .setShardName(shard.getFileName())
+                                    .setNumDocs(shard.numDocs);
+                                if (p2pCache) {
+                                    builder.setShardOwner(
+                                            HostAndPort.newBuilder()
+                                                    .setHost(shard.getOwner().getHostname())
+                                                    .setPort(shard.getOwner().getPort())
+                                                    .build()
+                                    );
+                                }
+                                return builder.build();
+                            }
+                        ).collect(Collectors.toList()))
                     .setOptimizeGroupZeroLookups(optimizeGroupZeroLookups)
                     .setClientVersion(CURRENT_CLIENT_VERSION)
                     .setSessionId(sessionId == null ? "" : sessionId)
@@ -1322,50 +1339,6 @@ public class ImhotepRemoteSession
         } catch (final SocketTimeoutException e) {
             throw buildExceptionAfterSocketTimeout(e, host, port, getSessionId());
         }
-    }
-
-    private static IOException buildIOExceptionFromResponse(
-            final ImhotepResponse response,
-            final String host,
-            final int port,
-            @Nullable final String sessionId) {
-        final String msg = buildExceptionMessage(response, host, port, sessionId);
-        return new IOException(msg);
-    }
-
-    private static ImhotepKnownException buildImhotepKnownExceptionFromResponse(
-            final ImhotepResponse response,
-            final String host,
-            final int port,
-            @Nullable final String sessionId) {
-        final String msg = buildExceptionMessage(response, host, port, sessionId);
-        return new GenericImhotepKnownException(msg);
-    }
-
-    private static String buildExceptionMessage(final ImhotepResponse response, final String host, final int port, @Nullable final String sessionId) {
-        final StringBuilder msg = new StringBuilder();
-        msg.append("imhotep daemon ").append(host).append(":").append(port)
-                .append(" returned error: ")
-                .append(response.getExceptionStackTrace()); // stack trace string includes the type and message
-        if (sessionId != null) {
-            msg.append(" sessionId :").append(sessionId);
-        }
-        return msg.toString();
-    }
-
-    private static IOException buildExceptionAfterSocketTimeout(
-            final SocketTimeoutException e,
-            final String host,
-            final int port,
-            @Nullable final String sessionId) {
-        final StringBuilder msg = new StringBuilder();
-        msg.append("imhotep daemon ").append(host).append(":").append(port)
-                .append(" socket timed out: ").append(e.getMessage());
-        if (sessionId != null) {
-            msg.append(" sessionId: ").append(sessionId);
-        }
-
-        return new IOException(msg.toString());
     }
 
     private static void closeSocket(final Socket socket) {

@@ -17,6 +17,7 @@ package com.indeed.imhotep.fs;
 import com.google.common.base.Function;
 import com.google.common.base.Throwables;
 import com.google.common.collect.FluentIterable;
+import com.google.common.collect.ImmutableList;
 import com.indeed.imhotep.archive.FileMetadata;
 import com.indeed.imhotep.scheduling.TaskScheduler;
 import com.indeed.util.core.io.Closeables2;
@@ -27,6 +28,7 @@ import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.FileStore;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.NotDirectoryException;
@@ -35,6 +37,7 @@ import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * @author kenh
@@ -44,11 +47,21 @@ class SqarRemoteFileStore extends RemoteFileStore implements Closeable {
 
     private final SqarMetaDataManager sqarMetaDataManager;
     private final SqarMetaDataDao sqarMetaDataDao;
-    private final RemoteFileStore backingFileStore;
+    private final RemoteFileStore defaultBackingFileStore;
+    private final RemoteFileStore peerToPeerFileStore;
 
-    SqarRemoteFileStore(final RemoteFileStore backingFileStore,
+
+    SqarRemoteFileStore(final RemoteFileStore defaultBackingFileStore,
                                final Map<String, ?> configuration) throws IOException {
-        this.backingFileStore = backingFileStore;
+        this(defaultBackingFileStore, null, configuration);
+    }
+
+    SqarRemoteFileStore(
+            final RemoteFileStore defaultBackingFileStore,
+            final PeerToPeerCacheFileStore peerToPeerCacheFileStore,
+            final Map<String, ?> configuration) throws IOException {
+        this.defaultBackingFileStore = defaultBackingFileStore;
+        this.peerToPeerFileStore = peerToPeerCacheFileStore;
         final File lsmTreeMetadataStore = new File((String)configuration.get("imhotep.fs.sqar.metadata.cache.path"));
         final String lsmTreeExpirationDurationString = (String)(configuration.get("imhotep.fs.sqar.metadata.cache.expiration.hours"));
         final int lsmTreeExpirationDurationHours = lsmTreeExpirationDurationString != null ? Integer.valueOf(lsmTreeExpirationDurationString) : 0;
@@ -63,18 +76,37 @@ class SqarRemoteFileStore extends RemoteFileStore implements Closeable {
         Closeables2.closeQuietly(sqarMetaDataDao, log);
     }
 
-    RemoteFileStore getBackingFileStore() {
-        return backingFileStore;
-    }
-
     @Override
     InputStream newInputStream(final RemoteCachingPath path, final long startOffset, final long length) throws IOException {
+        final RemoteFileStore backingFileStore = getBackingFileStore(path);
         return backingFileStore.newInputStream(path, startOffset, length);
+    }
+
+    RemoteFileStore getBackingFileStore(final RemoteCachingPath path) {
+        if (path instanceof PeerToPeerCachePath) {
+            if (peerToPeerFileStore == null) {
+                throw new UnsupportedOperationException("PeerToPeerCacheFileStore is not supported from the filesystem configuration");
+            }
+            return peerToPeerFileStore;
+        }
+        return defaultBackingFileStore;
+    }
+
+    Iterable<FileStore> getBackingFileStores() {
+        final ImmutableList.Builder builder = ImmutableList.builder().add(defaultBackingFileStore);
+        if (peerToPeerFileStore != null) {
+            builder.add(peerToPeerFileStore);
+        }
+        return builder.build();
     }
 
     @Override
     public String name() {
-        return backingFileStore.name();
+        if (peerToPeerFileStore == null) {
+            return defaultBackingFileStore.name();
+        }
+        // TODO: no sure how to do with this
+        return defaultBackingFileStore.name() + " && " + peerToPeerFileStore.name();
     }
 
     @Override
@@ -89,6 +121,7 @@ class SqarRemoteFileStore extends RemoteFileStore implements Closeable {
             }
             return sqarMetaDataManager.readDir(path);
         } else {
+            final RemoteFileStore backingFileStore = getBackingFileStore(path);
             return FluentIterable.from(backingFileStore.listDir(path)).transform(
                     new Function<RemoteFileAttributes, RemoteFileAttributes>() {
                         @Override
@@ -113,11 +146,13 @@ class SqarRemoteFileStore extends RemoteFileStore implements Closeable {
         if (isInSqarDirectory(path)) {
             return getRemoteAttributesImpl(path);
         } else {
+            final RemoteFileStore backingFileStore = getBackingFileStore(path);
             return backingFileStore.getRemoteAttributes(path);
         }
     }
 
     private void downloadFileImpl(final RemoteCachingPath srcPath, final Path destPath) throws IOException {
+        final RemoteFileStore backingFileStore = getBackingFileStore(srcPath);
         final RemoteFileMetadata remoteFileMetadata = getSqarMetadata(srcPath);
         if (remoteFileMetadata == null) {
             throw new NoSuchFileException("Cannot find file for " + srcPath);
@@ -146,6 +181,10 @@ class SqarRemoteFileStore extends RemoteFileStore implements Closeable {
      * true if the contents is within a 'sqar' directory
      */
     boolean isInSqarDirectory(final RemoteCachingPath path) throws IOException {
+        // IMTEPD-483: Files with PeerToPeerCachePath must be in uncompressed non-sqar directory
+        if (path instanceof PeerToPeerCachePath) {
+            return false;
+        }
         final RemoteCachingPath shardPath = SqarMetaDataUtil.getShardPath(path);
         if (shardPath == null) {
             return false;
@@ -160,12 +199,26 @@ class SqarRemoteFileStore extends RemoteFileStore implements Closeable {
         if (isInSqarDirectory(srcPath)) {
             downloadFileImpl(srcPath, destPath);
         } else {
+            final RemoteFileStore backingFileStore = getBackingFileStore(srcPath);
             backingFileStore.downloadFile(srcPath, destPath);
         }
     }
 
+    @Override
+    Optional<Path> getCachedPath(final RemoteCachingPath path) throws IOException {
+        final RemoteFileStore backingFileStore = getBackingFileStore(path);
+        return backingFileStore.getCachedPath(path);
+    }
+
+    @Override
+    Optional<ScopedCacheFile> getForOpen(final RemoteCachingPath path) throws IOException {
+        final RemoteFileStore backingFileStore = getBackingFileStore(path);
+        return backingFileStore.getForOpen(path);
+    }
+
     @Nullable
     private RemoteFileMetadata getSqarMetadata(final RemoteCachingPath path) throws IOException {
+        final RemoteFileStore backingFileStore = getBackingFileStore(path);
         return sqarMetaDataManager.getFileMetadata(backingFileStore, path);
     }
 }

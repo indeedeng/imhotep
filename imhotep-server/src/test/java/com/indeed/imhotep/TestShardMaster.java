@@ -62,8 +62,8 @@ public class TestShardMaster {
         storeDir = Files.createTempDirectory("temp-imhotep");
         tempDir = Files.createTempDirectory("temp-imhotep");
         clusterRunner = new ShardMasterAndImhotepDaemonClusterRunner(
-                storeDir.toFile(),
-                tempDir.toFile(),
+                storeDir,
+                tempDir,
                 ImhotepShardCreator.DEFAULT
         );
     }
@@ -143,7 +143,8 @@ public class TestShardMaster {
             public void refreshFieldsForDataset(final String dataset) {
             }
         };
-        final ShardLocator shardLocator = (dataset, shardName) -> {
+        final ShardLocator shardLocator = (dataset, shardHostInfo) -> {
+            final String shardName = shardHostInfo.getShardName();
             if (shardName.equals(dynamicShard.getName())) {
                 return Optional.of(dynamicShard.getIndexDir());
             } else {

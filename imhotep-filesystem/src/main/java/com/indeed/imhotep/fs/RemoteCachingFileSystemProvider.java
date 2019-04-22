@@ -150,6 +150,16 @@ public class RemoteCachingFileSystemProvider extends FileSystemProvider {
         return (RemoteCachingPath) path;
     }
 
+    static PeerToPeerCachePath toPeerToPeerCachePath(final Path path) {
+        if (path == null) {
+            throw new NullPointerException();
+        }
+        if (!(path instanceof PeerToPeerCachePath)) {
+            throw new ProviderMismatchException();
+        }
+        return (PeerToPeerCachePath) path;
+    }
+
     @Override
     public String getScheme() {
         return URI_SCHEME;
@@ -309,8 +319,7 @@ public class RemoteCachingFileSystemProvider extends FileSystemProvider {
 
     @Override
     public FileStore getFileStore(final Path path) throws IOException {
-        // TODO: currently we only support a single configured file store per file system
-        return Iterables.getFirst(FILE_SYSTEM_HOLDER.get().getFileStores(), null);
+        return FILE_SYSTEM_HOLDER.get().getFileStore(toRemoteCachePath(path));
     }
 
     @Override

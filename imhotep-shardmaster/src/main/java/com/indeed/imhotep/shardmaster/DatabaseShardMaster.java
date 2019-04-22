@@ -15,34 +15,51 @@
 package com.indeed.imhotep.shardmaster;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.hash.HashFunction;
+import com.google.common.hash.Hashing;
 import com.indeed.imhotep.DatasetInfo;
 import com.indeed.imhotep.Shard;
 import com.indeed.imhotep.ShardInfo;
+import com.indeed.imhotep.client.Host;
 import com.indeed.imhotep.client.HostsReloader;
 import com.indeed.imhotep.shardmasterrpc.ShardMaster;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 /**
  * @author kenh
  */
 
 public class DatabaseShardMaster implements ShardMaster {
+    private static final HashFunction HASH_FUNCTION = Hashing.murmur3_32(Integer.MAX_VALUE);
+
     private final ShardAssigner assigner;
     private final ShardData shardData;
     private final HostsReloader reloader;
     private final ShardRefresher refresher;
+    // this field is for imhotep performance test, see IMTEPD-516
+    private final Map<String, Integer> datasetHostLimitMap;
 
-    public DatabaseShardMaster(final ShardAssigner assigner, final ShardData shardData, final HostsReloader reloader, final ShardRefresher refresher) {
+    public DatabaseShardMaster(
+            final ShardAssigner assigner,
+            final ShardData shardData,
+            final HostsReloader reloader,
+            final ShardRefresher refresher,
+            final Map<String, Integer> datasetHostLimitMap) {
         this.assigner = assigner;
         this.shardData = shardData;
         this.reloader = reloader;
         this.refresher = refresher;
+        this.datasetHostLimitMap = datasetHostLimitMap;
     }
 
     @Override
@@ -63,7 +80,15 @@ public class DatabaseShardMaster implements ShardMaster {
     @Override
     public List<Shard> getShardsInTime(final String dataset, final long start, final long end) {
         final Collection<ShardInfo> info = shardData.getShardsInTime(dataset, start, end);
-        return ImmutableList.copyOf(assigner.assign(reloader.getHosts(), dataset, info));
+        List<Host> hosts = reloader.getHosts();
+        if (datasetHostLimitMap.containsKey(dataset)) {
+            final int hostLimit = datasetHostLimitMap.get(dataset);
+            // the order of hosts in list is determinate.
+            // (1) for ZkHostsReloader, it sorts the host list when returning them
+            // (2) for DummyHostsReloader, the host list never changes
+            hosts = chooseHosts(dataset, hosts, hostLimit);
+        }
+        return ImmutableList.copyOf(assigner.assign(hosts, dataset, info));
     }
 
     @Override
@@ -80,5 +105,20 @@ public class DatabaseShardMaster implements ShardMaster {
     @Override
     public void refreshFieldsForDataset(final String dataset) throws IOException {
         refresher.refreshFieldsForDatasetInSQL(dataset);
+    }
+
+    private List<Host> chooseHosts(final String dataset, final List<Host> hosts, final int hostLimit) {
+        final int datasetHashCode = Objects.hashCode(dataset);
+        return IntStream.range(0, hosts.size())
+                .boxed()
+                .sorted(Comparator.comparingInt(hostIndex ->
+                        HASH_FUNCTION.newHasher()
+                                .putInt(datasetHashCode)
+                                .putInt(hostIndex)
+                                .hash()
+                                .asInt()))
+                .limit(hostLimit)
+                .map(hostIndex -> hosts.get(hostIndex))
+                .collect(Collectors.toList());
     }
 }

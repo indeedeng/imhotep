@@ -91,6 +91,9 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
 
     private boolean closed = false;
 
+    /** bytes downloaded from other daemons in peer to peer cache */
+    private final AtomicLong downloadedBytesInPeerToPeerCache;
+
     public final class RelayObserver implements Instrumentation.Observer {
         public synchronized void onEvent(final Instrumentation.Event event) {
             instrumentation.fire(event);
@@ -142,6 +145,7 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
         super(sessionId);
         this.tempFileSizeBytesLeft = tempFileSizeBytesLeft;
         this.savedTempFileSizeValue = (tempFileSizeBytesLeft == null) ? 0 : tempFileSizeBytesLeft.get();
+        this.downloadedBytesInPeerToPeerCache = new AtomicLong();
         this.userName = userName;
         this.clientName = clientName;
         if (sessions == null || sessions.length == 0) {
@@ -591,7 +595,7 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
             }
         }
         builder.setCpuTime(cpuTotalTime - savedCPUTime);
-
+        builder.setCustomStat("downloadedBytesInP2P", downloadedBytesInPeerToPeerCache.get());
 
         // All sessions share the same AtomicLong tempFileSizeBytesLeft,
         // so value accumulated in builder::ftgsTempFileSize is wrong
@@ -624,6 +628,10 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
 
     public void schedulerWaitTimeCallback(SchedulerType schedulerType, long waitTime) {
         slotTiming.schedulerWaitTimeCallback(schedulerType, waitTime);
+    }
+
+    public void setDownloadedBytesInPeerToPeerCache(final long bytesDownloaded) {
+        downloadedBytesInPeerToPeerCache.addAndGet(bytesDownloaded);
     }
 
     @Override
