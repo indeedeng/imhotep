@@ -7,6 +7,7 @@ import com.google.common.io.ByteStreams;
 import com.indeed.imhotep.client.Host;
 import com.indeed.imhotep.connection.ImhotepConnection;
 import com.indeed.imhotep.connection.ImhotepConnectionPool;
+import com.indeed.imhotep.connection.ImhotepConnectionPoolWrapper;
 import com.indeed.imhotep.io.ImhotepProtobufShipping;
 import com.indeed.imhotep.io.Streams;
 import com.indeed.imhotep.protobuf.FileAttributeMessage;
@@ -45,7 +46,7 @@ public class PeerToPeerCacheFileStore extends RemoteFileStore {
     private static final Logger logger = Logger.getLogger(PeerToPeerCacheFileStore.class);
     private static final int FETCH_CONNECTION_TIMEOUT = (int) TimeUnit.SECONDS.toMillis(30);
     private static final int REMOTE_ATTRIBUTES_CACHE_CAPACITY = 65536;
-    private static final ImhotepConnectionPool CONNECTION_POOL = ImhotepConnectionPool.INSTANCE;
+    private static final ImhotepConnectionPool CONNECTION_POOL = ImhotepConnectionPoolWrapper.INSTANCE;
 
     private final LocalFileCache fileCache;
     private final MetricStatsEmitter statsEmitter;

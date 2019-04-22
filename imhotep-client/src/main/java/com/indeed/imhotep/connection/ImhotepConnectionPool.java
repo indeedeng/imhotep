@@ -27,9 +27,8 @@ import java.net.Socket;
  *     // do something with the connection and return a value
  * });
  */
-public enum ImhotepConnectionPool implements Closeable {
-    INSTANCE;
 
+public class ImhotepConnectionPool implements Closeable {
     private static final Logger logger = Logger.getLogger(ImhotepConnectionPool.class);
 
     // We hope the client side time out at first, and then the server socket received EOFException and close it self.
@@ -41,8 +40,11 @@ public enum ImhotepConnectionPool implements Closeable {
 
     private final GenericKeyedObjectPool<Host, Socket> sourcePool;
 
-    @VisibleForTesting
-    static GenericKeyedObjectPool<Host, Socket> makeGenericKeyedObjectPool(final int socketReadTimeoutMills, final int socketConnectingTimeoutMills) {
+    ImhotepConnectionPool() {
+        this(SOCKET_READ_TIMEOUT_MILLIS, SOCKET_CONNECTING_TIMEOUT_MILLIS);
+    }
+
+    ImhotepConnectionPool(final int socketReadTimeoutMills, final int socketConnectingTimeoutMills) {
         final ImhotepConnectionKeyedPooledObjectFactory factory = new ImhotepConnectionKeyedPooledObjectFactory(socketReadTimeoutMills, socketConnectingTimeoutMills);
 
         final GenericKeyedObjectPoolConfig<Socket> config = new GenericKeyedObjectPoolConfig<>();
@@ -50,11 +52,7 @@ public enum ImhotepConnectionPool implements Closeable {
         config.setLifo(true);
         config.setTestOnBorrow(true);
 
-        return new GenericKeyedObjectPool<>(factory, config);
-    }
-
-    ImhotepConnectionPool() {
-        sourcePool = makeGenericKeyedObjectPool(SOCKET_READ_TIMEOUT_MILLIS, SOCKET_CONNECTING_TIMEOUT_MILLIS);
+        sourcePool = new GenericKeyedObjectPool<>(factory, config);
     }
 
     /**
@@ -64,6 +62,7 @@ public enum ImhotepConnectionPool implements Closeable {
      * When callers complete the usage of connection, they should close the connection with {@code ImhotepConnection.close}
      * Whenever there are any {@code Throwable} happening during the usage of connection, callers should mark the connection as invalid by
      * {@code ImhotepConnection.markAsInvalid}
+     * Notice: all bytes caused as a result of this connection must be fully consumed before returning to the pool in case of successful completion
      *
      * @param host the connection host name
      * @return An valid ImhotepConnection
@@ -86,6 +85,7 @@ public enum ImhotepConnectionPool implements Closeable {
      * When callers complete the usage of connection, they should close the connection with {@code ImhotepConnection.close}
      * Whenever there are any {@code Throwable} happening during the usage of connection, callers should mark the connection as invalid by
      * {@code ImhotepConnection.markAsInvalid}
+     * Notice: all bytes caused as a result of this connection must be fully consumed before returning to the pool in case of successful completion
      *
      * @param host the connection host name
      * @param timeoutMillis timeout to get the connection
