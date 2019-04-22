@@ -93,16 +93,13 @@ public class ImhotepConnectionPoolTest {
     }
 
     @Test
-    public void testInvalidateTimeoutSocket() throws IOException, InterruptedException {
-        final ImhotepConnection connection = testConnnectionPool.getConnection(host1);
-        final Socket firstBorrowSocket = connection.getSocket();
-        connection.close();
-        Thread.sleep(46000);
+    public void testInvalidateTimeoutSocket() throws Exception {
+        final GenericKeyedObjectPool<Host, Socket> localConnectionPool = ImhotepConnectionPool.makeGenericKeyedObjectPool(100, 1000);
+        final Socket firstSocket = localConnectionPool.borrowObject(host1);
+        Thread.sleep(200);
 
-        testConnnectionPool.withConnection(host1, connection1 -> {
-            assertFalse(Objects.equals(connection1.getSocket(),  firstBorrowSocket));
-            return true;
-        });
+        final Socket secondSocket = localConnectionPool.borrowObject(host1);
+        assertFalse(Objects.equals(firstSocket, secondSocket));
     }
 
     /** As methods close and markAsInvalid swallow exceptions happening inside with logging.

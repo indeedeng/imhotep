@@ -201,14 +201,19 @@ public class PeerToPeerCacheFileStore extends RemoteFileStore {
                 .setShardFileUri(realFileUri)
                 .build();
 
-        return CONNECTION_POOL.withConnectionManuallyClose(host, FETCH_CONNECTION_TIMEOUT, connection -> {
-            final Socket socket = connection.getSocket();
-            final OutputStream os = Streams.newBufferedOutputStream(socket.getOutputStream());
-            final InputStream is = Streams.newBufferedInputStream(socket.getInputStream());
-            final ImhotepResponse response = sendRequest(newRequest, is, os, host);
-            reportFileDownload(response.getFileLength(), System.currentTimeMillis() - downloadStartMillis);
-            return new ConnectionInputStream(ByteStreams.limit(is, response.getFileLength()), connection);
-        });
+        // here the connection will be closed with the closure of ConnectionInputStream
+        final ImhotepConnection connection = CONNECTION_POOL.getConnection(host, FETCH_CONNECTION_TIMEOUT);
+        try {
+                final Socket socket = connection.getSocket();
+                final OutputStream os = Streams.newBufferedOutputStream(socket.getOutputStream());
+                final InputStream is = Streams.newBufferedInputStream(socket.getInputStream());
+                final ImhotepResponse response = sendRequest(newRequest, is, os, host);
+                reportFileDownload(response.getFileLength(), System.currentTimeMillis() - downloadStartMillis);
+                return new ConnectionInputStream(ByteStreams.limit(is, response.getFileLength()), connection);
+        } catch (final Throwable t) {
+            connection.markAsInvalid();
+            throw t;
+        }
     }
 
     /**
