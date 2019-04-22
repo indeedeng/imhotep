@@ -74,12 +74,14 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static com.indeed.imhotep.utils.ImhotepExceptionUtils.buildExceptionAfterSocketTimeout;
 import static com.indeed.imhotep.utils.ImhotepExceptionUtils.buildIOExceptionFromResponse;
@@ -1382,8 +1384,8 @@ public class ImhotepRemoteSession
         final Tracer tracer = GlobalTracer.get();
 
         try (final ActiveSpan activeSpan = tracer.buildSpan(imhotepRequestSender.getRequestType().name()).withTag("sessionid", getSessionId()).withTag("host", host + ":" + port).startActive()) {
-            activeSpan.log(BatchRemoteImhotepMultiSession.getLogCommandClassNameList(firstCommands).toString());
-            activeSpan.log(BatchRemoteImhotepMultiSession.getLogCommandClassNameList(Arrays.asList(lastCommand)).toString());
+            final List<String> commandClassNameList = Stream.concat(firstCommands.stream(), Stream.of(lastCommand)).map(BatchRemoteImhotepMultiSession::getCommandClassName).collect(Collectors.toList());
+            activeSpan.log(Collections.singletonMap("commandNames", commandClassNameList));
             imhotepRequestSender.writeToStreamNoFlush(os);
             os.flush();
 

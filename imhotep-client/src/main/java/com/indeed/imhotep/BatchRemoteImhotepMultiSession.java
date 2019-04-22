@@ -80,7 +80,7 @@ public class BatchRemoteImhotepMultiSession extends AbstractImhotepSession {
             executeBatch();
             return null;
         } catch (final ImhotepOutOfMemoryException e) {
-            log.error("ImhotepOutOfMemoryException while executing Imhotep Batch commands. SessionId: " + getSessionId() + " commands class List: " + getLogCommandClassNameList(commands));
+            log.error("ImhotepOutOfMemoryException while executing Imhotep Batch commands. SessionId: " + getSessionId() + " commands class List: " + getLogCommandClassNameList());
             throw Throwables.propagate(e);
         }
     }
@@ -294,7 +294,7 @@ public class BatchRemoteImhotepMultiSession extends AbstractImhotepSession {
     @Override
     public void close() {
         if (!commands.isEmpty()) {
-            log.warn("Requested to close a session with id: " + getSessionId() + " without using the regroup calls: " + getLogCommandClassNameList(commands));
+            log.warn("Requested to close a session with id: " + getSessionId() + " without using the regroup calls: " + getLogCommandClassNameList());
         }
         commands.clear();
         remoteImhotepMultiSession.close();
@@ -325,7 +325,7 @@ public class BatchRemoteImhotepMultiSession extends AbstractImhotepSession {
     @Override
     public PerformanceStats closeAndGetPerformanceStats() {
         if (!commands.isEmpty()) {
-            log.warn("Requested to close a session with id: " + getSessionId() + " without using the regroup calls: " + getLogCommandClassNameList(commands));
+            log.warn("Requested to close a session with id: " + getSessionId() + " without using the regroup calls: " + getLogCommandClassNameList());
         }
         return remoteImhotepMultiSession.closeAndGetPerformanceStats();
     }
@@ -345,7 +345,11 @@ public class BatchRemoteImhotepMultiSession extends AbstractImhotepSession {
         return remoteImhotepMultiSession.getTempFilesBytesWritten();
     }
 
-    public static List<String> getLogCommandClassNameList(final List<ImhotepCommand> commands) {
-        return commands.stream().map(x -> x.getClass().getSimpleName()).collect(Collectors.toList());
+    static String getCommandClassName(final ImhotepCommand imhotepCommand) {
+        return imhotepCommand.getClass().getSimpleName();
+    }
+
+    private List<String> getLogCommandClassNameList() {
+        return commands.stream().map(BatchRemoteImhotepMultiSession::getCommandClassName).collect(Collectors.toList());
     }
 }
