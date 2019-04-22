@@ -12,6 +12,7 @@ import java.net.Socket;
 import java.net.SocketTimeoutException;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
@@ -22,6 +23,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
 
@@ -90,6 +92,18 @@ public class ImhotepConnectionPoolTest {
         });
     }
 
+    @Test
+    public void testInvalidateTimeoutSocket() throws IOException, InterruptedException {
+        final ImhotepConnection connection = testConnnectionPool.getConnection(host1);
+        final Socket firstBorrowSocket = connection.getSocket();
+        connection.close();
+        Thread.sleep(46000);
+
+        testConnnectionPool.withConnection(host1, connection1 -> {
+            assertFalse(Objects.equals(connection1.getSocket(),  firstBorrowSocket));
+            return true;
+        });
+    }
 
     /** As methods close and markAsInvalid swallow exceptions happening inside with logging.
      * Here following 4 tests manually close/markAsInvalid to ensure they work well */

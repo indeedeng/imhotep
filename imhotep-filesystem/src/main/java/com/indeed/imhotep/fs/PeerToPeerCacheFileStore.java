@@ -5,6 +5,7 @@ import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.io.ByteStreams;
 import com.indeed.imhotep.client.Host;
+import com.indeed.imhotep.connection.ImhotepConnection;
 import com.indeed.imhotep.connection.ImhotepConnectionPool;
 import com.indeed.imhotep.io.ImhotepProtobufShipping;
 import com.indeed.imhotep.io.Streams;
@@ -44,6 +45,7 @@ public class PeerToPeerCacheFileStore extends RemoteFileStore {
     private static final Logger logger = Logger.getLogger(PeerToPeerCacheFileStore.class);
     private static final int FETCH_CONNECTION_TIMEOUT = (int) TimeUnit.SECONDS.toMillis(30);
     private static final int REMOTE_ATTRIBUTES_CACHE_CAPACITY = 65536;
+    private static final ImhotepConnectionPool CONNECTION_POOL = ImhotepConnectionPool.INSTANCE;
 
     private final LocalFileCache fileCache;
     private final MetricStatsEmitter statsEmitter;
@@ -113,7 +115,7 @@ public class PeerToPeerCacheFileStore extends RemoteFileStore {
                 .build();
 
         final List<FileAttributeMessage> attributeList = handleRequest(newRequest, peerToPeerCachePath,
-                (response, is) -> response.getSubFilesAttributesList());
+                response -> response.getSubFilesAttributesList());
         return attributeList.stream()
                 .map(attr -> {
                     final RemoteFileAttributes remoteAttributes = new RemoteFileAttributes(
@@ -126,8 +128,11 @@ public class PeerToPeerCacheFileStore extends RemoteFileStore {
 
                     // put all paths from listDir into the cache.
                     // It could avoid future remoteAttributes requests under the directory although there are some redundant fields path in the cache.
-                    // putIfAbsent is expected, but LoadingCache doesn't provide that
-                    remoteFileAttributesCache.put((PeerToPeerCachePath) remoteAttributes.getPath(), remoteAttributes);
+                    // check if the path has been cached in case of frequent replacement
+                    final PeerToPeerCachePath cacheKey = (PeerToPeerCachePath) remoteAttributes.getPath();
+                    if (remoteFileAttributesCache.getIfPresent(cacheKey) == null) {
+                        remoteFileAttributesCache.put(cacheKey, remoteAttributes);
+                    }
                     return remoteAttributes;
                 })
                 .collect(Collectors.toList());
@@ -151,7 +156,7 @@ public class PeerToPeerCacheFileStore extends RemoteFileStore {
                 .build();
 
         final FileAttributeMessage attributes = handleRequest(newRequest, peerToPeerCachePath,
-                (response, is) -> response.getFileAttributes());
+                response -> response.getFileAttributes());
         return new RemoteFileAttributes(peerToPeerCachePath, attributes.getSize(), !attributes.getIsDirectory());
     }
 
@@ -190,19 +195,19 @@ public class PeerToPeerCacheFileStore extends RemoteFileStore {
         final PeerToPeerCachePath srcPath = (PeerToPeerCachePath) path;
         final String realFileUri = srcPath.getRealPath().toUri().toString();
         final long downloadStartMillis = System.currentTimeMillis();
+        final Host host = srcPath.getRemoteHost();
         final ImhotepRequest newRequest = ImhotepRequest.newBuilder()
                 .setRequestType(ImhotepRequest.RequestType.GET_SHARD_FILE)
                 .setShardFileUri(realFileUri)
                 .build();
 
-        return handleRequest(newRequest, srcPath, (response, is) -> {
+        return CONNECTION_POOL.withConnectionManuallyClose(host, FETCH_CONNECTION_TIMEOUT, connection -> {
+            final Socket socket = connection.getSocket();
+            final OutputStream os = Streams.newBufferedOutputStream(socket.getOutputStream());
+            final InputStream is = Streams.newBufferedInputStream(socket.getInputStream());
+            final ImhotepResponse response = sendRequest(newRequest, is, os, host);
             reportFileDownload(response.getFileLength(), System.currentTimeMillis() - downloadStartMillis);
-            final InputStream rawInputStream = ByteStreams.limit(is, response.getFileLength());
-            // rawInputStream won't be closed in case the socket is also closed
-            return new FilterInputStream(rawInputStream) {
-                @Override
-                public void close() { }
-            };
+            return new ConnectionInputStream(ByteStreams.limit(is, response.getFileLength()), connection);
         });
     }
 
@@ -218,29 +223,36 @@ public class PeerToPeerCacheFileStore extends RemoteFileStore {
     private <R> R handleRequest(
             final ImhotepRequest request,
             final PeerToPeerCachePath peerToPeerCachePath,
-            final ThrowingFunction<ImhotepResponse, InputStream, R> function) throws IOException {
-        final ImhotepConnectionPool pool = ImhotepConnectionPool.INSTANCE;
+            final ThrowingFunction<ImhotepResponse, R> function) throws IOException {
         final Host srcHost = peerToPeerCachePath.getRemoteHost();
 
-        return pool.withConnection(srcHost, FETCH_CONNECTION_TIMEOUT, connection -> {
+        return CONNECTION_POOL.withConnection(srcHost, FETCH_CONNECTION_TIMEOUT, connection -> {
             final Socket socket = connection.getSocket();
             final OutputStream os = Streams.newBufferedOutputStream(socket.getOutputStream());
             final InputStream is = Streams.newBufferedInputStream(socket.getInputStream());
-
-            ImhotepProtobufShipping.sendProtobuf(request, os);
-            final ImhotepResponse imhotepResponse = ImhotepProtobufShipping.readResponse(is);
-            if (imhotepResponse.getResponseCode() == ImhotepResponse.ResponseCode.KNOWN_ERROR) {
-                throw buildImhotepKnownExceptionFromResponse(imhotepResponse, srcHost.hostname, srcHost.getPort(), null);
-            }
-            if (imhotepResponse.getResponseCode() == ImhotepResponse.ResponseCode.OTHER_ERROR) {
-                throw buildIOExceptionFromResponse(imhotepResponse, srcHost.getHostname(), srcHost.getPort(), null);
-            }
-            return function.apply(imhotepResponse, is);
+            final ImhotepResponse response = sendRequest(request, is, os, srcHost);
+            return function.apply(response);
         });
     }
 
-    private interface ThrowingFunction<K, T, R> {
-        R apply(K k, T t) throws IOException;
+    private ImhotepResponse sendRequest(
+            final ImhotepRequest request,
+            final InputStream is,
+            final OutputStream os,
+            final Host host) throws IOException {
+        ImhotepProtobufShipping.sendProtobuf(request, os);
+        final ImhotepResponse imhotepResponse = ImhotepProtobufShipping.readResponse(is);
+        if (imhotepResponse.getResponseCode() == ImhotepResponse.ResponseCode.KNOWN_ERROR) {
+            throw buildImhotepKnownExceptionFromResponse(imhotepResponse, host.hostname, host.getPort(), null);
+        }
+        if (imhotepResponse.getResponseCode() == ImhotepResponse.ResponseCode.OTHER_ERROR) {
+            throw buildIOExceptionFromResponse(imhotepResponse, host.getHostname(), host.getPort(), null);
+        }
+        return imhotepResponse;
+    }
+
+    private interface ThrowingFunction<T, R> {
+        R apply(T t) throws IOException;
     }
 
     private void reportFileDownload(
@@ -253,6 +265,24 @@ public class PeerToPeerCacheFileStore extends RemoteFileStore {
         // in case of tests
         if (currentThreadTask != null) {
             currentThreadTask.getSession().setDownloadedBytesInPeerToPeerCache(size);
+        }
+    }
+
+    /**
+     * A wrapped socket inputstream, which won't close the inner InputStream to keep socket connected
+     * When the current stream is closed, the connection also will be closed.
+     */
+    private static class ConnectionInputStream extends FilterInputStream {
+        private ImhotepConnection connection;
+
+        ConnectionInputStream(final InputStream is, final ImhotepConnection connection) {
+            super(is);
+            this.connection = connection;
+        }
+
+        @Override
+        public void close() throws IOException {
+            connection.close();
         }
     }
 }

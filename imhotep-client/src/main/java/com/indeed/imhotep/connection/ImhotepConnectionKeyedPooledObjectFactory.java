@@ -19,7 +19,9 @@ import java.util.concurrent.TimeUnit;
 public class ImhotepConnectionKeyedPooledObjectFactory implements KeyedPooledObjectFactory<Host, Socket> {
     private static final Logger logger = Logger.getLogger(ImhotepConnectionKeyedPooledObjectFactory.class);
 
-    private static final int SOCKET_TIMEOUT_MILLIS = (int) TimeUnit.MINUTES.toMillis(30);
+    // We hope the client side time out at first, and then the server socket received EOFException and close it self.
+    // The socket time out of server side is 60 seconds, so here we set is as 45 seconds
+    private static final int SOCKET_TIMEOUT_MILLIS = (int) TimeUnit.SECONDS.toMillis(45);
 
     // keyedObjectPool doesn't handle the timeout during makeObject, we have to specify it in case of connection block
     private static final int SOCKET_CONNECTING_TIMEOUT_MILLIS = (int) TimeUnit.SECONDS.toMillis(30);
@@ -39,12 +41,22 @@ public class ImhotepConnectionKeyedPooledObjectFactory implements KeyedPooledObj
     }
 
     @Override
-    public void destroyObject(final Host host, final PooledObject<Socket> pooledObject) {
-        Closeables2.closeQuietly(pooledObject.getObject(), logger);
+    public void destroyObject(final Host host, final PooledObject<Socket> pooledObject) throws IOException {
+        final Socket socket = pooledObject.getObject();
+        try {
+            socket.shutdownInput();
+            // TODO: read remained data from socket in case of Connection Reset Exception
+        } finally {
+            Closeables2.closeQuietly(socket, logger);
+        }
     }
 
     @Override
     public boolean validateObject(final Host host, final PooledObject<Socket> pooledObject) {
+        if (pooledObject.getIdleTimeMillis() >= SOCKET_TIMEOUT_MILLIS) {
+            return false;
+        }
+
         final Socket socket = pooledObject.getObject();
         if (!socket.isConnected() || socket.isClosed()) {
             return false;
