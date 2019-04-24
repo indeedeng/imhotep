@@ -1,0 +1,31 @@
+dependencies {
+    compile project(':imhotep-archive')
+    compile project(':imhotep-client')
+    compile 'com.indeed:lsmtree-core:1.0.7'
+    compile 'log4j:log4j:1.2.17'
+    compile 'com.google.code.findbugs:jsr305:1.3.9'
+    compile 'com.amazonaws:aws-java-sdk:1.7.11'
+    compile 'it.unimi.dsi:fastutil:6.2.2'
+    compile ('org.apache.hadoop:hadoop-common:2.6.0-cdh5.15.1') {
+        exclude group:'org.apache.hadoop', module:'hadoop-yarn-api'
+        exclude group:'org.apache.hadoop', module:'hadoop-mapreduce-client-app'
+        exclude group:'org.apache.hadoop', module:'hadoop-mapreduce-client-core'
+        exclude group:'org.glassfish', module:'javax.servlet'
+        exclude group:'org.mortbay.jetty', module:'jetty'
+        exclude group:'org.mortbay.jetty', module:'jetty-util'
+        exclude group:'javax.servlet', module:'servlet-api'
+        exclude group:'javax.servlet', module:'javax.servlet-api'
+        exclude group:'javax.servlet', module:'jsp-api'
+        exclude group:'javax.servlet.jsp', module:'jsp-api'
+        exclude group:'com.sun.jersey', module:'jersey-core'
+        exclude group:'com.sun.jersey', module:'jersey-server'
+        exclude group:'com.sun.jersey.jersey-test-framework', module:'jersey-test-framework-grizzly2'
+        exclude group:'com.sun.jersey', module:'jersey-json'
+        exclude group:'com.sun.jersey.contribs', module:'jersey-guice'
+    }
+    testCompile 'junit:junit:4.8.2'
+}
+
+ext['indeed.publish.name'] = 'imhotep-filesystem'
+
+description = 'Imhotep Remote Sqar Caching Filesystem'

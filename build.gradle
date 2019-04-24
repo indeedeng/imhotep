@@ -1,0 +1,46 @@
+allprojects {
+    group = 'com.indeed'
+    apply plugin: 'idea'
+}
+
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.google.protobuf:protobuf-gradle-plugin:0.8.8'
+    }
+}
+
+subprojects {
+    apply plugin: 'java'
+    apply plugin: 'com.google.protobuf'
+
+    repositories {
+        mavenLocal()
+
+        maven {
+            url = 'https://repository.cloudera.com/artifactory/cloudera-repos/'
+        }
+
+        maven {
+            url = 'http://repo.maven.apache.org/maven2'
+        }
+    }
+
+    protobuf {
+        protoc {
+            artifact = 'com.google.protobuf:protoc:2.5.0'
+        }
+    }
+
+    sourceCompatibility = '1.8'
+
+    tasks.withType(JavaCompile) {
+        options.encoding = 'UTF-8'
+    }
+
+    javadoc {
+        options.encoding = 'UTF-8'
+    }
+}

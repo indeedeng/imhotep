@@ -14,9 +14,9 @@
 package com.indeed.imhotep;
 
 import com.google.common.base.Objects;
-import com.sun.istack.NotNull;
 import org.joda.time.Interval;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -77,7 +77,7 @@ public class ShardDir {
         return path;
     }
 
-    @NotNull
+    @Nonnull
     public org.apache.hadoop.fs.Path getHadoopPath(){
         if(hadoopPath == null){
             throw new UnsupportedOperationException("This shard was not instantiated with a hadoop path.");
