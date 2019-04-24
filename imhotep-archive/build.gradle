@@ -1,0 +1,29 @@
+dependencies {
+    compile ('org.apache.hadoop:hadoop-common:2.6.0-cdh5.15.1') {
+        exclude group:'org.apache.hadoop', module:'hadoop-yarn-api'
+        exclude group:'org.apache.hadoop', module:'hadoop-mapreduce-client-app'
+        exclude group:'org.apache.hadoop', module:'hadoop-mapreduce-client-core'
+        exclude group:'org.glassfish', module:'javax.servlet'
+        exclude group:'org.mortbay.jetty', module:'jetty'
+        exclude group:'org.mortbay.jetty', module:'jetty-util'
+        exclude group:'javax.servlet', module:'servlet-api'
+        exclude group:'javax.servlet', module:'javax.servlet-api'
+        exclude group:'javax.servlet', module:'jsp-api'
+        exclude group:'javax.servlet.jsp', module:'jsp-api'
+        exclude group:'com.sun.jersey', module:'jersey-core'
+        exclude group:'com.sun.jersey', module:'jersey-server'
+        exclude group:'com.sun.jersey.jersey-test-framework', module:'jersey-test-framework-grizzly2'
+        exclude group:'com.sun.jersey', module:'jersey-json'
+        exclude group:'com.sun.jersey.contribs', module:'jersey-guice'
+    }
+    compile 'com.indeed:util-io:1.0.24'
+    compile 'com.indeed:util-compress:1.0.24'
+    compile 'log4j:log4j:1.2.17'
+    compile 'joda-time:joda-time:2.0'
+    compile 'commons-io:commons-io:2.4'
+    testCompile 'junit:junit-dep:4.8.2'
+}
+
+ext['indeed.publish.name'] = 'imhotep-archive'
+
+description = 'Imhotep Archive jar'
