@@ -2,14 +2,12 @@ plugins {
     id 'com.google.protobuf' version '0.8.8' apply false
 }
 
-allprojects {
-    group = 'com.indeed'
-}
-
 subprojects {
     apply plugin: 'java'
     apply plugin: 'idea'
     apply plugin: 'com.google.protobuf'
+
+    group = 'com.indeed'
 
     repositories {
         mavenLocal()
