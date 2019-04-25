@@ -1,31 +1,20 @@
-allprojects {
-    group = 'com.indeed'
-    apply plugin: 'idea'
+plugins {
+    id 'com.google.protobuf' version '0.8.8' apply false
 }
 
-buildscript {
-    repositories {
-        mavenCentral()
-    }
-    dependencies {
-        classpath 'com.google.protobuf:protobuf-gradle-plugin:0.8.8'
-    }
+allprojects {
+    group = 'com.indeed'
 }
 
 subprojects {
     apply plugin: 'java'
+    apply plugin: 'idea'
     apply plugin: 'com.google.protobuf'
 
     repositories {
         mavenLocal()
-
-        maven {
-            url = 'https://repository.cloudera.com/artifactory/cloudera-repos/'
-        }
-
-        maven {
-            url = 'http://repo.maven.apache.org/maven2'
-        }
+        maven { url = 'https://repository.cloudera.com/artifactory/cloudera-repos/' }
+        mavenCentral()
     }
 
     protobuf {
