@@ -38,6 +38,7 @@ import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
 import com.indeed.imhotep.protobuf.HostAndPort;
 import com.indeed.imhotep.protobuf.ImhotepRequest;
 import com.indeed.imhotep.protobuf.MultiFTGSRequest;
+import com.indeed.imhotep.protobuf.Operator;
 import com.indeed.imhotep.protobuf.StatsSortOrder;
 import com.indeed.util.core.Pair;
 import com.indeed.util.core.io.Closeables2;

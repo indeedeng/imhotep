@@ -9,6 +9,7 @@ import com.indeed.imhotep.api.ImhotepCommand;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.PerformanceStats;
 import com.indeed.imhotep.api.RegroupParams;
+import com.indeed.imhotep.commands.ConsolidateGroups;
 import com.indeed.imhotep.commands.GetGroupStats;
 import com.indeed.imhotep.commands.IntOrRegroup;
 import com.indeed.imhotep.commands.TargetedMetricFilter;
@@ -28,6 +29,7 @@ import com.indeed.imhotep.commands.StringOrRegroup;
 import com.indeed.imhotep.commands.UnconditionalRegroup;
 import com.indeed.imhotep.io.RequestTools;
 import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
+import com.indeed.imhotep.protobuf.Operator;
 import it.unimi.dsi.fastutil.longs.LongIterators;
 import org.apache.log4j.Logger;
 
@@ -231,6 +233,11 @@ public class BatchRemoteImhotepMultiSession extends AbstractImhotepSession {
     @Override
     public List<TermCount> approximateTopTerms(final String field, final boolean isIntField, final int k) {
         return remoteImhotepMultiSession.approximateTopTerms(field, isIntField, k);
+    }
+
+    @Override
+    public void consolidateGroups(final List<String> inputGroups, final Operator operation, final String outputGroups) throws ImhotepOutOfMemoryException {
+        commands.add(new ConsolidateGroups(inputGroups, operation, outputGroups, remoteImhotepMultiSession.getSessionId()));
     }
 
     @Override

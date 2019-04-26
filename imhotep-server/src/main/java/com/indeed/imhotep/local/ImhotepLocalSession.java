@@ -98,6 +98,7 @@ import com.indeed.imhotep.metrics.ShiftLeft;
 import com.indeed.imhotep.metrics.ShiftRight;
 import com.indeed.imhotep.metrics.Subtraction;
 import com.indeed.imhotep.pool.BuffersPool;
+import com.indeed.imhotep.protobuf.Operator;
 import com.indeed.imhotep.protobuf.QueryMessage;
 import com.indeed.imhotep.service.InstrumentedFlamdexReader;
 import com.indeed.util.core.Pair;
@@ -1094,6 +1095,145 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                 return ret;
             }
         }
+    }
+
+    // may use lhs destructively
+    private static GroupLookup and(final GroupLookup lhs, final GroupLookup rhs) {
+        if ((lhs instanceof ConstantGroupLookup) && (rhs instanceof ConstantGroupLookup)) {
+            final boolean lhs1 = ((ConstantGroupLookup) lhs).getConstantGroup() == 1;
+            final boolean rhs1 = ((ConstantGroupLookup) rhs).getConstantGroup() == 1;
+            return new ConstantGroupLookup((lhs1 && rhs1) ? 1 : 0, lhs.size());
+        } else if ((lhs instanceof BitSetGroupLookup) && (rhs instanceof BitSetGroupLookup)) {
+            final BitSetGroupLookup lhs1 = (BitSetGroupLookup) lhs;
+            final BitSetGroupLookup rhs1 = (BitSetGroupLookup) rhs;
+            // this is where most work actually happens
+            lhs1.and(rhs1);
+            return lhs1;
+        } else if ((lhs instanceof BitSetGroupLookup) && (rhs instanceof ConstantGroupLookup)) {
+            final BitSetGroupLookup lhs1 = (BitSetGroupLookup) lhs;
+            final boolean rhs1 = ((ConstantGroupLookup) rhs).getConstantGroup() == 1;
+            if (!rhs1) {
+                // (x && false) == false
+                return rhs.makeCopy();
+            }
+            // (x && true) == x
+            return lhs1;
+        } else {
+            Preconditions.checkState(lhs instanceof ConstantGroupLookup);
+            final boolean lhs1 = ((ConstantGroupLookup) lhs).getConstantGroup() == 1;
+            Preconditions.checkState(rhs instanceof BitSetGroupLookup);
+            final BitSetGroupLookup rhs1 = (BitSetGroupLookup) rhs;
+
+            if (lhs1) {
+                // (true && x) == x
+                return rhs1.makeCopy();
+            } else {
+                // (false && x) == false
+                return lhs;
+            }
+        }
+    }
+
+    // may use lhs destructively
+    private static GroupLookup or(final GroupLookup lhs, final GroupLookup rhs) {
+        if ((lhs instanceof ConstantGroupLookup) && (rhs instanceof ConstantGroupLookup)) {
+            final boolean lhs1 = ((ConstantGroupLookup) lhs).getConstantGroup() == 1;
+            final boolean rhs1 = ((ConstantGroupLookup) rhs).getConstantGroup() == 1;
+            return new ConstantGroupLookup((lhs1 || rhs1) ? 1 : 0, lhs.size());
+        } else if ((lhs instanceof BitSetGroupLookup) && (rhs instanceof BitSetGroupLookup)) {
+            final BitSetGroupLookup lhs1 = (BitSetGroupLookup) lhs;
+            final BitSetGroupLookup rhs1 = (BitSetGroupLookup) rhs;
+            // this is where most work actually happens
+            lhs1.or(rhs1);
+            return lhs1;
+        } else if ((lhs instanceof BitSetGroupLookup) && (rhs instanceof ConstantGroupLookup)) {
+            final BitSetGroupLookup lhs1 = (BitSetGroupLookup) lhs;
+            final boolean rhs1 = ((ConstantGroupLookup) rhs).getConstantGroup() == 1;
+            if (rhs1) {
+                // (x || true) == true
+                return rhs.makeCopy();
+            }
+            // (x || false) == x
+            return lhs1;
+        } else {
+            Preconditions.checkState(lhs instanceof ConstantGroupLookup);
+            final boolean lhs1 = ((ConstantGroupLookup) lhs).getConstantGroup() == 1;
+            Preconditions.checkState(rhs instanceof BitSetGroupLookup);
+            final BitSetGroupLookup rhs1 = (BitSetGroupLookup) rhs;
+
+            if (lhs1) {
+                // (true || x) == true
+                return lhs;
+            } else {
+                // (false || x) == x
+                return rhs1.makeCopy();
+            }
+        }
+    }
+
+    @Override
+    public synchronized void consolidateGroups(List<String> inputGroups, final Operator operation, final String outputGroups) throws ImhotepOutOfMemoryException {
+        // defensive copy
+        inputGroups = Lists.newArrayList(inputGroups);
+
+        final boolean allCorrectType = inputGroups.stream()
+                .allMatch(x -> {
+                    final GroupLookup value = namedGroupLookups.get(x);
+                    return (value instanceof ConstantGroupLookup) || (value instanceof BitSetGroupLookup);
+                });
+        if (!allCorrectType) {
+            throw new IllegalStateException("Can only use ConstantGroupLookup and BitSetGroupLookup with consolidateGroups");
+        }
+
+        final GroupLookup outputGroupLookup;
+        switch (operation) {
+            case AND:
+            case OR:
+                Preconditions.checkArgument(inputGroups.size() > 1, "AND/OR requires at least 2 arguments");
+                GroupLookup computed;
+                if (inputGroups.contains(outputGroups)) {
+                    computed = namedGroupLookups.get(outputGroups);
+                    inputGroups.remove(outputGroups);
+                } else {
+                    computed = namedGroupLookups.get(inputGroups.get(0)).makeCopy();
+                    inputGroups.remove(0);
+                }
+                if (operation == Operator.AND) {
+                    for (final String inputGroup : inputGroups) {
+                        computed = and(computed, namedGroupLookups.get(inputGroup));
+                    }
+                } else {
+                    for (final String inputGroup : inputGroups) {
+                        computed = or(computed, namedGroupLookups.get(inputGroup));
+                    }
+                }
+                outputGroupLookup = computed;
+                break;
+
+            case NOT:
+                Preconditions.checkArgument(inputGroups.size() == 1, "NOT can only operate on one parameter");
+                final String theInputGroups = inputGroups.get(0);
+                final GroupLookup inputGroupLookup = namedGroupLookups.get(theInputGroups);
+                if (inputGroupLookup instanceof BitSetGroupLookup) {
+                    final BitSetGroupLookup outputBitSetGroupLookup;
+                    if (theInputGroups.equals(outputGroups)) {
+                        outputBitSetGroupLookup = (BitSetGroupLookup) inputGroupLookup;
+                    } else {
+                        outputBitSetGroupLookup = ((BitSetGroupLookup) inputGroupLookup).makeCopy();
+                    }
+                    outputBitSetGroupLookup.destructivelyInvertAllGroups();
+                    outputGroupLookup = outputBitSetGroupLookup;
+                } else {
+                    Preconditions.checkState(inputGroupLookup instanceof ConstantGroupLookup);
+                    final int constantGroup = ((ConstantGroupLookup) inputGroupLookup).getConstantGroup();
+                    outputGroupLookup = new ConstantGroupLookup(1 - constantGroup, inputGroupLookup.size());
+                }
+                break;
+
+            default:
+                throw newIllegalArgumentException("Unknown operation: " + operation);
+        }
+        namedGroupLookups.claimMemoryAndPut(outputGroups, outputGroupLookup);
     }
 
     private static final Comparator<IntTermWithFreq> INT_FREQ_COMPARATOR =

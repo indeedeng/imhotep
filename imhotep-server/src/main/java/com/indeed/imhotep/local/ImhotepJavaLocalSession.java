@@ -13,6 +13,7 @@
  */
 package com.indeed.imhotep.local;
 
+import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -28,6 +29,7 @@ import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.metrics.Constant;
 import com.indeed.imhotep.metrics.Count;
+import com.indeed.imhotep.protobuf.Operator;
 import com.indeed.imhotep.service.CachedFlamdexReader;
 import com.indeed.util.core.reference.SharedReference;
 import com.indeed.util.core.shell.PosixFileOperations;

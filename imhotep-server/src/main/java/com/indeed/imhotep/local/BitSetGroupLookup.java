@@ -53,6 +53,22 @@ final class BitSetGroupLookup extends GroupLookup {
         this.nonZeroGroup = nonZeroGroup;
     }
 
+    void destructivelyInvertAllGroups() {
+        Preconditions.checkState(nonZeroGroup == 1, "Can only invert 0 <-> 1");
+        bitSet.invertAll();
+        recalculateNumGroups();
+    }
+
+    void and(final BitSetGroupLookup other) {
+        bitSet.and(other.bitSet);
+        recalculateNumGroups();
+    }
+
+    void or(final BitSetGroupLookup other) {
+        bitSet.or(other.bitSet);
+        recalculateNumGroups();
+    }
+
     @Override
     public int nextGroupCallback(final int n,
                                  final long[][] termGrpStats,
@@ -180,7 +196,7 @@ final class BitSetGroupLookup extends GroupLookup {
     }
 
     @Override
-    public GroupLookup makeCopy() {
+    public BitSetGroupLookup makeCopy() {
         final FastBitSet bitSet = new FastBitSet(this.bitSet.size());
         bitSet.or(this.bitSet);
         return new BitSetGroupLookup(bitSet, size, nonZeroGroup);
@@ -210,7 +226,7 @@ final class BitSetGroupLookup extends GroupLookup {
 
     @Override
     public long memoryUsed() {
-        return bitSet.memoryUsage();
+        return calcMemUsageForSize(size);
     }
 
     @Override
@@ -270,6 +286,9 @@ final class BitSetGroupLookup extends GroupLookup {
     }
 
     public static long calcMemUsageForSize(final int sz) {
-        return 8L * ((sz + 64) >> 6);
+        // Deliberately undercount by a tiny amount in order to not shrink into ByteGroupLookup
+        // when we have a very small number of documents.
+        return 1 + (sz / 8);
+        // return 8L * ((sz + 64) >> 6);
     }
 }

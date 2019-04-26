@@ -161,6 +161,7 @@ message ImhotepRequest {
     GET_SHARD_FILE_ATTRIBUTES = 54;
     LIST_SHARD_FILE_ATTRIBUTES = 55;
     BATCH_REQUESTS = 56;
+    CONSOLIDATE_GROUPS = 57;
     SHUTDOWN = 255;
   }
 
@@ -337,6 +338,10 @@ message ImhotepRequest {
 
   optional string input_groups = 76;
   optional string output_groups = 77;
+
+  // for CONSOLIDATE_GROUPS
+  repeated string consolidated_groups = 78;
+  optional Operator group_consolidation_operation = 79;
 }
 
 message DocStat {

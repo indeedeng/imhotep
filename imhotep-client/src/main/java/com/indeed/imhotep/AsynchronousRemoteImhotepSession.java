@@ -11,6 +11,7 @@ import com.indeed.imhotep.api.PerformanceStats;
 import com.indeed.imhotep.api.RegroupParams;
 import com.indeed.imhotep.io.RequestTools;
 import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
+import com.indeed.imhotep.protobuf.Operator;
 
 import javax.annotation.Nullable;
 import java.util.Iterator;
@@ -244,6 +245,11 @@ public class AsynchronousRemoteImhotepSession extends AbstractImhotepSession {
     @Override
     public List<TermCount> approximateTopTerms(final String field, final boolean isIntField, final int k) {
         return extractFromSession(session -> session.approximateTopTerms(field, isIntField, k));
+    }
+
+    @Override
+    public void consolidateGroups(final List<String> inputGroups, final Operator operation, final String outputGroups) throws ImhotepOutOfMemoryException {
+        doIt(session -> session.consolidateGroups(inputGroups, operation, outputGroups));
     }
 
     @Override

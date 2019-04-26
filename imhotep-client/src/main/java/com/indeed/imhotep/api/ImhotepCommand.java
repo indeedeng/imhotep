@@ -7,6 +7,7 @@ import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
 import com.indeed.imhotep.GroupMultiRemapRule;
 import com.indeed.imhotep.GroupRemapRule;
+import com.indeed.imhotep.commands.ConsolidateGroups;
 import com.indeed.imhotep.commands.GetGroupStats;
 import com.indeed.imhotep.commands.IntOrRegroup;
 import com.indeed.imhotep.commands.TargetedMetricFilter;
@@ -206,6 +207,13 @@ public interface ImhotepCommand<T> extends HasSessionId {
                         Ints.toArray(request.getFromGroupsList()),
                         Ints.toArray(request.getToGroupsList()),
                         request.getFilterOutNotTargeted(),
+                        request.getSessionId()
+                );
+            case CONSOLIDATE_GROUPS:
+                return new ConsolidateGroups(
+                        request.getConsolidatedGroupsList(),
+                        request.getGroupConsolidationOperation(),
+                        request.getOutputGroups(),
                         request.getSessionId()
                 );
             default:

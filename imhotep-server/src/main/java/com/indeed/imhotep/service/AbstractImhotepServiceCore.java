@@ -13,7 +13,6 @@
  */
  package com.indeed.imhotep.service;
 
-import com.google.common.base.Objects;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -40,7 +39,6 @@ import com.indeed.imhotep.api.GroupStatsIterator;
 import com.indeed.imhotep.api.ImhotepCommand;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepServiceCore;
-import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.api.PerformanceStats;
 import com.indeed.imhotep.api.RegroupParams;
 import com.indeed.imhotep.io.ImhotepProtobufShipping;
@@ -53,6 +51,7 @@ import com.indeed.imhotep.protobuf.AggregateStat;
 import com.indeed.imhotep.protobuf.HostAndPort;
 import com.indeed.imhotep.protobuf.ImhotepResponse;
 import com.indeed.imhotep.protobuf.MultiFTGSRequest;
+import com.indeed.imhotep.protobuf.Operator;
 import com.indeed.imhotep.protobuf.ShardBasicInfoMessage;
 import com.indeed.imhotep.protobuf.StatsSortOrder;
 import com.indeed.imhotep.scheduling.ImhotepTask;
@@ -665,6 +664,14 @@ public abstract class AbstractImhotepServiceCore
     @Override
     public List<TermCount> handleApproximateTopTerms(final String sessionId, final String field, final boolean isIntField, final int k) {
         return doWithSession(sessionId, (Function<MTImhotepLocalMultiSession, List<TermCount>>) session -> session.approximateTopTerms(field, isIntField, k));
+    }
+
+    @Override
+    public void handleConsolidateGroups(final String sessionId, final List<String> consolidatedGroupsList, final Operator operation, final String outputGroups) throws ImhotepOutOfMemoryException {
+        doWithSession(sessionId, (ThrowingFunction<MTImhotepLocalMultiSession, List<TermCount>, ImhotepOutOfMemoryException>) session -> {
+            session.consolidateGroups(consolidatedGroupsList, operation, outputGroups);
+            return null;
+        });
     }
 
     @Override

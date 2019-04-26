@@ -23,6 +23,7 @@ import com.indeed.imhotep.api.PerformanceStats;
 import com.indeed.imhotep.api.RegroupParams;
 import com.indeed.imhotep.exceptions.ImhotepKnownException;
 import com.indeed.imhotep.exceptions.QueryCancelledException;
+import com.indeed.imhotep.protobuf.Operator;
 import com.indeed.imhotep.scheduling.ImhotepTask;
 import com.indeed.imhotep.scheduling.SchedulerType;
 import com.indeed.imhotep.scheduling.TaskScheduler;
@@ -331,6 +332,14 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
         });
 
         return mergeTermCountLists(termCountListBuf, field, isIntField, k);
+    }
+
+    @Override
+    public void consolidateGroups(final List<String> inputGroups, final Operator operation, final String outputGroups) throws ImhotepOutOfMemoryException {
+        executeMemoryException(nullBuf, session -> {
+            session.consolidateGroups(inputGroups, operation, outputGroups);
+            return null;
+        });
     }
 
     private static List<TermCount> mergeTermCountLists(

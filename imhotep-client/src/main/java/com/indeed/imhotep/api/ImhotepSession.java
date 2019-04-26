@@ -21,6 +21,7 @@ import com.indeed.imhotep.QueryRemapRule;
 import com.indeed.imhotep.RegroupCondition;
 import com.indeed.imhotep.TermCount;
 import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
+import com.indeed.imhotep.protobuf.Operator;
 import com.indeed.imhotep.protobuf.StatsSortOrder;
 
 import javax.annotation.Nullable;
@@ -489,6 +490,8 @@ public interface ImhotepSession
      * @return approximate top terms
      */
     List<TermCount> approximateTopTerms(String field, boolean isIntField, int k);
+
+    void consolidateGroups(final List<String> inputGroups, final Operator operation, final String outputGroups) throws ImhotepOutOfMemoryException;
 
     /**
      * push the metric specified by statName

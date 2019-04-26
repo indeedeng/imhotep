@@ -51,6 +51,7 @@ import com.indeed.imhotep.protobuf.ImhotepRequest;
 import com.indeed.imhotep.protobuf.ImhotepResponse;
 import com.indeed.imhotep.protobuf.IntFieldAndTerms;
 import com.indeed.imhotep.protobuf.MultiFTGSRequest;
+import com.indeed.imhotep.protobuf.Operator;
 import com.indeed.imhotep.protobuf.QueryMessage;
 import com.indeed.imhotep.protobuf.QueryRemapMessage;
 import com.indeed.imhotep.protobuf.RegroupConditionMessage;
@@ -990,6 +991,22 @@ public class ImhotepRemoteSession
             final List<TermCount> result =
                 ImhotepClientMarshaller.marshal(response.getTopTermsList());
             return result;
+        } catch (final IOException e) {
+            throw newRuntimeException(e);
+        }
+    }
+
+    @Override
+    public void consolidateGroups(final List<String> inputGroups, final Operator operation, final String outputGroups) {
+        final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.CONSOLIDATE_GROUPS)
+                .setSessionId(getSessionId())
+                .addAllConsolidatedGroups(inputGroups)
+                .setOutputGroups(outputGroups)
+                .setGroupConsolidationOperation(operation)
+                .build();
+
+        try {
+            sendRequest(request, host, port, socketTimeout);
         } catch (final IOException e) {
             throw newRuntimeException(e);
         }
