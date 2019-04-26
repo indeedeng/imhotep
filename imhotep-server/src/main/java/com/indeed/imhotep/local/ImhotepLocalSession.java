@@ -1833,6 +1833,8 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         } else if (statName.startsWith("len ")) {
             final String field = statName.substring("len ".length()).trim();
             stack.push(statName, stringLenLookup(field));
+        } else if ("1".equals(statName)) {
+            stack.push(statName, new Count());
         } else if (is32BitInteger(statName)) {
             final int constant = Integer.parseInt(statName); // guaranteed not to fail
             stack.push(statName, new Constant(constant));
