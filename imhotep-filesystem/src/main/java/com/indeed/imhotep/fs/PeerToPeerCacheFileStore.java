@@ -14,12 +14,14 @@ import com.indeed.imhotep.protobuf.FileAttributeMessage;
 import com.indeed.imhotep.protobuf.ImhotepRequest;
 import com.indeed.imhotep.protobuf.ImhotepResponse;
 import com.indeed.imhotep.scheduling.ImhotepTask;
+import com.indeed.imhotep.scheduling.TaskScheduler;
 import com.indeed.imhotep.service.MetricStatsEmitter;
 import com.indeed.util.core.Throwables2;
 import com.indeed.util.core.io.Closeables2;
 import org.apache.commons.io.IOUtils;
 import org.apache.log4j.Logger;
 
+import java.io.Closeable;
 import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -204,15 +206,17 @@ public class PeerToPeerCacheFileStore extends RemoteFileStore {
 
         // here the connection will be closed with the closure of ConnectionInputStream
         final ImhotepConnection connection = CONNECTION_POOL.getConnection(host, FETCH_CONNECTION_TIMEOUT);
+        final Closeable unlockCloseable = TaskScheduler.CPUScheduler.temporaryUnlock();
         try {
-                final Socket socket = connection.getSocket();
-                final OutputStream os = Streams.newBufferedOutputStream(socket.getOutputStream());
-                final InputStream is = Streams.newBufferedInputStream(socket.getInputStream());
-                final ImhotepResponse response = sendRequest(newRequest, is, os, host);
-                reportFileDownload(response.getFileLength(), System.currentTimeMillis() - downloadStartMillis);
-                return new ConnectionInputStream(ByteStreams.limit(is, response.getFileLength()), connection);
+            final Socket socket = connection.getSocket();
+            final OutputStream os = Streams.newBufferedOutputStream(socket.getOutputStream());
+            final InputStream is = Streams.newBufferedInputStream(socket.getInputStream());
+            final ImhotepResponse response = sendRequest(newRequest, is, os, host);
+            reportFileDownload(response.getFileLength(), System.currentTimeMillis() - downloadStartMillis);
+            return new ConnectionInputStream(ByteStreams.limit(is, response.getFileLength()), connection, unlockCloseable);
         } catch (final Throwable t) {
             connection.markAsInvalid();
+            unlockCloseable.close();
             throw t;
         }
     }
@@ -232,13 +236,15 @@ public class PeerToPeerCacheFileStore extends RemoteFileStore {
             final ThrowingFunction<ImhotepResponse, R> function) throws IOException {
         final Host srcHost = peerToPeerCachePath.getRemoteHost();
 
-        return CONNECTION_POOL.withConnection(srcHost, FETCH_CONNECTION_TIMEOUT, connection -> {
-            final Socket socket = connection.getSocket();
-            final OutputStream os = Streams.newBufferedOutputStream(socket.getOutputStream());
-            final InputStream is = Streams.newBufferedInputStream(socket.getInputStream());
-            final ImhotepResponse response = sendRequest(request, is, os, srcHost);
-            return function.apply(response);
-        });
+        try (final Closeable ignored = TaskScheduler.CPUScheduler.temporaryUnlock()) {
+            return CONNECTION_POOL.withConnection(srcHost, FETCH_CONNECTION_TIMEOUT, connection -> {
+                final Socket socket = connection.getSocket();
+                final OutputStream os = Streams.newBufferedOutputStream(socket.getOutputStream());
+                final InputStream is = Streams.newBufferedInputStream(socket.getInputStream());
+                final ImhotepResponse response = sendRequest(request, is, os, srcHost);
+                return function.apply(response);
+            });
+        }
     }
 
     private ImhotepResponse sendRequest(
@@ -275,20 +281,25 @@ public class PeerToPeerCacheFileStore extends RemoteFileStore {
     }
 
     /**
-     * A wrapped socket inputstream, which won't close the inner InputStream to keep socket connected
-     * When the current stream is closed, the connection also will be closed.
+     * A wrapped socket inputstream holding the pooled connection and unlockCloseable, which won't close the inner InputStream
+     * to keep socket connected.
+     * When the current stream is closed
+     * 1. the connection will be closed to return the socket back
+     * 2. the unlockCloseable will be closed to schedule new tasks
      */
     private static class ConnectionInputStream extends FilterInputStream {
         private ImhotepConnection connection;
+        private Closeable unlockCloseable;
 
-        ConnectionInputStream(final InputStream is, final ImhotepConnection connection) {
+        ConnectionInputStream(final InputStream is, final ImhotepConnection connection, final Closeable unlockCloseable) {
             super(is);
             this.connection = connection;
+            this.unlockCloseable = unlockCloseable;
         }
 
         @Override
         public void close() throws IOException {
-            connection.close();
+            Closeables2.closeAll(logger, connection, unlockCloseable);
         }
     }
 }
