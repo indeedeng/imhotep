@@ -16,6 +16,7 @@ package com.indeed.imhotep.fs;
 
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -40,7 +41,6 @@ import java.nio.file.attribute.UserPrincipalLookupService;
 import java.nio.file.spi.FileSystemProvider;
 import java.util.Collections;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.regex.Pattern;
@@ -54,6 +54,7 @@ class RemoteCachingFileSystem extends FileSystem {
     private static final Logger LOGGER = Logger.getLogger(RemoteCachingFileSystem.class);
     private final RemoteCachingFileSystemProvider provider;
     private final SqarRemoteFileStore fileStore;
+    private final RemoteFileStore peerToPeerCacheFileStore;
     private final LocalFileCache fileCache;
 
     RemoteCachingFileSystem(final RemoteCachingFileSystemProvider provider, final Map<String, ?> configuration, final MetricStatsEmitter statsEmitter) throws IOException {
@@ -63,8 +64,8 @@ class RemoteCachingFileSystem extends FileSystem {
                 .getFactory().create(configuration, statsEmitter);
 
         final boolean enableP2PCaching = Boolean.parseBoolean((String) configuration.get("imhotep.fs.p2p.cache.enable"));
-        final PeerToPeerCacheFileStore p2PCachingFileStore = enableP2PCaching ? new PeerToPeerCacheFileStore(this, configuration, statsEmitter) : null;
-        fileStore = new SqarRemoteFileStore(backingFileStore, p2PCachingFileStore, configuration);
+        peerToPeerCacheFileStore = enableP2PCaching ? new PeerToPeerCacheFileStore(this, configuration, statsEmitter) : null;
+        fileStore = new SqarRemoteFileStore(backingFileStore, configuration);
 
         final URI cacheRootUri;
         try {
@@ -92,9 +93,9 @@ class RemoteCachingFileSystem extends FileSystem {
     }
 
     Path getCachePath(final RemoteCachingPath path) throws ExecutionException, IOException {
-        final Optional<Path> localCachedPath = fileStore.getCachedPath(path);
-        if (localCachedPath.isPresent()) {
-            return localCachedPath.get();
+        final RemoteFileStore remoteFileStore = getFileStore(path);
+        if (remoteFileStore instanceof PeerToPeerCacheFileStore) {
+            return ((PeerToPeerCacheFileStore) remoteFileStore).getCachedPath(path);
         }
         return fileCache.cache(path);
     }
@@ -131,7 +132,11 @@ class RemoteCachingFileSystem extends FileSystem {
 
     @Override
     public Iterable<FileStore> getFileStores() {
-        return fileStore.getBackingFileStores();
+        final ImmutableList.Builder builder = ImmutableList.builder().add(fileStore.getBackingFileStore());
+        if (peerToPeerCacheFileStore != null) {
+            builder.add(peerToPeerCacheFileStore);
+        }
+        return builder.build();
     }
 
     @Override
@@ -141,7 +146,8 @@ class RemoteCachingFileSystem extends FileSystem {
 
     @Nullable
     ImhotepFileAttributes getFileAttributes(final RemoteCachingPath path) throws IOException {
-        final RemoteFileStore.RemoteFileAttributes remoteAttributes = fileStore.getRemoteAttributes(path);
+        final RemoteFileStore remoteFileStore = getFileStore(path);
+        final RemoteFileStore.RemoteFileAttributes remoteAttributes = remoteFileStore.getRemoteAttributes(path);
         if (remoteAttributes == null) {
             return null;
         }
@@ -162,16 +168,14 @@ class RemoteCachingFileSystem extends FileSystem {
         }
     }
 
-    FileStore getFileStore(final RemoteCachingPath path) {
-        return fileStore.getBackingFileStore(path);
-    }
-
     Iterable<RemoteFileStore.RemoteFileAttributes> listDirWithAttributes(final RemoteCachingPath path) throws IOException {
-        return fileStore.listDir(path);
+        final RemoteFileStore remoteFileStore = getFileStore(path);
+        return remoteFileStore.listDir(path);
     }
 
     Iterable<RemoteCachingPath> listDir(final RemoteCachingPath path) throws IOException {
-        return Iterables.transform(fileStore.listDir(path), new Function<RemoteFileStore.RemoteFileAttributes, RemoteCachingPath>() {
+        final RemoteFileStore remoteFileStore = getFileStore(path);
+        return Iterables.transform(remoteFileStore.listDir(path), new Function<RemoteFileStore.RemoteFileAttributes, RemoteCachingPath>() {
             @Override
             public RemoteCachingPath apply(final RemoteFileStore.RemoteFileAttributes remoteFileAttributes) {
                 return remoteFileAttributes.getPath();
@@ -180,18 +184,30 @@ class RemoteCachingFileSystem extends FileSystem {
     }
 
     SeekableByteChannel newByteChannel(final RemoteCachingPath path) throws IOException {
-        final Optional<ScopedCacheFile> optionalScopedCacheFile = fileStore.getForOpen(path);
+        final RemoteFileStore remoteFileStore = getFileStore(path);
         final ScopedCacheFile scopedCacheFile;
         try {
-            scopedCacheFile = optionalScopedCacheFile.isPresent() ?
-                    optionalScopedCacheFile.get() :
-                    fileCache.getForOpen(path);
+            if (remoteFileStore instanceof PeerToPeerCacheFileStore) {
+                scopedCacheFile = ((PeerToPeerCacheFileStore) remoteFileStore).getForOpen(path);
+            } else {
+                scopedCacheFile = fileCache.getForOpen(path);
+            }
         } catch (final ExecutionException e) {
             throw new IOException("Failed to access cache file for " + path, e);
         }
         return new CloseHookedSeekableByteChannel(
                 Files.newByteChannel(scopedCacheFile.getCachePath()),
                 scopedCacheFile);
+    }
+
+    RemoteFileStore getFileStore(final RemoteCachingPath path) {
+        if (path instanceof PeerToPeerCachePath) {
+            if (peerToPeerCacheFileStore == null) {
+                throw new UnsupportedOperationException("PeerToPeerCacheFileStore is not supported from the filesystem configuration");
+            }
+            return peerToPeerCacheFileStore;
+        }
+        return fileStore;
     }
 
     private class CloseHookedSeekableByteChannel implements SeekableByteChannel {

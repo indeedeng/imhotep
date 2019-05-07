@@ -34,7 +34,6 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 class S3RemoteFileStore extends RemoteFileStore {
     private static final String DELIMITER = "/";
@@ -128,16 +127,6 @@ class S3RemoteFileStore extends RemoteFileStore {
             }
         }
         return result;
-    }
-
-    @Override
-    Optional<Path> getCachedPath(final RemoteCachingPath path) {
-        return Optional.empty();
-    }
-
-    @Override
-    Optional<ScopedCacheFile> getForOpen(final RemoteCachingPath path) {
-        return Optional.empty();
     }
 
     @Nullable
