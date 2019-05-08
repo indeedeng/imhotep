@@ -186,7 +186,8 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
         String taskStringVal ="ImhotepTask{" +
                 "taskId=" + taskId +
                 ", userName='" + userName + '\'' +
-                ", clientName='" + clientName + '\'';
+                ", clientName='" + clientName + '\'' +
+                ", priority='" + priority + '\'';
         if (session != null) {
             taskStringVal += ", sessionID='" + session.getSessionId() + '\'';
         }
