@@ -76,14 +76,6 @@ message RegroupConditionMessage {
   optional double score = 6;
 }
 
-message GroupRemapMessage {
-  required uint32 target_group = 1;
-
-  optional RegroupConditionMessage condition = 2;
-  optional uint32 negative_group = 3 [default = 0];
-  optional uint32 positive_group = 4 [default = 0];
-}
-
 message GroupMultiRemapMessage {
   required uint32 target_group = 1;
   repeated RegroupConditionMessage condition = 2;
@@ -187,7 +179,7 @@ message ImhotepRequest {
   optional string session_id = 9;
 
   // for regroup()
-  repeated GroupRemapMessage remap_rules = 10;
+  repeated bytes DEPRECATED_remap_rules = 10;
 
   // for randomRegroup()
   optional string field = 11;
