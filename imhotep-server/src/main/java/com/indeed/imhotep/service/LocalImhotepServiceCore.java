@@ -303,7 +303,7 @@ public class LocalImhotepServiceCore
                 }
             }).toList();
         }
-        builder.addAllSubFilesAttributes(attributeMessageList).build();
+        builder.addAllSubFilesAttributes(attributeMessageList);
     }
 
     private FileAttributeMessage getFileAttributeMessage(final Path path) throws IOException {

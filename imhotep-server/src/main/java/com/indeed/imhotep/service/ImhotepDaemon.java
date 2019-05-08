@@ -955,7 +955,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 final ImhotepResponse.Builder builder,
                 @WillNotClose final OutputStream os) throws IOException {
             final SlotTiming slotTiming = new SlotTiming();
-            setupImhotepTaskIfNecessary(request, slotTiming);
+            ImhotepTask.setup(request.getUsername(), request.getClientName(), slotTiming);
             service.handleGetAndSendShardFile(request.getShardFileUri(), slotTiming, builder, os);
         }
 
@@ -963,7 +963,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 final ImhotepRequest request,
                 final ImhotepResponse.Builder builder) throws IOException {
             final SlotTiming slotTiming = new SlotTiming();
-            setupImhotepTaskIfNecessary(request, slotTiming);
+            ImhotepTask.setup(request.getUsername(), request.getClientName(), slotTiming);
             service.handleGetShardFileAttributes(request.getShardFileUri(), builder);
             return builder.setSlotTiming(slotTiming.writeToSlotTimingMessage()).build();
         }
@@ -972,16 +972,9 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 final ImhotepRequest request,
                 final ImhotepResponse.Builder builder) throws IOException {
             final SlotTiming slotTiming = new SlotTiming();
-            setupImhotepTaskIfNecessary(request, slotTiming);
+            ImhotepTask.setup(request.getUsername(), request.getClientName(), slotTiming);
             service.handleListShardFileAttributes(request.getShardFileUri(), builder);
             return builder.setSlotTiming(slotTiming.writeToSlotTimingMessage()).build();
-        }
-
-        private void setupImhotepTaskIfNecessary(final ImhotepRequest request, final SlotTiming slotTiming) {
-            if (!request.hasUsername()) {
-                return;
-            }
-            ImhotepTask.setup(request.getUsername(), request.getClientName(), slotTiming);
         }
 
         private Pair<ImhotepResponse, GroupStatsIterator> executeBatchRequest(

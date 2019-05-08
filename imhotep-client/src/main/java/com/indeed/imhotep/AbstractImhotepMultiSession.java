@@ -635,7 +635,7 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
         slotTiming.schedulerWaitTimeCallback(schedulerType, waitTime);
     }
 
-    public void setDownloadedBytesInPeerToPeerCache(final long bytesDownloaded) {
+    public void addDownloadedBytesInPeerToPeerCache(final long bytesDownloaded) {
         downloadedBytesInPeerToPeerCache.addAndGet(bytesDownloaded);
     }
 

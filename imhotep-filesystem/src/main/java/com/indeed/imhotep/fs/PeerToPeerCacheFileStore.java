@@ -273,7 +273,7 @@ public class PeerToPeerCacheFileStore extends RemoteFileStore {
         if (currentThreadTask == null || currentThreadTask.getSession() == null) {
             return;
         }
-        currentThreadTask.getSession().setDownloadedBytesInPeerToPeerCache(size);
+        currentThreadTask.getSession().addDownloadedBytesInPeerToPeerCache(size);
     }
 
     /**
@@ -281,8 +281,7 @@ public class PeerToPeerCacheFileStore extends RemoteFileStore {
      */
     private void appendUserClientToRequest(final ImhotepRequest.Builder builder) {
         final ImhotepTask task = ImhotepTask.THREAD_LOCAL_TASK.get();
-        // without session, there is no place to store those numbers even we get it
-        if (task == null || task.getSession() == null) {
+        if (task == null) {
             return;
         }
 
