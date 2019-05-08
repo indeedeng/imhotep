@@ -47,9 +47,9 @@ public class TaskScheduler {
     private static final long LONG_RUNNING_TASK_REPORT_FREQUENCY_MILLIS = TimeUnit.MINUTES.toMillis(1);
 
     // queue of tasks waiting to run
-    private final Map<String, TaskQueue> usernameToQueue = Maps.newHashMap();
+    private final Map<OwnerAndPriority, TaskQueue> queues = Maps.newHashMap();
     // history of consumption of all tasks that ran recently
-    private final Map<String, ConsumptionTracker> usernameToConsumptionTracker = Maps.newHashMap();
+    private final Map<OwnerAndPriority, ConsumptionTracker> ownerToConsumptionTracker = Maps.newHashMap();
     private final Set<ImhotepTask> runningTasks = ConcurrentHashMap.newKeySet();
     private final int totalSlots;
     private final long historyLengthNanos;
@@ -96,7 +96,7 @@ public class TaskScheduler {
         long longestWaitingTaskNanos = 0;
         long longestRunningTaskNanos = 0;
         synchronized (this){
-            for (TaskQueue taskQueue : usernameToQueue.values()) {
+            for (TaskQueue taskQueue : queues.values()) {
                 waitingTasksCount += taskQueue.size();
                 waitingUsersCount += 1;
             }
@@ -108,7 +108,7 @@ public class TaskScheduler {
             longestRunningTaskNanos = nowNanos - oldestRunStartTimeNanos;
 
             long minWaitStartTimeNanos = nowNanos;
-            for (TaskQueue taskQueue : usernameToQueue.values()) {
+            for (TaskQueue taskQueue : queues.values()) {
                 final ImhotepTask oldestTask = taskQueue.peek();
                 if (oldestTask != null) {
                     minWaitStartTimeNanos = Math.min(minWaitStartTimeNanos, oldestTask.getLastWaitStartTime());
@@ -124,7 +124,7 @@ public class TaskScheduler {
     }
 
     private void cleanup() {
-        usernameToConsumptionTracker.entrySet().removeIf(entry -> !entry.getValue().isActive());
+        ownerToConsumptionTracker.entrySet().removeIf(entry -> !entry.getValue().isActive());
         // TODO: check runningTasks for leaks once in a while
     }
 
@@ -214,7 +214,8 @@ public class TaskScheduler {
             return false;
         }
         final long consumption = task.stopped(schedulerType);
-        final ConsumptionTracker consumptionTracker = usernameToConsumptionTracker.computeIfAbsent(task.userName,
+        final OwnerAndPriority ownerAndPriority = new OwnerAndPriority(task.userName, task.priority);
+        final ConsumptionTracker consumptionTracker = ownerToConsumptionTracker.computeIfAbsent(ownerAndPriority,
                 (ignored) -> new ConsumptionTracker(historyLengthNanos, batchNanos));
         consumptionTracker.record(consumption);
         tryStartTasks();
@@ -225,16 +226,17 @@ public class TaskScheduler {
         if(runningTasks.size() >= totalSlots) {
             return; // fully utilized
         }
-        for(TaskQueue taskQueue: usernameToQueue.values()) {
+        for(TaskQueue taskQueue: queues.values()) {
             taskQueue.updateConsumptionCache();
         }
-        final PriorityQueue<TaskQueue> queues = Queues.newPriorityQueue(usernameToQueue.values());
-        while(!queues.isEmpty()) {
-            final TaskQueue taskQueue = queues.poll();
+        // prioritizes queues using TaskQueue.compareTo()
+        final PriorityQueue<TaskQueue> prioritizedQueues = Queues.newPriorityQueue(queues.values());
+        while(!prioritizedQueues.isEmpty()) {
+            final TaskQueue taskQueue = prioritizedQueues.poll();
             while(true) {
                 final ImhotepTask queuedTask = taskQueue.poll();
                 if(queuedTask == null) {
-                    usernameToQueue.remove(taskQueue.getUsername());
+                    queues.remove(taskQueue.getOwnerAndPriority());
                     break;
                 }
                 runningTasks.add(queuedTask);
@@ -256,12 +258,13 @@ public class TaskScheduler {
 
     @Nonnull
     private synchronized TaskQueue getOrCreateQueueForTask(final ImhotepTask task) {
-        TaskQueue queue = usernameToQueue.get(task.userName);
+        final OwnerAndPriority ownerAndPriority = new OwnerAndPriority(task.userName, task.priority);
+        TaskQueue queue = queues.get(ownerAndPriority);
         if(queue == null) {
-            final ConsumptionTracker consumptionTracker = usernameToConsumptionTracker.computeIfAbsent(task.userName,
+            final ConsumptionTracker consumptionTracker = ownerToConsumptionTracker.computeIfAbsent(ownerAndPriority,
                     (ignored) -> new ConsumptionTracker(historyLengthNanos, batchNanos));
-            queue = new TaskQueue(task.userName, consumptionTracker);
-            usernameToQueue.put(task.userName, queue);
+            queue = new TaskQueue(ownerAndPriority, consumptionTracker);
+            queues.put(ownerAndPriority, queue);
         }
         return queue;
     }

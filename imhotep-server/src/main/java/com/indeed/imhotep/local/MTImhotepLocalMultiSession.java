@@ -86,9 +86,10 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
                                       final MemoryReservationContext memory,
                                       final AtomicLong tempFileSizeBytesLeft,
                                       final String userName,
-                                      final String clientName)
+                                      final String clientName,
+                                      final byte priority)
     {
-        super(sessionId, sessions, tempFileSizeBytesLeft, userName, clientName);
+        super(sessionId, sessions, tempFileSizeBytesLeft, userName, clientName, priority);
         this.memory = memory;
         this.closed.set(false);
     }

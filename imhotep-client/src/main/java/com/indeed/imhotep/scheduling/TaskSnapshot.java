@@ -30,6 +30,7 @@ public class TaskSnapshot {
     @Nullable public final String clientName;
     @Nullable public final String dataset;
     @Nullable public final String shardName;
+    public final byte priority;
     public final Duration timeSinceLastExecutionStart;
     public final Duration timeSinceLastWaitStart;
     public final long totalExecutionTimeMillis;
@@ -47,6 +48,7 @@ public class TaskSnapshot {
             @Nullable final String dataset,
             @Nullable final String shardName,
             @Nullable final Integer numDocs,
+            final byte priority,
             final long lastExecutionStartTime,
             final long lastWaitStartTime,
             final long totalExecutionTime,
@@ -60,6 +62,7 @@ public class TaskSnapshot {
         this.clientName = clientName;
         this.dataset = dataset;
         this.shardName = shardName;
+        this.priority = priority;
         this.timeSinceLastExecutionStart = Duration.ZERO.plusNanos(System.nanoTime() - lastExecutionStartTime);
         this.timeSinceLastWaitStart = Duration.ZERO.plusNanos(System.nanoTime() - lastWaitStartTime);
         this.totalExecutionTimeMillis = TimeUnit.MILLISECONDS.convert((totalExecutionTime + System.nanoTime() - lastExecutionStartTime), TimeUnit.NANOSECONDS);

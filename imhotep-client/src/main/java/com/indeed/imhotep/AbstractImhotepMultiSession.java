@@ -85,6 +85,8 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
     @Nonnull
     private final String clientName;
 
+    private final byte priority;
+
     private final SlotTiming slotTiming = new SlotTiming();
 
     private long savedCPUTime;
@@ -141,13 +143,15 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
                                           final T[] sessions,
                                           final AtomicLong tempFileSizeBytesLeft,
                                           @Nonnull final String userName,
-                                          @Nonnull final String clientName) {
+                                          @Nonnull final String clientName,
+                                          final byte priority) {
         super(sessionId);
         this.tempFileSizeBytesLeft = tempFileSizeBytesLeft;
         this.savedTempFileSizeValue = (tempFileSizeBytesLeft == null) ? 0 : tempFileSizeBytesLeft.get();
         this.downloadedBytesInPeerToPeerCache = new AtomicLong();
         this.userName = userName;
         this.clientName = clientName;
+        this.priority = priority;
         if (sessions == null || sessions.length == 0) {
             throw newIllegalArgumentException("at least one session is required");
         }
@@ -620,6 +624,10 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
     @Nonnull
     public String getClientName() {
         return clientName;
+    }
+
+    public byte getPriority() {
+        return priority;
     }
 
     public void schedulerExecTimeCallback(SchedulerType schedulerType, long execTime) {

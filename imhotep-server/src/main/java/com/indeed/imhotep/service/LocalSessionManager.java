@@ -80,8 +80,9 @@ public final class LocalSessionManager implements SessionManager {
             final int clientVersion,
             final String dataset,
             final long sessionTimeout,
+            final byte priority,
             final MemoryReservationContext sessionMemoryContext) {
-        final Session session = new Session(imhotepSession, flamdexes, username, clientName, ipAddress, clientVersion, dataset, sessionTimeout, sessionMemoryContext);
+        final Session session = new Session(imhotepSession, flamdexes, username, clientName, ipAddress, clientVersion, dataset, sessionTimeout, priority, sessionMemoryContext);
         addSession(sessionId, session);
     }
 
@@ -193,6 +194,7 @@ public final class LocalSessionManager implements SessionManager {
         protected final String ipAddress;
         protected final int clientVersion;
         protected final String dataset;
+        protected final byte priority;
         protected final MemoryReservationContext sessionMemoryContext;
         protected final long timeout;
         protected final long creationTime;
@@ -209,6 +211,7 @@ public final class LocalSessionManager implements SessionManager {
                 final int clientVersion,
                 final String dataset,
                 final long timeout,
+                final byte priority,
                 final MemoryReservationContext sessionMemoryContext) {
             this.imhotepSession = SharedReference.create(imhotepSession);
             this.shardToFlamdexReader = shardToFlamdexReader;
@@ -217,6 +220,7 @@ public final class LocalSessionManager implements SessionManager {
             this.ipAddress = ipAddress;
             this.clientVersion = clientVersion;
             this.dataset = dataset;
+            this.priority = priority;
             this.sessionMemoryContext = sessionMemoryContext;
             if(timeout < 1) {
                 this.timeout = SESSION_TIMEOUT_DEFAULT;
@@ -276,7 +280,7 @@ public final class LocalSessionManager implements SessionManager {
             }
             openSessions.add(new ImhotepStatusDump.SessionDump(sessionId, session.dataset, "", session.username, session.clientName,
                     session.ipAddress, session.clientVersion, session.creationTime, openShards,
-                    session.sessionMemoryContext.usedMemory(), session.sessionMemoryContext.getGlobalMaxUsedMemory()));
+                    session.sessionMemoryContext.usedMemory(), session.sessionMemoryContext.getGlobalMaxUsedMemory(), session.priority));
         }
         return openSessions;
     }
