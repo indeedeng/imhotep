@@ -459,6 +459,9 @@ message ImhotepResponse {
 
   // for list shard file attributes
   repeated FileAttributeMessage subFilesAttributes = 20;
+
+  // for slot timing from other daemons in peer to peer cache
+  optional SlotTimingMessage slotTiming = 21;
 }
 
 enum Operator {
@@ -521,6 +524,13 @@ message PerformanceStatsMessage {
   optional int64 cpu_slots_wait_time_ms = 7;
   optional int64 io_slots_exec_time_ms = 8;
   optional int64 io_slots_wait_time_ms = 9;
+}
+
+message SlotTimingMessage {
+  optional int64 cpu_slots_exec_time_ns = 1 [default = 0];
+  optional int64 cpu_slots_wait_time_ns = 2 [default = 0];
+  optional int64 io_slots_exec_time_ns = 3 [default = 0];
+  optional int64 io_slots_wait_time_ns = 4 [default = 0];
 }
 
 message StringLongMessage {

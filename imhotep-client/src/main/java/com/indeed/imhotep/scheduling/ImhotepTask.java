@@ -18,6 +18,7 @@ import com.google.common.primitives.Longs;
 import com.indeed.imhotep.AbstractImhotepMultiSession;
 import com.indeed.imhotep.AbstractImhotepSession;
 import com.indeed.imhotep.RequestContext;
+import com.indeed.imhotep.SlotTiming;
 import org.apache.log4j.Logger;
 
 import javax.annotation.Nonnull;
@@ -57,6 +58,17 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
     private TaskScheduler ownerScheduler = null;
     private final Object executionTimeStatsLock = new Object(); // Lock for changing lastExecutionStartTime and totalExecutionTime atomically
 
+    @Nullable
+    private SchedulerCallback schedulerExecTimeCallback;
+    @Nullable
+    private SchedulerCallback schedulerWaitTimeCallback;
+
+    public static void setup(final String userName, final String clientName, final SlotTiming slotTiming) {
+        final ImhotepTask task = new ImhotepTask(userName, clientName, null, null, null, null,
+                (schedulerType, execTime) -> slotTiming.schedulerExecTimeCallback(schedulerType, execTime),
+                (schedulerType, waitTime) -> slotTiming.schedulerWaitTimeCallback(schedulerType, waitTime));
+        ImhotepTask.THREAD_LOCAL_TASK.set(task);
+    }
 
     public static void setup(AbstractImhotepMultiSession session) {
         final ImhotepTask task = new ImhotepTask(session);
@@ -70,7 +82,7 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
             final String shardName,
             final int numDocs
     ) {
-        final ImhotepTask task = new ImhotepTask(userName, clientName, null, dataset, shardName, numDocs);
+        final ImhotepTask task = new ImhotepTask(userName, clientName, null, dataset, shardName, numDocs, null, null);
         ImhotepTask.THREAD_LOCAL_TASK.set(task);
     }
 
@@ -94,7 +106,9 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
             @Nullable final AbstractImhotepMultiSession session,
             @Nullable final String dataset,
             @Nullable final String shardName,
-            @Nullable final Integer numDocs
+            @Nullable final Integer numDocs,
+            @Nullable final SchedulerCallback execTimeCallback,
+            @Nullable final SchedulerCallback waitTimeCallback
     ) {
         this.userName = userName;
         this.clientName = clientName;
@@ -106,10 +120,15 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
         this.taskId = nextTaskId.incrementAndGet();
         creationTimestamp = System.nanoTime();
         this.session = session;
+
+        this.schedulerExecTimeCallback = execTimeCallback;
+        this.schedulerWaitTimeCallback = waitTimeCallback;
     }
 
     private ImhotepTask(AbstractImhotepMultiSession session) {
-        this(session.getUserName(), session.getClientName(), session, null, null, null);
+        this(session.getUserName(), session.getClientName(), session, null, null, null,
+                (schedulerType, execTime) -> session.schedulerExecTimeCallback(schedulerType, execTime),
+                (schedulerType, waitTime) -> session.schedulerWaitTimeCallback(schedulerType, waitTime));
     }
 
     synchronized void preExecInitialize(TaskScheduler newOwnerScheduler) {
@@ -126,8 +145,8 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
             throw new IllegalStateException("Tried to schedule task that is not startable " + toString());
         }
         final long waitTime = System.nanoTime() - lastWaitStartTime;
-        if(session != null) {
-            session.schedulerWaitTimeCallback(schedulerType, waitTime);
+        if (schedulerWaitTimeCallback != null) {
+            schedulerWaitTimeCallback.call(schedulerType, waitTime);
         }
         if (requestContext != null) {
             requestContext.schedulerWaitTimeCallback(schedulerType, waitTime);
@@ -167,8 +186,8 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
             totalExecutionTime += executionTime;
             lastExecutionStartTime = 0;
         }
-        if(session != null) {
-            session.schedulerExecTimeCallback(schedulerType, executionTime);
+        if (schedulerExecTimeCallback != null) {
+            schedulerExecTimeCallback.call(schedulerType, executionTime);
         }
         if (requestContext != null) {
             requestContext.schedulerExecTimeCallback(schedulerType, executionTime);
@@ -234,6 +253,14 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
         return session;
     }
 
+    public String getUserName() {
+        return userName;
+    }
+
+    public String getClientName() {
+        return clientName;
+    }
+
     /**
      * Returns empty iff this task is not currently running
      */
@@ -279,4 +306,7 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
         }
     }
 
+    private interface SchedulerCallback {
+        void call(SchedulerType schedulerType, long time);
+    }
 }

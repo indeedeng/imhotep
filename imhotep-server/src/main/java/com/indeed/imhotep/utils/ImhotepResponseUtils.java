@@ -9,7 +9,13 @@ import com.indeed.imhotep.protobuf.ImhotepResponse;
  */
 public class ImhotepResponseUtils {
     public static ImhotepResponse newErrorResponse(final Exception e) {
-        final ImhotepResponse.Builder builder = ImhotepResponse.newBuilder()
+        final ImhotepResponse.Builder builder = ImhotepResponse.newBuilder();
+        appendErrorMessage(e, builder);
+        return builder.build();
+    }
+
+    public static void appendErrorMessage(final Exception e, final ImhotepResponse.Builder builder) {
+        builder
                 .setExceptionType(e.getClass().getName())
                 .setExceptionMessage(e.getMessage() != null ? e.getMessage() : "")
                 .setExceptionStackTrace(Throwables.getStackTraceAsString(e));
@@ -18,6 +24,5 @@ public class ImhotepResponseUtils {
         } else {
             builder.setResponseCode(ImhotepResponse.ResponseCode.OTHER_ERROR);
         }
-        return builder.build();
     }
 }

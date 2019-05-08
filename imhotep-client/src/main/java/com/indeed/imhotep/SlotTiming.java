@@ -1,6 +1,7 @@
 package com.indeed.imhotep;
 
 import com.indeed.imhotep.api.PerformanceStats;
+import com.indeed.imhotep.protobuf.SlotTimingMessage;
 import com.indeed.imhotep.scheduling.SchedulerType;
 
 import java.util.Map;
@@ -43,6 +44,22 @@ public class SlotTiming {
         performanceStats.setCpuSlotsWaitTimeMs(TimeUnit.NANOSECONDS.toMillis(cpuWaitNs.get()));
         performanceStats.setIoSlotsExecTimeMs(TimeUnit.NANOSECONDS.toMillis(ioTimeNs.get()));
         performanceStats.setIoSlotsWaitTimeMs(TimeUnit.NANOSECONDS.toMillis(ioWaitNs.get()));
+    }
+
+    public void addFromSlotTimingMessage(final SlotTimingMessage slotTimingMessage) {
+        cpuTimeNs.addAndGet(slotTimingMessage.getCpuSlotsExecTimeNs());
+        cpuWaitNs.addAndGet(slotTimingMessage.getCpuSlotsWaitTimeNs());
+        ioTimeNs.addAndGet(slotTimingMessage.getIoSlotsExecTimeNs());
+        ioWaitNs.addAndGet(slotTimingMessage.getIoSlotsWaitTimeNs());
+    }
+
+    public SlotTimingMessage writeToSlotTimingMessage() {
+        final SlotTimingMessage.Builder builder = SlotTimingMessage.newBuilder();
+        builder.setCpuSlotsExecTimeNs(cpuTimeNs.get());
+        builder.setCpuSlotsWaitTimeNs(cpuWaitNs.get());
+        builder.setIoSlotsExecTimeNs(ioTimeNs.get());
+        builder.setIoSlotsWaitTimeNs(ioWaitNs.get());
+        return builder.build();
     }
 
     public void addTimingProperties(final Map<String, Object> properties) {

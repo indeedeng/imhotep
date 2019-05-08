@@ -31,6 +31,7 @@ import com.indeed.imhotep.Instrumentation;
 import com.indeed.imhotep.Instrumentation.Keys;
 import com.indeed.imhotep.RegroupCondition;
 import com.indeed.imhotep.RequestContext;
+import com.indeed.imhotep.SlotTiming;
 import com.indeed.imhotep.TermCount;
 import com.indeed.imhotep.api.FTGSParams;
 import com.indeed.imhotep.api.GroupStatsIterator;
@@ -58,6 +59,7 @@ import com.indeed.imhotep.protobuf.QueryRemapMessage;
 import com.indeed.imhotep.protobuf.RegroupConditionMessage;
 import com.indeed.imhotep.protobuf.ShardBasicInfoMessage;
 import com.indeed.imhotep.protobuf.StringFieldAndTerms;
+import com.indeed.imhotep.scheduling.ImhotepTask;
 import com.indeed.util.core.Pair;
 import com.indeed.util.core.io.Closeables2;
 import org.apache.log4j.Logger;
@@ -952,21 +954,35 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 final ImhotepRequest request,
                 final ImhotepResponse.Builder builder,
                 @WillNotClose final OutputStream os) throws IOException {
-            service.handleGetAndSendShardFile(request.getShardFileUri(), builder, os);
+            final SlotTiming slotTiming = new SlotTiming();
+            setupImhotepTaskIfNecessary(request, slotTiming);
+            service.handleGetAndSendShardFile(request.getShardFileUri(), slotTiming, builder, os);
         }
 
         private ImhotepResponse getShardFileAttributes(
                 final ImhotepRequest request,
                 final ImhotepResponse.Builder builder) throws IOException {
-            return service.handleGetShardFileAttributes(request.getShardFileUri(), builder);
+            final SlotTiming slotTiming = new SlotTiming();
+            setupImhotepTaskIfNecessary(request, slotTiming);
+            service.handleGetShardFileAttributes(request.getShardFileUri(), builder);
+            return builder.setSlotTiming(slotTiming.writeToSlotTimingMessage()).build();
         }
 
         private ImhotepResponse listShardFileAttributes(
                 final ImhotepRequest request,
                 final ImhotepResponse.Builder builder) throws IOException {
-            return service.handleListShardFileAttributes(request.getShardFileUri(), builder);
+            final SlotTiming slotTiming = new SlotTiming();
+            setupImhotepTaskIfNecessary(request, slotTiming);
+            service.handleListShardFileAttributes(request.getShardFileUri(), builder);
+            return builder.setSlotTiming(slotTiming.writeToSlotTimingMessage()).build();
         }
 
+        private void setupImhotepTaskIfNecessary(final ImhotepRequest request, final SlotTiming slotTiming) {
+            if (!request.hasUsername()) {
+                return;
+            }
+            ImhotepTask.setup(request.getUsername(), request.getClientName(), slotTiming);
+        }
 
         private Pair<ImhotepResponse, GroupStatsIterator> executeBatchRequest(
                 final ImhotepRequest batchImhotepRequest,

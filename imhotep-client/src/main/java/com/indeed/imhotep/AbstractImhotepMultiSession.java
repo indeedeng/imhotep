@@ -622,6 +622,11 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
         return clientName;
     }
 
+    @Nonnull
+    public SlotTiming getSlotTiming() {
+        return slotTiming;
+    }
+
     public void schedulerExecTimeCallback(SchedulerType schedulerType, long execTime) {
         slotTiming.schedulerExecTimeCallback(schedulerType, execTime);
     }

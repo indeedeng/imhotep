@@ -24,6 +24,7 @@ import com.indeed.imhotep.ImhotepStatusDump;
 import com.indeed.imhotep.MemoryReservationContext;
 import com.indeed.imhotep.MemoryReserver;
 import com.indeed.imhotep.ShardDir;
+import com.indeed.imhotep.SlotTiming;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.client.Host;
 import com.indeed.imhotep.fs.RemoteCachingPath;
@@ -68,6 +69,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
+import static com.indeed.imhotep.utils.ImhotepResponseUtils.appendErrorMessage;
 import static com.indeed.imhotep.utils.ImhotepResponseUtils.newErrorResponse;
 
 /**
@@ -244,6 +246,7 @@ public class LocalImhotepServiceCore
     @Override
     public void handleGetAndSendShardFile(
             final String fileUri,
+            final SlotTiming slotTiming,
             final ImhotepResponse.Builder builder,
             @WillNotClose final OutputStream os) throws IOException {
         final Path path;
@@ -258,6 +261,7 @@ public class LocalImhotepServiceCore
         }
 
         builder.setFileLength(Files.size(path));
+        builder.setSlotTiming(slotTiming.writeToSlotTimingMessage());
         log.debug("sending shard file response");
         ImhotepProtobufShipping.sendProtobufNoFlush(builder.build(), os);
         try (final InputStream is = Files.newInputStream(path)) {
@@ -268,23 +272,25 @@ public class LocalImhotepServiceCore
     }
 
     @Override
-    public ImhotepResponse handleGetShardFileAttributes(final String fileUri, final ImhotepResponse.Builder builder) throws IOException {
+    public void handleGetShardFileAttributes(final String fileUri, final ImhotepResponse.Builder builder) throws IOException {
         final Path path;
         try {
             path = getShardFilePath(fileUri);
         } catch (final NoSuchFileException e) {
-            return newErrorResponse(e);
+            appendErrorMessage(e, builder);
+            return;
         }
-        return builder.setFileAttributes(getFileAttributeMessage(path)).build();
+        builder.setFileAttributes(getFileAttributeMessage(path));
     }
 
     @Override
-    public ImhotepResponse handleListShardFileAttributes(final String fileUri, final ImhotepResponse.Builder builder) throws IOException {
+    public void handleListShardFileAttributes(final String fileUri, final ImhotepResponse.Builder builder) throws IOException {
         final Path dirPath;
         try {
             dirPath = getShardFilePath(fileUri);
         } catch (final NoSuchFileException e) {
-            return newErrorResponse(e);
+            appendErrorMessage(e, builder);
+            return;
         }
 
         final List<FileAttributeMessage> attributeMessageList;
@@ -297,8 +303,7 @@ public class LocalImhotepServiceCore
                 }
             }).toList();
         }
-
-        return builder.addAllSubFilesAttributes(attributeMessageList).build();
+        builder.addAllSubFilesAttributes(attributeMessageList).build();
     }
 
     private FileAttributeMessage getFileAttributeMessage(final Path path) throws IOException {
