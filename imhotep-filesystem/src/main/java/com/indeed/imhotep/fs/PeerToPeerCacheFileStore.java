@@ -288,8 +288,8 @@ public class PeerToPeerCacheFileStore extends RemoteFileStore {
      * 2. the unlockCloseable will be closed to schedule new tasks
      */
     private static class ConnectionInputStream extends FilterInputStream {
-        private ImhotepConnection connection;
-        private Closeable unlockCloseable;
+        private final ImhotepConnection connection;
+        private final Closeable unlockCloseable;
 
         ConnectionInputStream(final InputStream is, final ImhotepConnection connection, final Closeable unlockCloseable) {
             super(is);
