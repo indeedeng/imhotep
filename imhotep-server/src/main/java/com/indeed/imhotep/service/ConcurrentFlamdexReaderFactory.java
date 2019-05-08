@@ -79,6 +79,7 @@ public class ConcurrentFlamdexReaderFactory {
         public final int numDocs;
         public final String userName;
         public final String clientName;
+        public final byte priority;
 
         /**
          * @param dataset    is the directory under the {@code rootDir}.
@@ -92,12 +93,14 @@ public class ConcurrentFlamdexReaderFactory {
                 final ShardHostInfo shardHostInfo,
                 final int numDocs,
                 final String userName,
-                final String clientName) {
+                final String clientName,
+                final byte priority) {
             this.dataset = dataset;
             this.shardHostInfo = shardHostInfo;
             this.numDocs = numDocs;
             this.userName = userName;
             this.clientName = clientName;
+            this.priority = priority;
         }
     }
 
@@ -118,7 +121,7 @@ public class ConcurrentFlamdexReaderFactory {
 
         public Void call() {
             final SharedReference<CachedFlamdexReader> reader;
-            ImhotepTask.setup(createRequest.userName, createRequest.clientName, createRequest.dataset,
+            ImhotepTask.setup(createRequest.userName, createRequest.clientName, createRequest.priority, createRequest.dataset,
                     createRequest.shardHostInfo.getShardName(), createRequest.numDocs);
             final Path shardPath = locateShard(createRequest);
             try {

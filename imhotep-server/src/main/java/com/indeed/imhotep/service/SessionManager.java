@@ -35,6 +35,7 @@ public interface SessionManager {
             int clientVersion,
             String dataset,
             long sessionTimeout,
+            byte priority,
             MemoryReservationContext sessionMemoryContext);
 
     SharedReference<MTImhotepLocalMultiSession> getSession(String sessionId);

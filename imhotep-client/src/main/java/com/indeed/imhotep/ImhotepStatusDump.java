@@ -81,6 +81,7 @@ public class ImhotepStatusDump {
         public final List<ShardDump> openShards;
         public final long usedMemory;
         public final long maxUsedMemory;
+        public final byte priority;
 
         public SessionDump(
                 final String sessionId,
@@ -93,7 +94,8 @@ public class ImhotepStatusDump {
                 final long creationTime,
                 final List<ShardDump> openShards,
                 final long usedMemory,
-                final long maxUsedMemory) {
+                final long maxUsedMemory,
+                final byte priority) {
             this.sessionId = sessionId;
             this.dataset = dataset;
             this.hostname = hostname;
@@ -105,6 +107,7 @@ public class ImhotepStatusDump {
             this.openShards = openShards;
             this.usedMemory = usedMemory;
             this.maxUsedMemory = maxUsedMemory;
+            this.priority = priority;
         }
 
         public String getSessionId() {
@@ -152,6 +155,10 @@ public class ImhotepStatusDump {
             return openShards;
         }
 
+        public byte getPriority() {
+            return priority;
+        }
+
         public SessionDumpMessage toProto() {
             final SessionDumpMessage.Builder builder = SessionDumpMessage.newBuilder()
                     .setSessionId(sessionId)
@@ -163,7 +170,8 @@ public class ImhotepStatusDump {
                     .setCreationTime(creationTime)
                     .setClientName(clientName)
                     .setUsedMemory(usedMemory)
-                    .setMaxUsedMemory(maxUsedMemory);
+                    .setMaxUsedMemory(maxUsedMemory)
+                    .setPriority(priority);
 
             for (final ShardDump shardDump : openShards) {
                 builder.addOpenShard(shardDump.toProto());
@@ -179,7 +187,8 @@ public class ImhotepStatusDump {
             }
             return new SessionDump(protoDump.getSessionId(), protoDump.getDataset(), protoDump.getHostname(),
                     protoDump.getUsername(), protoDump.getClientName(), protoDump.getIpAddress(), protoDump.getClientVersion(),
-                    protoDump.getCreationTime(), openShards, protoDump.getUsedMemory(), protoDump.getMaxUsedMemory());
+                    protoDump.getCreationTime(), openShards, protoDump.getUsedMemory(), protoDump.getMaxUsedMemory(),
+                    (byte)protoDump.getPriority());
         }
     }
 

@@ -77,8 +77,9 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
                                      final long localTempFileSizeLimit,
                                      final AtomicLong tempFileSizeBytesLeft,
                                      final String userName,
-                                     final String clientName) {
-        super(sessionId, sessions, tempFileSizeBytesLeft, userName, clientName);
+                                     final String clientName,
+                                     final byte priority) {
+        super(sessionId, sessions, tempFileSizeBytesLeft, userName, clientName, priority);
 
         this.nodes = nodes;
         this.localTempFileSizeLimit = localTempFileSizeLimit;

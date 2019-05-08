@@ -15,7 +15,6 @@
 package com.indeed.imhotep.scheduling;
 
 import com.google.common.collect.Queues;
-import com.google.common.primitives.Longs;
 
 import javax.annotation.Nonnull;
 import java.util.PriorityQueue;
@@ -25,12 +24,12 @@ import java.util.PriorityQueue;
  */
 public class TaskQueue implements Comparable<TaskQueue> {
     private final PriorityQueue<ImhotepTask> queue = Queues.newPriorityQueue();
-    private final String username;
+    private final OwnerAndPriority ownerAndPriority;
     private final ConsumptionTracker consumptionTracker;
     private long cachedConsumption;
 
-    public TaskQueue(String username, ConsumptionTracker consumptionTracker) {
-        this.username = username;
+    public TaskQueue(OwnerAndPriority ownerAndPriority, ConsumptionTracker consumptionTracker) {
+        this.ownerAndPriority = ownerAndPriority;
         this.consumptionTracker = consumptionTracker;
     }
 
@@ -50,8 +49,8 @@ public class TaskQueue implements Comparable<TaskQueue> {
         return queue.isEmpty();
     }
 
-    public String getUsername() {
-        return username;
+    public OwnerAndPriority getOwnerAndPriority() {
+        return ownerAndPriority;
     }
 
     public int size() {
@@ -62,9 +61,14 @@ public class TaskQueue implements Comparable<TaskQueue> {
         cachedConsumption = consumptionTracker.getConsumption();
     }
 
-    /** Used to prioritize queues with lower consumption in the TaskScheduler */
+    /** Used to prioritize queues with higher priority number or, if equal, with lower consumption in the TaskScheduler */
     @Override
     public int compareTo(@Nonnull TaskQueue o) {
-        return Longs.compare(cachedConsumption, o.cachedConsumption);
+        // negated as we want higher priority to win
+        final int priorityDifference = -Byte.compare(ownerAndPriority.priority, o.ownerAndPriority.priority);
+        if (priorityDifference != 0) {
+            return priorityDifference;
+        }
+        return Long.compare(cachedConsumption, o.cachedConsumption);
     }
 }

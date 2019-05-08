@@ -749,6 +749,7 @@ public abstract class AbstractImhotepServiceCore
             String username,
             String clientName,
             String ipAddress,
+            byte priority,
             int clientVersion,
             int mergeThreadLimit,
             boolean optimizeGroupZeroLookups,
