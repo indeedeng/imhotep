@@ -2,7 +2,6 @@ package com.indeed.imhotep.scheduling;
 
 import com.indeed.imhotep.service.MetricStatsEmitter;
 
-import javax.annotation.Nullable;
 import java.io.Closeable;
 
 /**
@@ -13,16 +12,14 @@ class NoopTaskScheduler extends TaskScheduler {
         super(0, 0, 0, null, MetricStatsEmitter.NULL_EMITTER);
     }
 
-    @Nullable
     @Override
     public synchronized SilentCloseable lockSlot() {
-        return null;
+        return () -> {};
     }
 
-    @Nullable
     @Override
     public synchronized Closeable temporaryUnlock() {
-        return null;
+        return () -> {};
     }
 
     @Override
