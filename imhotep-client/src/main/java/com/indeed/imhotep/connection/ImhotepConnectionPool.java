@@ -27,32 +27,49 @@ import java.net.Socket;
  *     // do something with the connection and return a value
  * });
  */
-public enum ImhotepConnectionPool implements Closeable {
-    INSTANCE;
 
+public class ImhotepConnectionPool implements Closeable {
     private static final Logger logger = Logger.getLogger(ImhotepConnectionPool.class);
-    // it's illegal to take the TimeUnit method as an initial value
-    private static final long DEFAULT_IDLE_SOCKET_LIVE_MILLIS = 5 * 60 * 1000; // 5 minutes
-    // not sure if we need the minimum sockets
-    private static final int DEFAULT_MINIMUM_SOCKETS_IN_POOL = 5;
+
+    // We hope the client side time out at first, and then the server socket received EOFException and close it self.
+    // The socket time out of server side is 60 seconds, so here we set is as 45 seconds
+    private static final int SOCKET_READ_TIMEOUT_MILLIS = 45000;
+
+    // keyedObjectPool doesn't handle the timeout during makeObject, we have to specify it in case of connection block
+    private static final int SOCKET_CONNECTING_TIMEOUT_MILLIS = 30000;
 
     private final GenericKeyedObjectPool<Host, Socket> sourcePool;
 
     ImhotepConnectionPool() {
-        final ImhotepConnectionKeyedPooledObjectFactory factory = new ImhotepConnectionKeyedPooledObjectFactory();
+        this(SOCKET_READ_TIMEOUT_MILLIS, SOCKET_CONNECTING_TIMEOUT_MILLIS);
+    }
+
+    ImhotepConnectionPool(final int socketReadTimeoutMills, final int socketConnectingTimeoutMills) {
+        final ImhotepConnectionKeyedPooledObjectFactory factory = new ImhotepConnectionKeyedPooledObjectFactory(socketReadTimeoutMills, socketConnectingTimeoutMills);
+
         final GenericKeyedObjectPoolConfig<Socket> config = new GenericKeyedObjectPoolConfig<>();
-        config.setTimeBetweenEvictionRunsMillis(DEFAULT_IDLE_SOCKET_LIVE_MILLIS);
-        config.setMaxTotalPerKey(-1);
-        config.setMinIdlePerKey(DEFAULT_MINIMUM_SOCKETS_IN_POOL);
+        config.setMaxIdlePerKey(16);
+        config.setLifo(true);
+        config.setTestOnBorrow(true);
 
         sourcePool = new GenericKeyedObjectPool<>(factory, config);
     }
 
     /**
      * Get a connection from the pool until connection is returned or errors happen
+     *
+     * An unsafe way to use the connection, which means callers need to close and drop connection by themselves.
+     * When callers complete the usage of connection, they should close the connection with {@code ImhotepConnection.close}
+     * Whenever there are any {@code Throwable} happening during the usage of connection, callers should mark the connection as invalid by
+     * {@code ImhotepConnection.markAsInvalid}
+     * Notice: all bytes caused as a result of this connection must be fully consumed before returning to the pool in case of successful completion
+     *
+     * @param host the connection host name
+     * @return An valid ImhotepConnection
+     * @throws IOException
      */
     @VisibleForTesting
-    ImhotepConnection getConnection(final Host host) throws IOException {
+    public ImhotepConnection getConnection(final Host host) throws IOException {
         try {
             final Socket socket = sourcePool.borrowObject(host);
             return new ImhotepConnection(sourcePool, socket, host);
@@ -63,8 +80,19 @@ public enum ImhotepConnectionPool implements Closeable {
 
     /**
      * Get a connection from the pool with the timeout in milliseconds
+     *
+     * An unsafe way to use the connection, which means callers need to close and drop connection by themselves.
+     * When callers complete the usage of connection, they should close the connection with {@code ImhotepConnection.close}
+     * Whenever there are any {@code Throwable} happening during the usage of connection, callers should mark the connection as invalid by
+     * {@code ImhotepConnection.markAsInvalid}
+     * Notice: all bytes caused as a result of this connection must be fully consumed before returning to the pool in case of successful completion
+     *
+     * @param host the connection host name
+     * @param timeoutMillis timeout to get the connection
+     * @return An valid ImhotepConnection
+     * @throws IOException
      */
-    private ImhotepConnection getConnection(final Host host, final int timeoutMillis) throws IOException {
+    public ImhotepConnection getConnection(final Host host, final int timeoutMillis) throws IOException {
         try {
             final Socket socket = sourcePool.borrowObject(host, timeoutMillis);
             return new ImhotepConnection(sourcePool, socket, host);

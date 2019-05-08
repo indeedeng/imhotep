@@ -391,15 +391,25 @@ public class ImhotepClient
         /*
             @return session timeout in milliseconds
          */
+        @Deprecated
         public long getSessionTimeout() {
             return sessionTimeout;
+        }
+
+        /*  @deprecated use sessionTimeout()
+            @param sessionTimeout session timeout in milliseconds, the default is 30 minutes
+         */
+        @Deprecated
+        public void setSessionTimeout(final long sessionTimeout) {
+            this.sessionTimeout = sessionTimeout;
         }
 
         /*
             @param sessionTimeout session timeout in milliseconds, the default is 30 minutes
          */
-        public void setSessionTimeout(final long sessionTimeout) {
+        public SessionBuilder sessionTimeout(final long sessionTimeout) {
             this.sessionTimeout = sessionTimeout;
+            return this;
         }
 
         /**

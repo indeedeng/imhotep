@@ -29,6 +29,7 @@ public class Shard extends ShardInfo {
     public final Host server;
 
     /** the imhotep daemon server who holds the shard and other dameons will download the shard from it */
+    @Nullable
     private final Host owner;
 
     /** If no servers are specified for shard to compute, host is both for computation and storage */
@@ -41,7 +42,7 @@ public class Shard extends ShardInfo {
             final int numDocs,
             final long version,
             final Host server,
-            final Host owner) {
+            @Nullable final Host owner) {
         this(shardId, numDocs, version, server, owner, null);
     }
 
@@ -50,7 +51,7 @@ public class Shard extends ShardInfo {
             final int numDocs,
             final long version,
             final Host server,
-            final Host owner,
+            @Nullable final Host owner,
             @Nullable final String fileName) {
         super(fileName, shardId, numDocs, version);
         this.server = server;
@@ -78,6 +79,7 @@ public class Shard extends ShardInfo {
         return server;
     }
 
+    @Nullable
     public Host getOwner() {
         return owner;
     }
@@ -101,11 +103,11 @@ public class Shard extends ShardInfo {
 
     public static Shard fromShardMessage(final ShardMessage message) {
         final Host host = new Host(message.getHost().getHost(), message.getHost().getPort());
-        final Host owner = new Host(message.getOwner().getHost(), message.getOwner().getPort());
+        @Nullable final Host owner = message.hasOwner() ? new Host(message.getOwner().getHost(), message.getOwner().getPort()) : null;
         if (message.hasPath()) {
-            return new Shard(message.getShardId(), message.getNumDocs(), message.getVersion(), owner, host, message.getPath());
+            return new Shard(message.getShardId(), message.getNumDocs(), message.getVersion(), host, owner, message.getPath());
         } else {
-            return new Shard(message.getShardId(), message.getNumDocs(), message.getVersion(), owner, host);
+            return new Shard(message.getShardId(), message.getNumDocs(), message.getVersion(), host, owner);
         }
     }
 
@@ -113,10 +115,12 @@ public class Shard extends ShardInfo {
         Preconditions.checkNotNull(server);
         builder
                 .setHost(HostAndPort.newBuilder().setHost(server.hostname).setPort(server.port))
-                .setOwner(HostAndPort.newBuilder().setHost(owner.hostname).setPort(owner.port))
                 .setShardId(shardId)
                 .setNumDocs(numDocs)
                 .setVersion(version);
+        if (owner != null) {
+            builder.setOwner(HostAndPort.newBuilder().setHost(owner.hostname).setPort(owner.port));
+        }
         if (fileName != null) {
             builder.setPath(fileName);
         }

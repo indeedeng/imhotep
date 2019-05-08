@@ -40,7 +40,8 @@ import static org.junit.Assert.assertTrue;
  */
 public class SqarMetaDataManagerTest {
     @Rule
-    public final RemoteCachingFileSystemTestContext testContext = new RemoteCachingFileSystemTestContext(new File(getClass().getResource("/").getFile()));
+    public final RemoteCachingFileSystemTestContext testContext = new RemoteCachingFileSystemTestContext(
+            new File(getClass().getResource("/testData").getFile()).getParentFile());
 
     @Test
     public void testSqarExists() throws IOException, URISyntaxException {
@@ -101,7 +102,6 @@ public class SqarMetaDataManagerTest {
 
         Assert.assertEquals(
                 ImmutableSet.of(
-                        root.resolve("com"),
                         root.resolve("testData")
                 ), FluentIterable.from(Files.newDirectoryStream(root, DirectoryStreamFilters.ONLY_DIRS)).toSet()
         );

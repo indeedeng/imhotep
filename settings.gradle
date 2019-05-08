@@ -1,0 +1,6 @@
+rootProject.name = 'imhotep'
+include(':imhotep-archive')
+include(':imhotep-filesystem')
+include(':imhotep-client')
+include(':imhotep-server')
+include(':imhotep-shardmaster')
