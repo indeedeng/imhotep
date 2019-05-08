@@ -132,7 +132,7 @@ class RemoteCachingFileSystem extends FileSystem {
 
     @Override
     public Iterable<FileStore> getFileStores() {
-        final ImmutableList.Builder builder = ImmutableList.builder().add(fileStore.getBackingFileStore());
+        final ImmutableList.Builder<FileStore> builder = ImmutableList.<FileStore>builder().add(fileStore.getBackingFileStore());
         if (peerToPeerCacheFileStore != null) {
             builder.add(peerToPeerCacheFileStore);
         }
