@@ -78,7 +78,8 @@ public class ImhotepErrorResolver {
             return new NonNumericFieldException("Query failed trying to iterate over integers in a string field which " +
                     "contained non-numeric string terms. Likely cause is inconsistent type (string/int) for the same " +
                     "field in different shards. That can be be fixed in the index builder by setting an explicit field " +
-                    "type and rebuilding old shards where it doesn't match.", e);
+                    "type and rebuilding old shards where it doesn't match, followed by building at least one shard with " +
+                    "start time newer than all the existing shards.", e);
         }
 
         return e;

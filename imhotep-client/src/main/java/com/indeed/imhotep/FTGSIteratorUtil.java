@@ -15,6 +15,7 @@
 package com.indeed.imhotep;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
 import com.google.common.io.ByteStreams;
 import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Ints;
@@ -28,6 +29,7 @@ import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.api.GroupStatsIterator;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
+import com.indeed.imhotep.protobuf.StatsSortOrder;
 import com.indeed.imhotep.scheduling.SilentCloseable;
 import com.indeed.imhotep.service.FTGSOutputStreamWriter;
 import com.indeed.imhotep.utils.BoundedPriorityQueue;
@@ -50,6 +52,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -71,7 +74,7 @@ public class FTGSIteratorUtil {
             @WillClose final FTGSIterator iterator
     ) throws IOException {
         try {
-            final File tmp = File.createTempFile("ftgs", ".tmp");
+            final File tmp = Files.createTempFile("ftgs", ".tmp").toFile();
             final FieldStat[] stats;
             final long start = System.currentTimeMillis();
             try (final OutputStream out = new BufferedOutputStream(new FileOutputStream(tmp))) {
@@ -98,7 +101,7 @@ public class FTGSIteratorUtil {
             @WillClose final FTGAIterator iterator
     ) throws IOException {
         try {
-            final File tmp = File.createTempFile("ftgs", ".tmp");
+            final File tmp = Files.createTempFile("ftgs", ".tmp").toFile();
             final FieldStat[] stats;
             final long start = System.currentTimeMillis();
             try (final OutputStream out = new BufferedOutputStream(new FileOutputStream(tmp))) {
@@ -156,24 +159,26 @@ public class FTGSIteratorUtil {
     public static TopTermsFTGSIterator getTopTermsFTGSIterator(
             @WillClose final FTGSIterator originalIterator,
             final long termLimit,
-            final int sortStat) {
+            final int sortStat,
+            final StatsSortOrder statsSortOrder) {
         try (final SilentCloseable ignored = originalIterator) {
-            if ((termLimit <= 0) || (sortStat < 0) || (sortStat >= originalIterator.getNumStats())) {
-                throw new IllegalArgumentException("TopTerms expect positive termLimit and valid sortStat index");
-            }
-            return getTopTermsFTGSIteratorInternal(originalIterator, termLimit, sortStat);
+            Preconditions.checkArgument(termLimit > 0, "TopTerms expects positive termLimit");
+            Preconditions.checkArgument(sortStat >= 0, "TopTerms expects sortStat index >= 0");
+            Preconditions.checkArgument(statsSortOrder != StatsSortOrder.UNDEFINED, "TopTerms does not accept UNDEFINED stats sort order");
+            return getTopTermsFTGSIteratorInternal(originalIterator, termLimit, sortStat, statsSortOrder);
         }
     }
 
     public static TopTermsFTGAIterator getTopTermsFTGSIterator(
             @WillClose final FTGAIterator originalIterator,
             final long termLimit,
-            final int sortStat) {
+            final int sortStat,
+            final StatsSortOrder statsSortOrder) {
         try (final SilentCloseable ignored = originalIterator) {
-            if ((termLimit <= 0) || (sortStat < 0) || (sortStat >= originalIterator.getNumStats())) {
-                throw new IllegalArgumentException("TopTerms expect positive termLimit and valid sortStat index");
-            }
-            return getTopTermsFTGSIteratorInternal(originalIterator, termLimit, sortStat);
+            Preconditions.checkArgument(termLimit > 0, "TopTerms expects positive termLimit");
+            Preconditions.checkArgument(sortStat >= 0, "TopTerms expects sortStat index >= 0");
+            Preconditions.checkArgument(statsSortOrder != StatsSortOrder.UNDEFINED, "TopTerms does not accept UNDEFINED stats sort order");
+            return getTopTermsFTGSIteratorInternal(originalIterator, termLimit, sortStat, statsSortOrder);
         }
     }
 
@@ -182,7 +187,7 @@ public class FTGSIteratorUtil {
     // Use this only in tests with small iterators
     @VisibleForTesting
     public static FTGSIterator sortFTGSIterator(@WillClose final FTGSIterator originalIterator) {
-        return getTopTermsFTGSIteratorInternal(originalIterator, Integer.MAX_VALUE, -1);
+        return getTopTermsFTGSIteratorInternal(originalIterator, Integer.MAX_VALUE, -1, StatsSortOrder.ASCENDING);
     }
 
     // Consume iterator, sort by terms and return sorted.
@@ -190,7 +195,7 @@ public class FTGSIteratorUtil {
     // Use this only in tests with small iterators
     @VisibleForTesting
     public static FTGAIterator sortFTGSIterator(@WillClose final FTGAIterator originalIterator) {
-        return getTopTermsFTGSIteratorInternal(originalIterator, Integer.MAX_VALUE, -1);
+        return getTopTermsFTGSIteratorInternal(originalIterator, Integer.MAX_VALUE, -1, StatsSortOrder.ASCENDING);
     }
 
     // Returns top terms iterator.
@@ -198,12 +203,13 @@ public class FTGSIteratorUtil {
     private static TopTermsFTGSIterator getTopTermsFTGSIteratorInternal(
             @WillClose final FTGSIterator originalIterator,
             final long termLimit,
-            final int sortStat) {
+            final int sortStat,
+            final StatsSortOrder statsSortOrder) {
         final int numStats = originalIterator.getNumStats();
         final int numGroups = originalIterator.getNumGroups();
         // We don't care about sorted stuff since we will sort by term afterward
         try (final FTGSIterator iterator = makeUnsortedIfPossible(originalIterator)) {
-            final TopTermsStatsByField<long[]> topTerms = extractTopTermsGeneric(termLimit, iterator, new LongStatExtractor(iterator.getNumStats(), sortStat));
+            final TopTermsStatsByField<long[]> topTerms = extractTopTermsGeneric(termLimit, iterator, new LongStatExtractor(iterator.getNumStats(), sortStat, statsSortOrder));
             return new TopTermsFTGSIterator(topTerms, numStats, numGroups);
         }
     }
@@ -213,12 +219,13 @@ public class FTGSIteratorUtil {
     private static TopTermsFTGAIterator getTopTermsFTGSIteratorInternal(
             @WillClose final FTGAIterator iterator,
             final long termLimit,
-            final int sortStat
+            final int sortStat,
+            final StatsSortOrder statsSortOrder
     ) {
         final int numStats = iterator.getNumStats();
         final int numGroups = iterator.getNumGroups();
         try {
-            final TopTermsStatsByField<double[]> topTerms = FTGSIteratorUtil.extractTopTermsGeneric(termLimit, iterator, new DoubleStatExtractor(iterator.getNumStats(), sortStat));
+            final TopTermsStatsByField<double[]> topTerms = FTGSIteratorUtil.extractTopTermsGeneric(termLimit, iterator, new DoubleStatExtractor(iterator.getNumStats(), sortStat, statsSortOrder));
             return new TopTermsFTGAIterator(topTerms, numStats, numGroups);
         } finally {
             iterator.close();
@@ -250,11 +257,13 @@ public class FTGSIteratorUtil {
     static class LongStatExtractor implements StatExtractor<long[], FTGSIterator> {
         private final int sortStat;
         private final long[] statsBuf;
+        private final StatsSortOrder statsSortOrder;
 
         @VisibleForTesting
-        LongStatExtractor(int numStats, int sortStat) {
+        LongStatExtractor(int numStats, int sortStat, StatsSortOrder statsSortOrder) {
             this.statsBuf = new long[numStats];
             this.sortStat = sortStat;
+            this.statsSortOrder = statsSortOrder;
         }
 
         @Override
@@ -266,18 +275,28 @@ public class FTGSIteratorUtil {
         public boolean itIsBetterThan(FTGSIterator iterator, TermStat<long[]> termStat) {
             final int statCmp = Long.compare(statsBuf[sortStat], termStat.groupStats[sortStat]);
             if (statCmp != 0) {
-                return statCmp > 0;
+                if (statsSortOrder == StatsSortOrder.DESCENDING) {
+                    return statCmp < 0;
+                }
+                else {
+                    return statCmp > 0;
+                }
             }
 
+            boolean r;
             if (iterator.fieldIsIntType()) {
-                return iterator.termIntVal() < termStat.intTerm;
+                r = iterator.termIntVal() < termStat.intTerm;
             } else {
-                return AbstractBatchedFTGMerger.compareBytes(
+                r = AbstractBatchedFTGMerger.compareBytes(
                         iterator.termStringBytes(),
                         iterator.termStringLength(),
                         termStat.strTermBytes,
                         termStat.strTermBytes.length) < 0;
             }
+            if (statsSortOrder == StatsSortOrder.DESCENDING) {
+                return !r;
+            }
+            return r;
         }
 
         @Override
@@ -291,7 +310,7 @@ public class FTGSIteratorUtil {
 
         @Override
         public Comparator<TermStat<long[]>> comparator() {
-            return new Comparator<TermStat<long[]>>() {
+            Comparator<TermStat<long[]>> termStatComparator = new Comparator<TermStat<long[]>>() {
                 @Override
                 public int compare(final TermStat<long[]> x, final TermStat<long[]> y) {
                     // Support for `sortStat < 0` is solely for unit test usage.
@@ -309,6 +328,11 @@ public class FTGSIteratorUtil {
                     return ret;
                 }
             };
+            if (statsSortOrder == StatsSortOrder.DESCENDING) {
+                return termStatComparator.reversed();
+            } else {
+                return termStatComparator;
+            }
         }
     }
 
@@ -316,11 +340,13 @@ public class FTGSIteratorUtil {
     static class DoubleStatExtractor implements StatExtractor<double[], FTGAIterator> {
         private final int sortStat;
         private final double[] statsBuf;
+        private final StatsSortOrder statsSortOrder;
 
         @VisibleForTesting
-        DoubleStatExtractor(final int numStats, final int sortStat) {
+        DoubleStatExtractor(final int numStats, final int sortStat, final StatsSortOrder statsSortOrder) {
             this.statsBuf = new double[numStats];
             this.sortStat = sortStat;
+            this.statsSortOrder = statsSortOrder;
         }
 
         @Override
@@ -332,18 +358,26 @@ public class FTGSIteratorUtil {
         public boolean itIsBetterThan(@WillNotClose final FTGAIterator iterator, final TermStat<double[]> termStat) {
             final int statCmp = Double.compare(statsBuf[sortStat], termStat.groupStats[sortStat]);
             if (statCmp != 0) {
-                return statCmp > 0;
+                if (statsSortOrder == StatsSortOrder.DESCENDING)
+                    return statCmp < 0;
+                else
+                    return statCmp > 0;
             }
 
+            boolean r;
             if (iterator.fieldIsIntType()) {
-                return iterator.termIntVal() < termStat.intTerm;
+                r = iterator.termIntVal() < termStat.intTerm;
             } else {
-                return AbstractBatchedFTGMerger.compareBytes(
+                r = AbstractBatchedFTGMerger.compareBytes(
                         iterator.termStringBytes(),
                         iterator.termStringLength(),
                         termStat.strTermBytes,
                         termStat.strTermBytes.length) < 0;
             }
+            if (statsSortOrder == StatsSortOrder.DESCENDING) {
+                return !r;
+            }
+            return r;
         }
 
         @Override
@@ -357,7 +391,7 @@ public class FTGSIteratorUtil {
 
         @Override
         public Comparator<TermStat<double[]>> comparator() {
-            return new Comparator<TermStat<double[]>>() {
+            Comparator<TermStat<double[]>> termStatComparator =  new Comparator<TermStat<double[]>>() {
                 @Override
                 public int compare(final TermStat<double[]> x, final TermStat<double[]> y) {
                     // Support for `sortStat < 0` is solely for unit test usage.
@@ -375,6 +409,11 @@ public class FTGSIteratorUtil {
                     return ret;
                 }
             };
+            if (statsSortOrder == StatsSortOrder.DESCENDING) {
+                return termStatComparator.reversed();
+            } else {
+                return termStatComparator;
+            }
         }
     }
 

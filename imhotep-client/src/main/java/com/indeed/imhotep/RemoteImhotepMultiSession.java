@@ -23,6 +23,7 @@ import com.indeed.imhotep.api.FTGSModifiers;
 import com.indeed.imhotep.api.FTGSParams;
 import com.indeed.imhotep.api.GroupStatsIterator;
 import com.indeed.imhotep.api.HasSessionId;
+import com.indeed.imhotep.api.ImhotepCommand;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.api.PerformanceStats;
@@ -36,6 +37,7 @@ import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
 import com.indeed.imhotep.protobuf.HostAndPort;
 import com.indeed.imhotep.protobuf.ImhotepRequest;
 import com.indeed.imhotep.protobuf.MultiFTGSRequest;
+import com.indeed.imhotep.protobuf.StatsSortOrder;
 import com.indeed.util.core.Pair;
 import com.indeed.util.core.io.Closeables2;
 import it.unimi.dsi.fastutil.longs.LongIterators;
@@ -44,6 +46,7 @@ import org.apache.log4j.Logger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.io.IOException;
+import java.lang.reflect.Array;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -120,7 +123,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
         final FTGSIterator[] mergers = getFTGSIteratorSplits(params);
         FTGSIterator interleaver = params.sorted ? new SortedFTGSInterleaver(mergers) : new UnsortedFTGSIterator(mergers);
         if (params.isTopTerms()) {
-            interleaver = FTGSIteratorUtil.getTopTermsFTGSIterator(interleaver, params.termLimit, params.sortStat);
+            interleaver = FTGSIteratorUtil.getTopTermsFTGSIterator(interleaver, params.termLimit, params.sortStat, params.statsSortOrder);
         } else if (params.isTermLimit()) {
             interleaver = new TermLimitedFTGSIterator(interleaver, params.termLimit);
         }
@@ -132,7 +135,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
             final FTGSIterator result = sessions[0].getFTGSIterator(intFields, stringFields, termLimit, null);
             return new FTGSIterator[] {result};
         }
-        return getFTGSIteratorSplits(new FTGSParams(intFields, stringFields, termLimit, -1, true, null));
+        return getFTGSIteratorSplits(new FTGSParams(intFields, stringFields, termLimit, -1, true, null, StatsSortOrder.UNDEFINED));
     }
 
     private FTGSIterator[] getFTGSIteratorSplits(final FTGSParams params) throws ImhotepOutOfMemoryException {
@@ -248,7 +251,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
     }
 
     public int regroupWithRuleSender(final GroupMultiRemapRuleSender ruleSender, final boolean errorOnCollisions) throws ImhotepOutOfMemoryException {
-        executeMemoryException(integerBuf, session -> session.regroupWithSender(ruleSender, errorOnCollisions, session.newTimer()));
+        executeMemoryException(integerBuf, session -> session.regroupWithSender(ruleSender, errorOnCollisions));
 
         return Collections.max(Arrays.asList(integerBuf));
     }
@@ -311,6 +314,10 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
         return new AsynchronousRemoteImhotepMultiSession(asyncSessions, this);
     }
 
+    public BatchRemoteImhotepMultiSession toBatch(){
+        return new BatchRemoteImhotepMultiSession(this);
+    }
+
     public static class SessionField {
         private final RemoteImhotepMultiSession session;
         private final Runnable synchronizeCallback;
@@ -332,8 +339,12 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
             } else if (session instanceof RemoteImhotepMultiSession) {
                 this.session = (RemoteImhotepMultiSession) session;
                 this.synchronizeCallback = () -> {};
+            } else if (session instanceof BatchRemoteImhotepMultiSession) {
+                final BatchRemoteImhotepMultiSession batchRemoteImhotepMultiSession = (BatchRemoteImhotepMultiSession) session;
+                this.session = batchRemoteImhotepMultiSession.remoteImhotepMultiSession;
+                this.synchronizeCallback = batchRemoteImhotepMultiSession::executeBatchNoMemoryException;
             } else {
-                throw new IllegalArgumentException("Can only use RemoteImhotepMultiSession::multiFtgs on RemoteImhotepMultiSession/AsynchronousRemoteImhotepMultiSession instances.");
+                throw new IllegalArgumentException("Can only use RemoteImhotepMultiSession::multiFtgs on RemoteImhotepMultiSession/AsynchronousRemoteImhotepMultiSession/BatchRemoteImhotepMultiSession instances.");
             }
             this.field = field;
             this.stats = stats;
@@ -427,7 +438,8 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
             final boolean isIntField,
             final long termLimit,
             final int sortStat,
-            final boolean sorted
+            final boolean sorted,
+            final StatsSortOrder statsSortOrder
     ) throws ImhotepOutOfMemoryException {
         final MultiFTGSRequest.Builder builder = MultiFTGSRequest.newBuilder();
         final List<RemoteImhotepMultiSession> remoteSessions = processSessionFields(sessionsWithFields, builder);
@@ -438,7 +450,8 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
                 .setIsIntField(isIntField)
                 .setTermLimit(termLimit)
                 .setSortStat(sortStat)
-                .setSortedFTGS(sorted);
+                .setSortedFTGS(sorted)
+                .setStatsSortOrder(statsSortOrder);
 
         final Pair<Integer, HostAndPort>[] indexedServers = multiFtgsIndexedServers(builder);
 
@@ -472,7 +485,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
             throw Throwables.propagate(t);
         }
 
-        final FTGSModifiers modifiers = new FTGSModifiers(termLimit, sortStat, sorted);
+        final FTGSModifiers modifiers = new FTGSModifiers(termLimit, sortStat, sorted, statsSortOrder);
 
         final FTGAIterator interleaver;
         if (sorted) {
@@ -562,4 +575,13 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
             return RequestTools.ImhotepRequestSender.Cached.create(request);
         }
     }
+
+    <T> T processImhotepBatchRequest(final List<ImhotepCommand> firstCommands, final ImhotepCommand<T> lastCommand ) throws ImhotepOutOfMemoryException {
+            final T[] buffer = (T[]) Array.newInstance(lastCommand.getResultClass(), sessions.length);
+            executeMemoryException(buffer, session -> {
+                return session.sendImhotepBatchRequest(firstCommands, lastCommand);
+            });
+            return lastCommand.combine(Arrays.asList(buffer));
+    }
+
 }

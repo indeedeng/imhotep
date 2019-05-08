@@ -149,6 +149,11 @@ final class ByteGroupLookup extends GroupLookup implements ArrayBasedGroupLookup
         this.numGroups = max;
     }
 
+    @Override
+    public boolean canRepresentAllValuesUpToMaxGroup() {
+        return true;
+    }
+
     public static long calcMemUsageForSize(final int sz) {
         return sz;
     }

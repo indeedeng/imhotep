@@ -18,8 +18,10 @@ import com.indeed.flamdex.reader.MockFlamdexReader;
 import com.indeed.flamdex.simple.TestSimpleFlamdexDocWriter;
 import com.indeed.imhotep.api.FTGSParams;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
+import com.indeed.imhotep.client.Host;
 import com.indeed.imhotep.io.TestFileUtils;
-import com.indeed.imhotep.protobuf.ShardNameNumDocsPair;
+import com.indeed.imhotep.protobuf.ShardBasicInfoMessage;
+import com.indeed.imhotep.protobuf.StatsSortOrder;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -72,17 +74,21 @@ public class TestLocalImhotepServiceCore {
                 }
             },
                     new LocalImhotepServiceConfig(),
-                    directory);
+                    directory,
+                    new Host("localhost", 0));
 
 
-            final String sessionId = service.handleOpenSession("dataset", Collections.singletonList(ShardNameNumDocsPair.newBuilder().setShardName("index20150601").build()), "", "", "", 0, 0, false, "", null, 0);
+            final String sessionId = service.handleOpenSession("dataset", Collections.singletonList(
+                    ShardBasicInfoMessage.newBuilder().setShardName("index20150601").build()),
+                    "", "", "", 0, 0,
+                    false, "", null, 0);
             service.handlePushStat(sessionId, "count()");
             final OutputStream os = new CloseableNullOutputStream();
             final Thread t = new Thread(new Runnable() {
                 @Override
                 public void run() {
                     try {
-                        service.handleGetFTGSIterator(sessionId, new FTGSParams(new String[]{"if1"}, new String[0], 0, -1, true, null), os);
+                        service.handleGetFTGSIterator(sessionId, new FTGSParams(new String[]{"if1"}, new String[0], 0, -1, true, null, StatsSortOrder.UNDEFINED), os);
                         fail();
                     } catch (final Exception expected) {
                         expected.printStackTrace();

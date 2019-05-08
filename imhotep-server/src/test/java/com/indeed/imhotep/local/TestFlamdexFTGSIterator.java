@@ -76,7 +76,7 @@ public class TestFlamdexFTGSIterator {
         final MockFlamdexReader r = new MockFlamdexReader();
         r.addIntTerm("if1", 0, 1, 2);
         r.addIntTerm("if1", 1, 3, 4);
-        try (final ImhotepLocalSession session = new ImhotepJavaLocalSession("TestFlamdexFTGSIterator", r)) {
+        try (final ImhotepLocalSession session = new ImhotepJavaLocalSession("TestFlamdexFTGSIterator", r, null)) {
             try (final FTGSIterator ftgsIterator = session.getFTGSIterator(new String[]{"if1"}, new String[]{}, singletonList(singletonList("count()")))) {
                 final long[] stats = new long[1];
                 ftgsIterator.nextField();
@@ -96,7 +96,7 @@ public class TestFlamdexFTGSIterator {
     @Test
     public void testEmptyField() throws ImhotepOutOfMemoryException, IOException {
         try (final MockFlamdexReader r = new MockFlamdexReader();
-             final ImhotepLocalSession session = new ImhotepJavaLocalSession("TestFlamdexFTGSIterator", r);
+             final ImhotepLocalSession session = new ImhotepJavaLocalSession("TestFlamdexFTGSIterator", r, null);
              final FTGSIterator ftgsIterator = session.getFTGSIterator(new String[]{"if1"}, new String[]{"sf1"}, emptyList())) {
             assertTrue(ftgsIterator.nextField());
             assertEquals("if1", ftgsIterator.fieldName());
@@ -111,7 +111,7 @@ public class TestFlamdexFTGSIterator {
     public void testZeroStats() throws ImhotepOutOfMemoryException, IOException {
         try (final MockFlamdexReader r = new MockFlamdexReader()) {
             r.addIntTerm("if1", 1, 0, 1, 2);
-            try (final ImhotepLocalSession session = new ImhotepJavaLocalSession("TestFlamdexFTGSIterator", r);
+            try (final ImhotepLocalSession session = new ImhotepJavaLocalSession("TestFlamdexFTGSIterator", r, null);
                  final FTGSIterator ftgsIterator = session.getFTGSIterator(new String[]{"if1"}, new String[]{}, emptyList())) {
 
                 final long[] emptyBuff = new long[0];
@@ -144,7 +144,7 @@ public class TestFlamdexFTGSIterator {
 
     private ImhotepLocalSession makeTestSession(final BitsetOptimizationLevel level) throws ImhotepOutOfMemoryException {
         final MockFlamdexReader r = makeTestFlamdexReader();
-        final ImhotepLocalSession session = new ImhotepJavaLocalSession("TestFlamdexFTGSIterator", r);
+        final ImhotepLocalSession session = new ImhotepJavaLocalSession("TestFlamdexFTGSIterator", r, null);
         session.regroup(new GroupMultiRemapRule[]{new GroupMultiRemapRule(1, 2, new int[]{1}, new RegroupCondition[]{new RegroupCondition(DOCID_FIELD, true, 4, null, true)})});
         return session;
     }

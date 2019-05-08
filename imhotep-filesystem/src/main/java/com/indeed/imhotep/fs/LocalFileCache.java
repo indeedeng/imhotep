@@ -14,6 +14,7 @@
 
 package com.indeed.imhotep.fs;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.cache.AbstractCache;
@@ -24,6 +25,7 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.indeed.imhotep.scheduling.TaskScheduler;
 import com.indeed.imhotep.service.MetricStatsEmitter;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
+import org.apache.commons.io.FileUtils;
 import org.apache.log4j.Logger;
 
 import javax.annotation.Nonnull;
@@ -63,9 +65,17 @@ class LocalFileCache {
     private final MetricStatsEmitter statsEmitter;
     private static final int FAST_REPORTING_FREQUENCY_MILLIS = 100;
     private static final int SLOW_REPORTING_FREQUENCY_MINUTES = 60;
+    // whether load already cached files under the cacheRootDir when LocalFileCache is initialized
+    private final boolean loadExistingFiles;
 
-    LocalFileCache(final RemoteCachingFileSystem fs, final Path cacheRootDir, final long diskSpaceCapacity, final int diskBlockSize, final CacheFileLoader cacheFileLoader) throws IOException {
-        this(fs, cacheRootDir, diskSpaceCapacity, diskBlockSize, cacheFileLoader, MetricStatsEmitter.NULL_EMITTER);
+    @VisibleForTesting
+    LocalFileCache(
+            final RemoteCachingFileSystem fs,
+            final Path cacheRootDir,
+            final long diskSpaceCapacity,
+            final int diskBlockSize,
+            final CacheFileLoader cacheFileLoader) throws IOException {
+        this(fs, cacheRootDir, diskSpaceCapacity, diskBlockSize, cacheFileLoader, MetricStatsEmitter.NULL_EMITTER, "test", true);
     }
 
     LocalFileCache(
@@ -74,12 +84,15 @@ class LocalFileCache {
             final long diskSpaceCapacity,
             final int diskBlockSize,
             final CacheFileLoader cacheFileLoader,
-            final MetricStatsEmitter statsEmitter) throws IOException {
+            final MetricStatsEmitter statsEmitter,
+            final String statsTypePrefix,
+            final boolean loadExistingFiles) throws IOException {
         this.cacheRootDir = cacheRootDir;
         this.diskSpaceCapacity = diskSpaceCapacity;
+        this.loadExistingFiles = loadExistingFiles;
         this.statsEmitter = statsEmitter;
 
-        final CacheStatsEmitter cacheFileStatsEmitter = new CacheStatsEmitter();
+        final CacheStatsEmitter cacheFileStatsEmitter = new CacheStatsEmitter(statsTypePrefix);
         final ScheduledExecutorService fastStatsReportingExecutor =
                 Executors.newSingleThreadScheduledExecutor(new ThreadFactoryBuilder().setNameFormat("sumCacheOldestFileReferencedFilesSizeReporter").setDaemon(true).build());
         fastStatsReportingExecutor.scheduleAtFixedRate(cacheFileStatsEmitter::reportFastFreqStats, FAST_REPORTING_FREQUENCY_MILLIS, FAST_REPORTING_FREQUENCY_MILLIS, TimeUnit.MILLISECONDS);
@@ -135,6 +148,11 @@ class LocalFileCache {
 
 
     private class CacheStatsEmitter{
+        private final String statsTypePrefix;
+
+        public CacheStatsEmitter(final String statsTypePrefix) {
+            this.statsTypePrefix = statsTypePrefix;
+        }
 
         private SumCacheFileSizeIntervals getSumCacheFilesSize() {
             final SumCacheFileSizeIntervals sumCacheFileStats;
@@ -154,24 +172,24 @@ class LocalFileCache {
         }
 
         public void reportFastFreqStats() { // reports total cache size, sum of size of referenced files, oldest file age
-            statsEmitter.histogram("file.cache.total.size", getCacheUsage());
+            statsEmitter.histogram(statsTypePrefix + ".total.size", getCacheUsage());
             int oldestFileAgeSeconds = unusedFilesCache.getOldestFileAccessTime();
 
             if (oldestFileAgeSeconds != Integer.MIN_VALUE) {  // ignoring the files never accessed.
                 int currentTimeMinutes = (int)TimeUnit.MILLISECONDS.toMinutes(System.currentTimeMillis());
                 int minutesSinceLastAccess = currentTimeMinutes - (oldestFileAgeSeconds/60);
-                statsEmitter.histogram("file.cache.oldest.file.age.minutes", minutesSinceLastAccess);
+                statsEmitter.histogram(statsTypePrefix + ".oldest.file.age.minutes", minutesSinceLastAccess);
             }
 
-            statsEmitter.histogram("file.cache.referenced.files.size", referencedFilesCacheSize.get());
+            statsEmitter.histogram(statsTypePrefix + ".referenced.files.size", referencedFilesCacheSize.get());
         }
 
         public void reportSumCacheFileSize() {
             SumCacheFileSizeIntervals sumCacheFilesStats = getSumCacheFilesSize();
 
-            statsEmitter.gauge("sum.cache.file.size.minute", sumCacheFilesStats.minuteSum);
-            statsEmitter.gauge("sum.cache.file.size.hour", sumCacheFilesStats.hourSum);
-            statsEmitter.gauge("sum.cache.file.size.day", sumCacheFilesStats.daySum);
+            statsEmitter.gauge(statsTypePrefix + ".sum.cache.sum.size.minute", sumCacheFilesStats.minuteSum);
+            statsEmitter.gauge(statsTypePrefix + ".sum.cache.sum.size.hour", sumCacheFilesStats.hourSum);
+            statsEmitter.gauge(statsTypePrefix + ".sum.size.day", sumCacheFilesStats.daySum);
         }
     }
 
@@ -192,33 +210,38 @@ class LocalFileCache {
         Files.createDirectories(cacheRootDir);
         synchronized (lock) {
             unusedFilesCache.invalidateAll();
-            Files.walkFileTree(cacheRootDir, new SimpleFileVisitor<Path>() {
-                @Override
-                public FileVisitResult visitFile(final Path cachePath, final BasicFileAttributes attrs) throws IOException {
-                    super.visitFile(cachePath, attrs);
+            if (loadExistingFiles) {
+                Files.walkFileTree(cacheRootDir, new SimpleFileVisitor<Path>() {
+                    @Override
+                    public FileVisitResult visitFile(final Path cachePath, final BasicFileAttributes attrs) throws IOException {
+                        super.visitFile(cachePath, attrs);
 
-                    final long localCacheSize = sizeOnDisk(cachePath);
-                    final int lastAccessEpochTimeSeconds = Integer.MIN_VALUE; // Initialize with MIN_VALUE to ignore in stats reporting.
-                    final RemoteCachingPath path = RemoteCachingPath.resolve(RemoteCachingPath.getRoot(fs), cacheRootDir.relativize(cachePath));
+                        final long localCacheSize = sizeOnDisk(cachePath);
+                        final int lastAccessEpochTimeSeconds = Integer.MIN_VALUE; // Initialize with MIN_VALUE to ignore in stats reporting.
+                        final RemoteCachingPath path = RemoteCachingPath.resolve(RemoteCachingPath.getRoot(fs), cacheRootDir.relativize(cachePath));
 
-                    diskSpaceUsage.addAndGet(localCacheSize);
-                    unusedFilesCache.put(path, new FileCacheEntry(cachePath, localCacheSize, lastAccessEpochTimeSeconds));
+                        diskSpaceUsage.addAndGet(localCacheSize);
+                        unusedFilesCache.put(path, new FileCacheEntry(cachePath, localCacheSize, lastAccessEpochTimeSeconds));
 
-                    return FileVisitResult.CONTINUE;
-                }
-
-                @Override
-                public FileVisitResult postVisitDirectory(final Path dir, final IOException exc) throws IOException {
-                    // Delete empty directories separately since it's not handled by cleanUp() below
-                    try (final DirectoryStream<Path> dirStream = Files.newDirectoryStream(dir)) {
-                        final boolean dirIsEmpty = !dirStream.iterator().hasNext();
-                        if (dirIsEmpty) {
-                            Files.delete(dir);
-                        }
+                        return FileVisitResult.CONTINUE;
                     }
-                    return super.postVisitDirectory(dir, exc);
-                }
-            });
+
+                    @Override
+                    public FileVisitResult postVisitDirectory(final Path dir, final IOException exc) throws IOException {
+                        // Delete empty directories separately since it's not handled by cleanUp() below
+                        try (final DirectoryStream<Path> dirStream = Files.newDirectoryStream(dir)) {
+                            final boolean dirIsEmpty = !dirStream.iterator().hasNext();
+                            if (dirIsEmpty) {
+                                Files.delete(dir);
+                            }
+                        }
+                        return super.postVisitDirectory(dir, exc);
+                    }
+                });
+            } else {
+                // we don't know the host information from files in disk, so won't load them for peer to peer cache.
+                FileUtils.deleteDirectory(cacheRootDir.toFile());
+            }
             // recreate in case it was empty and got deleted above
             Files.createDirectories(cacheRootDir);
             // force clean up
@@ -248,7 +271,7 @@ class LocalFileCache {
             return cacheDirPath;
         } else {
             try (final ScopedCacheFile openedCacheFile = getForOpen(path)) {
-                return openedCacheFile.cachePath;
+                return openedCacheFile.getCachePath();
             }
         }
     }
@@ -281,7 +304,7 @@ class LocalFileCache {
      * @param path the remote path you want to access for opening
      * @return the path corresponding to the local cache file
      */
-    private Path get(final RemoteCachingPath path) throws ExecutionException {
+    Path get(final RemoteCachingPath path) throws ExecutionException {
         FileCacheEntry fileCacheEntry;
         synchronized (lock) {
             incFileUsageRef(path);
@@ -331,7 +354,7 @@ class LocalFileCache {
      * @param path      the remote path you want to give up access
      * @param cachePath the corresponding local cache file
      */
-    private void dispose(final RemoteCachingPath path, final Path cachePath) {
+    void dispose(final RemoteCachingPath path, final Path cachePath) {
         synchronized (lock) {
             final int counter = decFileUsageRef(path);
             if (counter == 0) {
@@ -380,27 +403,6 @@ class LocalFileCache {
 
     }
 
-    static class ScopedCacheFile implements Closeable {
-        private final LocalFileCache cache;
-        private final RemoteCachingPath path;
-        private final Path cachePath;
-
-        ScopedCacheFile(final LocalFileCache cache, final RemoteCachingPath path) throws ExecutionException {
-            this.cache = cache;
-            this.path = path;
-            cachePath = cache.get(path);
-        }
-
-        Path getCachePath() {
-            return cachePath;
-        }
-
-        @Override
-        public void close() {
-            cache.dispose(path, cachePath);
-        }
-    }
-
     interface CacheFileLoader {
         void load(final RemoteCachingPath src, final Path dest) throws IOException;
     }
@@ -442,7 +444,7 @@ class LocalFileCache {
         }
 
         public synchronized int getOldestFileAccessTime() {
-                return updateOrderMap.values().stream().mapToInt(x -> x.lastAccessEpochTimeSeconds).findFirst().orElse(Integer.MIN_VALUE);
+            return updateOrderMap.values().stream().mapToInt(x -> x.lastAccessEpochTimeSeconds).findFirst().orElse(Integer.MIN_VALUE);
         }
 
         public synchronized SumCacheFileSizeIntervals getSumCacheFileSizeStats() {

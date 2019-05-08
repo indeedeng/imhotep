@@ -16,7 +16,8 @@
 import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.reader.MockFlamdexReader;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
-import com.indeed.imhotep.protobuf.ShardNameNumDocsPair;
+import com.indeed.imhotep.client.Host;
+import com.indeed.imhotep.protobuf.ShardBasicInfoMessage;
 import com.indeed.util.core.shell.PosixFileOperations;
 import org.junit.After;
 import org.junit.Before;
@@ -27,7 +28,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collections;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -83,8 +83,11 @@ public class TestLocalImhotepServiceCoreSharedResource {
                 new LocalImhotepServiceCore(optDirectory, 1024L * 1024 * 1024,
                                         factory,
                                         new LocalImhotepServiceConfig(),
-                        tempDir);
-        final String sessionId = service.handleOpenSession("dataset", Collections.singletonList(ShardNameNumDocsPair.newBuilder().setShardName(shardName).build()), "", "", "", 0, 0, false, "", null, 0);
+                        tempDir, new Host("localhost", 0));
+        final String sessionId = service.handleOpenSession("dataset", Collections.singletonList(
+                ShardBasicInfoMessage.newBuilder().setShardName(shardName).build())
+                , "", "", "", 0, 0,
+                false, "", null, 0);
         try {
             service.handlePushStat(sessionId, "if1");
             fail("pushStat didn't throw ImhotepOutOfMemory when it should have");
@@ -92,7 +95,10 @@ public class TestLocalImhotepServiceCoreSharedResource {
             // pass
         }
         service.handleCloseSession(sessionId);
-        final String sessionId2 = service.handleOpenSession("dataset", Collections.singletonList(ShardNameNumDocsPair.newBuilder().setShardName(shardName).build()), "", "", "", 0, 0, false, "", null, 0);
+        final String sessionId2 = service.handleOpenSession("dataset", Collections.singletonList(
+                ShardBasicInfoMessage.newBuilder().setShardName(shardName).build()),
+                "", "", "", 0, 0,
+                false, "", null, 0);
         service.handleCloseSession(sessionId2);
         service.close();
     }
@@ -134,9 +140,13 @@ public class TestLocalImhotepServiceCoreSharedResource {
                                             Long.MAX_VALUE,
                                             factory,
                                             new LocalImhotepServiceConfig().setFlamdexReaderCacheMaxDurationMillis(1),
-                                            tempDir);
+                                            tempDir,
+                                            new Host("localhost", 0));
         try {
-            final String sessionId = service.handleOpenSession("dataset", Collections.singletonList(ShardNameNumDocsPair.newBuilder().setShardName(shardName).build()), "", "", "", 0, 0, false, "", null, 0);
+            final String sessionId = service.handleOpenSession("dataset", Collections.singletonList(
+                    ShardBasicInfoMessage.newBuilder().setShardName(shardName).build()),
+                    "", "", "", 0, 0,
+                    false, "", null, 0);
             sessionOpened.set(true);
             try {
                 for (int i = 0; i < 5; ++i) {

@@ -23,6 +23,8 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Multimaps;
 import com.google.common.io.Closer;
+import com.google.common.math.IntMath;
+import com.google.common.math.LongMath;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -39,6 +41,7 @@ import com.indeed.flamdex.datastruct.FastBitSetPooler;
 import com.indeed.flamdex.fieldcache.ByteArrayIntValueLookup;
 import com.indeed.flamdex.fieldcache.CharArrayIntValueLookup;
 import com.indeed.flamdex.fieldcache.IntArrayIntValueLookup;
+import com.indeed.flamdex.fieldcache.LongArrayIntValueLookup;
 import com.indeed.flamdex.query.Query;
 import com.indeed.flamdex.query.Term;
 import com.indeed.flamdex.search.FlamdexSearcher;
@@ -59,9 +62,11 @@ import com.indeed.imhotep.TermLimitedFTGSIterator;
 import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.api.FTGSParams;
 import com.indeed.imhotep.api.GroupStatsIterator;
+import com.indeed.imhotep.api.ImhotepCommand;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.PerformanceStats;
 import com.indeed.imhotep.exceptions.MultiValuedFieldStringLenException;
+import com.indeed.imhotep.exceptions.MultiValuedFieldUidTimestampException;
 import com.indeed.imhotep.group.IterativeHasher;
 import com.indeed.imhotep.group.IterativeHasherUtils;
 import com.indeed.imhotep.marshal.ImhotepDaemonMarshaller;
@@ -94,6 +99,7 @@ import com.indeed.imhotep.metrics.ShiftLeft;
 import com.indeed.imhotep.metrics.ShiftRight;
 import com.indeed.imhotep.metrics.Subtraction;
 import com.indeed.imhotep.pool.BuffersPool;
+import com.indeed.imhotep.protobuf.StatsSortOrder;
 import com.indeed.imhotep.protobuf.QueryMessage;
 import com.indeed.imhotep.service.InstrumentedFlamdexReader;
 import com.indeed.util.core.Pair;
@@ -109,10 +115,12 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectHeapPriorityQueue;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.log4j.Logger;
+import org.joda.time.Interval;
 
 import javax.annotation.Nullable;
 import java.io.Closeable;
 import java.io.IOException;
+import java.math.BigInteger;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -159,6 +167,9 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
 
     private final InstrumentedFlamdexReader instrumentedFlamdexReader;
 
+    @Nullable
+    private final Interval shardTimeRange;
+
     final MemoryReservationContext memory;
 
     protected GroupLookup docIdToGroup;
@@ -184,18 +195,20 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         }
     }
 
-    public ImhotepLocalSession(final String sessionId, final FlamdexReader flamdexReader)
+    public ImhotepLocalSession(final String sessionId, final FlamdexReader flamdexReader, @Nullable final Interval shardTimeRange)
         throws ImhotepOutOfMemoryException {
-        this(sessionId, flamdexReader, new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE)), null);
+        this(sessionId, flamdexReader, shardTimeRange, new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE)), null);
     }
 
     public ImhotepLocalSession(final String sessionId,
                                final FlamdexReader flamdexReader,
+                               @Nullable final Interval shardTimeRange,
                                final MemoryReservationContext memory,
                                final AtomicLong tempFileSizeBytesLeft)
         throws ImhotepOutOfMemoryException {
         super(sessionId);
         this.tempFileSizeBytesLeft = tempFileSizeBytesLeft;
+        this.shardTimeRange = shardTimeRange;
         this.savedTempFileSizeValue = (this.tempFileSizeBytesLeft == null) ? 0 : this.tempFileSizeBytesLeft.get();
         constructorStackTrace = new Exception();
         this.instrumentedFlamdexReader = new InstrumentedFlamdexReader(flamdexReader);
@@ -399,7 +412,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             ));
 
             if (params.isTopTerms()) {
-                iterator = FTGSIteratorUtil.getTopTermsFTGSIterator(iterator, params.termLimit, params.sortStat);
+                iterator = FTGSIteratorUtil.getTopTermsFTGSIterator(iterator, params.termLimit, params.sortStat, params.statsSortOrder);
             } else if (params.isTermLimit()) {
                 iterator = new TermLimitedFTGSIterator(iterator, params.termLimit);
             }
@@ -477,13 +490,6 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         return FTGSIteratorUtil.calculateDistinct(iterator);
     }
 
-    protected GroupLookup resizeGroupLookup(final GroupLookup lookup,
-                                            final int size,
-                                            final MemoryReservationContext memory)
-        throws ImhotepOutOfMemoryException  {
-        return GroupLookupFactory.resize(lookup, size, memory);
-    }
-
     @Override
     public synchronized int regroup(final GroupMultiRemapRule[] rawRules,
                                     final boolean errorOnCollisions)
@@ -514,7 +520,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
 
         final int maxIntermediateGroup = Math.max(docIdToGroup.getNumGroups(), highestTarget);
         final int maxNewGroup = GroupMultiRemapRules.findMaxGroup(rawRules);
-        docIdToGroup = resizeGroupLookup(docIdToGroup, Math.max(maxIntermediateGroup, maxNewGroup), memory);
+        docIdToGroup = GroupLookupFactory.resize(docIdToGroup, Math.max(maxIntermediateGroup, maxNewGroup), memory);
 
         MultiRegroupInternals.moveUntargeted(docIdToGroup, maxIntermediateGroup, rawRules);
 
@@ -598,12 +604,8 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     }
 
     private void finalizeRegroup() throws ImhotepOutOfMemoryException {
-        final int oldNumGroups = docIdToGroup.getNumGroups();
-        final int newNumGroups;
-
         docIdToGroup.recalculateNumGroups();
-        newNumGroups = docIdToGroup.getNumGroups();
-        docIdToGroup = resizeGroupLookup(docIdToGroup, 0, memory);
+        docIdToGroup = GroupLookupFactory.resize(docIdToGroup, 0, memory, true);
         resetLazyValues();
     }
 
@@ -1143,24 +1145,72 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             return docIdToGroup.getNumGroups();
         }
 
+        final int numBuckets = BigInteger
+                .valueOf(max)
+                .subtract(BigInteger.ONE)
+                .subtract(BigInteger.valueOf(min))
+                .divide(BigInteger.valueOf(intervalSize))
+                .add(BigInteger.ONE)
+                .intValueExact();
+        final int totalBuckets = noGutters ? numBuckets : BigInteger.valueOf(numBuckets).add(BigInteger.valueOf(2)).intValueExact();
+        final int newMaxGroup = BigInteger.valueOf(docIdToGroup.getNumGroups() - 1)
+                .multiply(BigInteger.valueOf(totalBuckets))
+                .intValueExact();
+
+        if ((shardTimeRange != null) && Collections.singletonList("unixtime").equals(stat)) {
+            final long minValueInclusive = shardTimeRange.getStartMillis() / 1000;
+            final long maxValueExclusive = shardTimeRange.getEndMillis() / 1000;
+
+            if ((min <= minValueInclusive) && (maxValueExclusive <= max)) {
+                // check if all doc in shard go to one group
+                // this often happens when grouping by unixtime (1h, 1d or 1mo for example)
+                final int commonGroup = calculateCommonGroup(minValueInclusive, maxValueExclusive - 1, min, max, intervalSize, noGutters);
+                if (commonGroup >= 0) {
+                    if (commonGroup == 0) {
+                        resetGroupsTo(0);
+                    } else {
+                        if (docIdToGroup instanceof ConstantGroupLookup) {
+                            final int oldGroup = ((ConstantGroupLookup) docIdToGroup).getConstantGroup();
+                            final int newGroup = ((oldGroup - 1) * totalBuckets) + commonGroup;
+                            docIdToGroup = new ConstantGroupLookup(newGroup, docIdToGroup.size());
+                        } else if (docIdToGroup instanceof BitSetGroupLookup) {
+                            BitSetGroupLookup bitSetGroupLookup = (BitSetGroupLookup) this.docIdToGroup;
+                            final int oldGroup = bitSetGroupLookup.getNonZeroGroup();
+                            final int newGroup = ((oldGroup - 1) * totalBuckets) + commonGroup;
+                            bitSetGroupLookup.setNonZeroGroup(newGroup);
+                        } else {
+                            docIdToGroup = GroupLookupFactory.resize(docIdToGroup, newMaxGroup, memory);
+                            // all in one interval
+                            // TODO: rewrite on batched get/set after buffer pooling is introduced.
+                            for (int i = 0; i < numDocs; i++) {
+                                final int group = docIdToGroup.get(i);
+                                if (group == 0) {
+                                    continue;
+                                }
+                                docIdToGroup.set(i, (group - 1) * totalBuckets + commonGroup);
+                            }
+                        }
+                    }
+                    finalizeRegroup();
+                    return docIdToGroup.getNumGroups();
+                }
+            }
+        }
+
         try (final MetricStack stack = new MetricStack()) {
             final IntValueLookup lookup = stack.push(stat);
 
-            final int numBuckets = (int) (((max - 1) - min) / intervalSize + 1);
-            final int newMaxGroup = (docIdToGroup.getNumGroups()-1)*(noGutters ? numBuckets : numBuckets+2);
             docIdToGroup = GroupLookupFactory.resize(docIdToGroup, newMaxGroup, memory);
 
             {
                 // check if all doc in shard go to one group
-                // this often happens when grouping by unixtime (1h, 1d or 1mo for example)
-                final int commonGroup = calculateCommonGroup(lookup, min, max, intervalSize, noGutters);
+                final int commonGroup = calculateCommonGroup(lookup.getMin(), lookup.getMax(), min, max, intervalSize, noGutters);
                 if (commonGroup == 0) {
                     resetGroupsTo(0);
                     finalizeRegroup();
                     return docIdToGroup.getNumGroups();
                 } else if (commonGroup > 0) {
                     // all in one interval
-                    final int totalBuckets = noGutters ? numBuckets : numBuckets + 2;
                     // TODO: rewrite on batched get/set after buffer pooling is introduced.
                     for (int i = 0; i < numDocs; i++) {
                         final int group = docIdToGroup.get(i);
@@ -1219,14 +1269,13 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
 
     // calculate and return common group if exist or -1 if not exist
     private static int calculateCommonGroup(
-            final IntValueLookup lookup,
+            final long lookupMin,
+            final long lookupMax,
             final long min,
             final long max,
             final long intervalSize,
             final boolean noGutters) {
         final int numBuckets = (int) (((max - 1) - min) / intervalSize + 1);
-        final long lookupMin = lookup.getMin();
-        final long lookupMax = lookup.getMax();
         if ((min <= lookupMin) && (lookupMax < max)) {
             final int minGroup = (int) ((lookupMin - min) / intervalSize + 1);
             final int maxGroup = (int) ((lookupMax - min) / intervalSize + 1);
@@ -1844,6 +1893,9 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         } else if (statName.startsWith("global_stack ")) {
             final int statIndex = Integer.parseInt(statName.substring("global_stack ".length()));
             stack.push(statName, new DelegatingMetric(metricStack.get(statIndex)));
+        } else if (statName.startsWith("uid_to_unixtime ")) {
+            final String fieldName = statName.substring("uid_to_unixtime ".length()).trim();
+            stack.push(statName, uidToUnixtimeLookup(fieldName));
         } else if (Metric.getMetric(statName) != null) {
             final IntValueLookup a;
             final IntValueLookup b;
@@ -2883,6 +2935,72 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         return new MemoryReservingIntValueLookupWrapper(new IntArrayIntValueLookup(array, 0, percentages.length + 1));
     }
 
+    private static int decodeBase32(final byte c) {
+        if (('0' <= c) && (c <= '9')) {
+            return c - '0';
+        } else if (('A' <= c) && (c <= 'V')) {
+            return (c - 'A') + 10;
+        } else if (('a' <= c) && (c <= 'v')) {
+            return (c - 'a') + 10;
+        } else {
+            return -1;
+        }
+    }
+
+    private IntValueLookup uidToUnixtimeLookup(final String field) throws ImhotepOutOfMemoryException {
+        // use 64 bits to avoid year 2038 problem
+        final long memoryUsage = 8 * flamdexReader.getNumDocs();
+        if (!memory.claimMemory(memoryUsage)) {
+            throw newImhotepOutOfMemoryException();
+        }
+        final long[] array = new long[flamdexReader.getNumDocs()];
+        Arrays.fill(array, -1);
+
+        final int[] docIdBuf = memoryPool.getIntBuffer(BUFFER_SIZE, true);
+        try (DocIdStream docIdStream = flamdexReader.getDocIdStream();
+             StringTermIterator termIterator = flamdexReader.getStringTermIterator(field)
+        ) {
+            termLoop: while (termIterator.next()) {
+                final byte[] bytes = termIterator.termStringBytes();
+                if (termIterator.termStringLength() != 16) {
+                    continue;
+                }
+
+                long timestamp = 0;
+                for (int i = 8, p = 0; i >= 0; i--, p++) {
+                    final long charValue = decodeBase32(bytes[i]);
+                    if (charValue == -1) {
+                        // not a valid leading timestamp
+                        continue termLoop;
+                    }
+                    timestamp |= charValue << (p * 5);
+                }
+                // ms to s
+                timestamp /= 1000;
+
+                docIdStream.reset(termIterator);
+
+                while (true) {
+                    final int n = docIdStream.fillDocIdBuffer(docIdBuf);
+                    for (int i = 0; i < n; i++) {
+                        final int docId = docIdBuf[i];
+                        if (array[docId] != -1) {
+                            throw new MultiValuedFieldUidTimestampException("Can only compute uid_to_timestamp on single valued fields containing UIDs");
+                        }
+                        array[docId] = timestamp;
+                    }
+                    if (n < docIdBuf.length) {
+                        break;
+                    }
+                }
+            }
+        } finally {
+            memoryPool.returnIntBuffer(docIdBuf);
+        }
+
+        return new MemoryReservingIntValueLookupWrapper(new LongArrayIntValueLookup(array));
+    }
+
     private int getBitSetMemoryUsage() {
         return flamdexReader.getNumDocs() / 8 + ((flamdexReader.getNumDocs() % 8) != 0 ? 1 : 0);
     }
@@ -2963,5 +3081,12 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             }
             closed = true;
         }
+    }
+
+    <T> T executeBatchRequest(final List<ImhotepCommand> firstCommands, final ImhotepCommand<T> lastCommand) throws ImhotepOutOfMemoryException {
+        for (final ImhotepCommand command: firstCommands) {
+            command.apply(this);
+        }
+        return lastCommand.apply(this);
     }
 }

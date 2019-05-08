@@ -22,6 +22,19 @@ class PrefixStringTermMatcher implements StringTermMatcher {
     }
 
     @Override
+    public boolean matches(final byte[] termBytes, final int termBytesLength) {
+        if (pattern.length > termBytesLength) {
+            return false;
+        }
+        for (int i = 0; i < pattern.length; ++i) {
+            if (pattern[i] != termBytes[i]) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    @Override
     public void run(final StringTermIterator termIterator, final Consumer<StringTermIterator> onMatch) {
         // NOTE:
         // StringTermIterator iterates over UTF-8 byte arrays,

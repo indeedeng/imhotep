@@ -125,11 +125,6 @@ public class AsynchronousRemoteImhotepSession extends AbstractImhotepSession {
     }
 
     @Override
-    public FTGSIterator getFTGSIterator(final String[] intFields, final String[] stringFields, final long termLimit, final int sortStat, @Nullable final List<List<String>> stats) throws ImhotepOutOfMemoryException {
-        return extractFromSessionMemoryException(session -> session.getFTGSIterator(intFields, stringFields, termLimit, sortStat, stats));
-    }
-
-    @Override
     public FTGSIterator getSubsetFTGSIterator(final Map<String, long[]> intFields, final Map<String, String[]> stringFields, @Nullable final List<List<String>> stats) throws ImhotepOutOfMemoryException {
         return extractFromSessionMemoryException(session -> session.getSubsetFTGSIterator(intFields, stringFields, stats));
     }
@@ -175,7 +170,7 @@ public class AsynchronousRemoteImhotepSession extends AbstractImhotepSession {
     }
 
     public void regroupWithRuleSender(final RequestTools.GroupMultiRemapRuleSender sender, final boolean errorOnCollisions) {
-        doIt(session -> session.regroupWithSender(sender, errorOnCollisions, session.newTimer()));
+        doIt(session -> session.regroupWithSender(sender, errorOnCollisions));
     }
 
     @Override

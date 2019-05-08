@@ -14,7 +14,6 @@
 
 package com.indeed.imhotep.fs;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
@@ -23,6 +22,7 @@ import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Iterables;
 import com.indeed.imhotep.service.MetricStatsEmitter;
 import com.indeed.util.core.Pair;
+import com.indeed.util.core.io.Closeables2;
 import org.apache.log4j.Logger;
 
 import javax.annotation.Nonnull;
@@ -100,11 +100,33 @@ public class RemoteCachingFileSystemProvider extends FileSystemProvider {
         }
 
         synchronized void clear() {
+            Closeables2.closeQuietly(fileSystem, LOGGER);
             fileSystem = null;
         }
     }
 
     private static final FileSystemHolder FILE_SYSTEM_HOLDER = new FileSystemHolder();
+
+    public static FileSystem newFileSystem(final File fsConfigFile) throws IOException {
+        return FILE_SYSTEM_HOLDER.create(fsConfigFile);
+    }
+
+    public static FileSystem newFileSystem() throws IOException {
+        final String fsFilePath = System.getProperty("imhotep.fs.config.file");
+        if (fsFilePath != null) {
+            return newFileSystem(new File(fsFilePath));
+        } else {
+            return null;
+        }
+    }
+
+    public static void closeFileSystem() {
+        FILE_SYSTEM_HOLDER.clear();
+    }
+
+    static {
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> closeFileSystem()));
+    }
 
     public static void setStatsEmitter(MetricStatsEmitter statsEmitter){
         STATS_EMITTER = statsEmitter;
@@ -128,6 +150,16 @@ public class RemoteCachingFileSystemProvider extends FileSystemProvider {
         return (RemoteCachingPath) path;
     }
 
+    static PeerToPeerCachePath toPeerToPeerCachePath(final Path path) {
+        if (path == null) {
+            throw new NullPointerException();
+        }
+        if (!(path instanceof PeerToPeerCachePath)) {
+            throw new ProviderMismatchException();
+        }
+        return (PeerToPeerCachePath) path;
+    }
+
     @Override
     public String getScheme() {
         return URI_SCHEME;
@@ -140,19 +172,6 @@ public class RemoteCachingFileSystemProvider extends FileSystemProvider {
         Preconditions.checkArgument(uri.getFragment() == null, "URI fragment must be absent");
     }
 
-    public static FileSystem newFileSystem(final File fsConfigFile) throws IOException {
-        return FILE_SYSTEM_HOLDER.create(fsConfigFile);
-    }
-
-    public static FileSystem newFileSystem() throws IOException {
-        final String fsFilePath = System.getProperty("imhotep.fs.config.file");
-        if (fsFilePath != null) {
-            return newFileSystem(new File(fsFilePath));
-        } else {
-            return null;
-        }
-    }
-
     @Override
     public FileSystem newFileSystem(final URI uri, final Map<String, ?> env) throws IOException {
         checkUri(uri);
@@ -163,11 +182,6 @@ public class RemoteCachingFileSystemProvider extends FileSystemProvider {
     public FileSystem getFileSystem(final URI uri) {
         checkUri(uri);
         return FILE_SYSTEM_HOLDER.get();
-    }
-
-    @VisibleForTesting
-    void clearFileSystem() {
-        FILE_SYSTEM_HOLDER.clear();
     }
 
     @Override
@@ -305,8 +319,7 @@ public class RemoteCachingFileSystemProvider extends FileSystemProvider {
 
     @Override
     public FileStore getFileStore(final Path path) throws IOException {
-        // TODO: currently we only support a single configured file store per file system
-        return Iterables.getFirst(FILE_SYSTEM_HOLDER.get().getFileStores(), null);
+        return FILE_SYSTEM_HOLDER.get().getFileStore(toRemoteCachePath(path));
     }
 
     @Override

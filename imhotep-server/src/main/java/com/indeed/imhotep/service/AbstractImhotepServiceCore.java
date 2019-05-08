@@ -35,6 +35,7 @@ import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.api.FTGSModifiers;
 import com.indeed.imhotep.api.FTGSParams;
 import com.indeed.imhotep.api.GroupStatsIterator;
+import com.indeed.imhotep.api.ImhotepCommand;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepServiceCore;
 import com.indeed.imhotep.api.PerformanceStats;
@@ -48,7 +49,8 @@ import com.indeed.imhotep.protobuf.AggregateStat;
 import com.indeed.imhotep.protobuf.HostAndPort;
 import com.indeed.imhotep.protobuf.ImhotepResponse;
 import com.indeed.imhotep.protobuf.MultiFTGSRequest;
-import com.indeed.imhotep.protobuf.ShardNameNumDocsPair;
+import com.indeed.imhotep.protobuf.ShardBasicInfoMessage;
+import com.indeed.imhotep.protobuf.StatsSortOrder;
 import com.indeed.imhotep.scheduling.ImhotepTask;
 import com.indeed.imhotep.scheduling.SilentCloseable;
 import com.indeed.util.core.io.Closeables2;
@@ -342,7 +344,7 @@ public abstract class AbstractImhotepServiceCore
                     final FTGSIterator[] sessionIterators = doWithSession(localSessionChoice, (IOOrOutOfMemoryFunction<MTImhotepLocalMultiSession, FTGSIterator[]>) session -> {
                         final String[] intFields = isIntField ? new String[]{sessionInfo.getField()} : new String[0];
                         final String[] stringFields = isIntField ? new String[0] : new String[]{sessionInfo.getField()};
-                        final FTGSParams ftgsParams = new FTGSParams(intFields, stringFields, termLimit, -1, true, stats);
+                        final FTGSParams ftgsParams = new FTGSParams(intFields, stringFields, termLimit, -1, true, stats, StatsSortOrder.UNDEFINED);
                         return session.partialMergeFTGSSplit(sessionInfo.getSessionId(), ftgsParams, sessionNodes, splitIndex, nodes.length, numLocalSplits);
                     });
                     closer.registerOrClose(Closeables2.forArray(log, sessionIterators));
@@ -379,9 +381,10 @@ public abstract class AbstractImhotepServiceCore
         final boolean isIntField = request.getIsIntField();
         final int splitIndex = request.getSplitIndex();
         final boolean sorted = request.getSortedFTGS();
+        final StatsSortOrder statsSortOrder = request.getStatsSortOrder();
 
         final List<MultiFTGSRequest.MultiFTGSSession> sessionInfoList = request.getSessionInfoList();
-        final FTGSModifiers modifiers = new FTGSModifiers(request.getTermLimit(), request.getSortStat(), request.getSortedFTGS());
+        final FTGSModifiers modifiers = new FTGSModifiers(request.getTermLimit(), request.getSortStat(), request.getSortedFTGS(), statsSortOrder);
 
         final Map<String, SessionStatsInfo> sessionStatsInfos = new HashMap<>();
         for (int i = 0; i < sessionInfoList.size(); i++) {
@@ -732,7 +735,7 @@ public abstract class AbstractImhotepServiceCore
 
     public abstract String handleOpenSession(
             String dataset,
-            List<ShardNameNumDocsPair> shardRequestList,
+            List<ShardBasicInfoMessage> shardRequestList,
             String username,
             String clientName,
             String ipAddress,
@@ -763,5 +766,10 @@ public abstract class AbstractImhotepServiceCore
     public void close() {
         ftgsExecutor.shutdownNow();
         multiFtgsExecutor.shutdownNow();
+    }
+
+    @Override
+    public <T> T handleBatchRequest(final String sessionId, final List<ImhotepCommand> firstCommands, final ImhotepCommand<T> lastCommand) throws ImhotepOutOfMemoryException {
+        return doWithSession(sessionId, (ThrowingFunction<MTImhotepLocalMultiSession, T, ImhotepOutOfMemoryException>) session -> session.executeBatchRequest(firstCommands, lastCommand));
     }
 }

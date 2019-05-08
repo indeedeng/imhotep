@@ -15,6 +15,7 @@ import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.client.ImhotepClient;
 import com.indeed.imhotep.local.ImhotepLocalSession;
 import com.indeed.imhotep.metrics.aggregate.AggregateStatTree;
+import com.indeed.imhotep.protobuf.StatsSortOrder;
 import org.apache.commons.io.FileUtils;
 import org.joda.time.DateTime;
 import org.junit.AfterClass;
@@ -43,8 +44,8 @@ public class TestThrowingImhotepOutOfMemoryExceptions {
         storeDir = Files.createTempDirectory("temp-imhotep");
         tempDir = Files.createTempDirectory("temp-imhotep");
         clusterRunner = new ShardMasterAndImhotepDaemonClusterRunner(
-                storeDir.toFile(),
-                tempDir.toFile(),
+                storeDir,
+                tempDir,
                 ImhotepShardCreator.DEFAULT
         );
 
@@ -202,7 +203,8 @@ public class TestThrowingImhotepOutOfMemoryExceptions {
                     false,
                     0,
                     -1,
-                    true
+                    true,
+                    StatsSortOrder.UNDEFINED
             );
         }
     }

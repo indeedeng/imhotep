@@ -51,7 +51,7 @@ public class RemoteCachingFileSystemInitializerTest {
 
     @After
     public void tearDown() {
-        new RemoteCachingFileSystemProvider().clearFileSystem();
+        RemoteCachingFileSystemProvider.closeFileSystem();
     }
 
     @Test

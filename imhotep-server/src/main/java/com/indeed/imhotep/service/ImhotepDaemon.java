@@ -15,6 +15,7 @@ package com.indeed.imhotep.service;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.UnmodifiableIterator;
@@ -32,12 +33,12 @@ import com.indeed.imhotep.RequestContext;
 import com.indeed.imhotep.TermCount;
 import com.indeed.imhotep.api.FTGSParams;
 import com.indeed.imhotep.api.GroupStatsIterator;
+import com.indeed.imhotep.api.ImhotepCommand;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepServiceCore;
 import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.api.PerformanceStats;
 import com.indeed.imhotep.client.Host;
-import com.indeed.imhotep.exceptions.ImhotepKnownException;
 import com.indeed.imhotep.exceptions.InvalidSessionException;
 import com.indeed.imhotep.fs.RemoteCachingFileSystemProvider;
 import com.indeed.imhotep.io.ImhotepProtobufShipping;
@@ -53,7 +54,7 @@ import com.indeed.imhotep.protobuf.MultiFTGSRequest;
 import com.indeed.imhotep.protobuf.QueryMessage;
 import com.indeed.imhotep.protobuf.QueryRemapMessage;
 import com.indeed.imhotep.protobuf.RegroupConditionMessage;
-import com.indeed.imhotep.protobuf.ShardNameNumDocsPair;
+import com.indeed.imhotep.protobuf.ShardBasicInfoMessage;
 import com.indeed.imhotep.protobuf.StringFieldAndTerms;
 import com.indeed.util.core.Pair;
 import com.indeed.util.core.io.Closeables2;
@@ -62,6 +63,8 @@ import org.apache.log4j.NDC;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import javax.annotation.WillNotClose;
+import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -73,6 +76,7 @@ import java.net.Socket;
 import java.net.SocketException;
 import java.net.URISyntaxException;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -81,12 +85,16 @@ import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
+import static com.indeed.imhotep.utils.ImhotepResponseUtils.newErrorResponse;
+
 public class ImhotepDaemon implements Instrumentation.Provider {
     private static final Logger log = Logger.getLogger(ImhotepDaemon.class);
+    private static final int SERVER_SOCKET_TIMEOUT = (int) TimeUnit.SECONDS.toMillis(60);
 
     private final ServerSocket ss;
 
@@ -105,6 +113,12 @@ public class ImhotepDaemon implements Instrumentation.Provider {
         new InstrumentationProvider();
 
     private ServiceCoreObserver serviceCoreObserver;
+
+    private static final ImmutableSet REQUEST_TYPES_NOT_CLOSING_SOCKET = ImmutableSet.of(
+            ImhotepRequest.RequestType.GET_SHARD_FILE,
+            ImhotepRequest.RequestType.GET_SHARD_FILE_ATTRIBUTES,
+            ImhotepRequest.RequestType.LIST_SHARD_FILE_ATTRIBUTES
+    );
 
     private static final class InstrumentationProvider
         extends Instrumentation.ProviderSupport {
@@ -175,7 +189,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             while (!ss.isClosed()) {
                 try {
                     final Socket socket = ss.accept();
-                    socket.setSoTimeout(60000);
+                    socket.setSoTimeout(SERVER_SOCKET_TIMEOUT);
                     socket.setTcpNoDelay(true);
                     log.debug("received connection, running");
                     executor.execute(new DaemonWorker(socket));
@@ -242,11 +256,12 @@ public class ImhotepDaemon implements Instrumentation.Provider {
         @Override
         public void run() {
             try {
-                final InetAddress remoteAddress = socket.getInetAddress();
                 NDC.push("DaemonWorker(" + socket.getRemoteSocketAddress() + ")");
                 try {
-                    internalRun();
+                    while (!internalRun()) {}
                 } finally {
+                    // in case socket isn't closed properly because of any exceptions in the internalRun
+                    Closeables2.closeQuietly(socket, log);
                     NDC.pop();
                 }
             } catch (final RuntimeException e) {
@@ -275,7 +290,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                     final OutputStream os = Streams.newBufferedOutputStream(socket.getOutputStream());
                     final InputStream is = Streams.newBufferedInputStream(socket.getInputStream());
 
-                    final List<ShardNameNumDocsPair> shards = request.getShardsList();
+                    final List<ShardBasicInfoMessage> shards = request.getShardsList();
                     log.trace("sending open request to "+host+":"+port+" for shards "+ shards);
 
                     ImhotepProtobufShipping.sendProtobuf(request, os);
@@ -303,7 +318,6 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                                 request.getSessionId(),
                                 tempFileSizeBytesLeft,
                                 request.getSessionTimeout()
-
                         );
                 NDC.push(sessionId);
                 builder.setSessionId(sessionId);
@@ -517,7 +531,8 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                     request.getTermLimit(),
                     request.getSortStat(),
                     request.getSortedFTGS(),
-                    getStats(request)
+                    getStats(request),
+                    request.getStatsSortOrder()
             );
         }
 
@@ -827,36 +842,36 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 final ImhotepRequest          request,
                 final ImhotepResponse.Builder builder,
                 final InputStream             is)
-            throws ImhotepOutOfMemoryException {
+                throws ImhotepOutOfMemoryException {
             final int numRules = request.getLength();
             final UnmodifiableIterator<GroupMultiRemapRule> it =
-                new UnmodifiableIterator<GroupMultiRemapRule>() {
-                  private int i = 0;
+                    new UnmodifiableIterator<GroupMultiRemapRule>() {
+                        private int i = 0;
 
-                  @Override
-                  public boolean hasNext() {
-                      return i < numRules;
-                  }
+                        @Override
+                        public boolean hasNext() {
+                            return i < numRules;
+                        }
 
-                  @Override
-                  public GroupMultiRemapRule next() {
-                      try {
-                          final GroupMultiRemapMessage message =
-                            ImhotepProtobufShipping.readGroupMultiRemapMessage(is);
-                          final GroupMultiRemapRule rule =
-                            ImhotepDaemonMarshaller.marshal(message);
-                          i++;
-                          return rule;
-                      } catch (final IOException e) {
-                          throw Throwables.propagate(e);
-                      }
-                  }
-            };
+                        @Override
+                        public GroupMultiRemapRule next() {
+                            try {
+                                final GroupMultiRemapMessage message =
+                                        ImhotepProtobufShipping.readGroupMultiRemapMessage(is);
+                                final GroupMultiRemapRule rule =
+                                        ImhotepDaemonMarshaller.marshal(message);
+                                i++;
+                                return rule;
+                            } catch (final IOException e) {
+                                throw Throwables.propagate(e);
+                            }
+                        }
+                    };
             final int numGroups =
-                service.handleMultisplitRegroup(request.getSessionId(),
-                                                numRules,
-                                                it,
-                                                request.getErrorOnCollisions());
+                    service.handleMultisplitRegroup(request.getSessionId(),
+                            numRules,
+                            it,
+                            request.getErrorOnCollisions());
             builder.setNumGroups(numGroups);
             return builder.build();
         }
@@ -885,6 +900,56 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             return builder.build();
         }
 
+        private void getAndSendShardFile(
+                final ImhotepRequest request,
+                final ImhotepResponse.Builder builder,
+                @WillNotClose final OutputStream os) throws IOException {
+            service.handleGetAndSendShardFile(request.getShardFileUri(), builder, os);
+        }
+
+        private ImhotepResponse getShardFileAttributes(
+                final ImhotepRequest request,
+                final ImhotepResponse.Builder builder) throws IOException {
+            return service.handleGetShardFileAttributes(request.getShardFileUri(), builder);
+        }
+
+        private ImhotepResponse listShardFileAttributes(
+                final ImhotepRequest request,
+                final ImhotepResponse.Builder builder) throws IOException {
+            return service.handleListShardFileAttributes(request.getShardFileUri(), builder);
+        }
+
+
+        private Pair<ImhotepResponse, GroupStatsIterator> executeBatchRequest(
+                final ImhotepRequest batchImhotepRequest,
+                final InputStream is,
+                final ImhotepResponse.Builder builder) throws IOException, ImhotepOutOfMemoryException {
+
+            final int imhotepRequestCount = batchImhotepRequest.getImhotepRequestCount();
+
+            final List<ImhotepCommand> commands = new ArrayList<>();
+            for (int i = 0; i < imhotepRequestCount; i++) {
+                commands.add(ImhotepCommand.readFromInputStream(is));
+            }
+
+            final ImhotepCommand lastCommand = commands.get(commands.size() - 1);
+            commands.remove(commands.size() - 1);
+
+            if (lastCommand.getResultClass() == GroupStatsIterator.class) {
+                final GroupStatsIterator groupStatsIterator = (GroupStatsIterator) service.handleBatchRequest(batchImhotepRequest.getSessionId(), commands, lastCommand);
+                return Pair.of(builder.setGroupStatSize(groupStatsIterator.getNumGroups()).build(), groupStatsIterator);
+            } else if (lastCommand.getResultClass() == Integer.class) {
+                final int numGroup = (Integer) service.handleBatchRequest(batchImhotepRequest.getSessionId(), commands, lastCommand);
+                return Pair.of(builder.setNumGroups(numGroup).build(), null);
+            } else if (lastCommand.getResultClass() == Void.class) {
+                service.handleBatchRequest(batchImhotepRequest.getSessionId(), commands, lastCommand);
+                return Pair.of(builder.build(), null);
+            } else {
+                throw new IllegalArgumentException("Class type of the last command of batch not recognizable." + lastCommand + " Supported Class types: GroupStatsIterator, Integer, Void");
+            }
+        }
+
+
         private void shutdown(
                 final ImhotepRequest request,
                 final InputStream    is,
@@ -898,49 +963,22 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             }
         }
 
-        private void internalRun() {
-            ImhotepRequest request = null;
-            try {
-                final long beginTm = System.currentTimeMillis();
+        private Pair<ImhotepResponse, GroupStatsIterator> handleImhotepRequest(
+                final ImhotepRequest request,
+                final InputStream is,
+                final OutputStream os) throws IOException, ImhotepOutOfMemoryException {
+            ImhotepResponse response = null;
+            GroupStatsIterator groupStats = null;
 
-                final String remoteAddr = socket.getInetAddress().getHostAddress();
-
-                final InputStream  is = Streams.newBufferedInputStream(socket.getInputStream());
-                final OutputStream os = Streams.newBufferedOutputStream(socket.getOutputStream());
-
-                final int  ndcDepth  = NDC.getDepth();
-                final long requestId = requestIdCounter.incrementAndGet();
-
-                ImhotepResponse response = null;
-                GroupStatsIterator groupStats = null;
-
-                NDC.push("#" + requestId);
-
-                RequestContext requestContext = null;
-
-                try {
-                    log.debug("getting request");
-                    // TODO TODO TODO validate request
-                    request = ImhotepProtobufShipping.readRequest(is);
-
-                    requestContext = new RequestContext(request);
-                    RequestContext.THREAD_REQUEST_CONTEXT.set(requestContext);
-
-                    if (request.hasSessionId()) {
-                        NDC.push(request.getSessionId());
-                    }
-
-                    log.debug("received request of type " + request.getRequestType() +
-                             ", building response");
-                    final ImhotepResponse.Builder builder = ImhotepResponse.newBuilder();
-                    switch (request.getRequestType()) {
-                        case OPEN_SESSION:
-                            response = openSession(request, builder);
-                            break;
-                        case CLOSE_SESSION:
-                            response = closeSession(request, builder);
-                            break;
-                        case QUERY_REGROUP:
+            final ImhotepResponse.Builder builder = ImhotepResponse.newBuilder();
+            switch (request.getRequestType()) {
+                case OPEN_SESSION:
+                    response = openSession(request, builder);
+                    break;
+                case CLOSE_SESSION:
+                    response = closeSession(request, builder);
+                    break;
+                case QUERY_REGROUP:
                             response = queryRegroup(request, builder);
                             break;
                         case INT_OR_REGROUP:
@@ -1060,15 +1098,80 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                             groupStats = Preconditions.checkNotNull(responseAndMultiDistinctSplit.getSecond());
                             break;
                         case REMAP_GROUPS:
-                            response = remapGroups(request, builder);
-                            break;
-                        case SHUTDOWN:
-                            shutdown(request, is, os);
-                            break;
-                        default:
-                            throw new IllegalArgumentException("unsupported request type: " +
-                                                               request.getRequestType());
+                            response = remapGroups(request, builder);break;
+                case GET_SHARD_FILE:
+                    getAndSendShardFile(request, builder, os);
+                    break;
+                case GET_SHARD_FILE_ATTRIBUTES:
+                    response = getShardFileAttributes(request, builder);
+                    break;
+                case LIST_SHARD_FILE_ATTRIBUTES:
+                    response = listShardFileAttributes(request, builder);
+                    break;
+                case BATCH_REQUESTS:
+                    final Pair<ImhotepResponse, GroupStatsIterator> responseGroupStatsIteratorPair = executeBatchRequest(request, is, builder);
+                    response = responseGroupStatsIteratorPair.getFirst();
+                    groupStats = responseGroupStatsIteratorPair.getSecond();
+                    break;
+                case SHUTDOWN:
+                    shutdown(request, is, os);
+                    break;
+                default:
+                    throw new IllegalArgumentException("unsupported request type: " +
+                            request.getRequestType());
+            }
+
+            return Pair.of(response, groupStats);
+        }
+
+        /**
+         * Run and check if client socket has been closed.
+         * @return true if it's closed, otherwise false
+         */
+        private boolean internalRun() {
+            ImhotepRequest request = null;
+            boolean socketClosed = false;
+            try {
+                final long beginTm = System.currentTimeMillis();
+
+                final String remoteAddr = socket.getInetAddress().getHostAddress();
+
+                final InputStream  is = Streams.newBufferedInputStream(socket.getInputStream());
+                final OutputStream os = Streams.newBufferedOutputStream(socket.getOutputStream());
+
+                final int  ndcDepth  = NDC.getDepth();
+                final long requestId = requestIdCounter.incrementAndGet();
+
+                ImhotepResponse response = null;
+                GroupStatsIterator groupStats = null;
+
+                NDC.push("#" + requestId);
+
+                RequestContext requestContext = null;
+
+                try {
+                    log.debug("getting request");
+                    // TODO TODO TODO validate request
+                    try {
+                        request = ImhotepProtobufShipping.readRequest(is);
+                    } catch (final EOFException e) {
+                        close(socket, is, os);
+                        return true;
                     }
+
+                    requestContext = new RequestContext(request);
+                    RequestContext.THREAD_REQUEST_CONTEXT.set(requestContext);
+
+                    if (request.hasSessionId()) {
+                        NDC.push(request.getSessionId());
+                    }
+
+                    log.debug("received request of type " + request.getRequestType() +
+                             ", building response");
+                    final Pair<ImhotepResponse, GroupStatsIterator> responseGroupStatsIteratorPair = handleImhotepRequest(request, is, os);
+
+                    response = responseGroupStatsIteratorPair.getFirst();
+                    groupStats = responseGroupStatsIteratorPair.getSecond();
                     if (response != null) {
                         sendResponseAndGroupStats(response, groupStats, os);
                     }
@@ -1076,8 +1179,8 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                     expireSession(request, e);
                     final ImhotepResponse.ResponseCode oom =
                         ImhotepResponse.ResponseCode.OUT_OF_MEMORY;
-                    sendResponse(ImhotepResponse.newBuilder().setResponseCode(oom).build(), os);
                     log.warn("ImhotepOutOfMemoryException while servicing request", e);
+                    sendResponse(ImhotepResponse.newBuilder().setResponseCode(oom).build(), os);
                 } catch (final IOException e) {
                     try {
                         sendResponse(newErrorResponse(e), os);
@@ -1118,7 +1221,10 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                     }
                     NDC.setMaxDepth(ndcDepth);
                     Closeables2.closeQuietly(groupStats, log);
-                    close(socket, is, os);
+                    if (request != null && !REQUEST_TYPES_NOT_CLOSING_SOCKET.contains(request.getRequestType())) {
+                        close(socket, is, os);
+                        socketClosed = true;
+                    }
                 }
             } catch (final IOException e) {
                 expireSession(request,e );
@@ -1129,6 +1235,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 }
                 throw new RuntimeException(e);
             }
+            return socketClosed;
         }
 
         private void checkSessionValidity(final ImhotepRequest protoRequest) {
@@ -1140,19 +1247,6 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 throw new InvalidSessionException("invalid session: " +
                         sessionId);
             }
-        }
-
-        private ImhotepResponse newErrorResponse(final Exception e) {
-            final ImhotepResponse.Builder builder = ImhotepResponse.newBuilder()
-                    .setExceptionType(e.getClass().getName())
-                    .setExceptionMessage(e.getMessage() != null ? e.getMessage() : "")
-                    .setExceptionStackTrace(Throwables.getStackTraceAsString(e));
-            if ((e instanceof ImhotepKnownException)) {
-                builder.setResponseCode(ImhotepResponse.ResponseCode.KNOWN_ERROR);
-            } else {
-                builder.setResponseCode(ImhotepResponse.ResponseCode.OTHER_ERROR);
-            }
-            return builder.build();
         }
 
         private void expireSession(final ImhotepRequest protoRequest, final Exception reason) {
@@ -1380,14 +1474,18 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                                           final long memoryCapacityInMB,
                                           final String zkNodes,
                                           final String zkPath,
-                                          final @Nullable Integer sessionForwardingPort,
+                                          @Nullable final Integer sessionForwardingPort,
                                           @Nullable LocalImhotepServiceConfig localImhotepServiceConfig) throws IOException, URISyntaxException {
+
+        if(localImhotepServiceConfig == null) {
+            localImhotepServiceConfig = new LocalImhotepServiceConfig();
+        }
+
         final AbstractImhotepServiceCore localService;
 
         // initialize the imhotepfs if necessary
         RemoteCachingFileSystemProvider.setStatsEmitter(localImhotepServiceConfig.getStatsEmitter());
         RemoteCachingFileSystemProvider.newFileSystem();
-
 
         final Path shardsDir = NioPathUtil.get(shardsDirectory);
         final Path tmpDir = NioPathUtil.get(shardTempDir);
@@ -1398,18 +1496,15 @@ public class ImhotepDaemon implements Instrumentation.Provider {
         } else {
             myHostname = InetAddress.getLocalHost().getCanonicalHostName();
         }
-        final ServerSocket ss = new ServerSocket(port);
-        final Host myHost = new Host(myHostname, ss.getLocalPort());
 
-        if(localImhotepServiceConfig == null) {
-            localImhotepServiceConfig = new LocalImhotepServiceConfig();
-        }
+        final ServerSocket ss = new ServerSocket(port);
 
         localService = new LocalImhotepServiceCore(tmpDir,
                 memoryCapacityInMB * 1024 * 1024,
                 null,
                 localImhotepServiceConfig,
-                shardsDir);
+                shardsDir,
+                new Host(myHostname, port));
         final ImhotepDaemon result =
                 new ImhotepDaemon(ss, localService, zkNodes, zkPath, myHostname, port, sessionForwardingPort);
         localService.addObserver(result.getServiceCoreObserver());

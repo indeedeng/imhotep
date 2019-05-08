@@ -27,6 +27,7 @@ import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.api.PerformanceStats;
 import com.indeed.imhotep.client.ImhotepClient;
 import com.indeed.imhotep.metrics.aggregate.AggregateStatTree;
+import com.indeed.imhotep.protobuf.StatsSortOrder;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import org.joda.time.DateTime;
 import org.junit.After;
@@ -94,7 +95,9 @@ public class TestMultiFTGS {
 
     @Before
     public void setUp() {
-        clusterRunner = new ShardMasterAndImhotepDaemonClusterRunner(rootDir.newFolder("shards"), rootDir.newFolder("temp"));
+        clusterRunner = new ShardMasterAndImhotepDaemonClusterRunner(
+                rootDir.newFolder("shards").toPath(),
+                rootDir.newFolder("temp").toPath());
     }
 
     @After
@@ -203,7 +206,8 @@ public class TestMultiFTGS {
                     Lists.newArrayList(),
                     false,
                     0,
-                    -1
+                    -1,
+                    StatsSortOrder.UNDEFINED
             )) {
                 assertTrue(iterator.nextField());
                 assertEquals("magic", iterator.fieldName());
@@ -226,7 +230,8 @@ public class TestMultiFTGS {
                     Lists.newArrayList(count.gt(constant(2.0))),
                     false,
                     0,
-                    -1
+                    -1,
+                    StatsSortOrder.UNDEFINED
             )) {
                 assertTrue(iterator.nextField());
                 assertEquals("magic", iterator.fieldName());
@@ -247,7 +252,8 @@ public class TestMultiFTGS {
                     Lists.newArrayList(count.gt(constant(2.0))),
                     false,
                     0,
-                    -1
+                    -1,
+                    StatsSortOrder.UNDEFINED
             )) {
                 assertTrue(iterator.nextField());
                 assertEquals("magic", iterator.fieldName());
@@ -266,7 +272,8 @@ public class TestMultiFTGS {
                     Lists.newArrayList(count.gt(constant(100.0))),
                     false,
                     0,
-                    -1
+                    -1,
+                    StatsSortOrder.UNDEFINED
             )) {
                 assertTrue(iterator.nextField());
                 assertEquals("magic", iterator.fieldName());
@@ -282,7 +289,8 @@ public class TestMultiFTGS {
                     Lists.newArrayList(count.gte(constant(2.0))),
                     false,
                     0,
-                    -1
+                    -1,
+                    StatsSortOrder.UNDEFINED
             )) {
                 assertTrue(iterator.nextField());
                 assertEquals("magic", iterator.fieldName());
@@ -314,7 +322,8 @@ public class TestMultiFTGS {
                     Lists.newArrayList(),
                     false,
                     0,
-                    -1
+                    -1,
+                    StatsSortOrder.UNDEFINED
             )) {
                 assertTrue(iterator.nextField());
                 assertEquals("magic", iterator.fieldName());
@@ -346,7 +355,8 @@ public class TestMultiFTGS {
                     Lists.newArrayList(clicks.divide(impressions).gte(constant(0.25))),
                     false,
                     0,
-                    -1
+                    -1,
+                    StatsSortOrder.UNDEFINED
             )) {
                 assertTrue(iterator.nextField());
                 assertEquals("magic", iterator.fieldName());
@@ -479,7 +489,8 @@ public class TestMultiFTGS {
                     Lists.newArrayList(),
                     false,
                     0,
-                    -1
+                    -1,
+                    StatsSortOrder.UNDEFINED
             )) {
                 assertTrue(iterator.nextField());
                 assertEquals("magic", iterator.fieldName());
@@ -513,7 +524,8 @@ public class TestMultiFTGS {
                     Lists.newArrayList(),
                     false,
                     0,
-                    -1
+                    -1,
+                    StatsSortOrder.UNDEFINED
             )) {
                 assertTrue(iterator.nextField());
                 assertEquals("magic", iterator.fieldName());
@@ -541,7 +553,8 @@ public class TestMultiFTGS {
                     Lists.newArrayList(count1.gt(count2)),
                     false,
                     0,
-                    -1
+                    -1,
+                    StatsSortOrder.UNDEFINED
             )) {
                 assertTrue(iterator.nextField());
                 assertEquals("magic", iterator.fieldName());
@@ -565,7 +578,8 @@ public class TestMultiFTGS {
                     Lists.newArrayList(),
                     false,
                     1,
-                    -1
+                    -1,
+                    StatsSortOrder.UNDEFINED
             )) {
                 assertTrue(iterator.nextField());
                 assertEquals("magic", iterator.fieldName());
@@ -596,7 +610,8 @@ public class TestMultiFTGS {
                     false,
                     3,
                     -1,
-                    sortedFTGS
+                    sortedFTGS,
+                    StatsSortOrder.UNDEFINED
             )) {
                 assertTrue(iterator.nextField());
                 assertEquals("magic", iterator.fieldName());
@@ -635,7 +650,8 @@ public class TestMultiFTGS {
                     false,
                     100,
                     -1,
-                    sortedFTGS
+                    sortedFTGS,
+                    StatsSortOrder.UNDEFINED
             )) {
                 assertTrue(iterator.nextField());
                 assertEquals("magic", iterator.fieldName());
@@ -675,7 +691,8 @@ public class TestMultiFTGS {
                     Lists.newArrayList(count1.plus(count2).gt(constant(10.0))),
                     false,
                     1,
-                    -1
+                    -1,
+                    StatsSortOrder.UNDEFINED
             )) {
                 assertTrue(iterator.nextField());
                 assertEquals("magic", iterator.fieldName());
@@ -706,7 +723,8 @@ public class TestMultiFTGS {
                     Lists.newArrayList(),
                     false,
                     1,
-                    0
+                    0,
+                    StatsSortOrder.ASCENDING
             )) {
                 assertTrue(iterator.nextField());
                 assertEquals("magic", iterator.fieldName());
@@ -714,6 +732,29 @@ public class TestMultiFTGS {
 
                 expectStrTerm(iterator,"US", 150);
                 expectGroup(iterator, 1, new double[]{150});
+
+                expectEnd(iterator);
+            }
+
+            // GROUP BY country[BOTTOM 1 BY count()]
+            try (FTGAIterator iterator = multiFtgs(
+                    ImmutableList.of(
+                            new SessionField(session1, "country", stats1),
+                            new SessionField(session2, "country", stats2)
+                    ),
+                    Lists.newArrayList(count1.plus(count2)),
+                    Lists.newArrayList(),
+                    false,
+                    1,
+                    0,
+                    StatsSortOrder.DESCENDING
+            )) {
+                assertTrue(iterator.nextField());
+                assertEquals("magic", iterator.fieldName());
+                assertFalse(iterator.fieldIsIntType());
+
+                expectStrTerm(iterator,"GB", 1);
+                expectGroup(iterator, 1, new double[]{1});
 
                 expectEnd(iterator);
             }
@@ -728,7 +769,8 @@ public class TestMultiFTGS {
                     Lists.newArrayList(),
                     false,
                     1,
-                    0
+                    0,
+                    StatsSortOrder.ASCENDING
             )) {
                 assertTrue(iterator.nextField());
                 assertEquals("magic", iterator.fieldName());
@@ -736,6 +778,29 @@ public class TestMultiFTGS {
 
                 expectStrTerm(iterator,"JP", 70);
                 expectGroup(iterator, 1, new double[]{50});
+
+                expectEnd(iterator);
+            }
+
+            // GROUP BY country[BOTTOM 1 BY dataset2.count()]
+            try (FTGAIterator iterator = multiFtgs(
+                    ImmutableList.of(
+                            new SessionField(session1, "country", stats1),
+                            new SessionField(session2, "country", stats2)
+                    ),
+                    Lists.newArrayList(count2),
+                    Lists.newArrayList(),
+                    false,
+                    1,
+                    0,
+                    StatsSortOrder.DESCENDING
+            )) {
+                assertTrue(iterator.nextField());
+                assertEquals("magic", iterator.fieldName());
+                assertFalse(iterator.fieldIsIntType());
+
+                expectStrTerm(iterator,"AU", 10);
+                expectGroup(iterator, 1, new double[]{0});
 
                 expectEnd(iterator);
             }
@@ -750,7 +815,8 @@ public class TestMultiFTGS {
                     Lists.newArrayList(),
                     false,
                     2,
-                    1
+                    1,
+                    StatsSortOrder.ASCENDING
             )) {
                 assertTrue(iterator.nextField());
                 assertEquals("magic", iterator.fieldName());
@@ -775,7 +841,8 @@ public class TestMultiFTGS {
                     Lists.newArrayList(count1.lte(constant(20))),
                     false,
                     1,
-                    0
+                    0,
+                    StatsSortOrder.ASCENDING
             )) {
                 assertTrue(iterator.nextField());
                 assertEquals("magic", iterator.fieldName());
@@ -783,6 +850,29 @@ public class TestMultiFTGS {
 
                 expectStrTerm(iterator,"JP", 70);
                 expectGroup(iterator, 1, new double[]{70});
+
+                expectEnd(iterator);
+            }
+
+            // GROUP BY country[BOTTOM 1 BY count()] HAVING dataset1.count() <= 20
+            try (FTGAIterator iterator = multiFtgs(
+                    ImmutableList.of(
+                            new SessionField(session1, "country", stats1),
+                            new SessionField(session2, "country", stats2)
+                    ),
+                    Lists.newArrayList(count1.plus(count2)),
+                    Lists.newArrayList(count1.lte(constant(20))),
+                    false,
+                    1,
+                    0,
+                    StatsSortOrder.DESCENDING
+            )) {
+                assertTrue(iterator.nextField());
+                assertEquals("magic", iterator.fieldName());
+                assertFalse(iterator.fieldIsIntType());
+
+                expectStrTerm(iterator,"GB", 1);
+                expectGroup(iterator, 1, new double[]{1});
 
                 expectEnd(iterator);
             }
@@ -800,7 +890,8 @@ public class TestMultiFTGS {
                     Lists.newArrayList(),
                     false,
                     0,
-                    -1
+                    -1,
+                    StatsSortOrder.UNDEFINED
             )) {
                 assertTrue(iterator.nextField());
                 assertEquals("magic", iterator.fieldName());
@@ -826,7 +917,8 @@ public class TestMultiFTGS {
             final List<AggregateStatTree> filters,
             final boolean isIntField,
             final long termLimit,
-            final int sortStat
+            final int sortStat,
+            final StatsSortOrder statsSortOrder
     ) throws ImhotepOutOfMemoryException {
         FTGAIterator iterator = RemoteImhotepMultiSession.multiFtgs(
                 sessionsWithFields,
@@ -835,7 +927,8 @@ public class TestMultiFTGS {
                 isIntField,
                 termLimit,
                 sortStat,
-                sortedFTGS
+                sortedFTGS,
+                statsSortOrder
         );
 
         if (!sortedFTGS) {
@@ -939,7 +1032,8 @@ public class TestMultiFTGS {
                 false,
                 termLimit,
                 -1,
-                sortedFTGS
+                sortedFTGS,
+                StatsSortOrder.UNDEFINED
         );
     }
 }

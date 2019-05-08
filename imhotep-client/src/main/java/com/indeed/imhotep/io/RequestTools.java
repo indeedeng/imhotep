@@ -8,6 +8,8 @@ import com.indeed.imhotep.GroupMultiRemapRule;
 import com.indeed.imhotep.marshal.ImhotepClientMarshaller;
 import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
 import com.indeed.imhotep.protobuf.ImhotepRequest;
+import lombok.EqualsAndHashCode;
+import lombok.ToString;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
@@ -127,6 +129,8 @@ public class RequestTools {
         void writeToStreamNoFlush(final OutputStream os) throws IOException;
 
         // Wrapper over message array, each message is encoded on every call of writeToStreamNoFlush
+        @EqualsAndHashCode
+        @ToString
         class Simple implements GroupMultiRemapRuleSender {
 
             private final Collection<GroupMultiRemapMessage> messages;
@@ -156,6 +160,8 @@ public class RequestTools {
         }
 
         // Holder of encoded messages
+        @EqualsAndHashCode
+        @ToString
         class Cached implements GroupMultiRemapRuleSender {
 
             private final int rulesCount;

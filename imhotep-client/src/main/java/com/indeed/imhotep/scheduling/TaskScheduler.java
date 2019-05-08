@@ -172,7 +172,7 @@ public class TaskScheduler {
             return () -> {}; // can't lock with no task
         }
 
-        final boolean hadAlock = stopped(task);
+        final boolean hadAlock = stopped(task, true);
         if(!hadAlock) {
             return () -> {};
         } else {
@@ -206,9 +206,11 @@ public class TaskScheduler {
     }
 
     /** returns true iff a task was running */
-    synchronized boolean stopped(ImhotepTask task) {
+    synchronized boolean stopped(ImhotepTask task, boolean ignoreNotRunning) {
         if(!runningTasks.remove(task)) {
-            statsEmitter.count("scheduler." + schedulerType + ".stop.already.stopped", 1);
+            if(!ignoreNotRunning) {
+                statsEmitter.count("scheduler." + schedulerType + ".stop.already.stopped", 1);
+            }
             return false;
         }
         final long consumption = task.stopped(schedulerType);

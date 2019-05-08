@@ -1,0 +1,33 @@
+plugins {
+    id 'com.google.protobuf' version '0.8.8' apply false
+}
+
+subprojects {
+    apply plugin: 'java'
+    apply plugin: 'idea'
+    apply plugin: 'com.google.protobuf'
+
+    group = 'com.indeed'
+
+    repositories {
+        mavenLocal()
+        maven { url = 'https://repository.cloudera.com/artifactory/cloudera-repos/' }
+        mavenCentral()
+    }
+
+    protobuf {
+        protoc {
+            artifact = 'com.google.protobuf:protoc:2.5.0'
+        }
+    }
+
+    sourceCompatibility = '1.8'
+
+    tasks.withType(JavaCompile) {
+        options.encoding = 'UTF-8'
+    }
+
+    javadoc {
+        options.encoding = 'UTF-8'
+    }
+}
