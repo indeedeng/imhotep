@@ -51,6 +51,7 @@ message SessionDumpMessage {
   optional string client_name = 9 [default = ""];
   optional uint64 used_memory = 10 [default = 0];
   optional uint64 max_used_memory = 11 [default = 0];
+  optional int32 priority = 12 [default = 0];
 }
 
 message ShardDumpMessage {

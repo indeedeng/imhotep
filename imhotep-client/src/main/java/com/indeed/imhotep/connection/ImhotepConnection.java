@@ -29,7 +29,7 @@ public class ImhotepConnection implements Closeable {
     /**
      * Mark a connection as invalid and remove it from the connection pool
      */
-    void markAsInvalid() {
+    public void markAsInvalid() {
         if (closedOrInvalidated.getAndSet(true)) {
             return;
         }

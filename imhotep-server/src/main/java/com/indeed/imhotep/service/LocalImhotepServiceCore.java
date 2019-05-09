@@ -336,6 +336,7 @@ public class LocalImhotepServiceCore
             String username,
             String clientName,
             String ipAddress,
+            byte priority,
             int clientVersion,
             int mergeThreadLimit,
             boolean optimizeGroupZeroLookups,
@@ -365,7 +366,7 @@ public class LocalImhotepServiceCore
         try {
             // Construct flamdex readers
             final List<ConcurrentFlamdexReaderFactory.CreateRequest> readerRequests =
-                    shardRequestListToFlamdexReaderRequests(dataset, shardRequestList, username, clientName);
+                    shardRequestListToFlamdexReaderRequests(dataset, shardRequestList, username, clientName, priority);
             final Map<Path, SharedReference<CachedFlamdexReader>> flamdexes = flamderReaderFactory.constructFlamdexReaders(readerRequests);
 
             // Construct local sessions using the above readers
@@ -395,7 +396,8 @@ public class LocalImhotepServiceCore
                     new MemoryReservationContext(multiSessionMemoryContext),
                     tempFileSizeBytesLeft,
                     username,
-                    clientName);
+                    clientName,
+                    priority);
 
             // create flamdex reference copies for the session manager
             final Map<Path, CachedFlamdexReaderReference> flamdexesForSessionManager = Maps.newHashMap();
@@ -404,7 +406,7 @@ public class LocalImhotepServiceCore
             }
             getSessionManager().
                     addSession(sessionId, session, flamdexesForSessionManager, username, clientName,
-                            ipAddress, clientVersion, dataset, sessionTimeout, multiSessionMemoryContext);
+                            ipAddress, clientVersion, dataset, sessionTimeout, priority, multiSessionMemoryContext);
             session.addObserver(observer);
         }
         catch (final RuntimeException | ImhotepOutOfMemoryException ex) {
@@ -421,7 +423,8 @@ public class LocalImhotepServiceCore
     private List<ConcurrentFlamdexReaderFactory.CreateRequest> shardRequestListToFlamdexReaderRequests(final String dataset,
                                                                                                        final List<ShardBasicInfoMessage> shardRequestList,
                                                                                                        final String userName,
-                                                                                                       final String clientName) {
+                                                                                                       final String clientName,
+                                                                                                       final byte priority) {
         final List<ConcurrentFlamdexReaderFactory.CreateRequest> readerRequests = Lists.newArrayList();
         for (final ShardBasicInfoMessage aShardRequestList : shardRequestList) {
             final String shardName = aShardRequestList.getShardName();
@@ -432,7 +435,8 @@ public class LocalImhotepServiceCore
                 shardOwner = new Host(protoOwner.getHost(), protoOwner.getPort());
             }
             final ShardHostInfo shardHostInfo = new ShardHostInfo(shardName, shardOwner);
-            readerRequests.add(new ConcurrentFlamdexReaderFactory.CreateRequest(dataset, shardHostInfo, numDocs, userName, clientName));
+            readerRequests.add(new ConcurrentFlamdexReaderFactory.CreateRequest(dataset, shardHostInfo, numDocs,
+                    userName, clientName, priority));
         }
         return readerRequests;
     }

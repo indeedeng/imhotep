@@ -43,6 +43,7 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
     private final long taskId;
     final String userName;
     private final String clientName;
+    final byte priority;
     private final Thread taskThread;
     @Nullable private final RequestContext requestContext;
     @Nullable private final String dataset;
@@ -66,11 +67,12 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
     public static void setup(
             final String userName,
             final String clientName,
+            final byte priority,
             final String dataset,
             final String shardName,
             final int numDocs
     ) {
-        final ImhotepTask task = new ImhotepTask(userName, clientName, null, dataset, shardName, numDocs);
+        final ImhotepTask task = new ImhotepTask(userName, clientName, priority, null, dataset, shardName, numDocs);
         ImhotepTask.THREAD_LOCAL_TASK.set(task);
     }
 
@@ -91,6 +93,7 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
     private ImhotepTask(
             final String userName,
             final String clientName,
+            final byte priority,
             @Nullable final AbstractImhotepMultiSession session,
             @Nullable final String dataset,
             @Nullable final String shardName,
@@ -98,6 +101,7 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
     ) {
         this.userName = userName;
         this.clientName = clientName;
+        this.priority = priority;
         this.taskThread = Thread.currentThread();
         this.requestContext = RequestContext.THREAD_REQUEST_CONTEXT.get();
         this.dataset = dataset;
@@ -109,7 +113,7 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
     }
 
     private ImhotepTask(AbstractImhotepMultiSession session) {
-        this(session.getUserName(), session.getClientName(), session, null, null, null);
+        this(session.getUserName(), session.getClientName(), session.getPriority(), session, null, null, null);
     }
 
     synchronized void preExecInitialize(TaskScheduler newOwnerScheduler) {
@@ -182,7 +186,8 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
         String taskStringVal ="ImhotepTask{" +
                 "taskId=" + taskId +
                 ", userName='" + userName + '\'' +
-                ", clientName='" + clientName + '\'';
+                ", clientName='" + clientName + '\'' +
+                ", priority='" + priority + '\'';
         if (session != null) {
             taskStringVal += ", sessionID='" + session.getSessionId() + '\'';
         }
@@ -271,6 +276,7 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
                     this.dataset,
                     this.shardName,
                     this.numDocs,
+                    this.priority,
                     this.lastExecutionStartTime,
                     this.lastWaitStartTime,
                     this.totalExecutionTime,

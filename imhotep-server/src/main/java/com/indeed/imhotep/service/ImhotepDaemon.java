@@ -87,6 +87,7 @@ import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
@@ -95,6 +96,7 @@ import static com.indeed.imhotep.utils.ImhotepResponseUtils.newErrorResponse;
 
 public class ImhotepDaemon implements Instrumentation.Provider {
     private static final Logger log = Logger.getLogger(ImhotepDaemon.class);
+    private static final int SERVER_SOCKET_TIMEOUT = (int) TimeUnit.SECONDS.toMillis(60);
 
     private final ServerSocket ss;
 
@@ -189,7 +191,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             while (!ss.isClosed()) {
                 try {
                     final Socket socket = ss.accept();
-                    socket.setSoTimeout(60000);
+                    socket.setSoTimeout(SERVER_SOCKET_TIMEOUT);
                     socket.setTcpNoDelay(true);
                     log.debug("received connection, running");
                     executor.execute(new DaemonWorker(socket));
@@ -312,6 +314,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                                 request.getUsername(),
                                 request.getClientName(),
                                 inetAddress.getHostAddress(),
+                                (byte) request.getSessionPriority(),
                                 request.getClientVersion(),
                                 request.getMergeThreadLimit(),
                                 request.getOptimizeGroupZeroLookups(),
@@ -1208,6 +1211,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                     try {
                         request = ImhotepProtobufShipping.readRequest(is);
                     } catch (final EOFException e) {
+                        close(socket, is, os);
                         return true;
                     }
 

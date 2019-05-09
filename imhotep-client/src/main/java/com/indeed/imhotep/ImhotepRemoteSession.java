@@ -100,6 +100,8 @@ public class ImhotepRemoteSession
     public static final int DEFAULT_MERGE_THREAD_LIMIT =
         ImhotepRequest.getDefaultInstance().getMergeThreadLimit();
 
+    public static final byte DEFAULT_PRIORITY = 0;
+
     static final int DEFAULT_SOCKET_TIMEOUT = (int)TimeUnit.MINUTES.toMillis(30);
 
     private static final int CURRENT_CLIENT_VERSION = 2; // id to be incremented as changes to the client are done
@@ -193,12 +195,12 @@ public class ImhotepRemoteSession
                                                    @Nullable final AtomicLong tempFileSizeBytesLeft,
                                                    final long sessionTimeout, final long numDocs) throws ImhotepOutOfMemoryException, IOException {
 
-        return openSession(host, port, dataset, shards, mergeThreadLimit, username, "", optimizeGroupZeroLookups, socketTimeout, sessionId, tempFileSizeLimit, tempFileSizeBytesLeft, sessionTimeout, false, numDocs, false);
+        return openSession(host, port, dataset, shards, mergeThreadLimit, username, "", DEFAULT_PRIORITY, optimizeGroupZeroLookups, socketTimeout, sessionId, tempFileSizeLimit, tempFileSizeBytesLeft, sessionTimeout, false, numDocs, false);
     }
 
 
     public static ImhotepRemoteSession openSession(final String host, final int port, final String dataset, final List<Shard> shards,
-                                                   final int mergeThreadLimit, final String username, final String clientName,
+                                                   final int mergeThreadLimit, final String username, final String clientName, final byte priority,
                                                    final boolean optimizeGroupZeroLookups, final int socketTimeout,
                                                    @Nullable String sessionId, final long tempFileSizeLimit,
                                                    @Nullable final AtomicLong tempFileSizeBytesLeft,
@@ -214,6 +216,7 @@ public class ImhotepRemoteSession
             final ImhotepRequest openSessionRequest = getBuilderForType(ImhotepRequest.RequestType.OPEN_SESSION)
                     .setUsername(username)
                     .setClientName(clientName)
+                    .setSessionPriority(priority)
                     .setDataset(dataset)
                     .setMergeThreadLimit(mergeThreadLimit)
                     .addAllShards(shards.stream().map(shard -> {

@@ -55,7 +55,7 @@ public class TestImhotepMultiSession {
                     new ImhotepLocalSession[] { s1, s2 },
                     new MemoryReservationContext(new ImhotepMemoryPool(0)),
                     null,
-                    "", "")
+                    "", "", (byte)0)
         ){
             // groups: s1=[1], s2=[1]
 

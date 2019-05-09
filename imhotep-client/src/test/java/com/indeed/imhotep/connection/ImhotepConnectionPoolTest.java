@@ -2,8 +2,8 @@ package com.indeed.imhotep.connection;
 
 import com.indeed.imhotep.client.Host;
 import org.apache.commons.pool2.impl.GenericKeyedObjectPool;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -12,6 +12,7 @@ import java.net.Socket;
 import java.net.SocketTimeoutException;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
@@ -22,6 +23,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
 
@@ -30,27 +32,27 @@ import static org.junit.Assert.fail;
  */
 public class ImhotepConnectionPoolTest {
 
-    private static Host host1;
-    private static Host host2;
+    private Host host1;
+    private Host host2;
 
-    private static ServerSocket serverSocket1;
-    private static ServerSocket serverSocket2;
+    private ServerSocket serverSocket1;
+    private ServerSocket serverSocket2;
 
-    private static ImhotepConnectionPool testConnnectionPool;
+    private ImhotepConnectionPool testConnnectionPool;
 
-    @BeforeClass
-    public static void initialize() throws IOException {
+    @Before
+    public void initialize() throws IOException {
         serverSocket1 = new ServerSocket(0);
         serverSocket2 = new ServerSocket(0);
 
         host1 = new Host("localhost", serverSocket1.getLocalPort());
         host2 = new Host("localhost", serverSocket2.getLocalPort());
 
-        testConnnectionPool = ImhotepConnectionPool.INSTANCE;
+        testConnnectionPool = new ImhotepConnectionPool(100, 1000);
     }
 
-    @AfterClass
-    public static void tearUp() throws IOException {
+    @After
+    public void tearUp() throws IOException {
         serverSocket1.close();
         serverSocket2.close();
         testConnnectionPool.close();
@@ -90,6 +92,14 @@ public class ImhotepConnectionPoolTest {
         });
     }
 
+    @Test
+    public void testInvalidateTimeoutSocket() throws Exception {
+        final Socket firstSocket = testConnnectionPool.getConnection(host1).getSocket();
+        Thread.sleep(200);
+
+        final Socket secondSocket = testConnnectionPool.getConnection(host1).getSocket();
+        assertFalse(Objects.equals(firstSocket, secondSocket));
+    }
 
     /** As methods close and markAsInvalid swallow exceptions happening inside with logging.
      * Here following 4 tests manually close/markAsInvalid to ensure they work well */
