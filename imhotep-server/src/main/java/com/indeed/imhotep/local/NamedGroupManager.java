@@ -1,10 +1,10 @@
 package com.indeed.imhotep.local;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Sets;
 import com.indeed.imhotep.MemoryReservationContext;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.RegroupParams;
-import org.apache.log4j.Logger;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -13,8 +13,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 public class NamedGroupManager implements Closeable {
-    private static final Logger log = Logger.getLogger(NamedGroupManager.class);
-
     // TODO: put SessionID in NDC and remove fields and logging
     private final String sessionId;
     private final MemoryReservationContext memory;
@@ -60,7 +58,9 @@ public class NamedGroupManager implements Closeable {
     }
 
     public GroupLookup get(final String name) {
-        return groups.get(name);
+        final GroupLookup result = groups.get(name);
+        Preconditions.checkArgument(result != null, "The specified groups do not exist: " + name);
+        return result;
     }
 
     /**
@@ -127,10 +127,9 @@ public class NamedGroupManager implements Closeable {
      * @throws ImhotepOutOfMemoryException if allocating exhausts memory
      */
     private void resize(final String name, final int maxGroup) throws ImhotepOutOfMemoryException {
-        final GroupLookup groupsHolder = groups.get(name);
-        if (groupsHolder != null) {
-            groups.put(name, GroupLookupFactory.resize(groupsHolder, maxGroup, memory));
-        }
+        final GroupLookup lookup = get(name);
+        // Deliberately not calling "putAlreadyClaimed" because resize accounted for any freeing necessary.
+        groups.put(name, GroupLookupFactory.resize(lookup, maxGroup, memory));
     }
 
     /**
@@ -141,11 +140,10 @@ public class NamedGroupManager implements Closeable {
      * @param name the groups to shrink
      * @throws ImhotepOutOfMemoryException if allocating the shrunk {@link GroupLookup} causes ImhotepOutOfMemoryException
      */
-    public void trytoShrink(final String name) throws ImhotepOutOfMemoryException {
-        final GroupLookup groupsHolder = groups.get(name);
-        if (groupsHolder != null) {
-            groups.put(name, GroupLookupFactory.resize(groupsHolder, 0, memory, true));
-        }
+    private void tryToShrink(final String name) throws ImhotepOutOfMemoryException {
+        final GroupLookup lookup = get(name);
+        // Deliberately not calling "putAlreadyClaimed" because resize accounted for any freeing necessary.
+        groups.put(name, GroupLookupFactory.resize(lookup, 0, memory, true));
     }
 
     /**
@@ -165,7 +163,7 @@ public class NamedGroupManager implements Closeable {
             numGroups = preShrinkGL.getNumGroups();
         }
 
-        trytoShrink(outputGroups);
+        tryToShrink(outputGroups);
         return numGroups;
     }
 

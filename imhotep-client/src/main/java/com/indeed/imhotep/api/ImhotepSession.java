@@ -491,6 +491,14 @@ public interface ImhotepSession
      */
     List<TermCount> approximateTopTerms(String field, boolean isIntField, int k);
 
+    /**
+     * Combine the different named input groups together on a per-document using the specified operator.
+     * The resulting groups will be stored in the specified outputGroups.
+     * @param inputGroups collection of named input groups
+     * @param operation operator to use
+     * @param outputGroups where to store the result
+     * @throws ImhotepOutOfMemoryException if performing this operation would cause imhotep to run out of memory
+     */
     void consolidateGroups(final List<String> inputGroups, final Operator operation, final String outputGroups) throws ImhotepOutOfMemoryException;
 
     /**
