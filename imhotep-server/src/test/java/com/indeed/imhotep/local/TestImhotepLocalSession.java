@@ -30,14 +30,15 @@ import com.indeed.imhotep.MemoryReservationContext;
 import com.indeed.imhotep.QueryRemapRule;
 import com.indeed.imhotep.RegroupCondition;
 import com.indeed.imhotep.api.FTGSIterator;
-import com.indeed.imhotep.api.FTGSParams;
 import com.indeed.imhotep.api.GroupStatsIterator;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.PerformanceStats;
+import com.indeed.imhotep.exceptions.MultiValuedFieldUidTimestampException;
 import com.indeed.imhotep.group.IterativeHasher;
 import com.indeed.imhotep.group.IterativeHasherUtils;
 import com.indeed.imhotep.io.TestFileUtils;
 import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
 import org.joda.time.Interval;
 import org.junit.Assert;
 import org.junit.Test;
@@ -1773,6 +1774,27 @@ public class TestImhotepLocalSession {
             assertArrayEquals(new long[] {0, 0, 0, 1, 1, 1, 1, 2, 2, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1}, stats1);
             assertArrayEquals(new long[] {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, stats2);
             assertArrayEquals(new long[] {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}, stats3);
+        }
+    }
+
+    @Test
+    public void testPushStatUidToUnixtime() throws ImhotepOutOfMemoryException {
+        final FlamdexReader r = MakeAFlamdex.make();
+        try (ImhotepLocalSession session = new ImhotepJavaLocalSession("testLocalSession", r, null)) {
+            session.metricRegroup(singletonList("docId()"), (long) 0, (long) session.numDocs, (long) 1, true);
+            final long[] stats = session.getGroupStats(singletonList("uid_to_unixtime uid"));
+            final long a = new DateTime(2019, 4, 17, 6, 33, 24, DateTimeZone.UTC).getMillis() / 1000;
+            final long b = new DateTime(2019, 4, 17, 11, 0, 0, DateTimeZone.UTC).getMillis() / 1000;
+            final long z = -1;
+            assertArrayEquals(new long[]{0,a,a,a,b,b,b,z,z,z,z,z,z,z,z,z,z,z,z,z,z}, stats);
+        }
+    }
+
+    @Test(expected = MultiValuedFieldUidTimestampException.class)
+    public void testPushStatUidToUnixtimeMultivalued() throws ImhotepOutOfMemoryException {
+        final FlamdexReader r = MakeAFlamdex.make();
+        try (ImhotepLocalSession session = new ImhotepJavaLocalSession("testLocalSession", r, null)) {
+            session.getGroupStats(singletonList("uid_to_unixtime uid_multi"));
         }
     }
 

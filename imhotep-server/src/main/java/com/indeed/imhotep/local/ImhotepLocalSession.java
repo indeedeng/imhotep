@@ -41,6 +41,7 @@ import com.indeed.flamdex.datastruct.FastBitSetPooler;
 import com.indeed.flamdex.fieldcache.ByteArrayIntValueLookup;
 import com.indeed.flamdex.fieldcache.CharArrayIntValueLookup;
 import com.indeed.flamdex.fieldcache.IntArrayIntValueLookup;
+import com.indeed.flamdex.fieldcache.LongArrayIntValueLookup;
 import com.indeed.flamdex.query.Query;
 import com.indeed.flamdex.query.Term;
 import com.indeed.flamdex.search.FlamdexSearcher;
@@ -66,6 +67,7 @@ import com.indeed.imhotep.api.ImhotepCommand;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.PerformanceStats;
 import com.indeed.imhotep.exceptions.MultiValuedFieldStringLenException;
+import com.indeed.imhotep.exceptions.MultiValuedFieldUidTimestampException;
 import com.indeed.imhotep.group.IterativeHasher;
 import com.indeed.imhotep.group.IterativeHasherUtils;
 import com.indeed.imhotep.marshal.ImhotepDaemonMarshaller;
@@ -1969,6 +1971,9 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         } else if (statName.startsWith("global_stack ")) {
             final int statIndex = Integer.parseInt(statName.substring("global_stack ".length()));
             stack.push(statName, new DelegatingMetric(metricStack.get(statIndex)));
+        } else if (statName.startsWith("uid_to_unixtime ")) {
+            final String fieldName = statName.substring("uid_to_unixtime ".length()).trim();
+            stack.push(statName, uidToUnixtimeLookup(fieldName));
         } else if (Metric.getMetric(statName) != null) {
             final IntValueLookup a;
             final IntValueLookup b;
@@ -3238,6 +3243,72 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         }
 
         return new MemoryReservingIntValueLookupWrapper(new IntArrayIntValueLookup(array, 0, percentages.length + 1));
+    }
+
+    private static int decodeBase32(final byte c) {
+        if (('0' <= c) && (c <= '9')) {
+            return c - '0';
+        } else if (('A' <= c) && (c <= 'V')) {
+            return (c - 'A') + 10;
+        } else if (('a' <= c) && (c <= 'v')) {
+            return (c - 'a') + 10;
+        } else {
+            return -1;
+        }
+    }
+
+    private IntValueLookup uidToUnixtimeLookup(final String field) throws ImhotepOutOfMemoryException {
+        // use 64 bits to avoid year 2038 problem
+        final long memoryUsage = 8 * flamdexReader.getNumDocs();
+        if (!memory.claimMemory(memoryUsage)) {
+            throw newImhotepOutOfMemoryException();
+        }
+        final long[] array = new long[flamdexReader.getNumDocs()];
+        Arrays.fill(array, -1);
+
+        final int[] docIdBuf = memoryPool.getIntBuffer(BUFFER_SIZE, true);
+        try (DocIdStream docIdStream = flamdexReader.getDocIdStream();
+             StringTermIterator termIterator = flamdexReader.getStringTermIterator(field)
+        ) {
+            termLoop: while (termIterator.next()) {
+                final byte[] bytes = termIterator.termStringBytes();
+                if (termIterator.termStringLength() != 16) {
+                    continue;
+                }
+
+                long timestamp = 0;
+                for (int i = 8, p = 0; i >= 0; i--, p++) {
+                    final long charValue = decodeBase32(bytes[i]);
+                    if (charValue == -1) {
+                        // not a valid leading timestamp
+                        continue termLoop;
+                    }
+                    timestamp |= charValue << (p * 5);
+                }
+                // ms to s
+                timestamp /= 1000;
+
+                docIdStream.reset(termIterator);
+
+                while (true) {
+                    final int n = docIdStream.fillDocIdBuffer(docIdBuf);
+                    for (int i = 0; i < n; i++) {
+                        final int docId = docIdBuf[i];
+                        if (array[docId] != -1) {
+                            throw new MultiValuedFieldUidTimestampException("Can only compute uid_to_timestamp on single valued fields containing UIDs");
+                        }
+                        array[docId] = timestamp;
+                    }
+                    if (n < docIdBuf.length) {
+                        break;
+                    }
+                }
+            }
+        } finally {
+            memoryPool.returnIntBuffer(docIdBuf);
+        }
+
+        return new MemoryReservingIntValueLookupWrapper(new LongArrayIntValueLookup(array));
     }
 
     private int getBitSetMemoryUsage() {

@@ -316,6 +316,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                                 request.getUsername(),
                                 request.getClientName(),
                                 inetAddress.getHostAddress(),
+                                (byte) request.getSessionPriority(),
                                 request.getClientVersion(),
                                 request.getMergeThreadLimit(),
                                 request.getOptimizeGroupZeroLookups(),

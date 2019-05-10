@@ -345,7 +345,11 @@ public class BatchRemoteImhotepMultiSession extends AbstractImhotepSession {
         return remoteImhotepMultiSession.getTempFilesBytesWritten();
     }
 
+    static String getCommandClassName(final ImhotepCommand imhotepCommand) {
+        return imhotepCommand.getClass().getSimpleName();
+    }
+
     private List<String> getLogCommandClassNameList() {
-        return commands.stream().map(x -> x.getClass().getSimpleName()).collect(Collectors.toList());
+        return commands.stream().map(BatchRemoteImhotepMultiSession::getCommandClassName).collect(Collectors.toList());
     }
 }

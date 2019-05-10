@@ -83,7 +83,7 @@ public interface ImhotepServiceCore {
     PerformanceStats handleCloseAndGetPerformanceStats(String sessionId);
     // open session methods return session id
     String handleOpenSession(String dataset, List<ShardBasicInfoMessage> shardRequestList, String username, String clientName,
-                             String ipAddress, int clientVersion, int mergeThreadLimit, boolean optimizeGroupZeroLookups,
+                             String ipAddress, byte priority, int clientVersion, int mergeThreadLimit, boolean optimizeGroupZeroLookups,
                              String sessionId, AtomicLong tempFileSizeBytesLeft, long sessionTimeout) throws ImhotepOutOfMemoryException;
 
     // non-session-based methods

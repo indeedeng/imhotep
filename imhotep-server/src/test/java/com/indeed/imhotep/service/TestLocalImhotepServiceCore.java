@@ -80,7 +80,7 @@ public class TestLocalImhotepServiceCore {
 
             final String sessionId = service.handleOpenSession("dataset", Collections.singletonList(
                     ShardBasicInfoMessage.newBuilder().setShardName("index20150601").build()),
-                    "", "", "", 0, 0,
+                    "", "", "", (byte)0, 0, 0,
                     false, "", null, 0);
             service.handlePushStat(sessionId, "count()");
             final OutputStream os = new CloseableNullOutputStream();

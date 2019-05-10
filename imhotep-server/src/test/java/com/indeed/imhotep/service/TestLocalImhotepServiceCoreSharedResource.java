@@ -86,7 +86,7 @@ public class TestLocalImhotepServiceCoreSharedResource {
                         tempDir, new Host("localhost", 0));
         final String sessionId = service.handleOpenSession("dataset", Collections.singletonList(
                 ShardBasicInfoMessage.newBuilder().setShardName(shardName).build())
-                , "", "", "", 0, 0,
+                , "", "", "", (byte)0, 0, 0,
                 false, "", null, 0);
         try {
             service.handlePushStat(sessionId, "if1");
@@ -97,7 +97,7 @@ public class TestLocalImhotepServiceCoreSharedResource {
         service.handleCloseSession(sessionId);
         final String sessionId2 = service.handleOpenSession("dataset", Collections.singletonList(
                 ShardBasicInfoMessage.newBuilder().setShardName(shardName).build()),
-                "", "", "", 0, 0,
+                "", "", "", (byte)0, 0, 0,
                 false, "", null, 0);
         service.handleCloseSession(sessionId2);
         service.close();
@@ -145,7 +145,7 @@ public class TestLocalImhotepServiceCoreSharedResource {
         try {
             final String sessionId = service.handleOpenSession("dataset", Collections.singletonList(
                     ShardBasicInfoMessage.newBuilder().setShardName(shardName).build()),
-                    "", "", "", 0, 0,
+                    "", "", "", (byte)0, 0, 0,
                     false, "", null, 0);
             sessionOpened.set(true);
             try {

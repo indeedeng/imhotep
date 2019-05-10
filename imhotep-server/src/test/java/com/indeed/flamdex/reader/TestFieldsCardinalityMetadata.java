@@ -102,6 +102,8 @@ public class TestFieldsCardinalityMetadata {
                     .addStringField("sf3", true, true, false)
                     .addStringField("sf4", true, true, true)
                     .addStringField("floatfield", false, true, false)
+                    .addStringField("uid", true, true, false)
+                    .addStringField("uid_multi", true, false, true)
                     .build();
 
         try (SimpleFlamdexReader simpleReader = SimpleFlamdexReader.open(flamdexDir, config)) {

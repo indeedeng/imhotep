@@ -317,6 +317,7 @@ public class ImhotepClient
         private int mergeThreadLimit = ImhotepRemoteSession.DEFAULT_MERGE_THREAD_LIMIT;
         private String username = "";
         private String clientName = "";
+        private byte priority = ImhotepRemoteSession.DEFAULT_PRIORITY;
         private boolean optimizeGroupZeroLookups = false;
         private int socketTimeout = -1;
         private long localTempFileSizeLimit = -1;
@@ -354,6 +355,15 @@ public class ImhotepClient
             clientName = newClientName;
             return this;
         }
+
+        /**
+         * Sets the priority of the session. The higher the number, the higher the priority.
+         */
+        public SessionBuilder priority(final byte priority) {
+            this.priority = priority;
+            return this;
+        }
+
         public SessionBuilder optimizeGroupZeroLookups(final boolean newOptimizeGroupZeroLookups) {
             optimizeGroupZeroLookups = newOptimizeGroupZeroLookups;
             return this;
@@ -465,7 +475,7 @@ public class ImhotepClient
             final Map<Host, List<Shard>> hostsToShardsMap = orderShardsByHost(locatedShards);
             hostCount = hostsToShardsMap.size();
             return getSessionForShards(
-                    dataset, hostsToShardsMap, mergeThreadLimit, username, clientName, optimizeGroupZeroLookups,
+                    dataset, hostsToShardsMap, mergeThreadLimit, username, clientName, priority, optimizeGroupZeroLookups,
                     socketTimeout, localTempFileSizeLimit, daemonTempFileSizeLimit, sessionTimeout,
                     allowSessionForwarding, peerToPeerCache
             );
@@ -473,7 +483,7 @@ public class ImhotepClient
     }
 
     private ImhotepSession getSessionForShards(final String dataset, final Map<Host, List<Shard>> hostToShardsMap,
-                                               final int mergeThreadLimit, final String username, final String clientName,
+                                               final int mergeThreadLimit, final String username, final String clientName, final byte priority,
                                                final boolean optimizeGroupZeroLookups, final int socketTimeout,
                                                final long localTempFileSizeLimit, final long daemonTempFileSizeLimit,
                                                final long sessionTimeout,
@@ -484,14 +494,14 @@ public class ImhotepClient
         try {
             final String sessionId = UUID.randomUUID().toString();
             ImhotepRemoteSession[] remoteSessions = internalGetSession(dataset, hostToShardsMap, mergeThreadLimit, username,
-                    clientName, optimizeGroupZeroLookups, socketTimeout, sessionId, daemonTempFileSizeLimit,
+                    clientName, priority, optimizeGroupZeroLookups, socketTimeout, sessionId, daemonTempFileSizeLimit,
                     localTempFileSizeBytesLeft, sessionTimeout, allowSessionForwarding, p2pCache);
 
             final InetSocketAddress[] nodes = new InetSocketAddress[remoteSessions.length];
             for (int i = 0; i < remoteSessions.length; i++) {
                 nodes[i] = remoteSessions[i].getInetSocketAddress();
             }
-            return new RemoteImhotepMultiSession(remoteSessions, sessionId, nodes, localTempFileSizeLimit, localTempFileSizeBytesLeft, username, clientName);
+            return new RemoteImhotepMultiSession(remoteSessions, sessionId, nodes, localTempFileSizeLimit, localTempFileSizeBytesLeft, username, clientName, priority);
         } catch (Exception e) {
             Throwables.propagateIfInstanceOf(e, ImhotepKnownException.class);
             throw new RuntimeException("unable to open session",  e);
@@ -505,6 +515,7 @@ public class ImhotepClient
                            final int mergeThreadLimit,
                            final String username,
                            final String clientName,
+                           final byte priority,
                            final boolean optimizeGroupZeroLookups,
                            final int socketTimeout,
                            @Nullable final String sessionId,
@@ -534,6 +545,7 @@ public class ImhotepClient
                                     mergeThreadLimit,
                                     username,
                                     clientName,
+                                    priority,
                                     optimizeGroupZeroLookups,
                                     socketTimeout,
                                     sessionId,
