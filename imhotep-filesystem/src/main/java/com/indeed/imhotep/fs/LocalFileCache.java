@@ -187,8 +187,8 @@ class LocalFileCache {
         public void reportSumCacheFileSize() {
             SumCacheFileSizeIntervals sumCacheFilesStats = getSumCacheFilesSize();
 
-            statsEmitter.gauge(statsTypePrefix + ".sum.cache.sum.size.minute", sumCacheFilesStats.minuteSum);
-            statsEmitter.gauge(statsTypePrefix + ".sum.cache.sum.size.hour", sumCacheFilesStats.hourSum);
+            statsEmitter.gauge(statsTypePrefix + ".sum.size.minute", sumCacheFilesStats.minuteSum);
+            statsEmitter.gauge(statsTypePrefix + ".sum.size.hour", sumCacheFilesStats.hourSum);
             statsEmitter.gauge(statsTypePrefix + ".sum.size.day", sumCacheFilesStats.daySum);
         }
     }
