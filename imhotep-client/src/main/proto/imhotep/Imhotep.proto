@@ -336,8 +336,8 @@ message ImhotepRequest {
   // Number of individual requests in ImhotepBatchRequest
   optional uint32 imhotepRequestCount = 75;
 
-  optional string input_groups = 76;
-  optional string output_groups = 77;
+  optional string input_groups = 76 [default="DEFAULT"];
+  optional string output_groups = 77 [default="DEFAULT"];
 
   // for CONSOLIDATE_GROUPS
   repeated string consolidated_groups = 78;
