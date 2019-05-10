@@ -90,19 +90,17 @@ public class PeerToPeerCacheFileStore extends RemoteFileStore {
                 );
     }
 
-    @Override
-    Optional<Path> getCachedPath(final RemoteCachingPath path) throws IOException {
+    Path getCachedPath(final RemoteCachingPath path) throws IOException {
         try {
-            return Optional.of(fileCache.cache(path));
+            return fileCache.cache(path);
         } catch (final ExecutionException e) {
             throw Throwables2.propagate(e.getCause(), IOException.class, RuntimeException.class);
         }
     }
 
-    @Override
-    Optional<ScopedCacheFile> getForOpen(final RemoteCachingPath path) throws IOException {
+    ScopedCacheFile getForOpen(final RemoteCachingPath path) throws IOException {
         try {
-            return Optional.of(fileCache.getForOpen(path));
+            return fileCache.getForOpen(path);
         } catch (final ExecutionException e) {
             throw Throwables2.propagate(e.getCause(), IOException.class, RuntimeException.class);
         }

@@ -25,7 +25,6 @@ import java.nio.file.attribute.FileAttributeView;
 import java.nio.file.attribute.FileStoreAttributeView;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 /**
  * @author darren
@@ -82,16 +81,6 @@ abstract class RemoteFileStore extends FileStore {
     abstract RemoteFileAttributes getRemoteAttributes(RemoteCachingPath path) throws IOException;
 
     abstract void downloadFile(RemoteCachingPath srcPath, Path destPath) throws IOException;
-
-    /**
-     * Return the cached path if the file store has
-     */
-    abstract Optional<Path> getCachedPath(RemoteCachingPath path) throws IOException;
-
-    /**
-     * Wrapper of getForOpen method in local file cache
-     */
-    abstract Optional<ScopedCacheFile> getForOpen(RemoteCachingPath path) throws IOException;
 
     /**
      * open an input stream without caching

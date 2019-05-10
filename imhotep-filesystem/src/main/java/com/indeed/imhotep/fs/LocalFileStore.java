@@ -32,7 +32,6 @@ import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 /**
  * @author darren
@@ -81,16 +80,6 @@ class LocalFileStore extends RemoteFileStore {
         final Path localPath = getLocalPath(path);
         final BasicFileAttributes attributes = Files.readAttributes(localPath, BasicFileAttributes.class);
         return new RemoteFileAttributes(path, attributes.size(), attributes.isRegularFile());
-    }
-
-    @Override
-    Optional<Path> getCachedPath(final RemoteCachingPath path) throws IOException {
-        return Optional.empty();
-    }
-
-    @Override
-    Optional<ScopedCacheFile> getForOpen(final RemoteCachingPath path) {
-        return Optional.empty();
     }
 
     @Override

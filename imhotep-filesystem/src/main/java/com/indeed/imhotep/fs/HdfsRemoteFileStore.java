@@ -37,7 +37,6 @@ import java.nio.file.NotDirectoryException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 /**
  * @author darren
@@ -98,16 +97,6 @@ class HdfsRemoteFileStore extends RemoteFileStore {
             results.add(toAttributes(path.resolve(status.getPath().getName()), status));
         }
         return results;
-    }
-
-    @Override
-    Optional<java.nio.file.Path> getCachedPath(final RemoteCachingPath path) {
-        return Optional.empty();
-    }
-
-    @Override
-    Optional<ScopedCacheFile> getForOpen(final RemoteCachingPath path) {
-        return Optional.empty();
     }
 
     @Override
