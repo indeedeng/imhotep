@@ -255,7 +255,7 @@ public class PeerToPeerCacheFileStore extends RemoteFileStore {
             throw buildIOExceptionFromResponse(imhotepResponse, host.getHostname(), host.getPort(), null);
         }
 
-        readAndStoreSlotTiming(imhotepResponse);
+        readAndAddSlotTiming(imhotepResponse);
         return imhotepResponse;
     }
 
@@ -292,7 +292,7 @@ public class PeerToPeerCacheFileStore extends RemoteFileStore {
     /**
      * Extract slot timing statistics from response and update them to session
      */
-    private void readAndStoreSlotTiming(final ImhotepResponse response) {
+    private void readAndAddSlotTiming(final ImhotepResponse response) {
         if (!response.hasSlotTiming()) {
             return;
         }
