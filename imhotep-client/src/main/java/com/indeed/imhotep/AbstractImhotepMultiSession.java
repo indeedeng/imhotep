@@ -342,6 +342,14 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
         });
     }
 
+    @Override
+    public void deleteGroups(final String groupsName) {
+        executeRuntimeException(nullBuf, session -> {
+            session.deleteGroups(groupsName);
+            return null;
+        });
+    }
+
     private static List<TermCount> mergeTermCountLists(
             final List<TermCount>[] termCountListBuf,
             final String field,

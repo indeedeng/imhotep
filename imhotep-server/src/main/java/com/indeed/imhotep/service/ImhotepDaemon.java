@@ -1039,6 +1039,14 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             return builder.build();
         }
 
+        private ImhotepResponse deleteGroups(final ImhotepRequest request, final ImhotepResponse.Builder builder) throws ImhotepOutOfMemoryException {
+            service.handleDeleteGroups(
+                request.getSessionId(),
+                request.getInputGroups()
+            );
+            return builder.build();
+        }
+
         private void shutdown(
                 final ImhotepRequest request,
                 final InputStream    is,
@@ -1211,6 +1219,9 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                     break;
                 case CONSOLIDATE_GROUPS:
                     response = consolidateGroups(request, builder);
+                    break;
+                case DELETE_GROUPS:
+                    response = deleteGroups(request, builder);
                     break;
                 case SHUTDOWN:
                     shutdown(request, is, os);

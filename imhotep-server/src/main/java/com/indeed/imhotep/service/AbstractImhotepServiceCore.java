@@ -675,6 +675,14 @@ public abstract class AbstractImhotepServiceCore
     }
 
     @Override
+    public void handleDeleteGroups(final String sessionId, final String groupsName) {
+        doWithSession(sessionId, (Function<MTImhotepLocalMultiSession, Void>) session -> {
+            session.deleteGroups(groupsName);
+            return null;
+        });
+    }
+
+    @Override
     public int handlePushStat(final String sessionId, final String metric) throws ImhotepOutOfMemoryException {
         return doWithSession(sessionId, (ThrowingFunction<MTImhotepLocalMultiSession, Integer, ImhotepOutOfMemoryException>) session -> session.pushStat(metric));
     }

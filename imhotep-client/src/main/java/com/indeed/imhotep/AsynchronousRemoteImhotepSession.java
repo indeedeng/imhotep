@@ -253,6 +253,11 @@ public class AsynchronousRemoteImhotepSession extends AbstractImhotepSession {
     }
 
     @Override
+    public void deleteGroups(final String groupsName) {
+        doIt(session -> session.deleteGroups(groupsName));
+    }
+
+    @Override
     public int pushStat(final String statName) {
         doIt(session -> session.pushStat(statName));
         return -999;

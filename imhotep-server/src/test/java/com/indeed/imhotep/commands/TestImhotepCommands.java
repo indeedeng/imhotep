@@ -335,7 +335,13 @@ public class TestImhotepCommands implements CommandsTest {
         assertEqualGroupStatsVoid(session -> {
             session.intOrRegroup(new RegroupParams(ImhotepSession.DEFAULT_GROUPS, "input1"), "metric", new long[] {2, 3}, 1, 0, 1);
             session.stringOrRegroup(new RegroupParams(ImhotepSession.DEFAULT_GROUPS, "input2"), "sf1", new String[] {"1a", "2a"}, 1, 0, 1);
-            session.consolidateGroups(Lists.newArrayList("input1", "input2"), Operator.AND, "outputGroups");
+            session.consolidateGroups(Lists.newArrayList("input1", "input2"), Operator.AND, ImhotepSession.DEFAULT_GROUPS);
         });
+    }
+
+    @Override
+    @Test
+    public void testDeleteGroups() {
+        // nothing really great to check here
     }
 }

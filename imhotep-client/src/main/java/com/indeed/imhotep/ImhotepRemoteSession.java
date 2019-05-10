@@ -997,12 +997,26 @@ public class ImhotepRemoteSession
     }
 
     @Override
-    public void consolidateGroups(final List<String> inputGroups, final Operator operation, final String outputGroups) {
+    public void consolidateGroups(final List<String> inputGroups, final Operator operation, final String outputGroups) throws ImhotepOutOfMemoryException {
         final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.CONSOLIDATE_GROUPS)
                 .setSessionId(getSessionId())
                 .addAllConsolidatedGroups(inputGroups)
                 .setOutputGroups(outputGroups)
                 .setGroupConsolidationOperation(operation)
+                .build();
+
+        try {
+            sendRequestWithMemoryException(request, host, port, socketTimeout);
+        } catch (final IOException e) {
+            throw newRuntimeException(e);
+        }
+    }
+
+    @Override
+    public void deleteGroups(final String groupsName) {
+        final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.DELETE_GROUPS)
+                .setSessionId(getSessionId())
+                .setInputGroups(groupsName)
                 .build();
 
         try {

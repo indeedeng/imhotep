@@ -162,6 +162,7 @@ message ImhotepRequest {
     LIST_SHARD_FILE_ATTRIBUTES = 55;
     BATCH_REQUESTS = 56;
     CONSOLIDATE_GROUPS = 57;
+    DELETE_GROUPS = 58;
     SHUTDOWN = 255;
   }
 

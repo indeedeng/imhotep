@@ -54,7 +54,8 @@ public interface ImhotepServiceCore {
     int handleMetricFilter(String sessionId, RegroupParams regroupParams, List<String> stat, long min, long max, boolean negate) throws ImhotepOutOfMemoryException;
     int handleMetricFilter(String sessionId, RegroupParams regroupParams, List<String> stat, long min, long max, int targetGroup, int negativeGroup, int positiveGroup) throws ImhotepOutOfMemoryException;
     List<TermCount> handleApproximateTopTerms(String sessionId, String field, boolean isIntField, int k);
-    void handleConsolidateGroups(final String sessionId, List<String> consolidatedGroupsList, Operator groupConsolidationOperation, String outputGroups) throws ImhotepOutOfMemoryException;
+    void handleConsolidateGroups(String sessionId, List<String> consolidatedGroupsList, Operator groupConsolidationOperation, String outputGroups) throws ImhotepOutOfMemoryException;
+    void handleDeleteGroups(String sessionId, String groupsName);
     int handlePushStat(String sessionId, String metric) throws ImhotepOutOfMemoryException;
     int handlePopStat(String sessionId);
     void handleGetFTGSIterator(String sessionId, String groupsName, FTGSParams params, OutputStream os) throws IOException, ImhotepOutOfMemoryException;

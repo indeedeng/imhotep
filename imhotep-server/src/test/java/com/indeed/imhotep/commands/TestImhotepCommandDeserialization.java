@@ -156,4 +156,10 @@ public class TestImhotepCommandDeserialization implements CommandsTest {
         assertEqualDeserialize(new ConsolidateGroups(inputGroups, Operator.AND, "outputGroups", SESSION_ID));
     }
 
+    @Override
+    @Test
+    public void testDeleteGroups() throws Exception {
+        assertEqualDeserialize(new DeleteGroups("someGroups", SESSION_ID));
+    }
+
 }

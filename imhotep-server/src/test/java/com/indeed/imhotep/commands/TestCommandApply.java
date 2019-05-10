@@ -227,4 +227,12 @@ public class TestCommandApply implements CommandsTest {
             session.consolidateGroups(inputGroups, Operator.AND, "outputGroups");
         });
     }
+
+    @Override
+    @Test
+    public void testDeleteGroups() throws Exception {
+        testApplyMethodCallVoid(new DeleteGroups("someGroups", SESSION_ID), session -> {
+            session.deleteGroups("someGroups");
+        });
+    }
 }

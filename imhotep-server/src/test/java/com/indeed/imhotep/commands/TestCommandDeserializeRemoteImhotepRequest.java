@@ -232,4 +232,11 @@ public class TestCommandDeserializeRemoteImhotepRequest implements CommandsTest 
         imhotepRemoteSession.consolidateGroups(inputGroups, Operator.AND, "outputGroups");
         Assert.assertEquals(new ConsolidateGroups(inputGroups, Operator.AND, "outputGroups", SESSION_ID), holder.futureCommand.get());
     }
+
+    @Override
+    @Test
+    public void testDeleteGroups() throws Exception {
+        imhotepRemoteSession.deleteGroups("someGroups");
+        Assert.assertEquals(new DeleteGroups("someGroups", SESSION_ID), holder.futureCommand.get());
+    }
 }

@@ -2213,6 +2213,25 @@ public class TestImhotepLocalSession {
         }
     }
 
+    @Test
+    public void testDeleteGroups() throws IOException, ImhotepOutOfMemoryException {
+        final FlamdexReader r = MakeAFlamdex.make();
+        final Path testDir = Files.createTempDirectory("imhotep.test");
+        try (final ImhotepLocalSession session = new ImhotepJavaLocalSession("testLocalSession", r,
+                null, testDir.toString(),
+                new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE)),
+                null)) {
+            Assert.assertNotNull(session.namedGroupLookups.get(ImhotepSession.DEFAULT_GROUPS));
+            session.deleteGroups(ImhotepSession.DEFAULT_GROUPS);
+            try {
+                session.namedGroupLookups.get(ImhotepSession.DEFAULT_GROUPS);
+                Assert.fail();
+            } catch (final IllegalArgumentException e) {
+                Assert.assertTrue(e.getMessage().contains("The specified groups do not exist"));
+            }
+        }
+    }
+
     private static boolean isEqual(final GroupStatsIterator iterator, final long[] array) {
         final int commonLen = Math.min(iterator.getNumGroups(), array.length);
         for (int i = 0; i < commonLen; i++) {

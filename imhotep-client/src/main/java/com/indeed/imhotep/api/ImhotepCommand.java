@@ -8,6 +8,7 @@ import com.google.common.primitives.Longs;
 import com.indeed.imhotep.GroupMultiRemapRule;
 import com.indeed.imhotep.GroupRemapRule;
 import com.indeed.imhotep.commands.ConsolidateGroups;
+import com.indeed.imhotep.commands.DeleteGroups;
 import com.indeed.imhotep.commands.GetGroupStats;
 import com.indeed.imhotep.commands.IntOrRegroup;
 import com.indeed.imhotep.commands.TargetedMetricFilter;
@@ -214,6 +215,11 @@ public interface ImhotepCommand<T> extends HasSessionId {
                         request.getConsolidatedGroupsList(),
                         request.getGroupConsolidationOperation(),
                         request.getOutputGroups(),
+                        request.getSessionId()
+                );
+            case DELETE_GROUPS:
+                return new DeleteGroups(
+                        request.getInputGroups(),
                         request.getSessionId()
                 );
             default:

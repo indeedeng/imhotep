@@ -38,4 +38,6 @@ package com.indeed.imhotep.commands;
 
      void testConsolidateGroups() throws Exception;
 
+     void testDeleteGroups() throws Exception;
+
 }

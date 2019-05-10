@@ -10,6 +10,7 @@ import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.PerformanceStats;
 import com.indeed.imhotep.api.RegroupParams;
 import com.indeed.imhotep.commands.ConsolidateGroups;
+import com.indeed.imhotep.commands.DeleteGroups;
 import com.indeed.imhotep.commands.GetGroupStats;
 import com.indeed.imhotep.commands.IntOrRegroup;
 import com.indeed.imhotep.commands.TargetedMetricFilter;
@@ -238,6 +239,11 @@ public class BatchRemoteImhotepMultiSession extends AbstractImhotepSession {
     @Override
     public void consolidateGroups(final List<String> inputGroups, final Operator operation, final String outputGroups) throws ImhotepOutOfMemoryException {
         commands.add(new ConsolidateGroups(inputGroups, operation, outputGroups, remoteImhotepMultiSession.getSessionId()));
+    }
+
+    @Override
+    public void deleteGroups(final String groupsName) {
+        commands.add(new DeleteGroups(groupsName, remoteImhotepMultiSession.getSessionId()));
     }
 
     @Override

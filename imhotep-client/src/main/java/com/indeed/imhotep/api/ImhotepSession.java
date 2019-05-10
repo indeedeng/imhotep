@@ -502,6 +502,11 @@ public interface ImhotepSession
     void consolidateGroups(final List<String> inputGroups, final Operator operation, final String outputGroups) throws ImhotepOutOfMemoryException;
 
     /**
+     * Delete the given groups
+     */
+    void deleteGroups(final String groupsName);
+
+    /**
      * push the metric specified by statName
      * @param statName the metric to push
      * @return the number of stats after pushing this metric
