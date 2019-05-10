@@ -250,7 +250,7 @@ public class PeerToPeerCacheFileStore extends RemoteFileStore {
             final InputStream is,
             final OutputStream os,
             final Host host) throws IOException {
-        appendUserClientToRequest(requestBuilder);
+        appendTaskInfoToRequest(requestBuilder);
 
         ImhotepProtobufShipping.sendProtobuf(requestBuilder.build(), os);
         final ImhotepResponse imhotepResponse = ImhotepProtobufShipping.readResponse(is);
@@ -285,14 +285,15 @@ public class PeerToPeerCacheFileStore extends RemoteFileStore {
     /**
      * Append the username and client to requests before sending
      */
-    private void appendUserClientToRequest(final ImhotepRequest.Builder builder) {
+    private void appendTaskInfoToRequest(final ImhotepRequest.Builder builder) {
         final ImhotepTask task = ImhotepTask.THREAD_LOCAL_TASK.get();
         if (task == null) {
             return;
         }
 
         builder.setUsername(task.getUserName())
-               .setClientName(task.getClientName());
+               .setClientName(task.getClientName())
+               .setSessionPriority(task.getPriority());
     }
 
     /**

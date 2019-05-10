@@ -17,7 +17,6 @@ package com.indeed.imhotep.scheduling;
 import com.google.common.primitives.Longs;
 import com.indeed.imhotep.AbstractImhotepMultiSession;
 import com.indeed.imhotep.AbstractImhotepSession;
-import com.indeed.imhotep.ImhotepRemoteSession;
 import com.indeed.imhotep.RequestContext;
 import com.indeed.imhotep.SlotTiming;
 import org.apache.log4j.Logger;
@@ -65,8 +64,8 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
     @Nullable
     private SchedulerCallback schedulerWaitTimeCallback;
 
-    public static void setup(final String userName, final String clientName, final SlotTiming slotTiming) {
-        final ImhotepTask task = new ImhotepTask(userName, clientName, ImhotepRemoteSession.DEFAULT_PRIORITY, null, null, null, null,
+    public static void setup(final String userName, final String clientName, final byte priority, final SlotTiming slotTiming) {
+        final ImhotepTask task = new ImhotepTask(userName, clientName, priority, null, null, null, null,
                 (schedulerType, execTime) -> slotTiming.schedulerExecTimeCallback(schedulerType, execTime),
                 (schedulerType, waitTime) -> slotTiming.schedulerWaitTimeCallback(schedulerType, waitTime));
         ImhotepTask.THREAD_LOCAL_TASK.set(task);
@@ -265,6 +264,10 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
 
     public String getClientName() {
         return clientName;
+    }
+
+    public byte getPriority() {
+        return priority;
     }
 
     /**

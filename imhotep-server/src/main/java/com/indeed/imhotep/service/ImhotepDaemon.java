@@ -956,7 +956,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 final ImhotepResponse.Builder builder,
                 @WillNotClose final OutputStream os) throws IOException {
             final SlotTiming slotTiming = new SlotTiming();
-            ImhotepTask.setup(request.getUsername(), request.getClientName(), slotTiming);
+            ImhotepTask.setup(request.getUsername(), request.getClientName(), (byte) request.getSessionPriority(), slotTiming);
             service.handleGetAndSendShardFile(request.getShardFileUri(), slotTiming, builder, os);
         }
 
@@ -964,7 +964,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 final ImhotepRequest request,
                 final ImhotepResponse.Builder builder) throws IOException {
             final SlotTiming slotTiming = new SlotTiming();
-            ImhotepTask.setup(request.getUsername(), request.getClientName(), slotTiming);
+            ImhotepTask.setup(request.getUsername(), request.getClientName(), (byte) request.getSessionPriority(), slotTiming);
             service.handleGetShardFileAttributes(request.getShardFileUri(), builder);
             return builder.setSlotTiming(slotTiming.writeToSlotTimingMessage()).build();
         }
@@ -973,7 +973,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 final ImhotepRequest request,
                 final ImhotepResponse.Builder builder) throws IOException {
             final SlotTiming slotTiming = new SlotTiming();
-            ImhotepTask.setup(request.getUsername(), request.getClientName(), slotTiming);
+            ImhotepTask.setup(request.getUsername(), request.getClientName(), (byte) request.getSessionPriority(), slotTiming);
             service.handleListShardFileAttributes(request.getShardFileUri(), builder);
             return builder.setSlotTiming(slotTiming.writeToSlotTimingMessage()).build();
         }
