@@ -14,6 +14,7 @@
 
 package com.indeed.imhotep.fs;
 
+import com.indeed.imhotep.scheduling.ImhotepTask;
 import com.indeed.imhotep.service.MetricStatsEmitter;
 
 import java.io.IOException;
@@ -98,6 +99,11 @@ abstract class RemoteFileStore extends FileStore {
         // but it's only currently used for metadata.txt files which are usually small and get cached for a long time
         if (size >= 0) {
             statsEmitter.count("file.cache.newly.downloaded.size", size);
+
+            final ImhotepTask task = ImhotepTask.THREAD_LOCAL_TASK.get();
+            if (task != null && task.getSession() != null) {
+                task.getSession().addDownloadedBytes(size);
+            }
         }
         statsEmitter.count("file.cache.newly.downloaded.files", 1);
     }
