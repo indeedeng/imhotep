@@ -601,6 +601,9 @@ public interface ImhotepSession
      * future FTGS passes more efficent.
      * @throws ImhotepOutOfMemoryException in case there's not enough memory
      */
+    default void rebuildAndFilterIndexes(List<String> intFields, List<String> stringFields) throws ImhotepOutOfMemoryException {
+        rebuildAndFilterIndexes(DEFAULT_GROUPS, intFields, stringFields);
+    }
     void rebuildAndFilterIndexes(String groupsName, List<String> intFields, List<String> stringFields) throws ImhotepOutOfMemoryException;
 
     /** Returns the number of docs in the shards handled by this session */
