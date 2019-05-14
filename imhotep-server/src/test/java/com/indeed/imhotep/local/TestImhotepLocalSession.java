@@ -30,14 +30,15 @@ import com.indeed.imhotep.MemoryReservationContext;
 import com.indeed.imhotep.QueryRemapRule;
 import com.indeed.imhotep.RegroupCondition;
 import com.indeed.imhotep.api.FTGSIterator;
-import com.indeed.imhotep.api.FTGSParams;
 import com.indeed.imhotep.api.GroupStatsIterator;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.api.PerformanceStats;
+import com.indeed.imhotep.api.RegroupParams;
 import com.indeed.imhotep.group.IterativeHasher;
 import com.indeed.imhotep.group.IterativeHasherUtils;
 import com.indeed.imhotep.io.TestFileUtils;
+import com.indeed.imhotep.protobuf.Operator;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 import org.junit.Assert;
@@ -2211,6 +2212,101 @@ public class TestImhotepLocalSession {
         } finally {
             TestFileUtils.deleteDirTree(testDir);
         }
+    }
+
+    @Test
+    public void testConsolidateGroups() throws IOException, ImhotepOutOfMemoryException {
+        final FlamdexReader r = MakeAFlamdex.make();
+        final Path testDir = Files.createTempDirectory("imhotep.test");
+        try (final ImhotepLocalSession session = new ImhotepJavaLocalSession("testLocalSession", r,
+                null, testDir.toString(),
+                new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE)),
+                null)) {
+
+            // keep documents {0,1,2,3,4,5,6,7}
+            // which have
+            // a: 0,0,1,1,0,0,1,1
+            // b: 0,1,0,1,0,1,0,1
+            // c: 0,0,0,0,1,1,1,1
+
+            session.metricFilter(RegroupParams.DEFAULT, Collections.singletonList("docId()"), 0, 7, false);
+
+            session.regroup(
+                    new RegroupParams(ImhotepSession.DEFAULT_GROUPS, "a"),
+                    new QueryRemapRule(1, Query.newTermQuery(Term.intTerm("booleanCombinations1", 1)), 0, 1)
+            );
+
+            session.regroup(
+                    new RegroupParams(ImhotepSession.DEFAULT_GROUPS, "b"),
+                    new QueryRemapRule(1, Query.newTermQuery(Term.intTerm("booleanCombinations2", 1)), 0, 1)
+            );
+
+            session.regroup(
+                    new RegroupParams(ImhotepSession.DEFAULT_GROUPS, "c"),
+                    new QueryRemapRule(1, Query.newTermQuery(Term.intTerm("booleanCombinations3", 1)), 0, 1)
+            );
+
+            final int[] tmpBuf = new int[8];
+
+            {
+                session.consolidateGroups(Lists.newArrayList("a", "b"), Operator.AND, "a AND b");
+                final GroupLookup lookup = session.namedGroupLookups.get("a AND b");
+                lookup.fillDocGrpBufferSequential(0, tmpBuf, 8);
+                assertArrayEquals(new int[]{0,0,0,1, 0,0,0,1}, tmpBuf);
+            }
+
+            {
+                session.consolidateGroups(Lists.newArrayList("a", "b", "c"), Operator.AND, "a AND b AND c");
+                final GroupLookup lookup = session.namedGroupLookups.get("a AND b AND c");
+                lookup.fillDocGrpBufferSequential(0, tmpBuf, 8);
+                assertArrayEquals(new int[]{0,0,0,0, 0,0,0,1}, tmpBuf);
+            }
+
+            {
+                session.consolidateGroups(Lists.newArrayList("a", "b"), Operator.OR, "a OR b");
+                final GroupLookup lookup = session.namedGroupLookups.get("a OR b");
+                lookup.fillDocGrpBufferSequential(0, tmpBuf, 8);
+                assertArrayEquals(new int[]{0,1,1,1, 0,1,1,1}, tmpBuf);
+            }
+
+            {
+                session.consolidateGroups(Lists.newArrayList("a", "b", "c"), Operator.OR, "a OR b OR c");
+                final GroupLookup lookup = session.namedGroupLookups.get("a OR b OR c");
+                lookup.fillDocGrpBufferSequential(0, tmpBuf, 8);
+                assertArrayEquals(new int[]{0,1,1,1, 1,1,1,1}, tmpBuf);
+            }
+
+            {
+                session.consolidateGroups(Lists.newArrayList("a"), Operator.NOT, "NOT a");
+                final GroupLookup lookup = session.namedGroupLookups.get("NOT a");
+                lookup.fillDocGrpBufferSequential(0, tmpBuf, 8);
+                assertArrayEquals(new int[]{1,1,0,0, 1,1,0,0}, tmpBuf);
+            }
+
+            try {
+                session.consolidateGroups(Collections.emptyList(), Operator.NOT, "whatever");
+                Assert.fail("Expected consolidating 0 groups with NOT to fail");
+            } catch (final IllegalArgumentException e) {
+            }
+
+            try {
+                session.consolidateGroups(Collections.emptyList(), Operator.OR, "whatever");
+                Assert.fail("Expected consolidating 0 groups with OR to fail");
+            } catch (final IllegalArgumentException e) {
+            }
+
+            try {
+                session.consolidateGroups(Collections.emptyList(), Operator.AND, "whatever");
+                Assert.fail("Expected consolidating 0 groups with AND to fail");
+            } catch (final IllegalArgumentException e) {
+            }
+
+            try {
+                session.consolidateGroups(Collections.singletonList("foo"), Operator.NOT, "whatever");
+                Assert.fail("Expected consolidating non-existent groups to fail");
+            } catch (final IllegalArgumentException e) {
+            }
+         }
     }
 
     @Test
