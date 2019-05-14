@@ -10,7 +10,9 @@ import com.indeed.imhotep.io.RequestTools.GroupMultiRemapRuleSender;
 import com.indeed.imhotep.io.RequestTools.ImhotepRequestSender;
 import com.indeed.imhotep.protobuf.ImhotepRequest;
 import com.indeed.imhotep.protobuf.ImhotepResponse;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
+import lombok.ToString;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -19,6 +21,8 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
+@EqualsAndHashCode(callSuper = true)
+@ToString
 public class MultiRegroupIterator extends AbstractImhotepCommand<Integer> {
 
     private final RegroupParams regroupParams;

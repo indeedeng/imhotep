@@ -34,7 +34,6 @@ import com.indeed.imhotep.local.MTImhotepLocalMultiSession;
 import com.indeed.imhotep.protobuf.FileAttributeMessage;
 import com.indeed.imhotep.protobuf.HostAndPort;
 import com.indeed.imhotep.protobuf.ImhotepResponse;
-import com.indeed.imhotep.protobuf.Operator;
 import com.indeed.imhotep.protobuf.ShardBasicInfoMessage;
 import com.indeed.imhotep.scheduling.SchedulerType;
 import com.indeed.imhotep.scheduling.TaskScheduler;

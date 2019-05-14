@@ -10,6 +10,8 @@ import com.indeed.imhotep.io.RequestTools.ImhotepRequestSender;
 import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
 import com.indeed.imhotep.protobuf.ImhotepRequest;
 import com.indeed.imhotep.protobuf.ImhotepResponse;
+import lombok.EqualsAndHashCode;
+import lombok.ToString;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -21,6 +23,8 @@ import java.util.List;
 /**
  * GroupMultiRemapRuleSender already passed as an argument. No lazy creation required.
  */
+@EqualsAndHashCode(callSuper =  true)
+@ToString
 public class MultiRegroupMessagesSender extends AbstractImhotepCommand<Integer> {
 
     private final RegroupParams regroupParams;

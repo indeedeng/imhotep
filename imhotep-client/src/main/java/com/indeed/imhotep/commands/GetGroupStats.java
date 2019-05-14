@@ -19,7 +19,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
 
-@EqualsAndHashCode
+@EqualsAndHashCode(callSuper = true)
 @ToString
 public class GetGroupStats extends AbstractImhotepCommand<GroupStatsIterator> {
 

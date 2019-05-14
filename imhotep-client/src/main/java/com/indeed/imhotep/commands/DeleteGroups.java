@@ -6,7 +6,7 @@ import com.indeed.imhotep.protobuf.ImhotepRequest;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
 
-@EqualsAndHashCode(callSuper = false)
+@EqualsAndHashCode(callSuper = true)
 @ToString
 public class DeleteGroups extends VoidAbstractImhotepCommand {
     private final String groupsName;

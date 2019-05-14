@@ -10,7 +10,7 @@ import lombok.ToString;
 
 import java.util.List;
 
-@EqualsAndHashCode
+@EqualsAndHashCode(callSuper = true)
 @ToString
 public class StringOrRegroup extends VoidAbstractImhotepCommand {
     private final RegroupParams regroupParams;

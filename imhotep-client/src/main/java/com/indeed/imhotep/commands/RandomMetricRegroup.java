@@ -11,7 +11,7 @@ import lombok.ToString;
 
 import java.util.List;
 
-@EqualsAndHashCode
+@EqualsAndHashCode(callSuper = true)
 @ToString
 public class RandomMetricRegroup extends VoidAbstractImhotepCommand {
 

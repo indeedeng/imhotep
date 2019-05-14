@@ -21,7 +21,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-@EqualsAndHashCode
+@EqualsAndHashCode(callSuper = true)
 @ToString
 /**
  * Initializes the groupMultiRemapRuleSender only when its getter is called, to avoid its creation on the server side.

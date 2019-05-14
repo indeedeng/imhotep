@@ -9,7 +9,7 @@ import com.indeed.imhotep.protobuf.ImhotepRequest;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
 
-@EqualsAndHashCode
+@EqualsAndHashCode(callSuper = true)
 @ToString
 public class IntOrRegroup extends VoidAbstractImhotepCommand {
 

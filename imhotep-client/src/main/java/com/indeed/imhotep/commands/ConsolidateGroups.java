@@ -10,7 +10,7 @@ import lombok.ToString;
 
 import java.util.List;
 
-@EqualsAndHashCode(callSuper = false)
+@EqualsAndHashCode(callSuper = true)
 @ToString
 public class ConsolidateGroups extends VoidAbstractImhotepCommand {
     private final List<String> inputGroups;
