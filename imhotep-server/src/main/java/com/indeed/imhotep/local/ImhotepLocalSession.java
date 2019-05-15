@@ -260,11 +260,9 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     /**
      * Read numGroups without providing any guarantees about reading
      * the most up to date value
-     * @return
      */
     @Override
     public Map<String, Integer> weakGetNumGroups(final String groupsName) {
-        // Safe because getNumGroups is a final method that reads a constant.
         return namedGroupLookups.getAllNumGroups();
     }
 
