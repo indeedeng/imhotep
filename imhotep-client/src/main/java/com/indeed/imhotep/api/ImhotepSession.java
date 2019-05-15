@@ -21,6 +21,7 @@ import com.indeed.imhotep.QueryRemapRule;
 import com.indeed.imhotep.RegroupCondition;
 import com.indeed.imhotep.TermCount;
 import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
+import com.indeed.imhotep.protobuf.ImhotepRequest;
 import com.indeed.imhotep.protobuf.Operator;
 import com.indeed.imhotep.protobuf.StatsSortOrder;
 
@@ -36,7 +37,7 @@ import java.util.Map;
 public interface ImhotepSession
     extends Closeable, Instrumentation.Provider {
 
-    String DEFAULT_GROUPS = "DEFAULT";
+    String DEFAULT_GROUPS = ImhotepRequest.getDefaultInstance().getInputGroups();
 
     static List<String> stackStat(final int stat) {
         return Collections.singletonList("global_stack " + stat);
