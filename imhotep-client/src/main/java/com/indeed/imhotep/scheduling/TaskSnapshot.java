@@ -9,6 +9,7 @@ import javax.annotation.Nullable;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -24,7 +25,7 @@ public class TaskSnapshot {
     @Nullable public final String shardPath;
     @Nullable public final RequestContext requestContext;
     @Nullable public final Long numDocs;
-    @Nullable public final Integer numGroups;
+    @Nullable public final Map<String, Integer> numGroups;
     @Nullable public final Integer numStats;
     public final Duration timeSinceCreation;
     @Nullable public final String userName;

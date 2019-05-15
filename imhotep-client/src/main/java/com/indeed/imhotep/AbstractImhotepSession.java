@@ -27,8 +27,10 @@ import com.indeed.imhotep.protobuf.StatsSortOrder;
 import javax.annotation.Nullable;
 import java.nio.channels.ClosedByInterruptException;
 import java.nio.file.Path;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 /**
  * @author jsadun
@@ -66,8 +68,8 @@ public abstract class AbstractImhotepSession implements ImhotepSession {
      * Read numGroups without providing any guarantees about reading
      * the most up to date value
      */
-    public int weakGetNumGroups(final String groupsName) {
-        return -1;
+    public Map<String, Integer> weakGetNumGroups(final String groupsName) {
+        return Collections.emptyMap();
     }
 
     @Override

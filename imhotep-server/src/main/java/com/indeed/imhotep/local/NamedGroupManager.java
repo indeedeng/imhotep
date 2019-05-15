@@ -8,6 +8,8 @@ import com.indeed.imhotep.api.RegroupParams;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -181,6 +183,14 @@ public class NamedGroupManager implements Closeable {
             return true;
         }
         return false;
+    }
+
+    public Map<String, Integer> getAllNumGroups() {
+        final Map<String, Integer> result = new HashMap<>();
+        for (final Map.Entry<String, GroupLookup> entry : groups.entrySet()) {
+            result.put(entry.getKey(), entry.getValue().getNumGroups());
+        }
+        return result;
     }
 
     @Override
