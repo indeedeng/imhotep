@@ -53,18 +53,20 @@ final class BitSetGroupLookup extends GroupLookup {
         this.nonZeroGroup = nonZeroGroup;
     }
 
-    void destructivelyInvertAllGroups() {
+    void invertAllGroups() {
         Preconditions.checkState(nonZeroGroup == 1, "Can only invert 0 <-> 1");
         bitSet.invertAll();
         recalculateNumGroups();
     }
 
     void and(final BitSetGroupLookup other) {
+        Preconditions.checkState((nonZeroGroup == 1) && (other.nonZeroGroup == 1), "Can only do AND on {0, 1} bitsets");
         bitSet.and(other.bitSet);
         recalculateNumGroups();
     }
 
     void or(final BitSetGroupLookup other) {
+        Preconditions.checkState((nonZeroGroup == 1) && (other.nonZeroGroup == 1), "Can only do OR on {0, 1} bitsets");
         bitSet.or(other.bitSet);
         recalculateNumGroups();
     }

@@ -1221,7 +1221,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                     } else {
                         outputBitSetGroupLookup = ((BitSetGroupLookup) inputGroupLookup).makeCopy();
                     }
-                    outputBitSetGroupLookup.destructivelyInvertAllGroups();
+                    outputBitSetGroupLookup.invertAllGroups();
                     outputGroupLookup = outputBitSetGroupLookup;
                 } else {
                     Preconditions.checkState(inputGroupLookup instanceof ConstantGroupLookup);
