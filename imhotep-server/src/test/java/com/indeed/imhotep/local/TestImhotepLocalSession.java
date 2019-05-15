@@ -2296,14 +2296,32 @@ public class TestImhotepLocalSession {
             }
 
             try {
+                session.consolidateGroups(Collections.singletonList("a"), Operator.OR, "whatever");
+                Assert.fail("Expected consolidating 1 group with OR to fail");
+            } catch (final IllegalArgumentException e) {
+            }
+
+            try {
                 session.consolidateGroups(Collections.emptyList(), Operator.AND, "whatever");
                 Assert.fail("Expected consolidating 0 groups with AND to fail");
             } catch (final IllegalArgumentException e) {
             }
 
             try {
+                session.consolidateGroups(Collections.singletonList("a"), Operator.AND, "whatever");
+                Assert.fail("Expected consolidating 1 group with AND to fail");
+            } catch (final IllegalArgumentException e) {
+            }
+
+            try {
                 session.consolidateGroups(Collections.singletonList("foo"), Operator.NOT, "whatever");
                 Assert.fail("Expected consolidating non-existent groups to fail");
+            } catch (final IllegalArgumentException e) {
+            }
+
+            try {
+                session.consolidateGroups(Lists.newArrayList("a", "b"), Operator.NOT, "whatever");
+                Assert.fail("Expected consolidating multiple groups with NOT to fail");
             } catch (final IllegalArgumentException e) {
             }
          }

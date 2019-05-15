@@ -495,6 +495,11 @@ public interface ImhotepSession
     /**
      * Combine the different named input groups together on a per-document using the specified operator.
      * The resulting groups will be stored in the specified outputGroups.
+     *
+     * All input groups must only have groups that are 0 or 1. They must also be ConstantGroupLookup or BitSetGroupLookups.
+     * If the operation is AND or OR and there are fewer than 2 arguments, an IllegalArgumentException will be thrown.
+     * If the operation is NOT and there is not exactly 1 argument, an IllegalArgumentException will be thrown.
+     *
      * @param inputGroups collection of named input groups
      * @param operation operator to use
      * @param outputGroups where to store the result
