@@ -343,6 +343,9 @@ message ImhotepRequest {
   // for CONSOLIDATE_GROUPS
   repeated string consolidated_groups = 78;
   optional Operator group_consolidation_operation = 79;
+
+  // for DELETE_GROUPS
+  repeated string groups_to_delete = 80;
 }
 
 message DocStat {

@@ -191,6 +191,6 @@ public class MergeTests implements CommandsTest {
     @Override
     @Test
     public void testDeleteGroups() throws Exception {
-        assertVoidMerge(new DeleteGroups(ImhotepSession.DEFAULT_GROUPS, SESSION_ID));
+        assertVoidMerge(new DeleteGroups(Collections.singletonList(ImhotepSession.DEFAULT_GROUPS), SESSION_ID));
     }
 }

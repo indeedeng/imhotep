@@ -6,26 +6,28 @@ import com.indeed.imhotep.protobuf.ImhotepRequest;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
 
+import java.util.List;
+
 @EqualsAndHashCode(callSuper = true)
 @ToString
 public class DeleteGroups extends VoidAbstractImhotepCommand {
-    private final String groupsName;
+    private final List<String> groupsToDelete;
 
-    public DeleteGroups(final String groupsName, final String sessionId) {
+    public DeleteGroups(final List<String> groupsToDelete, final String sessionId) {
         super(sessionId);
-        this.groupsName = groupsName;
+        this.groupsToDelete = groupsToDelete;
     }
 
     @Override
     public void applyVoid(final ImhotepSession imhotepSession) {
-        imhotepSession.deleteGroups(groupsName);
+        imhotepSession.deleteGroups(groupsToDelete);
     }
 
     @Override
     protected RequestTools.ImhotepRequestSender imhotepRequestSenderInitializer() {
         final ImhotepRequest request = ImhotepRequest.newBuilder()
                 .setRequestType(ImhotepRequest.RequestType.DELETE_GROUPS)
-                .setInputGroups(groupsName)
+                .addAllGroupsToDelete(groupsToDelete)
                 .setSessionId(sessionId)
                 .build();
         return RequestTools.ImhotepRequestSender.Cached.create(request);

@@ -1042,7 +1042,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
         private ImhotepResponse deleteGroups(final ImhotepRequest request, final ImhotepResponse.Builder builder) throws ImhotepOutOfMemoryException {
             service.handleDeleteGroups(
                 request.getSessionId(),
-                request.getInputGroups()
+                request.getGroupsToDeleteList()
             );
             return builder.build();
         }

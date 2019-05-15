@@ -2336,7 +2336,7 @@ public class TestImhotepLocalSession {
                 new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE)),
                 null)) {
             Assert.assertNotNull(session.namedGroupLookups.get(ImhotepSession.DEFAULT_GROUPS));
-            session.deleteGroups(ImhotepSession.DEFAULT_GROUPS);
+            session.deleteGroups(Collections.singletonList(ImhotepSession.DEFAULT_GROUPS));
             try {
                 session.namedGroupLookups.get(ImhotepSession.DEFAULT_GROUPS);
                 Assert.fail();

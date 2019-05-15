@@ -242,8 +242,8 @@ public class BatchRemoteImhotepMultiSession extends AbstractImhotepSession {
     }
 
     @Override
-    public void deleteGroups(final String groupsName) {
-        commands.add(new DeleteGroups(groupsName, remoteImhotepMultiSession.getSessionId()));
+    public void deleteGroups(final List<String> groupsToDelete) {
+        commands.add(new DeleteGroups(groupsToDelete, remoteImhotepMultiSession.getSessionId()));
     }
 
     @Override

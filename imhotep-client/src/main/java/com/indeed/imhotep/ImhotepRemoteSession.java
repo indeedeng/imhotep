@@ -21,7 +21,6 @@ import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
 import com.indeed.flamdex.query.Query;
-import com.indeed.imhotep.Instrumentation.Keys;
 import com.indeed.imhotep.api.CommandSerializationParameters;
 import com.indeed.imhotep.api.FTGAIterator;
 import com.indeed.imhotep.api.FTGSIterator;
@@ -32,8 +31,6 @@ import com.indeed.imhotep.api.ImhotepCommand;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.PerformanceStats;
 import com.indeed.imhotep.api.RegroupParams;
-import com.indeed.imhotep.exceptions.GenericImhotepKnownException;
-import com.indeed.imhotep.exceptions.ImhotepKnownException;
 import com.indeed.imhotep.io.ImhotepProtobufShipping;
 import com.indeed.imhotep.io.LimitedBufferedOutputStream;
 import com.indeed.imhotep.io.RequestTools;
@@ -1013,10 +1010,10 @@ public class ImhotepRemoteSession
     }
 
     @Override
-    public void deleteGroups(final String groupsName) {
+    public void deleteGroups(final List<String> groupsToDelete) {
         final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.DELETE_GROUPS)
                 .setSessionId(getSessionId())
-                .setInputGroups(groupsName)
+                .addAllGroupsToDelete(groupsToDelete)
                 .build();
 
         try {

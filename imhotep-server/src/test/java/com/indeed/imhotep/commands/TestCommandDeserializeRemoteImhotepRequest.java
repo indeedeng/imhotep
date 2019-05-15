@@ -22,6 +22,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -236,7 +237,8 @@ public class TestCommandDeserializeRemoteImhotepRequest implements CommandsTest 
     @Override
     @Test
     public void testDeleteGroups() throws Exception {
-        imhotepRemoteSession.deleteGroups("someGroups");
-        Assert.assertEquals(new DeleteGroups("someGroups", SESSION_ID), holder.futureCommand.get());
+        final List<String> groupsToDelete = Collections.singletonList("someGroups");
+        imhotepRemoteSession.deleteGroups(groupsToDelete);
+        Assert.assertEquals(new DeleteGroups(groupsToDelete, SESSION_ID), holder.futureCommand.get());
     }
 }

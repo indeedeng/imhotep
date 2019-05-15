@@ -1237,8 +1237,10 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     }
 
     @Override
-    public synchronized void deleteGroups(final String groupsName) {
-        namedGroupLookups.delete(groupsName);
+    public synchronized void deleteGroups(final List<String> groupsToDelete) {
+        for (final String groupsName : groupsToDelete) {
+            namedGroupLookups.delete(groupsName);
+        }
     }
 
     private static final Comparator<IntTermWithFreq> INT_FREQ_COMPARATOR =

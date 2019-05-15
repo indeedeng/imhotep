@@ -343,9 +343,9 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
     }
 
     @Override
-    public void deleteGroups(final String groupsName) {
+    public void deleteGroups(final List<String> groupsToDelete) {
         executeRuntimeException(nullBuf, session -> {
-            session.deleteGroups(groupsName);
+            session.deleteGroups(groupsToDelete);
             return null;
         });
     }

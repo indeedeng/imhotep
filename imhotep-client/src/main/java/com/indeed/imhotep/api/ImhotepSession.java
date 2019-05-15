@@ -510,7 +510,7 @@ public interface ImhotepSession
     /**
      * Delete the given groups
      */
-    void deleteGroups(final String groupsName);
+    void deleteGroups(final List<String> groupsToDelete);
 
     /**
      * push the metric specified by statName

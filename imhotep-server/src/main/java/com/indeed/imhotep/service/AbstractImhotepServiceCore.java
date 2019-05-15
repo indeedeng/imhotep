@@ -675,9 +675,9 @@ public abstract class AbstractImhotepServiceCore
     }
 
     @Override
-    public void handleDeleteGroups(final String sessionId, final String groupsName) {
+    public void handleDeleteGroups(final String sessionId, final List<String> groupsToDelete) {
         doWithSession(sessionId, (Function<MTImhotepLocalMultiSession, Void>) session -> {
-            session.deleteGroups(groupsName);
+            session.deleteGroups(groupsToDelete);
             return null;
         });
     }

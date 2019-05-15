@@ -219,7 +219,7 @@ public interface ImhotepCommand<T> extends HasSessionId {
                 );
             case DELETE_GROUPS:
                 return new DeleteGroups(
-                        request.getInputGroups(),
+                        request.getGroupsToDeleteList(),
                         request.getSessionId()
                 );
             default:

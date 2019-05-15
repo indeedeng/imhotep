@@ -20,6 +20,7 @@ import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 public class TestCommandApply implements CommandsTest {
@@ -231,8 +232,9 @@ public class TestCommandApply implements CommandsTest {
     @Override
     @Test
     public void testDeleteGroups() throws Exception {
-        testApplyMethodCallVoid(new DeleteGroups("someGroups", SESSION_ID), session -> {
-            session.deleteGroups("someGroups");
+        final List<String> groupsToDelete = Collections.singletonList("someGroups");
+        testApplyMethodCallVoid(new DeleteGroups(groupsToDelete, SESSION_ID), session -> {
+            session.deleteGroups(groupsToDelete);
         });
     }
 }
