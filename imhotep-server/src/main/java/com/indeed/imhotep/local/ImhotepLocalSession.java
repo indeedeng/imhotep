@@ -313,9 +313,12 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
      * @param array
      *            the array to export docIdToGroup into
      */
+    @VisibleForTesting
     public void exportDocIdToGroupId(final int[] array) {
         exportDocIdToGroupId(ImhotepSession.DEFAULT_GROUPS, array);
     }
+
+    @VisibleForTesting
     public synchronized void exportDocIdToGroupId(final String groupsName, final int[] array) {
         final GroupLookup docIdToGroup = namedGroupLookups.get(groupsName);
         if (array.length != docIdToGroup.size()) {
@@ -1097,6 +1100,8 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
 
     // may use lhs destructively
     private static GroupLookup and(final GroupLookup lhs, final GroupLookup rhs) {
+        Preconditions.checkArgument((lhs.getNumGroups() >= 1) && (lhs.getNumGroups() <= 2));
+        Preconditions.checkArgument((rhs.getNumGroups() >= 1) && (rhs.getNumGroups() <= 2));
         if ((lhs instanceof ConstantGroupLookup) && (rhs instanceof ConstantGroupLookup)) {
             final boolean lhs1 = ((ConstantGroupLookup) lhs).getConstantGroup() == 1;
             final boolean rhs1 = ((ConstantGroupLookup) rhs).getConstantGroup() == 1;
@@ -1134,6 +1139,8 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
 
     // may use lhs destructively
     private static GroupLookup or(final GroupLookup lhs, final GroupLookup rhs) {
+        Preconditions.checkArgument((lhs.getNumGroups() >= 1) && (lhs.getNumGroups() <= 2));
+        Preconditions.checkArgument((rhs.getNumGroups() >= 1) && (rhs.getNumGroups() <= 2));
         if ((lhs instanceof ConstantGroupLookup) && (rhs instanceof ConstantGroupLookup)) {
             final boolean lhs1 = ((ConstantGroupLookup) lhs).getConstantGroup() == 1;
             final boolean rhs1 = ((ConstantGroupLookup) rhs).getConstantGroup() == 1;
@@ -1212,6 +1219,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                 Preconditions.checkArgument(inputGroups.size() == 1, "NOT can only operate on one parameter");
                 final String theInputGroups = inputGroups.get(0);
                 final GroupLookup inputGroupLookup = namedGroupLookups.get(theInputGroups);
+                Preconditions.checkArgument((inputGroupLookup.getNumGroups() >= 1) && (inputGroupLookup.getNumGroups() <= 2));
                 if (inputGroupLookup instanceof BitSetGroupLookup) {
                     final BitSetGroupLookup outputBitSetGroupLookup;
                     if (theInputGroups.equals(outputGroups)) {
