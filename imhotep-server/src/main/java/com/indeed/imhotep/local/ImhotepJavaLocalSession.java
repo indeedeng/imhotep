@@ -438,7 +438,7 @@ public class ImhotepJavaLocalSession extends ImhotepLocalSession {
         // TODO: When do we actually want to reset optimized readers?
         // TODO: Do we actually care? It only affects model builders.
         resetOptimizedReaders();
-        resetGroupsTo(ImhotepSession.DEFAULT_GROUPS, 1);
+        resetGroupsTo(groupsName, 1);
     }
 
     @Override
