@@ -94,7 +94,10 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
     private boolean closed = false;
 
     /** bytes downloaded from other daemons in peer to peer cache */
-    private final AtomicLong downloadedBytesInPeerToPeerCache;
+    private final AtomicLong downloadedBytesP2P;
+
+    /** bytes downloaded in the filesystem from remote file store */
+    private final AtomicLong downloadedBytes;
 
     public final class RelayObserver implements Instrumentation.Observer {
         public synchronized void onEvent(final Instrumentation.Event event) {
@@ -148,7 +151,8 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
         super(sessionId);
         this.tempFileSizeBytesLeft = tempFileSizeBytesLeft;
         this.savedTempFileSizeValue = (tempFileSizeBytesLeft == null) ? 0 : tempFileSizeBytesLeft.get();
-        this.downloadedBytesInPeerToPeerCache = new AtomicLong();
+        this.downloadedBytesP2P = new AtomicLong();
+        this.downloadedBytes = new AtomicLong();
         this.userName = userName;
         this.clientName = clientName;
         this.priority = priority;
@@ -599,7 +603,8 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
             }
         }
         builder.setCpuTime(cpuTotalTime - savedCPUTime);
-        builder.setCustomStat("downloadedBytesInP2P", downloadedBytesInPeerToPeerCache.get());
+        builder.setCustomStat("downloadedBytesP2P", downloadedBytesP2P.get());
+        builder.setCustomStat("downloadedBytes", downloadedBytes.get());
 
         // All sessions share the same AtomicLong tempFileSizeBytesLeft,
         // so value accumulated in builder::ftgsTempFileSize is wrong
@@ -644,7 +649,11 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
     }
 
     public void addDownloadedBytesInPeerToPeerCache(final long bytesDownloaded) {
-        downloadedBytesInPeerToPeerCache.addAndGet(bytesDownloaded);
+        downloadedBytesP2P.addAndGet(bytesDownloaded);
+    }
+
+    public void addDownloadedBytes(final long bytesDownloaded) {
+        downloadedBytes.addAndGet(bytesDownloaded);
     }
 
     @Override
