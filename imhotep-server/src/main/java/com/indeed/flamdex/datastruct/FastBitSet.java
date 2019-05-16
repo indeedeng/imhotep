@@ -32,6 +32,11 @@ public final class FastBitSet {
         bits = new long[(size + 64) >> 6];
     }
 
+    public FastBitSet(final FastBitSet other) {
+        size = other.size;
+        bits = Arrays.copyOf(other.bits, other.bits.length);
+    }
+
     private void fixLastElement() {
         final long mask = ~(-1L << (size & 0x3F));
         bits[bits.length - 1] &= mask;

@@ -204,9 +204,7 @@ final class BitSetGroupLookup extends GroupLookup {
         if (!memory.claimMemory(memoryUsed())) {
             throw new ImhotepOutOfMemoryException();
         }
-        final FastBitSet bitSet = new FastBitSet(this.bitSet.size());
-        bitSet.or(this.bitSet);
-        final BitSetGroupLookup bitSetGroupLookup = new BitSetGroupLookup(bitSet, size, nonZeroGroup);
+        final BitSetGroupLookup bitSetGroupLookup = new BitSetGroupLookup(new FastBitSet(this.bitSet), size, nonZeroGroup);
         bitSetGroupLookup.numGroups = numGroups;
         return bitSetGroupLookup;
     }
