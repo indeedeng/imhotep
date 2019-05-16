@@ -215,7 +215,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         this.memory = memory;
         this.numDocs = flamdexReader.getNumDocs();
 
-        namedGroupLookups = new NamedGroupManager(sessionId, memory);
+        namedGroupLookups = new NamedGroupManager(memory);
         resetGroupsTo(ImhotepSession.DEFAULT_GROUPS, 1);
 
         this.metricStack.addObserver(new StatLookup.Observer() {
@@ -1099,7 +1099,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     }
 
     // may use lhs destructively
-    private static GroupLookup and(final GroupLookup lhs, final GroupLookup rhs) {
+    private GroupLookup and(final GroupLookup lhs, final GroupLookup rhs) throws ImhotepOutOfMemoryException {
         Preconditions.checkArgument((lhs.getNumGroups() >= 1) && (lhs.getNumGroups() <= 2));
         Preconditions.checkArgument((rhs.getNumGroups() >= 1) && (rhs.getNumGroups() <= 2));
         if ((lhs instanceof ConstantGroupLookup) && (rhs instanceof ConstantGroupLookup)) {
@@ -1117,7 +1117,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             final boolean rhs1 = ((ConstantGroupLookup) rhs).getConstantGroup() == 1;
             if (!rhs1) {
                 // (x && false) == false
-                return rhs.makeCopy();
+                return rhs.makeCopy(memory);
             }
             // (x && true) == x
             return lhs1;
@@ -1129,7 +1129,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
 
             if (lhs1) {
                 // (true && x) == x
-                return rhs1.makeCopy();
+                return rhs1.makeCopy(memory);
             } else {
                 // (false && x) == false
                 return lhs;
@@ -1138,7 +1138,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     }
 
     // may use lhs destructively
-    private static GroupLookup or(final GroupLookup lhs, final GroupLookup rhs) {
+    private GroupLookup or(final GroupLookup lhs, final GroupLookup rhs) throws ImhotepOutOfMemoryException {
         Preconditions.checkArgument((lhs.getNumGroups() >= 1) && (lhs.getNumGroups() <= 2));
         Preconditions.checkArgument((rhs.getNumGroups() >= 1) && (rhs.getNumGroups() <= 2));
         if ((lhs instanceof ConstantGroupLookup) && (rhs instanceof ConstantGroupLookup)) {
@@ -1156,7 +1156,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             final boolean rhs1 = ((ConstantGroupLookup) rhs).getConstantGroup() == 1;
             if (rhs1) {
                 // (x || true) == true
-                return rhs.makeCopy();
+                return rhs.makeCopy(memory);
             }
             // (x || false) == x
             return lhs1;
@@ -1171,7 +1171,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                 return lhs;
             } else {
                 // (false || x) == x
-                return rhs1.makeCopy();
+                return rhs1.makeCopy(memory);
             }
         }
     }
@@ -1200,7 +1200,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                     computed = namedGroupLookups.get(outputGroups);
                     inputGroups.remove(outputGroups);
                 } else {
-                    computed = namedGroupLookups.get(inputGroups.get(0)).makeCopy();
+                    computed = namedGroupLookups.get(inputGroups.get(0)).makeCopy(memory);
                     inputGroups.remove(0);
                 }
                 if (operation == Operator.AND) {
@@ -1225,7 +1225,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                     if (theInputGroups.equals(outputGroups)) {
                         outputBitSetGroupLookup = (BitSetGroupLookup) inputGroupLookup;
                     } else {
-                        outputBitSetGroupLookup = ((BitSetGroupLookup) inputGroupLookup).makeCopy();
+                        outputBitSetGroupLookup = ((BitSetGroupLookup) inputGroupLookup).makeCopy(memory);
                     }
                     outputBitSetGroupLookup.invertAllGroups();
                     outputGroupLookup = outputBitSetGroupLookup;
@@ -1239,7 +1239,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             default:
                 throw newIllegalArgumentException("Unknown operation: " + operation);
         }
-        namedGroupLookups.claimMemoryAndPut(outputGroups, outputGroupLookup);
+        namedGroupLookups.put(outputGroups, outputGroupLookup);
     }
 
     @Override
@@ -1373,7 +1373,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                         if (inputGroups instanceof ConstantGroupLookup) {
                             final int oldGroup = ((ConstantGroupLookup) inputGroups).getConstantGroup();
                             final int newGroup = ((oldGroup - 1) * totalBuckets) + commonGroup;
-                            namedGroupLookups.claimMemoryAndPut(regroupParams.getOutputGroups(), new ConstantGroupLookup(newGroup, inputGroups.size()));
+                            namedGroupLookups.put(regroupParams.getOutputGroups(), new ConstantGroupLookup(newGroup, inputGroups.size()));
                         } else if (inputGroups instanceof BitSetGroupLookup) {
                             final BitSetGroupLookup bitSetGroupLookup = (BitSetGroupLookup) namedGroupLookups.copyInto(regroupParams);
                             final int oldGroup = bitSetGroupLookup.getNonZeroGroup();
@@ -1575,8 +1575,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         }
 
         if (!hasChanges) {
-            final GroupLookup inputCopy = namedGroupLookups.get(regroupParams.getInputGroups()).makeCopy();
-            namedGroupLookups.claimMemoryAndPut(regroupParams.getOutputGroups(), inputCopy);
+            namedGroupLookups.copyInto(regroupParams);
             return namedGroupLookups.finalizeRegroup(regroupParams);
         }
 
@@ -2694,7 +2693,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         if (group != 0) {
             lookup = moveDeletedDocumentsToGroupZero(lookup);
         }
-        namedGroupLookups.claimMemoryAndPut(groupsName, lookup);
+        namedGroupLookups.put(groupsName, lookup);
     }
 
     static void clear(final long[] array, final int[] groupsSeen, final int groupsSeenCount) {

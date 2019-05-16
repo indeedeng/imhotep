@@ -15,13 +15,11 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 public class NamedGroupManager implements Closeable {
-    // TODO: put SessionID in NDC and remove fields and logging
-    private final String sessionId;
     private final MemoryReservationContext memory;
     private final ConcurrentMap<String, GroupLookup> groups;
 
-    public NamedGroupManager(final String sessionId, final MemoryReservationContext memory) {
-        this.sessionId = sessionId;
+    public NamedGroupManager(final MemoryReservationContext memory) {
+        // TODO: put SessionID in NDC and remove fields and logging
         this.memory = memory;
         this.groups = new ConcurrentHashMap<>();
     }
@@ -38,16 +36,9 @@ public class NamedGroupManager implements Closeable {
         return totalMemoryUsed;
     }
 
-    public void claimMemoryAndPut(final String name, final GroupLookup groupLookup) throws ImhotepOutOfMemoryException {
-        if (!memory.claimMemory(groupLookup.memoryUsed())) {
-            throw new ImhotepOutOfMemoryException("[" + sessionId + "] Not enough memory to store GroupLookup");
-        }
-        putAlreadyClaimed(name, groupLookup);
-    }
-
-    public void putAlreadyClaimed(final String name, final GroupLookup groupLookup) {
+    public void put(final String name, final GroupLookup groupLookup) {
         final GroupLookup oldValue = groups.put(name, groupLookup);
-        if (oldValue != null) {
+        if ((oldValue != null) && (groupLookup != oldValue)) {
             memory.releaseMemory(oldValue.memoryUsed());
         }
     }
@@ -102,7 +93,7 @@ public class NamedGroupManager implements Closeable {
         final GroupLookup inputGroups = get(regroupParams.getInputGroups());
         final GroupLookup newGL = GroupLookupFactory.create(maxGroup, inputGroups.size(), memory);
         inputGroups.copyInto(newGL);
-        putAlreadyClaimed(regroupParams.getOutputGroups(), newGL);
+        put(regroupParams.getOutputGroups(), newGL);
         return newGL;
     }
 
@@ -116,8 +107,8 @@ public class NamedGroupManager implements Closeable {
             return inputGroups;
         }
 
-        final GroupLookup outputGroups = inputGroups.makeCopy();
-        claimMemoryAndPut(regroupParams.getOutputGroups(), outputGroups);
+        final GroupLookup outputGroups = inputGroups.makeCopy(memory);
+        put(regroupParams.getOutputGroups(), outputGroups);
         return outputGroups;
     }
 
@@ -179,7 +170,7 @@ public class NamedGroupManager implements Closeable {
     public boolean handleFiltered(final RegroupParams regroupParams) {
         final GroupLookup inputGroups = get(regroupParams.getInputGroups());
         if (inputGroups.isFilteredOut()) {
-            putAlreadyClaimed(regroupParams.getOutputGroups(), new ConstantGroupLookup(0, inputGroups.size()));
+            put(regroupParams.getOutputGroups(), new ConstantGroupLookup(0, inputGroups.size()));
             return true;
         }
         return false;

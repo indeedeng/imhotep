@@ -52,7 +52,7 @@ public class IndexReWriter {
         this.newSession = newSession;
         this.groupsName = groupsName;
         this.memory = memory;
-        this.newGroupLookups = new NamedGroupManager(newSession.getSessionId(), newSession.memory);
+        this.newGroupLookups = new NamedGroupManager(newSession.memory);
         this.sessionDocIdOffsets = new int[localSessions.size()];
     }
 
@@ -267,7 +267,7 @@ public class IndexReWriter {
                 }
             }
             newGL.recalculateNumGroups();
-            this.newGroupLookups.putAlreadyClaimed(groupName, newGL);
+            this.newGroupLookups.put(groupName, newGL);
         }
 
         /*

@@ -16,6 +16,8 @@
 import com.indeed.flamdex.datastruct.FastBitSet;
 import com.indeed.imhotep.BitTree;
 import com.indeed.imhotep.GroupRemapRule;
+import com.indeed.imhotep.MemoryReservationContext;
+import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.util.core.threads.ThreadSafeBitSet;
 
 import java.util.Arrays;
@@ -142,7 +144,10 @@ final class ByteGroupLookup extends GroupLookup implements ArrayBasedGroupLookup
     }
 
     @Override
-    public GroupLookup makeCopy() {
+    public GroupLookup makeCopy(final MemoryReservationContext memory) throws ImhotepOutOfMemoryException {
+        if (!memory.claimMemory(memoryUsed())) {
+            throw new ImhotepOutOfMemoryException();
+        }
         return new ByteGroupLookup(Arrays.copyOf(docIdToGroup, docIdToGroup.length));
     }
 
