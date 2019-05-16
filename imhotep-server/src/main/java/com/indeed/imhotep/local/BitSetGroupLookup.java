@@ -206,7 +206,9 @@ final class BitSetGroupLookup extends GroupLookup {
         }
         final FastBitSet bitSet = new FastBitSet(this.bitSet.size());
         bitSet.or(this.bitSet);
-        return new BitSetGroupLookup(bitSet, size, nonZeroGroup);
+        final BitSetGroupLookup bitSetGroupLookup = new BitSetGroupLookup(bitSet, size, nonZeroGroup);
+        bitSetGroupLookup.numGroups = numGroups;
+        return bitSetGroupLookup;
     }
 
     @Override

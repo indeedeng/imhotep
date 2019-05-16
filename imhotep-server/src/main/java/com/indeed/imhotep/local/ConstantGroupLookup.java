@@ -108,7 +108,9 @@ final class ConstantGroupLookup extends GroupLookup {
             // can't happen right now but who knows in the future?
             throw new ImhotepOutOfMemoryException();
         }
-        return new ConstantGroupLookup(constant, size);
+        final ConstantGroupLookup constantGroupLookup = new ConstantGroupLookup(constant, size);
+        constantGroupLookup.numGroups = numGroups;
+        return constantGroupLookup;
     }
 
     @Override
