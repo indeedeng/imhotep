@@ -19,7 +19,6 @@ public class NamedGroupManager implements Closeable {
     private final ConcurrentMap<String, GroupLookup> groups;
 
     public NamedGroupManager(final MemoryReservationContext memory) {
-        // TODO: put SessionID in NDC and remove fields and logging
         this.memory = memory;
         this.groups = new ConcurrentHashMap<>();
     }
@@ -28,12 +27,10 @@ public class NamedGroupManager implements Closeable {
         return Sets.newHashSet(groups.keySet());
     }
 
-    public long getTotalMemoryUsed() {
-        long totalMemoryUsed = 0L;
-        for (final GroupLookup value : groups.values()) {
-            totalMemoryUsed += value.memoryUsed();
-        }
-        return totalMemoryUsed;
+    public GroupLookup get(final String name) {
+        final GroupLookup result = groups.get(name);
+        Preconditions.checkArgument(result != null, "The specified groups do not exist: " + name);
+        return result;
     }
 
     public void put(final String name, final GroupLookup groupLookup) {
@@ -48,12 +45,6 @@ public class NamedGroupManager implements Closeable {
         if (oldValue != null) {
             memory.releaseMemory(oldValue.memoryUsed());
         }
-    }
-
-    public GroupLookup get(final String name) {
-        final GroupLookup result = groups.get(name);
-        Preconditions.checkArgument(result != null, "The specified groups do not exist: " + name);
-        return result;
     }
 
     /**
@@ -91,7 +82,7 @@ public class NamedGroupManager implements Closeable {
         }
 
         final GroupLookup inputGroups = get(regroupParams.getInputGroups());
-        final GroupLookup newGL = GroupLookupFactory.create(maxGroup, inputGroups.size(), memory);
+        final GroupLookup newGL = GroupLookupFactory.create(Math.max(inputGroups.maxGroup(), maxGroup), inputGroups.size(), memory);
         inputGroups.copyInto(newGL);
         put(regroupParams.getOutputGroups(), newGL);
         return newGL;
@@ -121,7 +112,7 @@ public class NamedGroupManager implements Closeable {
      */
     private void resize(final String name, final int maxGroup) throws ImhotepOutOfMemoryException {
         final GroupLookup lookup = get(name);
-        // Deliberately not calling "putAlreadyClaimed" because resize accounted for any freeing necessary.
+        // Deliberately not calling "put" because resize accounted for any freeing necessary.
         groups.put(name, GroupLookupFactory.resize(lookup, maxGroup, memory));
     }
 
