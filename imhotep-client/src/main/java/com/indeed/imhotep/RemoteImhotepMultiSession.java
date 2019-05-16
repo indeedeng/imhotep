@@ -38,7 +38,6 @@ import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
 import com.indeed.imhotep.protobuf.HostAndPort;
 import com.indeed.imhotep.protobuf.ImhotepRequest;
 import com.indeed.imhotep.protobuf.MultiFTGSRequest;
-import com.indeed.imhotep.protobuf.Operator;
 import com.indeed.imhotep.protobuf.StatsSortOrder;
 import com.indeed.util.core.Pair;
 import com.indeed.util.core.io.Closeables2;
@@ -326,6 +325,11 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
         private final String field;
         @Nullable
         private final List<List<String>> stats;
+        private final String groupsName;
+
+        public SessionField(final ImhotepSession session, final String field, @Nullable final List<List<String>> stats) {
+            this(session, field, stats, ImhotepSession.DEFAULT_GROUPS);
+        }
 
         /**
          * This constructor has sharp edges.
@@ -333,7 +337,8 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
          *
          * @throws IllegalArgumentException if session is not a RemoteImhotepMultiSession or AsynchronousRemoteImhotepMultiSession
          */
-        public SessionField(final ImhotepSession session, final String field, @Nullable final List<List<String>> stats) {
+        public SessionField(final ImhotepSession session, final String field, @Nullable final List<List<String>> stats, final String groupsName) {
+            this.groupsName = groupsName;
             if (session instanceof AsynchronousRemoteImhotepMultiSession) {
                 final AsynchronousRemoteImhotepMultiSession asyncSession = (AsynchronousRemoteImhotepMultiSession) session;
                 this.session = asyncSession.original;
@@ -563,6 +568,8 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
                 sessionBuilder.addAllStats(sessionField.stats.stream().map(x -> DocStat.newBuilder().addAllStat(x).build()).collect(Collectors.toList()));
                 sessionBuilder.setHasStats(true);
             }
+
+            sessionBuilder.setGroupsName(sessionField.groupsName);
         }
 
         final List<HostAndPort> allNodesList = Lists.newArrayList(allNodes);
