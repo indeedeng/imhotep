@@ -309,12 +309,6 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
         return Collections.max(Arrays.asList(integerBuf));
     }
 
-    public AbstractImhotepMultiSession<AsynchronousRemoteImhotepSession> toAsync() {
-        final AsynchronousRemoteImhotepSession[] asyncSessions = new AsynchronousRemoteImhotepSession[this.sessions.length];
-        Arrays.setAll(asyncSessions, i -> new AsynchronousRemoteImhotepSession(sessions[i], executor));
-        return new AsynchronousRemoteImhotepMultiSession(asyncSessions, this);
-    }
-
     public BatchRemoteImhotepMultiSession toBatch(){
         return new BatchRemoteImhotepMultiSession(this);
     }
@@ -333,11 +327,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
          * @throws IllegalArgumentException if session is not a RemoteImhotepMultiSession or AsynchronousRemoteImhotepMultiSession
          */
         public SessionField(final ImhotepSession session, final String field, @Nullable final List<List<String>> stats) {
-            if (session instanceof AsynchronousRemoteImhotepMultiSession) {
-                final AsynchronousRemoteImhotepMultiSession asyncSession = (AsynchronousRemoteImhotepMultiSession) session;
-                this.session = asyncSession.original;
-                this.synchronizeCallback = asyncSession::synchronizeAll;
-            } else if (session instanceof RemoteImhotepMultiSession) {
+            if (session instanceof RemoteImhotepMultiSession) {
                 this.session = (RemoteImhotepMultiSession) session;
                 this.synchronizeCallback = () -> {};
             } else if (session instanceof BatchRemoteImhotepMultiSession) {
