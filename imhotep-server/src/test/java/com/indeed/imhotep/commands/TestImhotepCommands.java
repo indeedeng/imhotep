@@ -341,6 +341,15 @@ public class TestImhotepCommands implements CommandsTest {
 
     @Override
     @Test
+    public void testResetGroups() throws Exception {
+        assertEqualGroupStatsVoid(session -> {
+            session.intOrRegroup(RegroupParams.DEFAULT, "metric", new long[] {2, 3}, 1, 0, 1);
+            session.resetGroups(ImhotepSession.DEFAULT_GROUPS);
+        });
+    }
+
+    @Override
+    @Test
     public void testDeleteGroups() {
         // nothing really great to check here
     }

@@ -13,6 +13,7 @@ import com.indeed.imhotep.commands.ConsolidateGroups;
 import com.indeed.imhotep.commands.DeleteGroups;
 import com.indeed.imhotep.commands.GetGroupStats;
 import com.indeed.imhotep.commands.IntOrRegroup;
+import com.indeed.imhotep.commands.ResetGroups;
 import com.indeed.imhotep.commands.TargetedMetricFilter;
 import com.indeed.imhotep.commands.MetricRegroup;
 import com.indeed.imhotep.commands.MultiRegroup;
@@ -315,11 +316,8 @@ public class BatchRemoteImhotepMultiSession extends AbstractImhotepSession {
     }
 
     @Override
-    public void resetGroups(final String groupsName) throws ImhotepOutOfMemoryException {
-        commands.clear();
-        remoteImhotepMultiSession.resetGroups(groupsName);
-        // TODO: add a reset to batch instead
-        throw new UnsupportedOperationException();
+    public void resetGroups(final String groupsName) {
+        commands.add(new ResetGroups(groupsName, remoteImhotepMultiSession.getSessionId()));
     }
 
     @Override

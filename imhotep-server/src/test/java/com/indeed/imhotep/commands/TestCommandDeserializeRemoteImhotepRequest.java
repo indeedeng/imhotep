@@ -236,6 +236,13 @@ public class TestCommandDeserializeRemoteImhotepRequest implements CommandsTest 
 
     @Override
     @Test
+    public void testResetGroups() throws Exception {
+        imhotepRemoteSession.resetGroups("foo");
+        Assert.assertEquals(new ResetGroups("foo", SESSION_ID), holder.futureCommand.get());
+    }
+
+    @Override
+    @Test
     public void testDeleteGroups() throws Exception {
         final List<String> groupsToDelete = Collections.singletonList("someGroups");
         imhotepRemoteSession.deleteGroups(groupsToDelete);

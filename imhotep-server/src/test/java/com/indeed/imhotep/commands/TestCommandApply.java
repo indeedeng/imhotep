@@ -231,6 +231,14 @@ public class TestCommandApply implements CommandsTest {
 
     @Override
     @Test
+    public void testResetGroups() throws Exception {
+        testApplyMethodCallVoid(new ResetGroups("foo", SESSION_ID), session -> {
+            session.resetGroups("foo");
+        });
+    }
+
+    @Override
+    @Test
     public void testDeleteGroups() throws Exception {
         final List<String> groupsToDelete = Collections.singletonList("someGroups");
         testApplyMethodCallVoid(new DeleteGroups(groupsToDelete, SESSION_ID), session -> {

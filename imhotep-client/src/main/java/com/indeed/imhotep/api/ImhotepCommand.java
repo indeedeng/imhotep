@@ -11,6 +11,7 @@ import com.indeed.imhotep.commands.ConsolidateGroups;
 import com.indeed.imhotep.commands.DeleteGroups;
 import com.indeed.imhotep.commands.GetGroupStats;
 import com.indeed.imhotep.commands.IntOrRegroup;
+import com.indeed.imhotep.commands.ResetGroups;
 import com.indeed.imhotep.commands.TargetedMetricFilter;
 import com.indeed.imhotep.commands.MetricRegroup;
 import com.indeed.imhotep.commands.MultiRegroup;
@@ -215,6 +216,11 @@ public interface ImhotepCommand<T> extends HasSessionId {
                         request.getConsolidatedGroupsList(),
                         request.getGroupConsolidationOperation(),
                         request.getOutputGroups(),
+                        request.getSessionId()
+                );
+            case RESET_GROUPS:
+                return new ResetGroups(
+                        request.getInputGroups(),
                         request.getSessionId()
                 );
             case DELETE_GROUPS:
