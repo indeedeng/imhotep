@@ -3,7 +3,6 @@ package com.indeed.imhotep.scheduling;
 import com.indeed.imhotep.AbstractImhotepMultiSession;
 import com.indeed.imhotep.AbstractImhotepSession;
 import com.indeed.imhotep.RequestContext;
-import com.indeed.imhotep.api.ImhotepSession;
 
 import javax.annotation.Nullable;
 import java.time.Duration;
@@ -77,7 +76,7 @@ public class TaskSnapshot {
         this.numDocs = (innerSession == null) ? ((numDocs != null) ? (long)(int)numDocs : null) : (Long)innerSession.getNumDocs();
         this.numStats = (innerSession == null) ? null : innerSession.weakGetNumStats();
         // TODO: is this good? maybe Map<String, Integer>?
-        this.numGroups = (innerSession == null) ? null : innerSession.weakGetNumGroups(ImhotepSession.DEFAULT_GROUPS);
+        this.numGroups = (innerSession == null) ? null : innerSession.weakGetNumGroups();
         // end innerSession access
     }
 

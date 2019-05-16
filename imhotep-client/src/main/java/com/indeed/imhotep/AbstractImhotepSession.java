@@ -68,7 +68,7 @@ public abstract class AbstractImhotepSession implements ImhotepSession {
      * Read numGroups without providing any guarantees about reading
      * the most up to date value
      */
-    public Map<String, Integer> weakGetNumGroups(final String groupsName) {
+    public Map<String, Integer> weakGetNumGroups() {
         return Collections.emptyMap();
     }
 

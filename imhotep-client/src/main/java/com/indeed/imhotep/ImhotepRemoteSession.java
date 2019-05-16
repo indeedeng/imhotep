@@ -1307,7 +1307,8 @@ public class ImhotepRemoteSession
     }
 
     public int sendMultisplitRegroupRequest(
-            final RegroupParams regroupParams, final GroupMultiRemapRuleSender rulesSender,
+            final RegroupParams regroupParams,
+            final GroupMultiRemapRuleSender rulesSender,
             final boolean errorOnCollisions) throws IOException, ImhotepOutOfMemoryException {
         final ImhotepRequest initialRequest = getBuilderForType(ImhotepRequest.RequestType.EXPLODED_MULTISPLIT_REGROUP)
                 .setLength(rulesSender.getRulesCount())

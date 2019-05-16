@@ -262,7 +262,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
      * the most up to date value
      */
     @Override
-    public Map<String, Integer> weakGetNumGroups(final String groupsName) {
+    public Map<String, Integer> weakGetNumGroups() {
         return namedGroupLookups.getAllNumGroups();
     }
 
