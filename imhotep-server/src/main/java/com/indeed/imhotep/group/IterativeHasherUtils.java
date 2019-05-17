@@ -251,6 +251,28 @@ public class IterativeHasherUtils {
         }
     }
 
+    // uniformly choosing one of N options
+    static class UniformGroupChooser implements GroupChooser {
+        private final int n;
+        private final long divisor;
+
+        UniformGroupChooser(final int n) {
+            final long fullRange = ((long)Integer.MAX_VALUE) - ((long)Integer.MIN_VALUE);
+            this.n = n;
+            this.divisor = ((fullRange + n - 1)/n);
+        }
+
+        @Override
+        public int getGroup(final int hash) {
+            final long shiftedHash = ((long)hash) - Integer.MIN_VALUE;
+            return (int)(shiftedHash/divisor);
+        }
+    }
+
+    public static GroupChooser createUniformChooser(final int n) {
+        return new UniformGroupChooser(n);
+    }
+
     public static GroupChooser createChooser(final double[] percentages) {
         if (percentages.length == 0) {
             return new OneGroupChooser();

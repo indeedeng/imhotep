@@ -1630,6 +1630,8 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     private static final Pattern REGEXPMATCH_COMMAND = Pattern.compile("regexmatch\\s+(\\w+)\\s+([0-9]+)\\s(.+)");
     private static final Pattern RANDOM_PATTERN = Pattern.compile("^random\\s+(?<type>int|str)\\s+\\[(?<percentiles>[0-9., ]+)]\\s+(?<field>.*)\\s+\"(?<salt>.*)\"$");
     private static final Pattern RANDOM_METRIC_PATTERN = Pattern.compile("^random_metric\\s+\\[(?<percentiles>[0-9., ]+)]\\s+\"(?<salt>.*)\"$");
+    private static final Pattern RANDOM_UNIFORM_PATTERN = Pattern.compile("^random_uniform\\s+(?<type>int|str)\\s+(?<n>\\d+)\\s+(?<field>.*)\\s+\"(?<salt>.*)\"$");
+    private static final Pattern RANDOM_UNIFORM_METRIC_PATTERN = Pattern.compile("^random_uniform_metric\\s+(?<n>\\d+)\\s+\"(?<salt>.*)\"$");
 
     class MetricStack implements Closeable {
         private int numStats;
@@ -1951,6 +1953,18 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             final String field = matcher.group("field").trim();
 
             stack.push(statName, randomLookup(field, isIntField, salt, percentiles));
+        } else if (statName.startsWith("random_uniform ")) {
+            final Matcher matcher = RANDOM_UNIFORM_PATTERN.matcher(statName);
+            if (!matcher.matches()) {
+                throw new IllegalArgumentException("random uniform stat \"" + statName + "\" does not match the pattern; " + matcher.pattern());
+            }
+
+            final boolean isIntField = "int".equals(matcher.group("type"));
+            final int numGroups = Integer.parseInt(matcher.group("n"));
+            final String salt = matcher.group("salt");
+            final String field = matcher.group("field");
+
+            stack.push(statName, randomUniformLookup(field, isIntField, salt, numGroups));
         } else if (statName.startsWith("random_metric ")) {
             // Expected result:
             //      1 through (percentiles.length + 1), where the distribution across these groups is determined
@@ -1969,6 +1983,18 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
 
             try (final IntValueLookup operand = stack.popLookup()) {
                 stack.push(statName, randomMetricLookup(operand, salt, percentiles));
+            }
+        } else if (statName.startsWith("random_uniform_metric ")) {
+            final Matcher matcher = RANDOM_UNIFORM_METRIC_PATTERN.matcher(statName);
+            if (!matcher.matches()) {
+                throw new IllegalArgumentException("random uniform metric stat \"" + statName + "\" does not match the pattern; " + matcher.pattern());
+            }
+
+            final int numGroups = Integer.parseInt(matcher.group("n"));
+            final String salt = matcher.group("salt");
+
+            try (IntValueLookup operand = stack.popLookup()) {
+                stack.push(statName, randomUniformMetricLookup(operand, salt, numGroups));
             }
         } else if (statName.startsWith("global_stack ")) {
             final int statIndex = Integer.parseInt(statName.substring("global_stack ".length()));
@@ -3170,8 +3196,19 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
 
     private IntValueLookup randomLookup(final String field, final boolean isIntField, final String salt, final double[] percentages) throws ImhotepOutOfMemoryException {
         ensurePercentagesValidity(percentages);
+        final IterativeHasherUtils.GroupChooser groupChooser =
+                IterativeHasherUtils.createChooser(percentages);
+        final int maxGroup = percentages.length + 1;
+        return randomLookupForChooser(field, isIntField, salt, groupChooser, maxGroup);
+    }
 
-        // TODO: Size this based on percentages.length + 1. No need to have a full int[].
+    private IntValueLookup randomUniformLookup(final String field, final boolean isIntField, final String salt, final int maxGroup) throws ImhotepOutOfMemoryException {
+        final IterativeHasherUtils.GroupChooser groupChooser = IterativeHasherUtils.createUniformChooser(maxGroup);
+        return randomLookupForChooser(field, isIntField, salt, groupChooser, maxGroup);
+    }
+
+    private IntValueLookup randomLookupForChooser(final String field, final boolean isIntField, final String salt, final IterativeHasherUtils.GroupChooser groupChooser, final int maxGroup) throws ImhotepOutOfMemoryException {
+        // TODO: Size this based on maxGroup. No need to have a full int[].
         final long memoryUsage = 4 * flamdexReader.getNumDocs();
         if (!memory.claimMemory(memoryUsage)) {
             throw newImhotepOutOfMemoryException();
@@ -3180,8 +3217,6 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
 
         try(final IterativeHasherUtils.TermHashIterator iterator =
                     IterativeHasherUtils.create(flamdexReader, field, isIntField, salt)) {
-            final IterativeHasherUtils.GroupChooser groupChooser =
-                    IterativeHasherUtils.createChooser(percentages);
 
             final int[] docIdBuf = memoryPool.getIntBuffer(BUFFER_SIZE, true);
             try {
@@ -3207,13 +3242,23 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             }
         }
 
-        return new MemoryReservingIntValueLookupWrapper(new IntArrayIntValueLookup(array, 0, percentages.length + 1));
+        return new MemoryReservingIntValueLookupWrapper(new IntArrayIntValueLookup(array, 0, maxGroup));
     }
 
     private IntValueLookup randomMetricLookup(final IntValueLookup lookup, final String salt, final double[] percentages) throws ImhotepOutOfMemoryException {
         ensurePercentagesValidity(percentages);
+        final IterativeHasherUtils.GroupChooser chooser = IterativeHasherUtils.createChooser(percentages);
+        final int maxGroup = percentages.length + 1;
+        return randomMetricLookupForChooser(lookup, salt, chooser, maxGroup);
+    }
 
-        // TODO: Size this based on percentages.length + 1. No need to have a full int[].
+    private IntValueLookup randomUniformMetricLookup(final IntValueLookup lookup, final String salt, final int n) throws ImhotepOutOfMemoryException {
+        final IterativeHasherUtils.GroupChooser chooser = IterativeHasherUtils.createUniformChooser(n);
+        return randomMetricLookupForChooser(lookup, salt, chooser, n);
+    }
+
+    private IntValueLookup randomMetricLookupForChooser(final IntValueLookup lookup, final String salt, final IterativeHasherUtils.GroupChooser chooser, final int maxGroup) throws ImhotepOutOfMemoryException {
+        // TODO: Size this based on maxGroup. No need to have a full int[].
         final long memoryUsage = 4 * flamdexReader.getNumDocs();
         if (!memory.claimMemory(memoryUsage)) {
             throw newImhotepOutOfMemoryException();
@@ -3222,7 +3267,6 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
 
         // Using ConsistentLongHasher to be consistent with randomMetricRegroup to the extent that we can.
         final IterativeHasher.ConsistentLongHasher hasher = new IterativeHasher.Murmur3Hasher(salt).consistentLongHasher();
-        final IterativeHasherUtils.GroupChooser chooser = IterativeHasherUtils.createChooser(percentages);
 
         final int[] docIdBuf = memoryPool.getIntBuffer(BUFFER_SIZE, true);
         final long[] valBuf = memoryPool.getLongBuffer(BUFFER_SIZE, true);
@@ -3244,7 +3288,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             memoryPool.returnLongBuffer(valBuf);
         }
 
-        return new MemoryReservingIntValueLookupWrapper(new IntArrayIntValueLookup(array, 0, percentages.length + 1));
+        return new MemoryReservingIntValueLookupWrapper(new IntArrayIntValueLookup(array, 0, maxGroup));
     }
 
     private static int decodeBase32(final byte c) {

@@ -17,6 +17,8 @@ package com.indeed.imhotep.group;
 import org.apache.commons.lang.ArrayUtils;
 import org.junit.Test;
 
+import java.util.Random;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
@@ -89,6 +91,25 @@ public class TestIterativeHasherUtils {
                     IterativeHasherUtils.MultiGroupChooser.create(p);
             assertNotNull(chooser);
             assertTrue(checkBounds(chooser, p.length+1));
+        }
+    }
+
+    @Test
+    public void testUniformGroupChooser() {
+        final IterativeHasherUtils.GroupChooser chooser = IterativeHasherUtils.createUniformChooser(4);
+        assertTrue(checkBounds(chooser, 4));
+    }
+
+    @Test
+    public void testUniformMatchesProportional() {
+        final Random random = new Random(0L);
+
+        final IterativeHasherUtils.GroupChooser proportional = IterativeHasherUtils.createChooser(new double[]{0.2, 0.4, 0.6, 0.8});
+        final IterativeHasherUtils.GroupChooser uniform = IterativeHasherUtils.createUniformChooser(5);
+
+        for (int i = 0; i < 1000; i++) {
+            final int r = random.nextInt();
+            assertEquals(proportional.getGroup(r), uniform.getGroup(r));
         }
     }
 }
