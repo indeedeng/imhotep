@@ -99,6 +99,8 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
     /** bytes downloaded in the filesystem from remote file store */
     private final AtomicLong downloadedBytes;
 
+    protected final boolean takePooledConnection;
+
     public final class RelayObserver implements Instrumentation.Observer {
         public synchronized void onEvent(final Instrumentation.Event event) {
             instrumentation.fire(event);
@@ -147,7 +149,8 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
                                           final AtomicLong tempFileSizeBytesLeft,
                                           @Nonnull final String userName,
                                           @Nonnull final String clientName,
-                                          final byte priority) {
+                                          final byte priority,
+                                          final boolean takePooledConnection) {
         super(sessionId);
         this.tempFileSizeBytesLeft = tempFileSizeBytesLeft;
         this.savedTempFileSizeValue = (tempFileSizeBytesLeft == null) ? 0 : tempFileSizeBytesLeft.get();
@@ -156,6 +159,7 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
         this.userName = userName;
         this.clientName = clientName;
         this.priority = priority;
+        this.takePooledConnection = takePooledConnection;
         if (sessions == null || sessions.length == 0) {
             throw newIllegalArgumentException("at least one session is required");
         }

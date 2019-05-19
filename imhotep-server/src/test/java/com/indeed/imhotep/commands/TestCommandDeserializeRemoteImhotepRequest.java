@@ -88,7 +88,7 @@ public class TestCommandDeserializeRemoteImhotepRequest implements CommandsTest 
     @Before
     public void initialize() throws IOException {
         holder = sendDummyResponseReceiveCommand();
-        imhotepRemoteSession = new ImhotepRemoteSession(holder.host, holder.port, SESSION_ID, tempFileSizeHolder);
+        imhotepRemoteSession = new ImhotepRemoteSession(holder.host, holder.port, SESSION_ID, tempFileSizeHolder, false);
     }
 
     @Override @Test

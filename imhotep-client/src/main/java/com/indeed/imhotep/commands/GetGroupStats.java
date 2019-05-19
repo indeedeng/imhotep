@@ -54,7 +54,7 @@ public class GetGroupStats extends AbstractImhotepCommand<GroupStatsIterator> {
     @Override
     public GroupStatsIterator readResponse(final InputStream is, final CommandSerializationParameters serializationParameters) throws IOException, ImhotepOutOfMemoryException {
         final ImhotepResponse response = ImhotepRemoteSession.readResponseWithMemoryExceptionSessionId(is, serializationParameters.getHost(), serializationParameters.getPort(), getSessionId());
-        final BufferedInputStream tempFileStream = ImhotepRemoteSession.saveResponseToFileFromStream(is, "batchGroupStatsIterator", serializationParameters.getTempFileSizeBytesLeft(), getSessionId());
+        final BufferedInputStream tempFileStream = ImhotepRemoteSession.saveResponseToFileFromStream(is, "batchGroupStatsIterator", serializationParameters.getTempFileSizeBytesLeft(), getSessionId(), false);
         final GroupStatsIterator groupStatsIterator = ImhotepProtobufShipping.readGroupStatsIterator(
                 tempFileStream, response.getGroupStatSize(), false
         );

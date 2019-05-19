@@ -15,7 +15,6 @@ package com.indeed.imhotep.service;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.UnmodifiableIterator;
@@ -117,12 +116,6 @@ public class ImhotepDaemon implements Instrumentation.Provider {
         new InstrumentationProvider();
 
     private ServiceCoreObserver serviceCoreObserver;
-
-    private static final ImmutableSet REQUEST_TYPES_NOT_CLOSING_SOCKET = ImmutableSet.of(
-            ImhotepRequest.RequestType.GET_SHARD_FILE,
-            ImhotepRequest.RequestType.GET_SHARD_FILE_ATTRIBUTES,
-            ImhotepRequest.RequestType.LIST_SHARD_FILE_ATTRIBUTES
-    );
 
     private static final class InstrumentationProvider
         extends Instrumentation.ProviderSupport {
@@ -322,7 +315,8 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                                 request.getOptimizeGroupZeroLookups(),
                                 request.getSessionId(),
                                 tempFileSizeBytesLeft,
-                                request.getSessionTimeout()
+                                request.getSessionTimeout(),
+                                request.getPooledConnection()
                         );
                 NDC.push(sessionId);
                 builder.setSessionId(sessionId);
@@ -627,7 +621,8 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                     request.getSplitIndex(),
                     request.getNumSplits(),
                     request.getTermLimit(),
-                    getStats(request)
+                    getStats(request),
+                    request.getPooledConnection()
             );
         }
 
@@ -644,7 +639,8 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                     getStats(request),
                     os,
                     request.getSplitIndex(),
-                    request.getNumSplits()
+                    request.getNumSplits(),
+                    request.getPooledConnection()
             );
         }
 
@@ -1021,12 +1017,13 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             }
         }
 
-        private Pair<ImhotepResponse, GroupStatsIterator> handleImhotepRequest(
+        private HandleImhotepRequestResult handleImhotepRequest(
                 final ImhotepRequest request,
                 final InputStream is,
                 final OutputStream os) throws IOException, ImhotepOutOfMemoryException {
             ImhotepResponse response = null;
             GroupStatsIterator groupStats = null;
+            boolean closeSocket = true;
 
             final ImhotepResponse.Builder builder = ImhotepResponse.newBuilder();
             switch (request.getRequestType()) {
@@ -1081,9 +1078,11 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                     getSubsetFTGSIterator(request, builder, os);
                     break;
                 case GET_FTGS_SPLIT:
+                    closeSocket = !request.getPooledConnection();
                     getFTGSSplit(request, builder, os);
                     break;
                 case GET_SUBSET_FTGS_SPLIT:
+                    closeSocket = !request.getPooledConnection();
                     getSubsetFTGSSplit(request, builder, os);
                     break;
                 case MERGE_FTGS_SPLIT:
@@ -1165,12 +1164,15 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                     response = remapGroups(request, builder);
                     break;
                 case GET_SHARD_FILE:
+                    closeSocket = false;
                     getAndSendShardFile(request, builder, os);
                     break;
                 case GET_SHARD_FILE_ATTRIBUTES:
+                    closeSocket = false;
                     response = getShardFileAttributes(request, builder);
                     break;
                 case LIST_SHARD_FILE_ATTRIBUTES:
+                    closeSocket = false;
                     response = listShardFileAttributes(request, builder);
                     break;
                 case BATCH_REQUESTS:
@@ -1185,8 +1187,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                     throw new IllegalArgumentException("unsupported request type: " +
                             request.getRequestType());
             }
-
-            return Pair.of(response, groupStats);
+            return new HandleImhotepRequestResult(response, groupStats, closeSocket);
         }
 
         /**
@@ -1195,7 +1196,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
          */
         private boolean internalRun() {
             ImhotepRequest request = null;
-            boolean socketClosed = false;
+            boolean closeSocket = true;
             try {
                 final long beginTm = System.currentTimeMillis();
 
@@ -1233,10 +1234,11 @@ public class ImhotepDaemon implements Instrumentation.Provider {
 
                     log.debug("received request of type " + request.getRequestType() +
                              ", building response");
-                    final Pair<ImhotepResponse, GroupStatsIterator> responseGroupStatsIteratorPair = handleImhotepRequest(request, is, os);
+                    final HandleImhotepRequestResult requestResult = handleImhotepRequest(request, is, os);
 
-                    response = responseGroupStatsIteratorPair.getFirst();
-                    groupStats = responseGroupStatsIteratorPair.getSecond();
+                    response = requestResult.imhotepResponse;
+                    groupStats = requestResult.groupStatsIterator;
+                    closeSocket = requestResult.closeSocket;
                     if (response != null) {
                         sendResponseAndGroupStats(response, groupStats, os);
                     }
@@ -1286,9 +1288,8 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                     }
                     NDC.setMaxDepth(ndcDepth);
                     Closeables2.closeQuietly(groupStats, log);
-                    if (request != null && !REQUEST_TYPES_NOT_CLOSING_SOCKET.contains(request.getRequestType())) {
+                    if (request != null && closeSocket) {
                         close(socket, is, os);
-                        socketClosed = true;
                     }
                 }
             } catch (final IOException e) {
@@ -1300,7 +1301,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 }
                 throw new RuntimeException(e);
             }
-            return socketClosed;
+            return closeSocket;
         }
 
         private void checkSessionValidity(final ImhotepRequest protoRequest) {
@@ -1323,6 +1324,21 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 } catch (final RuntimeException e) {
                     log.warn(e);
                 }
+            }
+        }
+
+        private class HandleImhotepRequestResult {
+            public ImhotepResponse imhotepResponse;
+            public GroupStatsIterator groupStatsIterator;
+            public boolean closeSocket;
+
+            public HandleImhotepRequestResult(
+                    final ImhotepResponse imhotepResponse,
+                    final GroupStatsIterator groupStatsIterator,
+                    final boolean closeSocket) {
+                this.imhotepResponse = imhotepResponse;
+                this.groupStatsIterator = groupStatsIterator;
+                this.closeSocket = closeSocket;
             }
         }
     }
