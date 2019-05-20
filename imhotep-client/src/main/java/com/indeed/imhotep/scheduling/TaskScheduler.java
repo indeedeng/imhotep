@@ -234,15 +234,30 @@ public class TaskScheduler {
         while(!prioritizedQueues.isEmpty()) {
             final TaskQueue taskQueue = prioritizedQueues.poll();
             while(true) {
-                final ImhotepTask queuedTask = taskQueue.poll();
+                final QueuedImhotepTask queuedTask = taskQueue.poll();
                 if(queuedTask == null) {
                     queues.remove(taskQueue.getOwnerAndPriority());
                     break;
                 }
-                runningTasks.add(queuedTask);
-                queuedTask.markRunnable(schedulerType);
-                if(runningTasks.size() >= totalSlots) {
-                    return;
+
+                if (queuedTask.cancelled) {
+                    continue;
+                }
+                final ImhotepTask task = queuedTask.imhotepTask;
+                try {
+                    runningTasks.add(task);
+                    task.markRunnable(schedulerType);
+                    if(runningTasks.size() >= totalSlots) {
+                        return;
+                    }
+                } catch (final Throwable t) {
+                    if (runningTasks.contains(task)) {
+                        runningTasks.remove(task);
+                        LOGGER.warn("Removed task from the runningTask, task = " + task, t);
+                    } else {
+                        queuedTask.cancelled = true;
+                        LOGGER.warn("Cancelled task in the queue, task = " + task, t);
+                    }
                 }
             }
         }
