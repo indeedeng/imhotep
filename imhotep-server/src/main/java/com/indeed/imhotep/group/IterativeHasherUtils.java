@@ -208,7 +208,7 @@ public class IterativeHasherUtils {
                 // getGroup(Integer.MAX_VALUE) should return last group
                 // so we need to round result of division up.
                 final long fullRange = ((long)Integer.MAX_VALUE) - ((long)Integer.MIN_VALUE);
-                final long divisor = (fullRange + size - 1)/size;
+                final long divisor = (fullRange + size)/size;
                 return new ProportionalMultiGroupChooser(divisor, groups);
             }
 
@@ -259,7 +259,7 @@ public class IterativeHasherUtils {
         UniformGroupChooser(final int n) {
             final long fullRange = ((long)Integer.MAX_VALUE) - ((long)Integer.MIN_VALUE);
             this.n = n;
-            this.divisor = ((fullRange + n - 1)/n);
+            this.divisor = ((fullRange + n)/n);
         }
 
         @Override

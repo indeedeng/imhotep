@@ -14,9 +14,12 @@
 
 package com.indeed.imhotep.group;
 
+import com.indeed.util.core.Pair;
 import org.apache.commons.lang.ArrayUtils;
 import org.junit.Test;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 
 import static org.junit.Assert.assertEquals;
@@ -102,14 +105,38 @@ public class TestIterativeHasherUtils {
 
     @Test
     public void testUniformMatchesProportional() {
-        final Random random = new Random(0L);
+        final List<Pair<IterativeHasherUtils.GroupChooser, IterativeHasherUtils.GroupChooser>> pairs = new ArrayList<>();
+        pairs.add(Pair.of(
+                IterativeHasherUtils.createChooser(new double[]{0.5}),
+                IterativeHasherUtils.createUniformChooser(2)
+        ));
+        pairs.add(Pair.of(
+                IterativeHasherUtils.createChooser(new double[]{0.2, 0.4, 0.6, 0.8}),
+                IterativeHasherUtils.createUniformChooser(5)
+        ));
+        pairs.add(Pair.of(
+                IterativeHasherUtils.createChooser(new double[]{0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9}),
+                IterativeHasherUtils.createUniformChooser(10)
+        ));
 
-        final IterativeHasherUtils.GroupChooser proportional = IterativeHasherUtils.createChooser(new double[]{0.2, 0.4, 0.6, 0.8});
-        final IterativeHasherUtils.GroupChooser uniform = IterativeHasherUtils.createUniformChooser(5);
+        for (final Pair<IterativeHasherUtils.GroupChooser, IterativeHasherUtils.GroupChooser> pair : pairs) {
+            final Random random = new Random(0L);
 
-        for (int i = 0; i < 1000; i++) {
-            final int r = random.nextInt();
-            assertEquals(proportional.getGroup(r), uniform.getGroup(r));
+            final IterativeHasherUtils.GroupChooser proportional = pair.getFirst();
+            final IterativeHasherUtils.GroupChooser uniform = pair.getSecond();
+
+            assertEquals(proportional.getGroup(Integer.MAX_VALUE), uniform.getGroup(Integer.MAX_VALUE));
+            assertEquals(proportional.getGroup(Integer.MIN_VALUE), uniform.getGroup(Integer.MIN_VALUE));
+            assertEquals(proportional.getGroup(0), uniform.getGroup(0));
+            assertEquals(proportional.getGroup(100), uniform.getGroup(100));
+            assertEquals(proportional.getGroup(10000), uniform.getGroup(10000));
+            assertEquals(proportional.getGroup(1), uniform.getGroup(1));
+            assertEquals(proportional.getGroup(-1), uniform.getGroup(-1));
+            for (int i = 0; i < 1000; i++) {
+                final int r = random.nextInt();
+                assertEquals(proportional.getGroup(r), uniform.getGroup(r));
+            }
         }
+
     }
 }
