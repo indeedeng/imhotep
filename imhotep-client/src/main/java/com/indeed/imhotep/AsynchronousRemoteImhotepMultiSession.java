@@ -18,7 +18,7 @@ public class AsynchronousRemoteImhotepMultiSession extends AbstractImhotepMultiS
     final RemoteImhotepMultiSession original;
 
     public AsynchronousRemoteImhotepMultiSession(final AsynchronousRemoteImhotepSession[] asyncSessions, final RemoteImhotepMultiSession original) {
-        super(original.getSessionId(), asyncSessions, original.tempFileSizeBytesLeft, original.getUserName(), original.getClientName(), original.getPriority(), false);
+        super(original.getSessionId(), asyncSessions, original.tempFileSizeBytesLeft, original.getUserName(), original.getClientName(), original.getPriority());
         this.original = original;
     }
 

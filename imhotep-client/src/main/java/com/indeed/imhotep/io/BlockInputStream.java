@@ -1,7 +1,7 @@
 package com.indeed.imhotep.io;
 
 import com.google.common.base.Preconditions;
-import org.tukaani.xz.UnsupportedOptionsException;
+
 import javax.annotation.Nonnull;
 import java.io.FilterInputStream;
 import java.io.IOException;
@@ -11,7 +11,7 @@ import java.io.InputStream;
  * @author xweng
  *
  * A wrapped input stream to read data written by {@link BlockOutputStream}. It continuously reads data until the last-block
- * byte in the block is 1. This class is not thread-safe.
+ * byte is 1. This class is not thread-safe.
  *
  * This class read data by blocks. The format of each block is:
  * -- 4 bytes --  ---- 1 byte ----  -- block length bytes --
@@ -20,7 +20,7 @@ import java.io.InputStream;
  * The inner input stream won't be closed when {@link BlockInputStream} is closed. You need to close the inner stream manually if necessary.
  */
 public class BlockInputStream extends FilterInputStream {
-    /** The default batch size of stream */
+    /** The default block size of stream */
     private static final int DEFAULT_BLOCK_SIZE = 8192;
 
     private final byte[] buf;
@@ -30,14 +30,14 @@ public class BlockInputStream extends FilterInputStream {
     private boolean lastBlock;
     private boolean closed;
 
-    private byte[] blockSize = new byte[4];
+    private final byte[] blockSizeBytes = new byte[4];
 
     public BlockInputStream(@Nonnull final InputStream in) {
         this(in, DEFAULT_BLOCK_SIZE);
     }
 
     /**
-     * Initialize a batch input stream with the wrapped stream and the block size
+     * Initialize a block input stream with the wrapped stream and the block size
      * @param in
      * @param blockSize
      */
@@ -109,7 +109,7 @@ public class BlockInputStream extends FilterInputStream {
 
         int n = 0;
         while (n < len) {
-            int nread = read1(b, off + n, len - n);
+            final int nread = read1(b, off + n, len - n);
             if (nread <= 0) {
                 return (n == 0) ? nread : n;
             }
@@ -127,7 +127,7 @@ public class BlockInputStream extends FilterInputStream {
         }
         long skipped = 0;
         while (skipped < n) {
-            int avail = count - pos;
+            final int avail = count - pos;
             if (n - skipped < avail) {
                 pos += n - skipped;
                 skipped = n;
@@ -156,8 +156,8 @@ public class BlockInputStream extends FilterInputStream {
     }
 
     @Override
-    public synchronized void reset() throws IOException {
-        throw new UnsupportedOptionsException();
+    public synchronized void reset() {
+        throw new UnsupportedOperationException();
     }
 
     @Override
@@ -171,11 +171,11 @@ public class BlockInputStream extends FilterInputStream {
         }
 
         // read the block size
-        final int n = in.read(blockSize);
-        if (n != blockSize.length) {
-            throw new IOException("Invalid batch stream, read " + n  + ", expect " + blockSize.length);
+        final int n = in.read(blockSizeBytes);
+        if (n != blockSizeBytes.length) {
+            throw new IOException("Invalid batch stream, read " + n  + ", expect " + blockSizeBytes.length);
         }
-        count = Bytes.bytesToInt(blockSize);
+        count = Bytes.bytesToInt(blockSizeBytes);
         if (count > buf.length) {
             throw new IOException("Block size is over the buffer size");
         }

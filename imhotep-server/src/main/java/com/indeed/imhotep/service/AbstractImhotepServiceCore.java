@@ -197,7 +197,6 @@ public abstract class AbstractImhotepServiceCore
             } else {
                 writeFTGSIteratorToOutputStream(iterator, os);
             }
-
             os.flush();
             log.debug("FTGS response sent");
             return null;
@@ -780,7 +779,7 @@ public abstract class AbstractImhotepServiceCore
             String sessionId,
             AtomicLong tempFileSizeBytesLeft,
             final long sessionTimeout,
-            final boolean takePooledConnection
+            final boolean ftgsPooledConnection
     ) throws ImhotepOutOfMemoryException;
 
     @Override

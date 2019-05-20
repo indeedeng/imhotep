@@ -107,7 +107,7 @@ public class BlockOutputStream extends FilterOutputStream {
             out.write(lastBlock ? 1 : 0);
             out.write(buf, 0, count);
             count = 0;
-        // in case the byte last block need to be sent even there is no data in buf.
+        // in case the byte last-block need to be sent even there is no data in buf.
         // flushBuffer(true) will be called once and only once in the close method
         } else if (lastBlock) {
             out.write(Bytes.intToBytes(0));
@@ -127,6 +127,7 @@ public class BlockOutputStream extends FilterOutputStream {
             return;
         }
         flushBuffer(true);
+        out.flush();
         closed = true;
     }
 }

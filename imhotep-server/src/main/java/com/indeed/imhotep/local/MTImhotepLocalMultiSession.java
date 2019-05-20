@@ -81,6 +81,8 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
 
     private Either<Throwable,FTGSIterator>[] ftgsSplits;
 
+    private final boolean ftgsPooledConnection;
+
     public MTImhotepLocalMultiSession(final String sessionId,
                                       final ImhotepLocalSession[] sessions,
                                       final MemoryReservationContext memory,
@@ -88,10 +90,11 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
                                       final String userName,
                                       final String clientName,
                                       final byte priority,
-                                      final boolean takePooledConnection)
+                                      final boolean ftgsPooledConnection)
     {
-        super(sessionId, sessions, tempFileSizeBytesLeft, userName, clientName, priority, takePooledConnection);
+        super(sessionId, sessions, tempFileSizeBytesLeft, userName, clientName, priority);
         this.memory = memory;
+        this.ftgsPooledConnection = ftgsPooledConnection;
         this.closed.set(false);
     }
 
@@ -417,7 +420,7 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
 
         try {
             return mergeFTGSIteratorsForSessions(nodes, params.termLimit, params.sortStat, params.sorted, params.statsSortOrder,
-                    node -> getRemoteSession(sessionId, node).getFTGSIteratorSplit(params.intFields, params.stringFields, params.stats, splitIndex, nodes.length, perSplitTermLimit, takePooledConnection));
+                    node -> getRemoteSession(sessionId, node).getFTGSIteratorSplit(params.intFields, params.stringFields, params.stats, splitIndex, nodes.length, perSplitTermLimit, ftgsPooledConnection));
         } catch (final IOException e) {
             throw Throwables.propagate(e);
         }
@@ -432,7 +435,7 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
         final String sessionId = getSessionId();
         try {
             return mergeFTGSIteratorsForSessions(nodes, 0, -1, true, StatsSortOrder.UNDEFINED,
-                    node -> getRemoteSession(sessionId, node).getSubsetFTGSIteratorSplit(intFields, stringFields, stats, splitIndex, nodes.length, takePooledConnection));
+                    node -> getRemoteSession(sessionId, node).getSubsetFTGSIteratorSplit(intFields, stringFields, stats, splitIndex, nodes.length, ftgsPooledConnection));
         } catch (final IOException e) {
             throw Throwables.propagate(e);
         }
@@ -465,7 +468,7 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
                         // This session exists solely to make remote calls and should never be closed.
                         // Closing it would close the session, and make future operations fail.
                         // This is similar to mergeFTGSSplit.
-                        node -> getRemoteSession(remoteSessionId, node).getFTGSIteratorSplit(params.intFields, params.stringFields, params.stats, splitIndex, numGlobalSplits, perSplitTermLimit, takePooledConnection));
+                        node -> getRemoteSession(remoteSessionId, node).getFTGSIteratorSplit(params.intFields, params.stringFields, params.stats, splitIndex, numGlobalSplits, perSplitTermLimit, ftgsPooledConnection));
             } catch (final Throwable t) {
                 Closeables2.closeAll(log, iterators);
                 if (t instanceof ExecutionException) {

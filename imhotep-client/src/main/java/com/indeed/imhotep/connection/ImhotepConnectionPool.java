@@ -140,12 +140,12 @@ public class ImhotepConnectionPool implements Closeable {
     }
 
     /**
-     * Execute the function with the connection and it may throws two kinds of exceptions
+     * Execute the function with the connection and it may throw two kinds of exceptions
      */
     public <R, E1 extends Exception, E2 extends Exception> R withConnectionBinaryException(
             final Host host,
             final BinaryThrowingFunction<ImhotepConnection, R, E1, E2> function) throws E1, E2, IOException {
-        try (final ImhotepConnection connection = getConnection(host, 1)) {
+        try (final ImhotepConnection connection = getConnection(host)) {
             try {
                 return function.apply(connection);
             } catch (final Throwable t) {
@@ -156,7 +156,8 @@ public class ImhotepConnectionPool implements Closeable {
     }
 
     /**
-     * Execute the function with the connection, also set the timeout when getting connection
+     * Execute the function with the connection and it may throw two kinds of exceptions,
+     * also set the timeout when getting connection
      */
     public <R, E1 extends Exception, E2 extends Exception> R withConnectionBinaryException(
             final Host host,

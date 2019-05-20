@@ -34,9 +34,7 @@ public class BlockStreamTest {
 
     @Test
     public void testReadBytes() throws IOException {
-        test(bytes, (is, bytesRead)-> {
-            assertEquals(bytes.length, is.read(bytesRead));
-        });
+        test(bytes, (is, bytesRead)-> assertEquals(bytes.length, is.read(bytesRead)));
 
         // test reading into an array with more spaces
         test(bytes, (is, bytesRead)-> {

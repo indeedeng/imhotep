@@ -316,7 +316,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                                 request.getSessionId(),
                                 tempFileSizeBytesLeft,
                                 request.getSessionTimeout(),
-                                request.getPooledConnection()
+                                request.getFtgsPooledConnection()
                         );
                 NDC.push(sessionId);
                 builder.setSessionId(sessionId);
@@ -622,7 +622,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                     request.getNumSplits(),
                     request.getTermLimit(),
                     getStats(request),
-                    request.getPooledConnection()
+                    request.getFtgsPooledConnection()
             );
         }
 
@@ -640,7 +640,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                     os,
                     request.getSplitIndex(),
                     request.getNumSplits(),
-                    request.getPooledConnection()
+                    request.getFtgsPooledConnection()
             );
         }
 
@@ -1017,7 +1017,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             }
         }
 
-        private HandleImhotepRequestResult handleImhotepRequest(
+        private ImhotepRequestHandleResult handleImhotepRequest(
                 final ImhotepRequest request,
                 final InputStream is,
                 final OutputStream os) throws IOException, ImhotepOutOfMemoryException {
@@ -1078,11 +1078,11 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                     getSubsetFTGSIterator(request, builder, os);
                     break;
                 case GET_FTGS_SPLIT:
-                    closeSocket = !request.getPooledConnection();
+                    closeSocket = !request.getFtgsPooledConnection();
                     getFTGSSplit(request, builder, os);
                     break;
                 case GET_SUBSET_FTGS_SPLIT:
-                    closeSocket = !request.getPooledConnection();
+                    closeSocket = !request.getFtgsPooledConnection();
                     getSubsetFTGSSplit(request, builder, os);
                     break;
                 case MERGE_FTGS_SPLIT:
@@ -1187,7 +1187,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                     throw new IllegalArgumentException("unsupported request type: " +
                             request.getRequestType());
             }
-            return new HandleImhotepRequestResult(response, groupStats, closeSocket);
+            return new ImhotepRequestHandleResult(response, groupStats, closeSocket);
         }
 
         /**
@@ -1234,7 +1234,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
 
                     log.debug("received request of type " + request.getRequestType() +
                              ", building response");
-                    final HandleImhotepRequestResult requestResult = handleImhotepRequest(request, is, os);
+                    final ImhotepRequestHandleResult requestResult = handleImhotepRequest(request, is, os);
 
                     response = requestResult.imhotepResponse;
                     groupStats = requestResult.groupStatsIterator;
@@ -1327,12 +1327,12 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             }
         }
 
-        private class HandleImhotepRequestResult {
+        private class ImhotepRequestHandleResult {
             public ImhotepResponse imhotepResponse;
             public GroupStatsIterator groupStatsIterator;
             public boolean closeSocket;
 
-            public HandleImhotepRequestResult(
+            public ImhotepRequestHandleResult(
                     final ImhotepResponse imhotepResponse,
                     final GroupStatsIterator groupStatsIterator,
                     final boolean closeSocket) {
