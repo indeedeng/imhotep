@@ -83,12 +83,14 @@ public class BlockOutputStream extends FilterOutputStream {
                 flushBuffer(false);
             }
 
-            final int toWrite = Math.min(len - nwrite, buf.length - count);
+            final int toWrite;
             // If the buffer is empty and we have sufficient data to write, then writing it directly to avoid local copy
-            if (count == 0 && toWrite == buf.length) {
+            if (count == 0 && len - nwrite >= buf.length) {
+                toWrite = len - nwrite;
                 writeBlockMetaData(toWrite, false);
                 out.write(b, off + nwrite, toWrite);
             } else {
+                toWrite = Math.min(len - nwrite, buf.length - count);
                 System.arraycopy(b, off + nwrite, buf, count, toWrite);
                 count += toWrite;
             }

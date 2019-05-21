@@ -117,7 +117,7 @@ public class BlockStreamTest {
             assertEquals(0, blockIs.available());
 
             blockIs.read(bytesRead, TEST_BLOCK_SIZE * 3, TEST_BLOCK_SIZE);
-        }, BlockOutputStreamWriteMethod.WRITE_BYTE_ARRAY);
+        }, BlockOutputStreamWriteMethod.WRITE_BYTE);
     }
 
     private void test(final byte[] expected, final BlockInputStreamReader func) throws IOException {
