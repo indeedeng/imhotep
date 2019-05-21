@@ -19,14 +19,14 @@ import java.io.InputStream;
  * -- 4 bytes --  ---- 1 byte ----  -- block length bytes --
  * [block length] [last block flag] [data]
  *
+ * The class allows at most a 0-data block, and it must be the last block if it exists.
+ * It will be considerd stream has been read fully when reading an empty block.
+ *
  * The inner input stream won't be closed when {@link BlockInputStream} is closed. You need to close the inner stream manually if necessary.
  * Also you need to read through the end of the block input stream, or otherwise the original input stream will contain garbage.
  */
 @NotThreadSafe
 public class BlockInputStream extends FilterInputStream {
-    /** The default block size of stream */
-    private static final int DEFAULT_BLOCK_SIZE = 8192;
-
     private int count;
     private int pos;
 
@@ -35,20 +35,13 @@ public class BlockInputStream extends FilterInputStream {
 
     private final byte[] blockSizeBytes = new byte[4];
 
-    public BlockInputStream(@Nonnull @WillNotClose final InputStream in) {
-        this(in, DEFAULT_BLOCK_SIZE);
-    }
-
     /**
      * Initialize a block input stream with the wrapped stream and the block size
      * @param in
-     * @param blockSize
      */
-    public BlockInputStream(@Nonnull @WillNotClose final InputStream in, final int blockSize) {
+    public BlockInputStream(@Nonnull @WillNotClose final InputStream in) {
         super(in);
-
         Preconditions.checkArgument(in != null, "input stream shouldn't be null");
-        Preconditions.checkArgument(blockSize > 0, "blockSize should be greater than 0");
 
         count = 0;
         pos = 0;
@@ -61,13 +54,15 @@ public class BlockInputStream extends FilterInputStream {
         closeCheck();
 
         if (pos >= count) {
-            fill();
-            if (pos >= count) {
+            if (!readBlockHeader()) {
                 return -1;
             }
         }
-        pos++;
-        return in.read();
+        final int b = in.read();
+        if (b != -1) {
+            pos++;
+        }
+        return b;
     }
 
     @Override
@@ -85,22 +80,21 @@ public class BlockInputStream extends FilterInputStream {
     private int read1(final byte[] b, final int off, final int len) throws IOException {
         int avail = count - pos;
         if (avail <= 0) {
-            fill();
-            avail = count - pos;
-            if (avail <= 0) {
+            if (!readBlockHeader()) {
                 return -1;
             }
+            avail = count - pos;
         }
 
         final int cnt = (avail < len) ? avail : len;
         final int nread = in.read(b, off, cnt);
-        if (nread != cnt) {
-            throw new IOException("Invalid block stream, read " + nread + ", expect " + cnt);
-        }
-        pos += cnt;
-        return cnt;
+        pos += nread;
+        return nread;
     }
 
+    /**
+     * This method tries to read as more data as it can under the contract <code>{@link InputStream#read(byte[], int, int) read}</code> method.
+     */
     @Override
     public int read(@Nonnull final byte[] b, final int off, final int len) throws IOException {
         closeCheck();
@@ -131,22 +125,18 @@ public class BlockInputStream extends FilterInputStream {
         if (n <= 0) {
             return 0;
         }
-        long skipped = 0;
-        while (skipped < n) {
-            int avail = count - pos;
-            if (avail <= 0) {
-                fill();
-                avail = count - pos;
-                if (avail <= 0) {
-                    break;
-                }
-            }
 
-            final long toSkip = Math.min(avail, n - skipped);
-            in.skip(toSkip);
-            pos += toSkip;
-            skipped += toSkip;
+        int avail = count - pos;
+        if (avail <= 0) {
+            if (!readBlockHeader()) {
+                return 0;
+            }
+            avail = count - pos;
         }
+
+        final long cnt = Math.min(avail, n);
+        final long skipped = in.skip(cnt);
+        pos += skipped;
         return skipped;
     }
 
@@ -171,13 +161,14 @@ public class BlockInputStream extends FilterInputStream {
         return false;
     }
 
-    private void fill() throws IOException {
+    /** read the header of the next block and return the status if it still has the next block. */
+    private boolean readBlockHeader() throws IOException {
         if (lastBlock) {
-            return;
+            return false;
         }
 
         // read the block size
-        final int n = in.read(blockSizeBytes);
+        final int n = readFully(in, blockSizeBytes, 0, blockSizeBytes.length);
         if (n != blockSizeBytes.length) {
             throw new IOException("Invalid block stream, read " + n  + ", expect " + blockSizeBytes.length);
         }
@@ -190,6 +181,20 @@ public class BlockInputStream extends FilterInputStream {
         }
         lastBlock = lastBlockByte == 1;
         pos = 0;
+        // for safe
+        return pos < count;
+    }
+
+    private int readFully(final InputStream is, final byte[] b, final int off, final int len) throws IOException {
+        int n = 0;
+        while (n < len) {
+            int nread = is.read(b, off + n, len - n);
+            if (nread < 0) {
+                break;
+            }
+            n += nread;
+        }
+        return n;
     }
 
     private void closeCheck() throws IOException {

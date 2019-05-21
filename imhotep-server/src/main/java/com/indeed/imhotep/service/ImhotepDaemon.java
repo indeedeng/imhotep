@@ -42,6 +42,7 @@ import com.indeed.imhotep.api.PerformanceStats;
 import com.indeed.imhotep.client.Host;
 import com.indeed.imhotep.exceptions.InvalidSessionException;
 import com.indeed.imhotep.fs.RemoteCachingFileSystemProvider;
+import com.indeed.imhotep.io.BlockOutputStream;
 import com.indeed.imhotep.io.ImhotepProtobufShipping;
 import com.indeed.imhotep.io.NioPathUtil;
 import com.indeed.imhotep.io.Streams;
@@ -613,17 +614,31 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 final OutputStream            os)
             throws IOException, ImhotepOutOfMemoryException {
             checkSessionValidity(request);
-            service.handleGetFTGSIteratorSplit(
-                    request.getSessionId(),
-                    getIntFields(request),
-                    getStringFields(request),
-                    os,
-                    request.getSplitIndex(),
-                    request.getNumSplits(),
-                    request.getTermLimit(),
-                    getStats(request),
-                    request.getAllowFtgsPooledConnection()
-            );
+            if (request.getAllowFtgsPooledConnection()) {
+                try (final BlockOutputStream blockOs = new BlockOutputStream(os)) {
+                    service.handleGetFTGSIteratorSplit(
+                            request.getSessionId(),
+                            getIntFields(request),
+                            getStringFields(request),
+                            blockOs,
+                            request.getSplitIndex(),
+                            request.getNumSplits(),
+                            request.getTermLimit(),
+                            getStats(request)
+                    );
+                }
+            } else {
+                service.handleGetFTGSIteratorSplit(
+                        request.getSessionId(),
+                        getIntFields(request),
+                        getStringFields(request),
+                        os,
+                        request.getSplitIndex(),
+                        request.getNumSplits(),
+                        request.getTermLimit(),
+                        getStats(request)
+                );
+            }
         }
 
         private void getSubsetFTGSSplit(
@@ -632,16 +647,30 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 final OutputStream            os)
             throws IOException, ImhotepOutOfMemoryException {
             checkSessionValidity(request);
-            service.handleGetSubsetFTGSIteratorSplit(
-                    request.getSessionId(),
-                    getIntFieldsToTerms(request),
-                    getStringFieldsToTerms(request),
-                    getStats(request),
-                    os,
-                    request.getSplitIndex(),
-                    request.getNumSplits(),
-                    request.getAllowFtgsPooledConnection()
-            );
+
+            if (request.getAllowFtgsPooledConnection()) {
+                try (final BlockOutputStream blockOs = new BlockOutputStream(os)) {
+                    service.handleGetSubsetFTGSIteratorSplit(
+                            request.getSessionId(),
+                            getIntFieldsToTerms(request),
+                            getStringFieldsToTerms(request),
+                            getStats(request),
+                            blockOs,
+                            request.getSplitIndex(),
+                            request.getNumSplits()
+                    );
+                }
+            } else {
+                service.handleGetSubsetFTGSIteratorSplit(
+                        request.getSessionId(),
+                        getIntFieldsToTerms(request),
+                        getStringFieldsToTerms(request),
+                        getStats(request),
+                        os,
+                        request.getSplitIndex(),
+                        request.getNumSplits()
+                );
+            }
         }
 
         private void mergeFTGSSplit(

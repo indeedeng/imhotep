@@ -648,13 +648,15 @@ public class ImhotepRemoteSession
             final boolean fromPooledConnection) throws IOException, ImhotepOutOfMemoryException {
         final InputStream is = Streams.newBufferedInputStream(socket.getInputStream());
         final OutputStream os = Streams.newBufferedOutputStream(socket.getOutputStream());
-        final ImhotepResponse response = checkMemoryException(getSessionId(), sendRequest(createSender(request), is, os, host, port));
-        BufferedInputStream tempFileStream;
+        final ImhotepResponse response;
+        final BufferedInputStream tempFileStream;
         if (fromPooledConnection) {
             try (final BlockInputStream blockIs = new BlockInputStream(is)) {
+                response = checkMemoryException(getSessionId(), sendRequest(createSender(request), blockIs, os, host, port));
                 tempFileStream = saveResponseToFileFromStream(blockIs, tempFilePrefix);
             }
         } else {
+            response = checkMemoryException(getSessionId(), sendRequest(createSender(request), is, os, host, port));
             tempFileStream = saveResponseToFileFromStream(is, tempFilePrefix);
         }
         return new Pair<>(response, tempFileStream);

@@ -19,28 +19,31 @@ import java.io.OutputStream;
  * -- 4 bytes --  ---- 1 byte ----  -- block length bytes --
  * [block length] [last block flag] [data]
  *
+ * The class allows at most a 0-data block, and it must be the last block if it exists. In general, you should ensure all blocks have data.
+ *
  * Should close the stream once all data has been written to flush blocks in buffer. The close method won't close the inner
  * stream, you should close the inner stream manually if necessary.
  */
 @NotThreadSafe
 public class BlockOutputStream extends FilterOutputStream {
     /** The default batch size of stream */
-    private static final int DEFAULT_BATCH_SIZE = 8192;
+    private static final int DEFAULT_BLOCK_SIZE = 8192;
 
     private final byte[] buf;
     private int count;
     private boolean closed;
 
     public BlockOutputStream(@Nonnull @WillNotClose final OutputStream out) {
-        this(out, DEFAULT_BATCH_SIZE);
+        this(out, DEFAULT_BLOCK_SIZE);
     }
 
-    public BlockOutputStream(@Nonnull @WillNotClose final OutputStream out, final int batchSize) {
+    public BlockOutputStream(@Nonnull @WillNotClose final OutputStream out, final int blockSize) {
         super(out);
 
         Preconditions.checkArgument(out != null, "OutputStream shouldn't be null value");
-        Preconditions.checkArgument(batchSize > 0, "batchSize must be greater than 0");
-        buf = new byte[batchSize];
+        Preconditions.checkArgument(blockSize > 0, "batchSize must be greater than 0");
+
+        buf = new byte[blockSize];
         count = 0;
         closed = false;
     }
@@ -83,18 +86,18 @@ public class BlockOutputStream extends FilterOutputStream {
                 flushBuffer(false);
             }
 
-            final int toWrite;
+            final int cnt;
             // If the buffer is empty and we have sufficient data to write, then writing it directly to avoid local copy
             if (count == 0 && len - nwrite >= buf.length) {
-                toWrite = len - nwrite;
-                writeBlockMetaData(toWrite, false);
-                out.write(b, off + nwrite, toWrite);
+                cnt = len - nwrite;
+                writeBlockHeader(cnt, false);
+                out.write(b, off + nwrite, cnt);
             } else {
-                toWrite = Math.min(len - nwrite, buf.length - count);
-                System.arraycopy(b, off + nwrite, buf, count, toWrite);
-                count += toWrite;
+                cnt = Math.min(len - nwrite, buf.length - count);
+                System.arraycopy(b, off + nwrite, buf, count, cnt);
+                count += cnt;
             }
-            nwrite += toWrite;
+            nwrite += cnt;
         }
     }
 
@@ -114,18 +117,18 @@ public class BlockOutputStream extends FilterOutputStream {
     private void flushBuffer(final boolean lastBlock) throws IOException {
         // if there is data in buf, flush them anyway
         if (count > 0) {
-            writeBlockMetaData(count, lastBlock);
+            writeBlockHeader(count, lastBlock);
             out.write(buf, 0, count);
             count = 0;
         // in case the byte last-block need to be sent even there is no data in buf.
         // flushBuffer(true) will be called once and only once in the close method
         } else if (lastBlock) {
-            writeBlockMetaData(0, true);
+            writeBlockHeader(0, true);
         }
     }
 
     /** write the block length and whether last block into stream */
-    private void writeBlockMetaData(final int blockSize, final boolean lastBlock) throws IOException {
+    private void writeBlockHeader(final int blockSize, final boolean lastBlock) throws IOException {
         out.write(Bytes.intToBytes(blockSize));
         out.write(lastBlock ? 1 : 0);
     }
