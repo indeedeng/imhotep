@@ -337,7 +337,7 @@ message ImhotepRequest {
   optional uint32 imhotepRequestCount = 75;
 
   // for ftgs pooled socket optimization
-  optional bool ftgsPooledConnection = 76 [default = false];
+  optional bool allowFtgsPooledConnection = 76 [default = false];
 }
 
 message DocStat {

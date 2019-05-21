@@ -3,6 +3,8 @@ package com.indeed.imhotep.io;
 import com.google.common.base.Preconditions;
 
 import javax.annotation.Nonnull;
+import javax.annotation.WillNotClose;
+import javax.annotation.concurrent.NotThreadSafe;
 import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -11,19 +13,20 @@ import java.io.InputStream;
  * @author xweng
  *
  * A wrapped input stream to read data written by {@link BlockOutputStream}. It continuously reads data until the last-block
- * byte is 1. This class is not thread-safe.
+ * byte is 1.
  *
  * This class read data by blocks. The format of each block is:
  * -- 4 bytes --  ---- 1 byte ----  -- block length bytes --
  * [block length] [last block flag] [data]
  *
  * The inner input stream won't be closed when {@link BlockInputStream} is closed. You need to close the inner stream manually if necessary.
+ * Also you need to read through the end of the block input stream, or otherwise the original input stream will contain garbage.
  */
+@NotThreadSafe
 public class BlockInputStream extends FilterInputStream {
     /** The default block size of stream */
     private static final int DEFAULT_BLOCK_SIZE = 8192;
 
-    private final byte[] buf;
     private int count;
     private int pos;
 
@@ -32,7 +35,7 @@ public class BlockInputStream extends FilterInputStream {
 
     private final byte[] blockSizeBytes = new byte[4];
 
-    public BlockInputStream(@Nonnull final InputStream in) {
+    public BlockInputStream(@Nonnull @WillNotClose final InputStream in) {
         this(in, DEFAULT_BLOCK_SIZE);
     }
 
@@ -41,13 +44,12 @@ public class BlockInputStream extends FilterInputStream {
      * @param in
      * @param blockSize
      */
-    public BlockInputStream(@Nonnull final InputStream in, final int blockSize) {
+    public BlockInputStream(@Nonnull @WillNotClose final InputStream in, final int blockSize) {
         super(in);
 
         Preconditions.checkArgument(in != null, "input stream shouldn't be null");
         Preconditions.checkArgument(blockSize > 0, "blockSize should be greater than 0");
 
-        buf = new byte[blockSize];
         count = 0;
         pos = 0;
         lastBlock = false;
@@ -64,7 +66,8 @@ public class BlockInputStream extends FilterInputStream {
                 return -1;
             }
         }
-        return buf[pos++];
+        pos++;
+        return in.read();
     }
 
     @Override
@@ -90,7 +93,10 @@ public class BlockInputStream extends FilterInputStream {
         }
 
         final int cnt = (avail < len) ? avail : len;
-        System.arraycopy(buf, pos, b, off, cnt);
+        final int nread = in.read(b, off, cnt);
+        if (nread != cnt) {
+            throw new IOException("Invalid block stream, read " + nread + ", expect " + cnt);
+        }
         pos += cnt;
         return cnt;
     }
@@ -127,19 +133,19 @@ public class BlockInputStream extends FilterInputStream {
         }
         long skipped = 0;
         while (skipped < n) {
-            final int avail = count - pos;
-            if (n - skipped < avail) {
-                pos += n - skipped;
-                skipped = n;
-            } else {
-                skipped += avail;
-                pos = count;
+            int avail = count - pos;
+            if (avail <= 0) {
                 fill();
-                // no remained data
-                if (count - pos <= 0) {
+                avail = count - pos;
+                if (avail <= 0) {
                     break;
                 }
             }
+
+            final long toSkip = Math.min(avail, n - skipped);
+            in.skip(toSkip);
+            pos += toSkip;
+            skipped += toSkip;
         }
         return skipped;
     }
@@ -173,26 +179,17 @@ public class BlockInputStream extends FilterInputStream {
         // read the block size
         final int n = in.read(blockSizeBytes);
         if (n != blockSizeBytes.length) {
-            throw new IOException("Invalid batch stream, read " + n  + ", expect " + blockSizeBytes.length);
+            throw new IOException("Invalid block stream, read " + n  + ", expect " + blockSizeBytes.length);
         }
         count = Bytes.bytesToInt(blockSizeBytes);
-        if (count > buf.length) {
-            throw new IOException("Block size is over the buffer size");
-        }
 
         // read the last block byte
         final int lastBlockByte = in.read();
         if (lastBlockByte == -1) {
-            throw new IOException("Invalid batch stream, no byte is available");
+            throw new IOException("Invalid block stream, no byte is available");
         }
         lastBlock = lastBlockByte == 1;
         pos = 0;
-
-        final int nread = in.read(buf, 0, count);
-        // In case of count is 0 somehow
-        if (nread != count && count != 0) {
-            throw new IOException("Invalid batch stream, read = " + nread  + ", expect " + count);
-        }
     }
 
     private void closeCheck() throws IOException {

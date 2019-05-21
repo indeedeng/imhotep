@@ -316,7 +316,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                                 request.getSessionId(),
                                 tempFileSizeBytesLeft,
                                 request.getSessionTimeout(),
-                                request.getFtgsPooledConnection()
+                                request.getAllowFtgsPooledConnection()
                         );
                 NDC.push(sessionId);
                 builder.setSessionId(sessionId);
@@ -622,7 +622,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                     request.getNumSplits(),
                     request.getTermLimit(),
                     getStats(request),
-                    request.getFtgsPooledConnection()
+                    request.getAllowFtgsPooledConnection()
             );
         }
 
@@ -640,7 +640,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                     os,
                     request.getSplitIndex(),
                     request.getNumSplits(),
-                    request.getFtgsPooledConnection()
+                    request.getAllowFtgsPooledConnection()
             );
         }
 
@@ -1078,11 +1078,11 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                     getSubsetFTGSIterator(request, builder, os);
                     break;
                 case GET_FTGS_SPLIT:
-                    closeSocket = !request.getFtgsPooledConnection();
+                    closeSocket = !request.getAllowFtgsPooledConnection();
                     getFTGSSplit(request, builder, os);
                     break;
                 case GET_SUBSET_FTGS_SPLIT:
-                    closeSocket = !request.getFtgsPooledConnection();
+                    closeSocket = !request.getAllowFtgsPooledConnection();
                     getSubsetFTGSSplit(request, builder, os);
                     break;
                 case MERGE_FTGS_SPLIT:
