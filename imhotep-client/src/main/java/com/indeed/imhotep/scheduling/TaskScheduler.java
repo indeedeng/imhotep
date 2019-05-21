@@ -200,8 +200,18 @@ public class TaskScheduler {
             queue.offer(task);
             tryStartTasks();
         }
-        // Blocks and waits if necessary
-        task.blockAndWait();
+        try {
+            // Blocks and waits if necessary
+            task.blockAndWait();
+        } catch (final Throwable t) {
+            synchronized (runningTasks) {
+                if (runningTasks.contains(task)) {
+                    runningTasks.remove(task);
+                    LOGGER.warn("Removed task from the runningTask, task = " + task, t);
+                }
+            }
+            throw t;
+        }
         return true;
     }
 
