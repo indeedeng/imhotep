@@ -15,8 +15,6 @@
 
 import com.indeed.flamdex.datastruct.FastBitSet;
 import com.indeed.imhotep.BitTree;
-import com.indeed.imhotep.GroupRemapRule;
-import com.indeed.util.core.threads.ThreadSafeBitSet;
 
 import java.util.Arrays;
 
@@ -56,28 +54,6 @@ final class ConstantGroupLookup extends GroupLookup {
             }
         }
         return n;
-    }
-
-    @Override
-    public void applyIntConditionsCallback(
-            final int n,
-            final int[] docIdBuf,
-            final ThreadSafeBitSet docRemapped,
-            final GroupRemapRule[] remapRules,
-            final String intField,
-            final long itrTerm) {
-        throw new UnsupportedOperationException("bug!");
-    }
-
-    @Override
-    public void applyStringConditionsCallback(
-            final int n,
-            final int[] docIdBuf,
-            final ThreadSafeBitSet docRemapped,
-            final GroupRemapRule[] remapRules,
-            final String stringField,
-            final String itrTerm) {
-        throw new UnsupportedOperationException("bug!");
     }
 
     @Override

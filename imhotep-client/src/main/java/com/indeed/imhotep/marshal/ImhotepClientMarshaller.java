@@ -19,13 +19,11 @@ import com.indeed.flamdex.query.BooleanOp;
 import com.indeed.flamdex.query.Query;
 import com.indeed.flamdex.query.Term;
 import com.indeed.imhotep.GroupMultiRemapRule;
-import com.indeed.imhotep.GroupRemapRule;
 import com.indeed.imhotep.QueryRemapRule;
 import com.indeed.imhotep.RegroupCondition;
 import com.indeed.imhotep.TermCount;
 import com.indeed.imhotep.api.PerformanceStats;
 import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
-import com.indeed.imhotep.protobuf.GroupRemapMessage;
 import com.indeed.imhotep.protobuf.Operator;
 import com.indeed.imhotep.protobuf.PerformanceStatsMessage;
 import com.indeed.imhotep.protobuf.QueryMessage;
@@ -35,7 +33,6 @@ import com.indeed.imhotep.protobuf.StringLongMessage;
 import com.indeed.imhotep.protobuf.TermCountMessage;
 import com.indeed.imhotep.protobuf.TermMessage;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -65,19 +62,6 @@ public final class ImhotepClientMarshaller {
             builder.setInequality(true);
         }
         return builder.build();
-    }
-
-    public static List<GroupRemapMessage> marshal(final GroupRemapRule[] remapRules) {
-        final List<GroupRemapMessage> ret = new ArrayList<>(remapRules.length);
-        for (final GroupRemapRule rule : remapRules) {
-            ret.add(GroupRemapMessage.newBuilder()
-            .setTargetGroup(rule.targetGroup)
-            .setCondition(marshal(rule.condition))
-            .setNegativeGroup(rule.negativeGroup)
-            .setPositiveGroup(rule.positiveGroup)
-            .build());
-        }
-        return ret;
     }
 
     public static TermMessage marshal(final Term term) {

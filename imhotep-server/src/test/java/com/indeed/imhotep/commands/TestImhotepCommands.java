@@ -7,7 +7,6 @@ import com.indeed.flamdex.query.Term;
 import com.indeed.flamdex.writer.FlamdexDocument;
 import com.indeed.imhotep.BatchRemoteImhotepMultiSession;
 import com.indeed.imhotep.GroupMultiRemapRule;
-import com.indeed.imhotep.GroupRemapRule;
 import com.indeed.imhotep.QueryRemapRule;
 import com.indeed.imhotep.RegroupCondition;
 import com.indeed.imhotep.RemoteImhotepMultiSession;
@@ -275,16 +274,6 @@ public class TestImhotepCommands implements CommandsTest {
     public void testRegexRegroup() throws ImhotepOutOfMemoryException {
         assertEqualGroupStatsVoid(imhotepSession -> {
             imhotepSession.regexRegroup("sf1", ".*", 1, 2, 3);
-        });
-    }
-
-    @Override @Test
-    public void testRegroup() throws ImhotepOutOfMemoryException {
-        final GroupRemapRule[] rawRules = new GroupRemapRule[]{
-                new GroupRemapRule(1, new RegroupCondition("if1", true, 20, "6a", true), 2, 3)
-        };
-        assertEqualGroupStats(imhotepSession -> {
-            return imhotepSession.regroup(rawRules);
         });
     }
 

@@ -10,21 +10,20 @@ import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.PerformanceStats;
 import com.indeed.imhotep.commands.GetGroupStats;
 import com.indeed.imhotep.commands.IntOrRegroup;
-import com.indeed.imhotep.commands.TargetedMetricFilter;
 import com.indeed.imhotep.commands.MetricRegroup;
 import com.indeed.imhotep.commands.MultiRegroup;
 import com.indeed.imhotep.commands.MultiRegroupIterator;
 import com.indeed.imhotep.commands.MultiRegroupMessagesSender;
-import com.indeed.imhotep.commands.UntargetedMetricFilter;
 import com.indeed.imhotep.commands.QueryRegroup;
 import com.indeed.imhotep.commands.RandomMetricMultiRegroup;
 import com.indeed.imhotep.commands.RandomMetricRegroup;
 import com.indeed.imhotep.commands.RandomMultiRegroup;
 import com.indeed.imhotep.commands.RandomRegroup;
 import com.indeed.imhotep.commands.RegexRegroup;
-import com.indeed.imhotep.commands.Regroup;
 import com.indeed.imhotep.commands.StringOrRegroup;
+import com.indeed.imhotep.commands.TargetedMetricFilter;
 import com.indeed.imhotep.commands.UnconditionalRegroup;
+import com.indeed.imhotep.commands.UntargetedMetricFilter;
 import com.indeed.imhotep.io.RequestTools;
 import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
 import it.unimi.dsi.fastutil.longs.LongIterators;
@@ -147,18 +146,6 @@ public class BatchRemoteImhotepMultiSession extends AbstractImhotepSession {
     @Override
     public int regroup(final int numRawRules, final Iterator<GroupMultiRemapRule> rawRules, final boolean errorOnCollisions) throws ImhotepOutOfMemoryException {
         commands.add(new MultiRegroupIterator(numRawRules, rawRules, errorOnCollisions, remoteImhotepMultiSession.getSessionId()));
-        return -999;
-    }
-
-    @Override
-    public int regroup(final GroupRemapRule[] rawRules) throws ImhotepOutOfMemoryException {
-        commands.add(Regroup.createRegroup(rawRules, remoteImhotepMultiSession.getSessionId()));
-        return -999;
-    }
-
-    @Override
-    public int regroup2(final int numRawRules, final Iterator<GroupRemapRule> iterator) throws ImhotepOutOfMemoryException {
-        commands.add(Regroup.createRegroup(numRawRules, iterator, remoteImhotepMultiSession.getSessionId()));
         return -999;
     }
 

@@ -21,7 +21,6 @@ import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
 import com.indeed.flamdex.query.Query;
-import com.indeed.imhotep.Instrumentation.Keys;
 import com.indeed.imhotep.api.CommandSerializationParameters;
 import com.indeed.imhotep.api.FTGAIterator;
 import com.indeed.imhotep.api.FTGSIterator;
@@ -42,7 +41,6 @@ import com.indeed.imhotep.io.WriteLimitExceededException;
 import com.indeed.imhotep.marshal.ImhotepClientMarshaller;
 import com.indeed.imhotep.protobuf.DocStat;
 import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
-import com.indeed.imhotep.protobuf.GroupRemapMessage;
 import com.indeed.imhotep.protobuf.HostAndPort;
 import com.indeed.imhotep.protobuf.ImhotepRequest;
 import com.indeed.imhotep.protobuf.ImhotepResponse;
@@ -643,24 +641,6 @@ public class ImhotepRemoteSession
                        final boolean errorOnCollisions) throws ImhotepOutOfMemoryException {
         final GroupMultiRemapRuleSender ruleSender = GroupMultiRemapRuleSender.createFromRules(rawRules, false);
         return regroupWithSender(ruleSender, errorOnCollisions);
-    }
-
-    @Override
-    public int regroup(final GroupRemapRule[] rawRules) throws ImhotepOutOfMemoryException {
-        final List<GroupRemapMessage> protoRules = ImhotepClientMarshaller.marshal(rawRules);
-
-        final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.REGROUP)
-                .setSessionId(getSessionId())
-                .addAllRemapRules(protoRules)
-                .build();
-
-        try {
-            final ImhotepResponse response = sendRequestWithMemoryException(request, host, port, socketTimeout);
-            final int result = response.getNumGroups();
-            return result;
-        } catch (final IOException e) {
-            throw newRuntimeException(e);
-        }
     }
 
     @Override

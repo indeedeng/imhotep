@@ -28,8 +28,6 @@ package com.indeed.imhotep.commands;
     
      void testRegexRegroup() throws Exception; 
 
-     void testRegroup() throws Exception; 
-    
      void testQueryRegroup() throws Exception;
 
      void testUnconditionalRegroup() throws Exception; 

@@ -4,7 +4,6 @@ import com.google.common.collect.Lists;
 import com.indeed.flamdex.query.Query;
 import com.indeed.flamdex.query.Term;
 import com.indeed.imhotep.GroupMultiRemapRule;
-import com.indeed.imhotep.GroupRemapRule;
 import com.indeed.imhotep.GroupStatsDummyIterator;
 import com.indeed.imhotep.QueryRemapRule;
 import com.indeed.imhotep.RegroupCondition;
@@ -131,14 +130,6 @@ public class MergeTests implements CommandsTest {
     @Override @Test
     public void testRegexRegroup() {
         assertVoidMerge(new RegexRegroup("fieldName", ".*.*", 1, 2, 3, SESSION_ID));
-    }
-
-    @Override @Test
-    public void testRegroup() {
-        final GroupRemapRule[] rawRules = new GroupRemapRule[]{
-                new GroupRemapRule(1, new RegroupCondition("fieldName", false, 0, "strTerm", false), 1000000, 1000000)
-        };
-        assertMaxMerge(Regroup.createRegroup(rawRules, SESSION_ID));
     }
 
     @Override @Test

@@ -16,8 +16,6 @@
 import com.google.common.base.Preconditions;
 import com.indeed.flamdex.datastruct.FastBitSet;
 import com.indeed.imhotep.BitTree;
-import com.indeed.imhotep.GroupRemapRule;
-import com.indeed.util.core.threads.ThreadSafeBitSet;
 
 import java.util.Arrays;
 
@@ -78,68 +76,6 @@ final class BitSetGroupLookup extends GroupLookup {
         }
 
         return rewriteHead;
-    }
-
-    @Override
-    public void applyIntConditionsCallback(
-            final int n,
-            final int[] docIdBuf,
-            final ThreadSafeBitSet docRemapped,
-            final GroupRemapRule[] remapRules,
-            final String intField,
-            final long itrTerm) {
-        Preconditions.checkArgument(remapRules[0] == null, "Can't remap out of group 0");
-        if (remapRules[nonZeroGroup] == null) {
-            return;
-        }
-        if (ImhotepLocalSession.checkIntCondition(remapRules[nonZeroGroup].condition, intField, itrTerm)) {
-            return;
-        }
-        applyCheckedConditions(n, docIdBuf, docRemapped, remapRules[nonZeroGroup]);
-    }
-
-    @Override
-    public void applyStringConditionsCallback(
-            final int n,
-            final int[] docIdBuf,
-            final ThreadSafeBitSet docRemapped,
-            final GroupRemapRule[] remapRules,
-            final String stringField,
-            final String itrTerm) {
-        Preconditions.checkArgument(remapRules[0] == null, "Can't remap out of group 0");
-        if (remapRules[nonZeroGroup] == null) {
-            return;
-        }
-        if (ImhotepLocalSession.checkStringCondition(remapRules[nonZeroGroup].condition, stringField, itrTerm)) {
-            return;
-        }
-        applyCheckedConditions(n, docIdBuf, docRemapped, remapRules[nonZeroGroup]);
-    }
-
-    private void applyCheckedConditions(final int n, final int[] docIdBuf, final ThreadSafeBitSet docRemapped, final GroupRemapRule remapRule) {
-        if (remapRule.positiveGroup == nonZeroGroup) {
-            // Not moving anything, but still need to know they were matched.
-            for (int i = 0; i < n; i++) {
-                final int docId = docIdBuf[i];
-                if (bitSet.get(docId)) {
-                    docRemapped.set(docId);
-                }
-            }
-            return;
-        }
-        if (remapRule.positiveGroup != 0) {
-            throw new IllegalArgumentException("Can only remap BitSetGroupLookup to {0, nonZeroGroup (" + nonZeroGroup + ")}");
-        }
-        for (int i = 0; i < n; i++) {
-            final int docId = docIdBuf[i];
-            if (docRemapped.get(docId)) {
-                continue;
-            }
-            if (bitSet.get(docId)) {
-                bitSet.clear(docId);
-                docRemapped.set(docId);
-            }
-        }
     }
 
     @Override

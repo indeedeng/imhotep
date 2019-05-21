@@ -15,8 +15,6 @@ package com.indeed.imhotep.local;
 
 import com.indeed.flamdex.datastruct.FastBitSet;
 import com.indeed.imhotep.BitTree;
-import com.indeed.imhotep.GroupRemapRule;
-import com.indeed.util.core.threads.ThreadSafeBitSet;
 
 public abstract class GroupLookup {
     protected int numGroups;
@@ -30,22 +28,6 @@ public abstract class GroupLookup {
             long[] valBuf,
             int[] docGroupBuffer,
             final ImhotepLocalSession.MetricStack metricStack);
-
-    public abstract void applyIntConditionsCallback(
-            int n,
-            int[] docIdBuf,
-            ThreadSafeBitSet docRemapped,
-            GroupRemapRule[] remapRules,
-            String intField,
-            long itrTerm);
-
-    public abstract void applyStringConditionsCallback(
-            int n,
-            int[] docIdBuf,
-            ThreadSafeBitSet docRemapped,
-            GroupRemapRule[] remapRules,
-            String stringField,
-            String itrTerm);
 
     public abstract int get(int doc);
     public abstract void set(int doc, int group);

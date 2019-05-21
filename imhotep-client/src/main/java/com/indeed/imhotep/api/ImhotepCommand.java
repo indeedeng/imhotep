@@ -6,22 +6,20 @@ import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
 import com.indeed.imhotep.GroupMultiRemapRule;
-import com.indeed.imhotep.GroupRemapRule;
 import com.indeed.imhotep.commands.GetGroupStats;
 import com.indeed.imhotep.commands.IntOrRegroup;
-import com.indeed.imhotep.commands.TargetedMetricFilter;
 import com.indeed.imhotep.commands.MetricRegroup;
 import com.indeed.imhotep.commands.MultiRegroup;
-import com.indeed.imhotep.commands.UntargetedMetricFilter;
 import com.indeed.imhotep.commands.QueryRegroup;
 import com.indeed.imhotep.commands.RandomMetricMultiRegroup;
 import com.indeed.imhotep.commands.RandomMetricRegroup;
 import com.indeed.imhotep.commands.RandomMultiRegroup;
 import com.indeed.imhotep.commands.RandomRegroup;
 import com.indeed.imhotep.commands.RegexRegroup;
-import com.indeed.imhotep.commands.Regroup;
-import com.indeed.imhotep.commands.UnconditionalRegroup;
 import com.indeed.imhotep.commands.StringOrRegroup;
+import com.indeed.imhotep.commands.TargetedMetricFilter;
+import com.indeed.imhotep.commands.UnconditionalRegroup;
+import com.indeed.imhotep.commands.UntargetedMetricFilter;
 import com.indeed.imhotep.io.ImhotepProtobufShipping;
 import com.indeed.imhotep.marshal.ImhotepDaemonMarshaller;
 import com.indeed.imhotep.protobuf.ImhotepRequest;
@@ -180,10 +178,6 @@ public interface ImhotepCommand<T> extends HasSessionId {
                     rules[i] = ImhotepDaemonMarshaller.marshal(ImhotepProtobufShipping.readGroupMultiRemapMessage(is));
                 }
                 return MultiRegroup.createMultiRegroupCommand(rules, request.getErrorOnCollisions(), request.getSessionId());
-            case REGROUP:
-                final GroupRemapRule[] groupRemapRules =
-                        ImhotepDaemonMarshaller.marshalGroupRemapMessageList(request.getRemapRulesList());
-                return Regroup.createRegroup(groupRemapRules, request.getSessionId());
             case QUERY_REGROUP:
                 return new QueryRegroup(
                         ImhotepDaemonMarshaller.marshal(request.getQueryRemapRule()),

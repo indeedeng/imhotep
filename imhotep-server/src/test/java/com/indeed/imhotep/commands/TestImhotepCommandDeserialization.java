@@ -4,7 +4,6 @@ import com.google.common.collect.Lists;
 import com.indeed.flamdex.query.Query;
 import com.indeed.flamdex.query.Term;
 import com.indeed.imhotep.GroupMultiRemapRule;
-import com.indeed.imhotep.GroupRemapRule;
 import com.indeed.imhotep.QueryRemapRule;
 import com.indeed.imhotep.RegroupCondition;
 import com.indeed.imhotep.api.ImhotepCommand;
@@ -103,14 +102,6 @@ public class TestImhotepCommandDeserialization implements CommandsTest {
     @Override @Test
     public void testRegexRegroup() throws IOException {
         assertEqualDeserialize(new RegexRegroup("fieldName", ".*.*", 1, 2, 3, SESSION_ID));
-    }
-
-    @Override @Test
-    public void testRegroup() throws IOException {
-        final GroupRemapRule[] rawRules = new GroupRemapRule[]{
-                new GroupRemapRule(1, new RegroupCondition("fieldName", false, 0, "strTerm", false), 1000000, 1000000)
-        };
-        assertEqualDeserialize(Regroup.createRegroup(rawRules, SESSION_ID));
     }
 
     @Override @Test

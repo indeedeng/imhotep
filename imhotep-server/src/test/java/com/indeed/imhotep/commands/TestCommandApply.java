@@ -4,7 +4,6 @@ import com.google.common.collect.Lists;
 import com.indeed.flamdex.query.Query;
 import com.indeed.flamdex.query.Term;
 import com.indeed.imhotep.GroupMultiRemapRule;
-import com.indeed.imhotep.GroupRemapRule;
 import com.indeed.imhotep.GroupStatsDummyIterator;
 import com.indeed.imhotep.QueryRemapRule;
 import com.indeed.imhotep.RegroupCondition;
@@ -163,16 +162,6 @@ public class TestCommandApply implements CommandsTest {
     public void testRegexRegroup() throws ImhotepOutOfMemoryException {
         testApplyMethodCallVoid(new RegexRegroup("field", ".*.*", 1, 2, 3, SESSION_ID), imhotepSession -> {
             imhotepSession.regexRegroup(EasyMock.eq("field"), EasyMock.eq(".*.*"), EasyMock.eq(1), EasyMock.eq(2), EasyMock.eq(3));
-        });
-    }
-
-    @Override @Test
-    public void testRegroup() throws ImhotepOutOfMemoryException {
-        final GroupRemapRule[] rawRules = new GroupRemapRule[]{
-                new GroupRemapRule(1, new RegroupCondition("fieldName", false, 0, "strTerm", false), 1000000, 1000000)
-        };
-        testApplyMethodCallInt(Regroup.createRegroup(rawRules, SESSION_ID), imhotepSession -> {
-            return imhotepSession.regroup(EasyMock.aryEq(rawRules));
         });
     }
 

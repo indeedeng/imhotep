@@ -18,7 +18,7 @@ import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.reader.MockFlamdexReader;
 import com.indeed.flamdex.writer.FlamdexWriter;
 import com.indeed.flamdex.writer.MockFlamdexWriter;
-import com.indeed.imhotep.GroupRemapRule;
+import com.indeed.imhotep.GroupMultiRemapRule;
 import com.indeed.imhotep.ImhotepMemoryPool;
 import com.indeed.imhotep.MemoryReservationContext;
 import com.indeed.imhotep.RegroupCondition;
@@ -277,25 +277,23 @@ public class TestIndexReWriter {
         session1.createDynamicMetric("bar");
         final int[] bar = {0, 13};
         session1.updateDynamicMetric("bar", bar);
-        session1.regroup(new GroupRemapRule[] { new GroupRemapRule(1, new RegroupCondition("if3",
-                                                                                           true,
-                                                                                           9999,
-                                                                                           null,
-                                                                                           false),
-                                                                   1, 2) });
+        session1.regroup(new GroupMultiRemapRule[] { new GroupMultiRemapRule(1, 1, new int[]{2}, new RegroupCondition[]{
+                new RegroupCondition("if3",
+                        true,
+                        9999,
+                        null,
+                        false)
+        })});
         final int[] foo = {0, 1, 2};
         session1.updateDynamicMetric("foo", foo);
-        session1.regroup(new GroupRemapRule[] {
-                                               new GroupRemapRule(1, new RegroupCondition("if3",
-                                                                                          true, 19,
-                                                                                          null,
-                                                                                          false),
-                                                                  1, 2),
-                                               new GroupRemapRule(2, new RegroupCondition("sf2",
-                                                                                          false, 0,
-                                                                                          "b",
-                                                                                          false),
-                                                                  3, 4) });
+        session1.regroup(new GroupMultiRemapRule[] {
+            new GroupMultiRemapRule(1, 1, new int[]{2}, new RegroupCondition[]{
+                    new RegroupCondition("if3", true, 19, null, false)
+            }),
+            new GroupMultiRemapRule(2, 3, new int[]{4}, new RegroupCondition[]{
+                    new RegroupCondition("sf2", false, 0, "b", false)
+            })
+        });
         final long[] stats1 = session1.getGroupStats(singletonList("count()"));
         assertEquals(10, stats1[1]);
         assertEquals(5, stats1[2]);
@@ -309,25 +307,17 @@ public class TestIndexReWriter {
         session2.createDynamicMetric("cat");
         final int[] cat = {0, 17};
         session2.updateDynamicMetric("cat", cat);
-        session2.regroup(new GroupRemapRule[] { new GroupRemapRule(1, new RegroupCondition("if3",
-                                                                                           true,
-                                                                                           9999,
-                                                                                           null,
-                                                                                           false),
-                                                                   1, 3) });
+        session2.regroup(new GroupMultiRemapRule[]{
+                new GroupMultiRemapRule(1, 1, new int[]{3}, new RegroupCondition[]{
+                        new RegroupCondition("if3", true, 9999, null, false)
+                })
+        });
         final int[] foo2 = {0, 7, 11};
         session2.updateDynamicMetric("foo", foo2);
-        session2.regroup(new GroupRemapRule[] {
-                                               new GroupRemapRule(1, new RegroupCondition("if3",
-                                                                                          true, 19,
-                                                                                          null,
-                                                                                          false),
-                                                                  1, 3),
-                                               new GroupRemapRule(3, new RegroupCondition("sf2",
-                                                                                          false, 0,
-                                                                                          "b",
-                                                                                          false),
-                                                                  2, 4) });
+        session2.regroup(new GroupMultiRemapRule[] {
+            new GroupMultiRemapRule(1, 1, new int[]{3}, new RegroupCondition[]{new RegroupCondition("if3", true, 19, null, false)}),
+            new GroupMultiRemapRule(3, 2, new int[]{4}, new RegroupCondition[]{new RegroupCondition("sf2", false, 0, "b", false)})
+        });
         final long[] stats2 = session2.getGroupStats(singletonList("count()"));
         assertEquals(10, stats2[1]);
         assertEquals(4, stats2[2]);
@@ -452,25 +442,15 @@ public class TestIndexReWriter {
         session1.createDynamicMetric("bar");
         final int[] bar = {0, 13};
         session1.updateDynamicMetric("bar", bar);
-        session1.regroup(new GroupRemapRule[] { new GroupRemapRule(1, new RegroupCondition("if3",
-                                                                                           true,
-                                                                                           9999,
-                                                                                           null,
-                                                                                           false),
-                                                                   1, 2) });
+        session1.regroup(new GroupMultiRemapRule[]{
+                new GroupMultiRemapRule(1, 1, new int[]{2}, new RegroupCondition[]{new RegroupCondition("if3", true, 9999, null, false)})
+        });
         final int[] foo = {0, 1, 2};
         session1.updateDynamicMetric("foo", foo);
-        session1.regroup(new GroupRemapRule[] {
-                                               new GroupRemapRule(1, new RegroupCondition("if3",
-                                                                                          true, 19,
-                                                                                          null,
-                                                                                          false),
-                                                                  0, 2),
-                                               new GroupRemapRule(2, new RegroupCondition("sf2",
-                                                                                          false, 0,
-                                                                                          "b",
-                                                                                          false),
-                                                                  3, 4) });
+        session1.regroup(new GroupMultiRemapRule[]{
+                new GroupMultiRemapRule(1, 0, new int[]{2}, new RegroupCondition[]{new RegroupCondition("if3", true, 19, null, false)}),
+                new GroupMultiRemapRule(2, 3, new int[]{4}, new RegroupCondition[]{new RegroupCondition("sf2", false, 0, "b", false)})
+        });
         final long[] stats1 = session1.getGroupStats(singletonList("count()"));
         assertEquals(0, stats1[0]);
         assertEquals(0, stats1[1]);
@@ -485,25 +465,15 @@ public class TestIndexReWriter {
         session2.createDynamicMetric("cat");
         final int[] cat = {0, 17};
         session2.updateDynamicMetric("cat", cat);
-        session2.regroup(new GroupRemapRule[] { new GroupRemapRule(1, new RegroupCondition("if3",
-                                                                                           true,
-                                                                                           9999,
-                                                                                           null,
-                                                                                           false),
-                                                                   1, 3) });
+        session2.regroup(new GroupMultiRemapRule[]{
+                new GroupMultiRemapRule(1, 1, new int[]{3}, new RegroupCondition[]{new RegroupCondition("if3", true, 9999, null, false)})
+        });
         final int[] foo2 = {0, 7, 11};
         session2.updateDynamicMetric("foo", foo2);
-        session2.regroup(new GroupRemapRule[] {
-                                               new GroupRemapRule(1, new RegroupCondition("if3",
-                                                                                          true, 19,
-                                                                                          null,
-                                                                                          false),
-                                                                  1, 3),
-                                               new GroupRemapRule(3, new RegroupCondition("sf2",
-                                                                                          false, 0,
-                                                                                          "b",
-                                                                                          false),
-                                                                  2, 4) });
+        session2.regroup(new GroupMultiRemapRule[]{
+                new GroupMultiRemapRule(1, 1, new int[]{3}, new RegroupCondition[]{new RegroupCondition("if3", true, 19, null, false)}),
+                new GroupMultiRemapRule(3, 2, new int[]{4}, new RegroupCondition[]{new RegroupCondition("sf2", false, 0, "b", false)})
+        });
         final long[] stats2 = session2.getGroupStats(singletonList("count()"));
         assertEquals(10, stats2[1]);
         assertEquals(4, stats2[2]);

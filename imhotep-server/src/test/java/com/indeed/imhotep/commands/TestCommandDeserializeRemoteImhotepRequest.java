@@ -4,7 +4,6 @@ import com.google.common.collect.Lists;
 import com.indeed.flamdex.query.Query;
 import com.indeed.flamdex.query.Term;
 import com.indeed.imhotep.GroupMultiRemapRule;
-import com.indeed.imhotep.GroupRemapRule;
 import com.indeed.imhotep.ImhotepRemoteSession;
 import com.indeed.imhotep.QueryRemapRule;
 import com.indeed.imhotep.RegroupCondition;
@@ -174,15 +173,6 @@ public class TestCommandDeserializeRemoteImhotepRequest implements CommandsTest 
     public void testRegexRegroup() throws ImhotepOutOfMemoryException, ExecutionException, InterruptedException {
         imhotepRemoteSession.regexRegroup("field", ".*.*", 1, 2, 3);
         Assert.assertEquals(new RegexRegroup("field", ".*.*", 1, 2, 3, SESSION_ID), holder.futureCommand.get());
-    }
-
-    @Override @Test
-    public void testRegroup() throws ImhotepOutOfMemoryException, ExecutionException, InterruptedException {
-        final GroupRemapRule[] rawRules = new GroupRemapRule[]{
-                new GroupRemapRule(1, new RegroupCondition("fieldName", false, 0, "strTerm", false), 1000000, 1000000)
-        };
-        imhotepRemoteSession.regroup(rawRules);
-        Assert.assertEquals(Regroup.createRegroup(rawRules, SESSION_ID), holder.futureCommand.get());
     }
 
     @Override @Test
