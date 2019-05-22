@@ -150,6 +150,8 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             "true".equals(System.getProperty("com.indeed.imhotep.local.ImhotepLocalSession.logTiming"));
     }
 
+    private static final String NON_DELETED_DOCUMENTS = "__NON_DELETED_DOCUMENTS__";
+
     static final int MAX_NUMBER_STATS = 64;
     public static final int BUFFER_SIZE = 2048;
     private final AtomicLong tempFileSizeBytesLeft;
@@ -217,6 +219,10 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
 
         namedGroupLookups = new NamedGroupManager(memory);
         resetGroupsTo(ImhotepSession.DEFAULT_GROUPS, 1);
+        // put it into a special name in named group lookups in order to automatically make
+        // rebuildAndFilterIndexes work correctly for free.
+        // also allows (careful) use in operations if necessary.
+        namedGroupLookups.copyInto(new RegroupParams(ImhotepSession.DEFAULT_GROUPS, NON_DELETED_DOCUMENTS));
 
         this.metricStack.addObserver(new StatLookup.Observer() {
                 public void onChange(final StatLookup statLookup, final int index) {
@@ -1228,7 +1234,10 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                         outputBitSetGroupLookup = ((BitSetGroupLookup) inputGroupLookup).makeCopy(memory);
                     }
                     outputBitSetGroupLookup.invertAllGroups();
-                    outputGroupLookup = outputBitSetGroupLookup;
+                    outputGroupLookup = and(outputBitSetGroupLookup, namedGroupLookups.get(NON_DELETED_DOCUMENTS));
+                    if (outputGroupLookup != outputBitSetGroupLookup) {
+                        memory.releaseMemory(outputBitSetGroupLookup.memoryUsed());
+                    }
                 } else {
                     Preconditions.checkState(inputGroupLookup instanceof ConstantGroupLookup);
                     final int constantGroup = ((ConstantGroupLookup) inputGroupLookup).getConstantGroup();
