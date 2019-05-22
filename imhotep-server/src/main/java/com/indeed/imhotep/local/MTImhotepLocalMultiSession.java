@@ -855,9 +855,16 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
     }
 
     public <T> T executeBatchRequest(final List<ImhotepCommand> firstCommands, final ImhotepCommand<T> lastCommand) throws ImhotepOutOfMemoryException {
+        for (final ImhotepCommand imhotepCommand: firstCommands) {
+            executeMemoryException(nullBuf, (ThrowingFunction<ImhotepLocalSession, Object>) session -> {
+                session.executeImhotepCommandNoReturn(imhotepCommand);
+                return null;
+            });
+        }
+
         final T[] buffer = (T[]) Array.newInstance(lastCommand.getResultClass(), sessions.length);
         executeMemoryException(buffer, (ThrowingFunction<ImhotepLocalSession, Object>) session -> {
-            return session.executeBatchRequest(firstCommands, lastCommand);
+            return session.executeImhotepCommandReturn(lastCommand);
         });
         return lastCommand.combine(Arrays.asList(buffer));
     }

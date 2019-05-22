@@ -3085,10 +3085,11 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         }
     }
 
-    <T> T executeBatchRequest(final List<ImhotepCommand> firstCommands, final ImhotepCommand<T> lastCommand) throws ImhotepOutOfMemoryException {
-        for (final ImhotepCommand command: firstCommands) {
-            command.apply(this);
-        }
-        return lastCommand.apply(this);
+    void executeImhotepCommandNoReturn(final ImhotepCommand imhotepCommand) throws ImhotepOutOfMemoryException {
+        imhotepCommand.apply(this);
+    }
+
+    <T> T executeImhotepCommandReturn(final ImhotepCommand<T> imhotepCommand) throws ImhotepOutOfMemoryException {
+        return imhotepCommand.apply(this);
     }
 }
