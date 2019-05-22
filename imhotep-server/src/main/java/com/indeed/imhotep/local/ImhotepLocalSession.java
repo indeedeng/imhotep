@@ -101,6 +101,7 @@ import com.indeed.imhotep.metrics.Subtraction;
 import com.indeed.imhotep.pool.BuffersPool;
 import com.indeed.imhotep.protobuf.StatsSortOrder;
 import com.indeed.imhotep.protobuf.QueryMessage;
+import com.indeed.imhotep.scheduling.TaskScheduler;
 import com.indeed.imhotep.service.InstrumentedFlamdexReader;
 import com.indeed.util.core.Pair;
 import com.indeed.util.core.Throwables2;
@@ -3088,6 +3089,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     <T> T executeBatchRequest(final List<ImhotepCommand> firstCommands, final ImhotepCommand<T> lastCommand) throws ImhotepOutOfMemoryException {
         for (final ImhotepCommand command: firstCommands) {
             command.apply(this);
+            TaskScheduler.CPUScheduler.yield();
         }
         return lastCommand.apply(this);
     }

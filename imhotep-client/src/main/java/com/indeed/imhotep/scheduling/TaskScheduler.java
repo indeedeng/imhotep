@@ -165,7 +165,7 @@ public class TaskScheduler {
     }
 
     @Nonnull
-    public Closeable temporaryUnlock() {
+    public SilentCloseable temporaryUnlock() {
         final ImhotepTask task = ImhotepTask.THREAD_LOCAL_TASK.get();
         if(task == null) {
             statsEmitter.count("scheduler." + schedulerType + ".threadlocal.task.absent", 1);
@@ -176,16 +176,20 @@ public class TaskScheduler {
         if(!hadAlock) {
             return () -> {};
         } else {
-            return new Closeable() {
+            return new SilentCloseable() {
                 boolean closed = false;
                 @Override
-                public void close() throws IOException {
+                public void close() {
                     if(closed) return;
                     closed = true;
                     schedule(task);
                 }
             };
         }
+    }
+
+    public void yield() {
+        temporaryUnlock().close();
     }
 
     /** returns true iff a new lock was created */
