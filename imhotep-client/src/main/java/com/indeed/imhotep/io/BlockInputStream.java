@@ -51,7 +51,7 @@ public class BlockInputStream extends FilterInputStream {
 
     @Override
     public int read() throws IOException {
-        closeCheck();
+        ensureOpen();
 
         if (pos >= count) {
             if (!readBlockHeader()) {
@@ -67,7 +67,7 @@ public class BlockInputStream extends FilterInputStream {
 
     @Override
     public int read(@Nonnull final byte[] b) throws IOException {
-        closeCheck();
+        ensureOpen();
         if (b == null) {
             throw new NullPointerException();
         }
@@ -86,9 +86,11 @@ public class BlockInputStream extends FilterInputStream {
             avail = count - pos;
         }
 
-        final int cnt = (avail < len) ? avail : len;
+        final int cnt = Math.min(avail, len);
         final int nread = in.read(b, off, cnt);
-        pos += nread;
+        if (nread > 0) {
+            pos += nread;
+        }
         return nread;
     }
 
@@ -97,7 +99,7 @@ public class BlockInputStream extends FilterInputStream {
      */
     @Override
     public int read(@Nonnull final byte[] b, final int off, final int len) throws IOException {
-        closeCheck();
+        ensureOpen();
 
         if (b == null) {
             throw new NullPointerException();
@@ -120,7 +122,7 @@ public class BlockInputStream extends FilterInputStream {
 
     @Override
     public long skip(final long n) throws IOException {
-        closeCheck();
+        ensureOpen();
 
         if (n <= 0) {
             return 0;
@@ -142,7 +144,7 @@ public class BlockInputStream extends FilterInputStream {
 
     @Override
     public int available() throws IOException {
-        closeCheck();
+        ensureOpen();
         return count - pos;
     }
 
@@ -161,8 +163,9 @@ public class BlockInputStream extends FilterInputStream {
         return false;
     }
 
-    /** read the header of the next block and return the status if it still has the next block. */
+    /** read the header of the next block and return the status if it still has data. */
     private boolean readBlockHeader() throws IOException {
+        Preconditions.checkState(count >= pos, "There is still some unread data left in the current block");
         if (lastBlock) {
             return false;
         }
@@ -178,14 +181,19 @@ public class BlockInputStream extends FilterInputStream {
         final int lastBlockByte = in.read();
         if (lastBlockByte == -1) {
             throw new IOException("Invalid block stream, no byte is available");
+        } else if (lastBlockByte != 0 && lastBlockByte != 1) {
+            throw new IOException("Invalid block stream, lastBlockByte should be set as 0 or 1");
         }
         lastBlock = lastBlockByte == 1;
+
+        if (count < 0 || (count == 0 && !lastBlock)) {
+            throw new IOException("Invalid block stream, blockSize smaller than 0 or equal to 0 but not the last block");
+        }
         pos = 0;
-        // for safe
         return pos < count;
     }
 
-    private int readFully(final InputStream is, final byte[] b, final int off, final int len) throws IOException {
+    private static int readFully(final InputStream is, final byte[] b, final int off, final int len) throws IOException {
         int n = 0;
         while (n < len) {
             int nread = is.read(b, off + n, len - n);
@@ -197,7 +205,7 @@ public class BlockInputStream extends FilterInputStream {
         return n;
     }
 
-    private void closeCheck() throws IOException {
+    private void ensureOpen() throws IOException {
         if (closed) {
             throw new IOException("Stream closed");
         }

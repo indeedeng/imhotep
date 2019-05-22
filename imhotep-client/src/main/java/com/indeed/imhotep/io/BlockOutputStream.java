@@ -50,7 +50,7 @@ public class BlockOutputStream extends FilterOutputStream {
 
     @Override
     public void write(final int b) throws IOException {
-        closeCheck();
+        ensureOpen();
 
         if (count >= buf.length) {
             flushBuffer(false);
@@ -60,7 +60,7 @@ public class BlockOutputStream extends FilterOutputStream {
 
     @Override
     public void write(@Nonnull final byte[] b) throws IOException {
-        closeCheck();
+        ensureOpen();
 
         if (b == null) {
             throw new NullPointerException();
@@ -70,7 +70,7 @@ public class BlockOutputStream extends FilterOutputStream {
 
     @Override
     public void write(@Nonnull final byte[] b, final int off, final int len) throws IOException {
-        closeCheck();
+        ensureOpen();
 
         if (b == null) {
             throw new NullPointerException();
@@ -103,7 +103,7 @@ public class BlockOutputStream extends FilterOutputStream {
 
     @Override
     public void flush() throws IOException {
-        closeCheck();
+        ensureOpen();
 
         flushBuffer(false);
         out.flush();
@@ -133,7 +133,7 @@ public class BlockOutputStream extends FilterOutputStream {
         out.write(lastBlock ? 1 : 0);
     }
 
-    private void closeCheck() throws IOException {
+    private void ensureOpen() throws IOException {
         if (closed) {
             throw new IOException("Stream closed");
         }
