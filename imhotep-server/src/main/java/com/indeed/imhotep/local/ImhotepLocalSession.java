@@ -320,12 +320,12 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
      *            the array to export docIdToGroup into
      */
     @VisibleForTesting
-    public void exportDocIdToGroupId(final int[] array) {
+    void exportDocIdToGroupId(final int[] array) {
         exportDocIdToGroupId(ImhotepSession.DEFAULT_GROUPS, array);
     }
 
     @VisibleForTesting
-    public synchronized void exportDocIdToGroupId(final String groupsName, final int[] array) {
+    synchronized void exportDocIdToGroupId(final String groupsName, final int[] array) {
         final GroupLookup docIdToGroup = namedGroupLookups.get(groupsName);
         if (array.length != docIdToGroup.size()) {
             throw newIllegalArgumentException("array length is invalid");
