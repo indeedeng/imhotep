@@ -38,15 +38,15 @@ public class TaskQueue implements Comparable<TaskQueue> {
     }
 
     public ImhotepTask peek() {
-        final QueuedImhotepTask queuedImhotepTask = queue.peek();
-        if (queuedImhotepTask == null) {
+        final QueuedImhotepTask queuedTask = queue.peek();
+        if (queuedTask == null) {
             return null;
         }
-        return queuedImhotepTask.imhotepTask;
+        return queuedTask.imhotepTask;
     }
 
-    public void offer(ImhotepTask task) {
-        queue.offer(new QueuedImhotepTask(task));
+    public void offer(QueuedImhotepTask queuedTask) {
+        queue.offer(queuedTask);
     }
 
     public boolean isEmpty() {

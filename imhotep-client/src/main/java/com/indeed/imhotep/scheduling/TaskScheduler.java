@@ -190,6 +190,7 @@ public class TaskScheduler {
 
     /** returns true iff a new lock was created */
     boolean schedule(ImhotepTask task) {
+        final QueuedImhotepTask queuedTask = new QueuedImhotepTask(task);
         synchronized (this) {
             if (runningTasks.contains(task)) {
                 statsEmitter.count("scheduler." + schedulerType + ".schedule.already.running", 1);
@@ -197,18 +198,16 @@ public class TaskScheduler {
             }
             task.preExecInitialize(this);
             final TaskQueue queue = getOrCreateQueueForTask(task);
-            queue.offer(task);
+            queue.offer(queuedTask);
             tryStartTasks();
         }
+
         try {
             // Blocks and waits if necessary
             task.blockAndWait();
         } catch (final Throwable t) {
-            synchronized (runningTasks) {
-                if (runningTasks.contains(task)) {
-                    runningTasks.remove(task);
-                    LOGGER.warn("Removed task from the runningTask, task = " + task, t);
-                }
+            synchronized (this) {
+                stopOrCancelTask(queuedTask, t);
             }
             throw t;
         }
@@ -261,15 +260,20 @@ public class TaskScheduler {
                         return;
                     }
                 } catch (final Throwable t) {
-                    if (runningTasks.contains(task)) {
-                        runningTasks.remove(task);
-                        LOGGER.warn("Removed task from the runningTask, task = " + task, t);
-                    } else {
-                        queuedTask.cancelled = true;
-                        LOGGER.warn("Cancelled task in the queue, task = " + task, t);
-                    }
+                    stopOrCancelTask(queuedTask, t);
                 }
             }
+        }
+    }
+
+    private void stopOrCancelTask(@Nonnull final QueuedImhotepTask queuedTask, final Throwable t) {
+        final ImhotepTask task = queuedTask.imhotepTask;
+        if (runningTasks.contains(task)) {
+            stopped(task, true);
+            LOGGER.warn("Stopped the running task, task = " + task, t);
+        } else {
+            queuedTask.cancelled = true;
+            LOGGER.warn("Cancelled task in the queue, task = " + task, t);
         }
     }
 
