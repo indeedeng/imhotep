@@ -249,11 +249,11 @@ public class IndexReWriter {
         }
         final int[] mapping = new int[nTotalDocs];
 
-        /* populate mapping and new GroupLookups */
-        for (final String groupName : sessions.get(0).namedGroupLookups.groupNames()) {
+        /* populate mapping and filtered GroupLookup */
+        {
             final GroupLookup newGL = GroupLookupFactory.create(numGroups - 1, newNumDocs, memory);
             for (int i = 0; i < sessions.size(); i++) {
-                final GroupLookup gl = sessions.get(i).namedGroupLookups.get(groupName);
+                final GroupLookup gl = sessions.get(i).namedGroupLookups.get(groupsName);
                 final int offset = this.sessionDocIdOffsets[i];
                 for (int j = 0; j < gl.size(); j++) {
                     final int group = gl.get(j);
@@ -263,6 +263,29 @@ public class IndexReWriter {
                         ++nextDocId;
                     } else {
                         mapping[j + offset] = -1;
+                    }
+                }
+            }
+            newGL.recalculateNumGroups();
+            this.newGroupLookups.put(groupsName, newGL);
+        }
+
+        /* filter other group lookups based on new mapping */
+        for (final String groupName : sessions.get(0).namedGroupLookups.groupNames()) {
+            if (groupName.equals(groupsName)) {
+                // already remapped this one
+                continue;
+            }
+            final int maxGroup = sessions.stream().mapToInt(x -> x.namedGroupLookups.get(groupName).getNumGroups() - 1).max().getAsInt();
+            final GroupLookup newGL = GroupLookupFactory.create(maxGroup, newNumDocs, memory);
+            for (int i = 0; i < sessions.size(); i++) {
+                final GroupLookup gl = sessions.get(i).namedGroupLookups.get(groupName);
+                final int offset = this.sessionDocIdOffsets[i];
+                for (int j = 0; j < gl.size(); j++) {
+                    final int newDocId = mapping[j + offset];
+                    if (newDocId != -1) {
+                        final int group = gl.get(j);
+                        newGL.set(newDocId, group);
                     }
                 }
             }
