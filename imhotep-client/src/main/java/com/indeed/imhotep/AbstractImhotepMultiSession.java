@@ -74,7 +74,7 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
 
     private final Long[] longBuf;
 
-    protected final Object[] nullBuf;
+    protected final Void[] nullBuf;
 
     private final List<TermCount>[] termCountListBuf;
 
@@ -184,7 +184,7 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
         totalDocFreqBuf = new Long[sessions.length];
         integerBuf = new Integer[sessions.length];
         longBuf = new Long[sessions.length];
-        nullBuf = new Object[sessions.length];
+        nullBuf = new Void[sessions.length];
         termCountListBuf = new List[sessions.length];
     }
 
