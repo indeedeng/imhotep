@@ -206,9 +206,7 @@ public class TaskScheduler {
             // Blocks and waits if necessary
             task.blockAndWait();
         } catch (final Throwable t) {
-            synchronized (this) {
-                stopOrCancelTask(queuedTask, t);
-            }
+            stopOrCancelTask(queuedTask, t);
             throw t;
         }
         return true;
@@ -266,7 +264,7 @@ public class TaskScheduler {
         }
     }
 
-    private void stopOrCancelTask(@Nonnull final QueuedImhotepTask queuedTask, final Throwable t) {
+    private synchronized void stopOrCancelTask(@Nonnull final QueuedImhotepTask queuedTask, final Throwable t) {
         final ImhotepTask task = queuedTask.imhotepTask;
         if (runningTasks.contains(task)) {
             stopped(task, true);
