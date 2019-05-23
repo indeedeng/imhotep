@@ -52,6 +52,7 @@ public class ShardRefresher {
             new NamedThreadFactory("DatasetRefresher"));
     private static final ThreadPoolExecutor SHARDS_EXECUTOR_SERVICE = (ThreadPoolExecutor) Executors.newFixedThreadPool(100,
             new NamedThreadFactory("ShardRefresher"));
+    private static final NamedThreadFactory UPDATE_INFO_THREAD_FACTORY = new NamedThreadFactory("UpdateInfo");
     private final Path datasetsDir;
     private final JdbcTemplate dbConnection;
     private final FileSystem hadoopFileSystem;
@@ -88,7 +89,7 @@ public class ShardRefresher {
         totalDatasetsOnCurrentRefresh.set(0);
         numDatasetsFailedToRead.set(0);
         LOGGER.info("Starting a refresh. ReadFilesystem: " + readFilesystem + " readSQL: " + readSQL + " delete: " + delete + " writeSQL: " + writeSQL);
-        final ScheduledExecutorService updates = Executors.newSingleThreadScheduledExecutor();
+        final ScheduledExecutorService updates = Executors.newSingleThreadScheduledExecutor(UPDATE_INFO_THREAD_FACTORY);
         final long startTime = System.currentTimeMillis();
         updates.scheduleAtFixedRate(() -> {
                     LOGGER.info("Updated " + numDatasetsReadFromFilesystemOnCurrentRefresh.get() +
@@ -114,7 +115,7 @@ public class ShardRefresher {
         } finally {
             try {
                 updates.shutdownNow();
-            } catch (Exception e) {
+            } catch (final Throwable e) {
                 LOGGER.error("Failed to shutdown update progress executor", e);
             }
         }

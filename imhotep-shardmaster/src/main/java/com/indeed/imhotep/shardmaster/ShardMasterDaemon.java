@@ -35,6 +35,7 @@ import com.indeed.imhotep.shardmasterrpc.RequestMetricStatsEmitter;
 import com.indeed.imhotep.shardmasterrpc.RequestResponseServer;
 import com.indeed.imhotep.shardmasterrpc.ShardMaster;
 import com.indeed.imhotep.shardmasterrpc.ShardMasterExecutors;
+import com.indeed.util.core.threads.NamedThreadFactory;
 import com.indeed.util.zookeeper.ZooKeeperConnection;
 import org.apache.commons.dbcp.BasicDataSource;
 import org.apache.commons.lang.StringUtils;
@@ -70,6 +71,7 @@ import java.util.concurrent.TimeoutException;
 
 public class ShardMasterDaemon {
     private static final Logger LOGGER = Logger.getLogger(ShardMasterDaemon.class);
+    private static final NamedThreadFactory DATASET_RELOADER_THREAD_FACTORY = new NamedThreadFactory("DatasetReloader");
     private final Config config;
     private volatile RequestResponseServer server;
     private String leaderId;
@@ -96,7 +98,7 @@ public class ShardMasterDaemon {
 
         final ExecutorService executorService = config.createExecutorService();
         final Timer hostReloadTimer = new Timer(ShardRefresher.class.getSimpleName());
-        final ScheduledExecutorService datasetReloadExecutor = Executors.newSingleThreadScheduledExecutor();
+        final ScheduledExecutorService datasetReloadExecutor = Executors.newSingleThreadScheduledExecutor(DATASET_RELOADER_THREAD_FACTORY);
 
         final HostsReloader hostsReloader;
         if (config.hasStaticHostsList()) {
@@ -152,7 +154,7 @@ public class ShardMasterDaemon {
                     }
                     final boolean leader = isLeader(leaderElectionRoot, zkConnection);
                     refresher.refresh(config.readFilesystem && leader, config.readSQL, shouldDelete, leader && config.writeSQL, leader);
-                } catch (Exception e) {
+                } catch (final Throwable e) {
                     LOGGER.error("Datasets reload failed", e);
                 }
             }, config.getRefreshInterval().getMillis(), config.getRefreshInterval().getMillis(), TimeUnit.MILLISECONDS);
