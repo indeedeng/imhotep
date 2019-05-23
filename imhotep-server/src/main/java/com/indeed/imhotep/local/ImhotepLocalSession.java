@@ -1241,7 +1241,13 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                 } else {
                     Preconditions.checkState(inputGroupLookup instanceof ConstantGroupLookup);
                     final int constantGroup = ((ConstantGroupLookup) inputGroupLookup).getConstantGroup();
-                    outputGroupLookup = new ConstantGroupLookup(1 - constantGroup, inputGroupLookup.size());
+                    if (constantGroup == 1) {
+                        outputGroupLookup = new ConstantGroupLookup(0, inputGroupLookup.size());
+                    } else if (constantGroup == 0) {
+                        outputGroupLookup = namedGroupLookups.get(NON_DELETED_DOCUMENTS).makeCopy(memory);
+                    } else {
+                        throw new IllegalStateException("Expected 0 or 1 group lookup in NOT");
+                    }
                 }
                 break;
 
