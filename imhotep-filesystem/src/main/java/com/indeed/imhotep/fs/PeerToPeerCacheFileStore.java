@@ -202,7 +202,7 @@ public class PeerToPeerCacheFileStore extends RemoteFileStore {
         // here the connection will be closed with the closure of ConnectionInputStream
         final ImhotepConnection connection = CONNECTION_POOL.getConnection(host, FETCH_CONNECTION_TIMEOUT);
         final Closeable unlockCloseable = TaskScheduler.CPUScheduler.temporaryUnlock();
-        try (final Closeable ignored = TaskScheduler.RemoteFSIOScheduler.lockSlot()) {
+        try (final Closeable ignored = TaskScheduler.P2PFSIOScheduler.lockSlot()) {
             try {
                 final Socket socket = connection.getSocket();
                 final OutputStream os = Streams.newBufferedOutputStream(socket.getOutputStream());

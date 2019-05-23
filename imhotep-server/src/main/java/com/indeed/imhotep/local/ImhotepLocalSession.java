@@ -155,7 +155,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     public static final int BUFFER_SIZE = 2048;
     private final AtomicLong tempFileSizeBytesLeft;
     private long savedTempFileSizeValue;
-    private PerformanceStats resetPerformanceStats = new PerformanceStats(0, 0, 0, 0, 0, 0, 0, 0, ImmutableMap.of());
+    private PerformanceStats resetPerformanceStats = new PerformanceStats(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, ImmutableMap.of());
 
     protected int numDocs;
 
@@ -304,7 +304,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                         memory.getCurrentMaxUsedMemory() + metricsMemorySize,
                         savedTempFileSizeValue - tempFileSize,
                         fieldFilesReadSize - resetPerformanceStats.fieldFilesReadSize,
-                        0, 0, 0, 0, ImmutableMap.of());
+                        0, 0, 0, 0, 0, 0, ImmutableMap.of());
         if (reset) {
             resetPerformanceStats = result;
             memory.resetCurrentMaxUsedMemory();
