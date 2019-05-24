@@ -20,6 +20,8 @@ dependencies {
     testCompile project(':imhotep-filesystem').sourceSets.test.output
     testCompile 'junit:junit:4.8.2'
     testCompile 'org.easymock:easymock:2.4'
+    compileOnly 'org.projectlombok:lombok:1.18.4'
+    annotationProcessor 'org.projectlombok:lombok:1.18.4'
 }
 
 ext['indeed.publish.name'] = 'imhotep-server'

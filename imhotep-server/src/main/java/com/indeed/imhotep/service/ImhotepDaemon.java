@@ -42,7 +42,6 @@ import com.indeed.imhotep.api.PerformanceStats;
 import com.indeed.imhotep.client.Host;
 import com.indeed.imhotep.exceptions.InvalidSessionException;
 import com.indeed.imhotep.fs.RemoteCachingFileSystemProvider;
-import com.indeed.imhotep.io.BlockOutputStream;
 import com.indeed.imhotep.io.ImhotepProtobufShipping;
 import com.indeed.imhotep.io.NioPathUtil;
 import com.indeed.imhotep.io.Streams;
@@ -62,6 +61,7 @@ import com.indeed.imhotep.protobuf.StringFieldAndTerms;
 import com.indeed.imhotep.scheduling.ImhotepTask;
 import com.indeed.util.core.Pair;
 import com.indeed.util.core.io.Closeables2;
+import lombok.Data;
 import org.apache.log4j.Logger;
 import org.apache.log4j.NDC;
 
@@ -317,7 +317,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                                 request.getSessionId(),
                                 tempFileSizeBytesLeft,
                                 request.getSessionTimeout(),
-                                request.getAllowFtgsPooledConnection()
+                                request.getUseFtgsPooledConnection()
                         );
                 NDC.push(sessionId);
                 builder.setSessionId(sessionId);
@@ -614,31 +614,16 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 final OutputStream            os)
             throws IOException, ImhotepOutOfMemoryException {
             checkSessionValidity(request);
-            if (request.getAllowFtgsPooledConnection()) {
-                try (final BlockOutputStream blockOs = new BlockOutputStream(os)) {
-                    service.handleGetFTGSIteratorSplit(
-                            request.getSessionId(),
-                            getIntFields(request),
-                            getStringFields(request),
-                            blockOs,
-                            request.getSplitIndex(),
-                            request.getNumSplits(),
-                            request.getTermLimit(),
-                            getStats(request)
-                    );
-                }
-            } else {
-                service.handleGetFTGSIteratorSplit(
-                        request.getSessionId(),
-                        getIntFields(request),
-                        getStringFields(request),
-                        os,
-                        request.getSplitIndex(),
-                        request.getNumSplits(),
-                        request.getTermLimit(),
-                        getStats(request)
-                );
-            }
+            service.handleGetFTGSIteratorSplit(
+                    request.getSessionId(),
+                    getIntFields(request),
+                    getStringFields(request),
+                    os,
+                    request.getSplitIndex(),
+                    request.getNumSplits(),
+                    request.getTermLimit(),
+                    getStats(request),
+                    request.getUseFtgsPooledConnection());
         }
 
         private void getSubsetFTGSSplit(
@@ -648,29 +633,15 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             throws IOException, ImhotepOutOfMemoryException {
             checkSessionValidity(request);
 
-            if (request.getAllowFtgsPooledConnection()) {
-                try (final BlockOutputStream blockOs = new BlockOutputStream(os)) {
-                    service.handleGetSubsetFTGSIteratorSplit(
-                            request.getSessionId(),
-                            getIntFieldsToTerms(request),
-                            getStringFieldsToTerms(request),
-                            getStats(request),
-                            blockOs,
-                            request.getSplitIndex(),
-                            request.getNumSplits()
-                    );
-                }
-            } else {
-                service.handleGetSubsetFTGSIteratorSplit(
-                        request.getSessionId(),
-                        getIntFieldsToTerms(request),
-                        getStringFieldsToTerms(request),
-                        getStats(request),
-                        os,
-                        request.getSplitIndex(),
-                        request.getNumSplits()
-                );
-            }
+            service.handleGetSubsetFTGSIteratorSplit(
+                    request.getSessionId(),
+                    getIntFieldsToTerms(request),
+                    getStringFieldsToTerms(request),
+                    getStats(request),
+                    os,
+                    request.getSplitIndex(),
+                    request.getNumSplits(),
+                    request.getUseFtgsPooledConnection());
         }
 
         private void mergeFTGSSplit(
@@ -1032,7 +1003,6 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             }
         }
 
-
         private void shutdown(
                 final ImhotepRequest request,
                 final InputStream    is,
@@ -1107,11 +1077,11 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                     getSubsetFTGSIterator(request, builder, os);
                     break;
                 case GET_FTGS_SPLIT:
-                    closeSocket = !request.getAllowFtgsPooledConnection();
+                    closeSocket = !request.getUseFtgsPooledConnection();
                     getFTGSSplit(request, builder, os);
                     break;
                 case GET_SUBSET_FTGS_SPLIT:
-                    closeSocket = !request.getAllowFtgsPooledConnection();
+                    closeSocket = !request.getUseFtgsPooledConnection();
                     getSubsetFTGSSplit(request, builder, os);
                     break;
                 case MERGE_FTGS_SPLIT:
@@ -1356,6 +1326,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             }
         }
 
+        @Data
         private class ImhotepRequestHandleResult {
             public ImhotepResponse imhotepResponse;
             public GroupStatsIterator groupStatsIterator;
