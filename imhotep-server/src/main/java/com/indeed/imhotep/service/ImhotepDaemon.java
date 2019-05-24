@@ -61,6 +61,7 @@ import com.indeed.imhotep.protobuf.StringFieldAndTerms;
 import com.indeed.imhotep.scheduling.ImhotepTask;
 import com.indeed.util.core.Pair;
 import com.indeed.util.core.io.Closeables2;
+import lombok.AllArgsConstructor;
 import lombok.Data;
 import org.apache.log4j.Logger;
 import org.apache.log4j.NDC;
@@ -1186,6 +1187,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                     throw new IllegalArgumentException("unsupported request type: " +
                             request.getRequestType());
             }
+
             return new ImhotepRequestHandleResult(response, groupStats, closeSocket);
         }
 
@@ -1327,19 +1329,11 @@ public class ImhotepDaemon implements Instrumentation.Provider {
         }
 
         @Data
+        @AllArgsConstructor
         private class ImhotepRequestHandleResult {
-            public ImhotepResponse imhotepResponse;
-            public GroupStatsIterator groupStatsIterator;
-            public boolean closeSocket;
-
-            public ImhotepRequestHandleResult(
-                    final ImhotepResponse imhotepResponse,
-                    final GroupStatsIterator groupStatsIterator,
-                    final boolean closeSocket) {
-                this.imhotepResponse = imhotepResponse;
-                this.groupStatsIterator = groupStatsIterator;
-                this.closeSocket = closeSocket;
-            }
+            private ImhotepResponse imhotepResponse;
+            private GroupStatsIterator groupStatsIterator;
+            private boolean closeSocket;
         }
     }
 
