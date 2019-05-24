@@ -6,9 +6,12 @@ import com.indeed.flamdex.MemoryFlamdex;
 import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.writer.FlamdexDocument;
 import com.indeed.imhotep.client.Host;
+import com.indeed.imhotep.connection.ImhotepConnectionPoolConfig;
+import com.indeed.imhotep.connection.ImhotepConnectionPoolWrapper;
 import com.indeed.imhotep.fs.RemoteCachingFileSystemProvider;
 import com.indeed.imhotep.service.ImhotepDaemonRunner;
 import com.indeed.imhotep.service.ImhotepShardCreator;
+import com.indeed.imhotep.service.MetricStatsEmitter;
 import com.indeed.imhotep.service.ShardMasterAndImhotepDaemonClusterRunner;
 import org.joda.time.DateTime;
 import org.junit.rules.ExternalResource;
@@ -46,6 +49,10 @@ public class PeerToPeerCacheTestContext extends ExternalResource {
     private ShardMasterAndImhotepDaemonClusterRunner clusterRunner;
 
     private final int daemonCount;
+
+    static {
+        ImhotepConnectionPoolWrapper.initializeImhotepConnectionPool(MetricStatsEmitter.NULL_EMITTER);
+    }
 
     PeerToPeerCacheTestContext() {
         this(1);

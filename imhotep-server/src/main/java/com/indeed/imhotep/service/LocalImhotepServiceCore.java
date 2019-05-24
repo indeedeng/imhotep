@@ -27,6 +27,7 @@ import com.indeed.imhotep.ShardDir;
 import com.indeed.imhotep.SlotTiming;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.client.Host;
+import com.indeed.imhotep.connection.ImhotepConnectionPoolWrapper;
 import com.indeed.imhotep.fs.RemoteCachingPath;
 import com.indeed.imhotep.io.ImhotepProtobufShipping;
 import com.indeed.imhotep.local.ImhotepJavaLocalSession;
@@ -151,6 +152,8 @@ public class LocalImhotepServiceCore
         }
 
         sessionManager = new LocalSessionManager(statsEmitter, config.getMaxSessionsTotal(), config.getMaxSessionsPerUser());
+
+        ImhotepConnectionPoolWrapper.initializeImhotepConnectionPool(statsEmitter);
 
         clearTempDir(shardTempDir);
 

@@ -34,7 +34,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -49,7 +48,7 @@ public class PeerToPeerCacheFileStore extends RemoteFileStore {
     private static final Logger logger = Logger.getLogger(PeerToPeerCacheFileStore.class);
     private static final int FETCH_CONNECTION_TIMEOUT = (int) TimeUnit.SECONDS.toMillis(30);
     private static final int REMOTE_ATTRIBUTES_CACHE_CAPACITY = 65536;
-    private static final ImhotepConnectionPool CONNECTION_POOL = ImhotepConnectionPoolWrapper.INSTANCE;
+    private static final ImhotepConnectionPool CONNECTION_POOL = ImhotepConnectionPoolWrapper.getInstance();
 
     private final LocalFileCache fileCache;
     private final MetricStatsEmitter statsEmitter;

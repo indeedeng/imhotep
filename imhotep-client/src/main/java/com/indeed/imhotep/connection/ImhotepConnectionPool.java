@@ -2,6 +2,7 @@ package com.indeed.imhotep.connection;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.indeed.imhotep.client.Host;
+import com.indeed.imhotep.service.MetricStatsEmitter;
 import com.indeed.util.core.Throwables2;
 import com.indeed.util.core.io.Closeables2;
 import org.apache.commons.pool2.impl.GenericKeyedObjectPool;
@@ -11,6 +12,7 @@ import org.apache.log4j.Logger;
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.Socket;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * @author xweng
@@ -31,28 +33,31 @@ import java.net.Socket;
 public class ImhotepConnectionPool implements Closeable {
     private static final Logger logger = Logger.getLogger(ImhotepConnectionPool.class);
 
-    // We hope the client side time out at first, and then the server socket received EOFException and close it self.
-    // The socket time out of server side is 60 seconds, so here we set is as 45 seconds
-    private static final int SOCKET_READ_TIMEOUT_MILLIS = 45000;
-
-    // keyedObjectPool doesn't handle the timeout during makeObject, we have to specify it in case of connection block
-    private static final int SOCKET_CONNECTING_TIMEOUT_MILLIS = 30000;
-
     private final GenericKeyedObjectPool<Host, Socket> sourcePool;
 
-    ImhotepConnectionPool() {
-        this(SOCKET_READ_TIMEOUT_MILLIS, SOCKET_CONNECTING_TIMEOUT_MILLIS);
+    private final ImhotepConnectionPoolStatsReporter statsReporter;
+
+    private final AtomicLong invalidatedConnectionCount;
+
+    ImhotepConnectionPool(final ImhotepConnectionPoolConfig config) {
+        this(MetricStatsEmitter.NULL_EMITTER, config);
     }
 
-    ImhotepConnectionPool(final int socketReadTimeoutMills, final int socketConnectingTimeoutMills) {
-        final ImhotepConnectionKeyedPooledObjectFactory factory = new ImhotepConnectionKeyedPooledObjectFactory(socketReadTimeoutMills, socketConnectingTimeoutMills);
+    ImhotepConnectionPool(final MetricStatsEmitter statsEmitter, final ImhotepConnectionPoolConfig config) {
+        final ImhotepConnectionKeyedPooledObjectFactory factory = new ImhotepConnectionKeyedPooledObjectFactory(
+                config.getSocketReadTimeoutMills(),
+                config.getSocketConnectingTimeoutMills());
 
-        final GenericKeyedObjectPoolConfig<Socket> config = new GenericKeyedObjectPoolConfig<>();
-        config.setMaxIdlePerKey(16);
-        config.setLifo(true);
-        config.setTestOnBorrow(true);
+        final GenericKeyedObjectPoolConfig<Socket> sourcePoolConfig = new GenericKeyedObjectPoolConfig<>();
+        sourcePoolConfig.setMaxIdlePerKey(config.getMaxIdleSocketPerHost());
+        sourcePoolConfig.setLifo(true);
+        sourcePoolConfig.setTestOnBorrow(true);
 
-        sourcePool = new GenericKeyedObjectPool<>(factory, config);
+        sourcePool = new GenericKeyedObjectPool<>(factory, sourcePoolConfig);
+        statsReporter = new ImhotepConnectionPoolStatsReporter(this, statsEmitter);
+        invalidatedConnectionCount = new AtomicLong(0);
+
+        statsReporter.start(config.getStatsReportFrequencySeconds());
     }
 
     /**
@@ -101,9 +106,12 @@ public class ImhotepConnectionPool implements Closeable {
         }
     }
 
-    @VisibleForTesting
     GenericKeyedObjectPool<Host, Socket> getSourcePool() {
         return sourcePool;
+    }
+
+    long getAndResetInvalidatedCount() {
+        return invalidatedConnectionCount.getAndSet(0);
     }
 
     /**
@@ -116,7 +124,7 @@ public class ImhotepConnectionPool implements Closeable {
             try {
                 return function.apply(connection);
             } catch (final Throwable t) {
-                connection.markAsInvalid();
+                invalidateConnection(connection);
                 throw t;
             }
         }
@@ -133,10 +141,15 @@ public class ImhotepConnectionPool implements Closeable {
             try {
                 return function.apply(connection);
             } catch (final Throwable t) {
-                connection.markAsInvalid();
+                invalidateConnection(connection);
                 throw t;
             }
         }
+    }
+
+    private void invalidateConnection(final ImhotepConnection connection) {
+        invalidatedConnectionCount.incrementAndGet();
+        connection.markAsInvalid();
     }
 
     public interface ThrowingFunction<K, R, E extends Exception> {
