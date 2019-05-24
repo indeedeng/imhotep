@@ -13,6 +13,8 @@
  */
  package com.indeed.imhotep.io;
 
+import com.google.common.base.Preconditions;
+
 /**
  * @author jsgroth
  *
@@ -23,6 +25,14 @@ public final class Bytes {
 
     public static byte[] intToBytes(final int x) {
         return new byte[]{(byte)((x>>>24) & 0xFF), (byte)((x>>>16) & 0xFF), (byte)((x>>>8) & 0xFF), (byte)(x & 0xFF)};
+    }
+
+    public static void intToBytes(final byte[] b, final int x) {
+        Preconditions.checkArgument(b != null && b.length == 4, "Need a byte array with length 4");
+        b[0] = (byte)((x>>>24) & 0xFF);
+        b[1] = (byte)((x>>>16) & 0xFF);
+        b[2] = (byte)((x>>>8) & 0xFF);
+        b[3] = (byte)(x & 0xFF);
     }
 
     public static int bytesToInt(final byte[] b) {
