@@ -172,7 +172,7 @@ public class TaskScheduler {
             return () -> {}; // can't lock with no task
         }
 
-        final boolean hadAlock = stopped(task, true);
+        final boolean hadAlock = stopped(task, true, true);
         if(!hadAlock) {
             return () -> {};
         } else {
@@ -189,7 +189,18 @@ public class TaskScheduler {
     }
 
     public void yield() {
-        temporaryUnlock().close();
+        final ImhotepTask task = ImhotepTask.THREAD_LOCAL_TASK.get();
+        if(task == null) {
+            statsEmitter.count("scheduler." + schedulerType + ".threadlocal.task.absent", 1);
+        }
+
+        final boolean hadAlock = stopped(task, true, false);
+        if (!hadAlock) {
+            return;
+        } else {
+            schedule(task);
+            tryStartTasks();
+        }
     }
 
     /** returns true iff a new lock was created */
@@ -210,7 +221,7 @@ public class TaskScheduler {
     }
 
     /** returns true iff a task was running */
-    synchronized boolean stopped(ImhotepTask task, boolean ignoreNotRunning) {
+    synchronized boolean stopped(ImhotepTask task, boolean ignoreNotRunning, boolean scheduleNextTask) {
         if(!runningTasks.remove(task)) {
             if(!ignoreNotRunning) {
                 statsEmitter.count("scheduler." + schedulerType + ".stop.already.stopped", 1);
@@ -222,7 +233,9 @@ public class TaskScheduler {
         final ConsumptionTracker consumptionTracker = ownerToConsumptionTracker.computeIfAbsent(ownerAndPriority,
                 (ignored) -> new ConsumptionTracker(historyLengthNanos, batchNanos));
         consumptionTracker.record(consumption);
-        tryStartTasks();
+        if (scheduleNextTask) {
+            tryStartTasks();
+        }
         return true;
     }
 
