@@ -206,7 +206,7 @@ public class TaskScheduler {
             // Blocks and waits if necessary
             task.blockAndWait();
         } catch (final Throwable t) {
-            stopOrCancelTask(queuedTask, t);
+            cancelTask(queuedTask, t);
             throw t;
         }
         return true;
@@ -258,21 +258,20 @@ public class TaskScheduler {
                         return;
                     }
                 } catch (final Throwable t) {
-                    stopOrCancelTask(queuedTask, t);
+                    cancelTask(queuedTask, t);
                 }
             }
         }
     }
 
-    private synchronized void stopOrCancelTask(@Nonnull final QueuedImhotepTask queuedTask, final Throwable t) {
+    private synchronized void cancelTask(@Nonnull final QueuedImhotepTask queuedTask, final Throwable t) {
         final ImhotepTask task = queuedTask.imhotepTask;
         if (runningTasks.contains(task)) {
-            stopped(task, true);
-            LOGGER.warn("Stopped the running task, task = " + task, t);
+            runningTasks.remove(task);
         } else {
             queuedTask.cancelled = true;
-            LOGGER.warn("Cancelled task in the queue, task = " + task, t);
         }
+        LOGGER.error("Cancelled task as unexpected errors, task = " + task, t);
     }
 
     public List<TaskSnapshot> getRunningTasksSnapshot(final boolean takeStackTrace) {
