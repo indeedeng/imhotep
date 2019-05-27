@@ -38,20 +38,27 @@ public class ImhotepConnectionPoolStatsReporter {
     private void report() {
         stats.update(connectionPool.getSourcePool(), connectionPool.getAndResetInvalidatedCount());
 
-        statsEmitter.count("connection.pool.socket.newly.created", stats.getSocketNewlyCreated());
-        statsEmitter.count("connection.pool.socket.newly.borrowed", stats.getSocketNewlyBorrowed());
-        statsEmitter.count("connection.pool.socket.newly.destroyed", stats.getSocketNewlyDestroyed());
-        statsEmitter.count("connection.pool.socket.newly.destroyed.validation", stats.getSocketNewlyDestroyedByValidation());
-        statsEmitter.count("connection.pool.socket.newly.invalidated", stats.getSocketInvalidated());
+        // the count of socket created recently
+        statsEmitter.count("connection.pool.socket.created", stats.getSocketCreated());
+        // the count of socket borrowed recently
+        statsEmitter.count("connection.pool.socket.borrowed", stats.getSocketBorrowed());
+        // the count of socket destroyed recently
+        statsEmitter.count("connection.pool.socket.destroyed", stats.getSocketDestroyed());
+        // the count of sockets failing to pass the validate check when borrowing
+        statsEmitter.count("connection.pool.socket.failed.validation", stats.getSocketFailedValidation());
+        // the count of sockets invalidated manually when exceptions happen with that socket
+        statsEmitter.count("connection.pool.socket.invalidated", stats.getSocketInvalidated());
+        // active sockets count in the pool
         statsEmitter.count("connection.pool.socket.active", stats.getActiveSocket());
+        // idle sockets count in the pool
         statsEmitter.count("connection.pool.socket.idle", stats.getIdleSocket());
     }
 
     private static class ImhotepConnectionPoolStats {
-        private long socketNewlyCreated;
-        private long socketNewlyBorrowed;
-        private long socketNewlyDestroyed;
-        private long socketNewlyDestroyedByValidation;
+        private long socketCreated;
+        private long socketBorrowed;
+        private long socketDestroyed;
+        private long socketFailedValidation;
         private long socketInvalidated;
         private long activeSocket;
         private long idleSocket;
@@ -63,19 +70,19 @@ public class ImhotepConnectionPoolStatsReporter {
 
         public void update(final GenericKeyedObjectPool<Host, Socket> sourcePool, final long invalidatedCount) {
             final long createdCount = sourcePool.getCreatedCount();
-            socketNewlyCreated = createdCount - lastCreatedCount;
+            socketCreated = createdCount - lastCreatedCount;
             lastCreatedCount = createdCount;
 
             final long borrowedCount = sourcePool.getBorrowedCount();
-            socketNewlyBorrowed = borrowedCount - lastBorrowedCount;
+            socketBorrowed = borrowedCount - lastBorrowedCount;
             lastBorrowedCount = borrowedCount;
 
             final long destroyedCount = sourcePool.getDestroyedCount();
-            socketNewlyDestroyed = destroyedCount - lastDestroyedCount;
+            socketDestroyed = destroyedCount - lastDestroyedCount;
             lastDestroyedCount = destroyedCount;
 
             final long destroyedByValidationCount = sourcePool.getDestroyedByBorrowValidationCount();
-            socketNewlyDestroyedByValidation = destroyedByValidationCount - lastDestroyedByValidationCount;
+            socketFailedValidation = destroyedByValidationCount - lastDestroyedByValidationCount;
             lastDestroyedByValidationCount = destroyedByValidationCount;
 
             socketInvalidated = invalidatedCount;
@@ -83,20 +90,20 @@ public class ImhotepConnectionPoolStatsReporter {
             idleSocket = sourcePool.getNumIdle();
         }
 
-        long getSocketNewlyCreated() {
-            return socketNewlyCreated;
+        long getSocketCreated() {
+            return socketCreated;
         }
 
-        long getSocketNewlyBorrowed() {
-            return socketNewlyBorrowed;
+        long getSocketBorrowed() {
+            return socketBorrowed;
         }
 
-        long getSocketNewlyDestroyed() {
-            return socketNewlyDestroyed;
+        long getSocketDestroyed() {
+            return socketDestroyed;
         }
 
-        long getSocketNewlyDestroyedByValidation() {
-            return socketNewlyDestroyedByValidation;
+        long getSocketFailedValidation() {
+            return socketFailedValidation;
         }
 
         long getSocketInvalidated() {
