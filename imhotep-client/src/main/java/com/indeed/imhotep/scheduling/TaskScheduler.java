@@ -22,6 +22,7 @@ import com.indeed.util.core.threads.NamedThreadFactory;
 import org.apache.log4j.Logger;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.List;
@@ -148,6 +149,15 @@ public class TaskScheduler {
         }
     }
 
+    @Nullable
+    public ImhotepTask getThreadLocalTask() {
+        final ImhotepTask task = ImhotepTask.THREAD_LOCAL_TASK.get();
+        if (task == null) {
+            statsEmitter.count("scheduler." + schedulerType + ".threadlocal.task.absent", 1);
+        }
+        return task;
+    }
+
     /**
      * Blocks if necessary and returns once a slot is acquired.
      * Retrieves the ImhotepTask object from ThreadLocal. If absent results in a noop.
@@ -155,20 +165,20 @@ public class TaskScheduler {
      */
     @Nonnull
     public SilentCloseable lockSlot() {
-        final ImhotepTask task = ImhotepTask.THREAD_LOCAL_TASK.get();
+        final ImhotepTask task = getThreadLocalTask();
         if(task != null) {
             return new CloseableImhotepTask(task, this);
         } else {
-            statsEmitter.count("scheduler." + schedulerType + ".threadlocal.task.absent", 1);
-            return () -> {}; // can't lock with no task
+             return () -> {}; // can't lock with no task
         }
     }
 
+    /** Stop execution of the task if running, and schedule the next task.
+     *  The task will be considered for scheduling only after the returned SilentCloseable is closed. */
     @Nonnull
     public SilentCloseable temporaryUnlock() {
-        final ImhotepTask task = ImhotepTask.THREAD_LOCAL_TASK.get();
+        final ImhotepTask task = getThreadLocalTask();
         if(task == null) {
-            statsEmitter.count("scheduler." + schedulerType + ".threadlocal.task.absent", 1);
             return () -> {}; // can't lock with no task
         }
 
@@ -188,18 +198,17 @@ public class TaskScheduler {
         }
     }
 
+    /** Stop the execution of the task if running, and schedule the next task.
+     * The task will also be considered while scheduling the next task.*/
     public void yield() {
-        final ImhotepTask task = ImhotepTask.THREAD_LOCAL_TASK.get();
-        if(task == null) {
-            statsEmitter.count("scheduler." + schedulerType + ".threadlocal.task.absent", 1);
+        final ImhotepTask task = getThreadLocalTask();
+        if (task == null) {
+            return;
         }
 
         final boolean hadAlock = stopped(task, true, false);
-        if (!hadAlock) {
-            return;
-        } else {
+        if (hadAlock) {
             schedule(task);
-            tryStartTasks();
         }
     }
 
