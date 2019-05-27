@@ -174,8 +174,8 @@ public class BlockInputStream extends FilterInputStream {
         ByteStreams.readFully(in, blockSizeBytes);
         count = Bytes.bytesToInt(blockSizeBytes);
 
-        if (count < 0 || (count == 0 && !hasNext)) {
-            throw new IOException("Invalid block stream, blockSize smaller than 0 or multiple zero-size blocks");
+        if (count < 0) {
+            throw new IOException("Invalid block stream, blockSize smaller than 0");
         }
 
         hasNext = count > 0;

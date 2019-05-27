@@ -27,12 +27,12 @@ public final class Bytes {
         return new byte[]{(byte)((x>>>24) & 0xFF), (byte)((x>>>16) & 0xFF), (byte)((x>>>8) & 0xFF), (byte)(x & 0xFF)};
     }
 
-    public static void intToBytes(final byte[] b, final int x) {
+    public static void intToBytes(final int x, final byte[] b) {
         Preconditions.checkArgument(b != null && b.length == 4, "Need a byte array with length 4");
-        b[0] = (byte)((x>>>24) & 0xFF);
-        b[1] = (byte)((x>>>16) & 0xFF);
-        b[2] = (byte)((x>>>8) & 0xFF);
-        b[3] = (byte)(x & 0xFF);
+        b[0] = (byte)((x>>>24));
+        b[1] = (byte)((x>>>16));
+        b[2] = (byte)((x>>>8));
+        b[3] = (byte)(x);
     }
 
     public static int bytesToInt(final byte[] b) {

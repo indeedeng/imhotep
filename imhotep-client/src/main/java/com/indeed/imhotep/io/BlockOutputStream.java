@@ -116,7 +116,7 @@ public class BlockOutputStream extends FilterOutputStream {
 
     /** write the block length and whether last block into stream */
     private void writeBlockSize(final int blockSize) throws IOException {
-        Bytes.intToBytes(blockSizeBytes, blockSize);
+        Bytes.intToBytes(blockSize, blockSizeBytes);
         out.write(blockSizeBytes);
     }
 

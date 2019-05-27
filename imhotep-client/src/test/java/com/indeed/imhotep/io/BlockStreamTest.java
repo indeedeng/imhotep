@@ -13,6 +13,7 @@ import java.util.Random;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 public class BlockStreamTest {
     private static final int TEST_BLOCK_SIZE = 4096;
@@ -130,6 +131,7 @@ public class BlockStreamTest {
             final byte[] bytesRead = new byte[expected.length];
             func.read(blockIs, bytesRead);
             assertArrayEquals(expected, bytesRead);
+            assertTrue(blockIs.read() == -1 && blockIs.available() == 0);
         }, writeMethod);
     }
 
