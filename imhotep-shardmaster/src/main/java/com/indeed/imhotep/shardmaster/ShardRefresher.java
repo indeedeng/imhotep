@@ -35,6 +35,7 @@ import org.springframework.jdbc.core.ResultSetExtractor;
 import java.io.IOException;
 import java.sql.*;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -52,12 +53,13 @@ public class ShardRefresher {
             new NamedThreadFactory("DatasetRefresher"));
     private static final ThreadPoolExecutor SHARDS_EXECUTOR_SERVICE = (ThreadPoolExecutor) Executors.newFixedThreadPool(100,
             new NamedThreadFactory("ShardRefresher"));
+    private static final NamedThreadFactory UPDATE_INFO_THREAD_FACTORY = new NamedThreadFactory("UpdateInfo");
     private final Path datasetsDir;
     private final JdbcTemplate dbConnection;
     private final FileSystem hadoopFileSystem;
     private final ShardFilter filter;
     private final ShardData shardData;
-    private Timestamp lastUpdatedTimestamp;
+    private Instant lastUpdated;
     private final SQLWriteManager sqlWriteManager;
     private final AtomicInteger numDatasetsFailedToRead = new AtomicInteger();
     private final AtomicInteger numDatasetsReadFromFilesystemOnCurrentRefresh = new AtomicInteger();
@@ -79,7 +81,7 @@ public class ShardRefresher {
         this.filter = filter;
         this.shardData = shardData;
         this.sqlWriteManager = manager;
-        this.lastUpdatedTimestamp = Timestamp.from(Instant.MIN);
+        this.lastUpdated = Instant.MIN;
     }
 
     public synchronized void refresh(final boolean readFilesystem, final boolean readSQL, final boolean delete, final boolean writeSQL, final boolean shouldRefreshFieldsForDataset) {
@@ -88,7 +90,7 @@ public class ShardRefresher {
         totalDatasetsOnCurrentRefresh.set(0);
         numDatasetsFailedToRead.set(0);
         LOGGER.info("Starting a refresh. ReadFilesystem: " + readFilesystem + " readSQL: " + readSQL + " delete: " + delete + " writeSQL: " + writeSQL);
-        final ScheduledExecutorService updates = Executors.newSingleThreadScheduledExecutor();
+        final ScheduledExecutorService updates = Executors.newSingleThreadScheduledExecutor(UPDATE_INFO_THREAD_FACTORY);
         final long startTime = System.currentTimeMillis();
         updates.scheduleAtFixedRate(() -> {
                     LOGGER.info("Updated " + numDatasetsReadFromFilesystemOnCurrentRefresh.get() +
@@ -114,7 +116,7 @@ public class ShardRefresher {
         } finally {
             try {
                 updates.shutdownNow();
-            } catch (Exception e) {
+            } catch (final Throwable e) {
                 LOGGER.error("Failed to shutdown update progress executor", e);
             }
         }
@@ -165,8 +167,8 @@ public class ShardRefresher {
     }
 
     private void loadFromSQL(final boolean shouldDelete) {
-        final Timestamp timestampToUse = lastUpdatedTimestamp;
-        lastUpdatedTimestamp = Timestamp.from(Instant.now());
+        final Timestamp timestampToUse = Timestamp.from(lastUpdated.minus(10, ChronoUnit.SECONDS)); // To tolerate difference of clock time of servers
+        final Instant updateStarted = Instant.now();
         if(shouldDelete){
             dbConnection.query("SELECT * FROM tblshards;", (ResultSetExtractor<Void>) rs -> {
                 shardData.updateTableShardsRowsFromSQL(rs, true, filter);
@@ -183,6 +185,7 @@ public class ShardRefresher {
             shardData.updateTableFieldsRowsFromSQL(rs, filter);
             return null;
         });
+        lastUpdated = updateStarted;
     }
 
     private void scanFilesystemAndUpdateData(final boolean writeToSQL, final boolean delete) throws IOException {
