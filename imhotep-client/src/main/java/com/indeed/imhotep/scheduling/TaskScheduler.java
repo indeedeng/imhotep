@@ -17,6 +17,7 @@ package com.indeed.imhotep.scheduling;
 import com.google.common.base.Joiner;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Queues;
+import com.indeed.imhotep.exceptions.ImhotepKnownException;
 import com.indeed.imhotep.service.MetricStatsEmitter;
 import com.indeed.util.core.threads.NamedThreadFactory;
 import org.apache.log4j.Logger;
@@ -271,7 +272,11 @@ public class TaskScheduler {
         } else {
             queuedTask.cancelled = true;
         }
-        LOGGER.error("Cancelled task as unexpected errors, task = " + task, t);
+
+        // only log unknown errors to avoid verbose logging
+        if (!(t instanceof ImhotepKnownException)) {
+            LOGGER.error("Cancelled task as unexpected errors, task = " + task, t);
+        }
     }
 
     public List<TaskSnapshot> getRunningTasksSnapshot(final boolean takeStackTrace) {
