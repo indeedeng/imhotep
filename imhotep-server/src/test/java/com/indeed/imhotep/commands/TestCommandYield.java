@@ -25,7 +25,6 @@ import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 public class TestCommandYield {
@@ -39,8 +38,6 @@ public class TestCommandYield {
     private static String COMMANDID1 = "commandId1";
     private static String COMMANDID2 = "commandId2";
     private static String SESSIONID = "randomSessionIdString";
-
-    private final CountDownLatch latch = new CountDownLatch(2);
 
     private ImhotepCommand getSleepingCommand(final long milliSeconds, final String commandId) {
         return new ImhotepCommand<Void>() {
@@ -99,7 +96,6 @@ public class TestCommandYield {
         TaskScheduler.CPUScheduler.close();
     }
 
-
     public Thread getCommadThread(final String username, final String clientName, final List<Long> firstCommandsExecTimeMillis, final long lastCommandExectimeMillis, final String commandID) {
         return new Thread(() -> {
             try {
@@ -151,7 +147,6 @@ public class TestCommandYield {
         executeThreads(thread1, thread2);
 
         Assert.assertEquals(scheduleOrder, Arrays.asList(COMMANDID2, COMMANDID2, COMMANDID1));
-
     }
 
     @Test
@@ -161,7 +156,6 @@ public class TestCommandYield {
         executeThreads(thread1, thread2);
 
         Assert.assertEquals(scheduleOrder, Arrays.asList(COMMANDID2, COMMANDID2, COMMANDID2, COMMANDID1, COMMANDID2));
-
     }
 
     @Test
@@ -171,18 +165,14 @@ public class TestCommandYield {
         executeThreads(thread1, thread2);
 
         Assert.assertEquals(scheduleOrder, Arrays.asList(COMMANDID2, COMMANDID2, COMMANDID2, COMMANDID1, COMMANDID2, COMMANDID1));
-
     }
 
     @Test
     public void testLongerInterleave1() throws InterruptedException {
         final Thread thread1 = getCommadThread(USER1, CLIENT1, Arrays.asList(100L), 100L, COMMANDID1);
-        final Thread thread2 = getCommadThread(USER2, CLIENT2, Arrays.asList(100L, 100L, 1500L), 2000L, COMMANDID2);
+        final Thread thread2 = getCommadThread(USER2, CLIENT2, Arrays.asList(100L, 100L, 1900L), 2000L, COMMANDID2);
         executeThreads(thread1, thread2);
 
         Assert.assertEquals(scheduleOrder, Arrays.asList(COMMANDID2, COMMANDID2, COMMANDID2, COMMANDID1, COMMANDID1, COMMANDID2));
-
     }
-
-
 }

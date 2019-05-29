@@ -150,7 +150,7 @@ public class TaskScheduler {
     }
 
     @Nullable
-    public ImhotepTask getThreadLocalTask() {
+    public ImhotepTask getThreadLocalTaskForLocking() {
         final ImhotepTask task = ImhotepTask.THREAD_LOCAL_TASK.get();
         if (task == null) {
             statsEmitter.count("scheduler." + schedulerType + ".threadlocal.task.absent", 1);
@@ -165,7 +165,7 @@ public class TaskScheduler {
      */
     @Nonnull
     public SilentCloseable lockSlot() {
-        final ImhotepTask task = getThreadLocalTask();
+        final ImhotepTask task = getThreadLocalTaskForLocking();
         if(task != null) {
             return new CloseableImhotepTask(task, this);
         } else {
@@ -177,7 +177,7 @@ public class TaskScheduler {
      *  The task will be considered for scheduling only after the returned SilentCloseable is closed. */
     @Nonnull
     public SilentCloseable temporaryUnlock() {
-        final ImhotepTask task = getThreadLocalTask();
+        final ImhotepTask task = getThreadLocalTaskForLocking();
         if(task == null) {
             return () -> {}; // can't lock with no task
         }
@@ -201,7 +201,7 @@ public class TaskScheduler {
     /** Stop the execution of the task if running, and schedule the next task.
      * The task will also be considered while scheduling the next task.*/
     public void yield() {
-        final ImhotepTask task = getThreadLocalTask();
+        final ImhotepTask task = getThreadLocalTaskForLocking();
         if (task == null) {
             return;
         }
