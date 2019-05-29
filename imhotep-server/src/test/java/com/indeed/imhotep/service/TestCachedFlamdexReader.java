@@ -200,8 +200,8 @@ public class TestCachedFlamdexReader {
         }
     }
 
-    public static class SillyFlamdexReader extends MockFlamdexReader {
-        public SillyFlamdexReader() {
+    private static class SillyFlamdexReader extends MockFlamdexReader {
+        private SillyFlamdexReader() {
             super(Collections.singletonList("m1"), Collections.<String>emptyList(), Collections.singletonList("m1"), 5);
             super.addIntTerm("m1", 1, Collections.singletonList(0));
             super.addIntTerm("m1", 4, Collections.singletonList(1));
