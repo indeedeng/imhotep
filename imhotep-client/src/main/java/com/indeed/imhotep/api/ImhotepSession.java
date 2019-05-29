@@ -108,7 +108,7 @@ public interface ImhotepSession
 
     /**
      * get an iterator over some subset (maybe all) of (field, term, group, stat) tuples for the given fields
-     * tuples are always sorted by field and groups within term are always sorted too
+     * tuples are always sorted by field and groups within term are always sorted too.
      *
      * Result depends on values of 'termLimit, sortStat, sorted' params:
      *
