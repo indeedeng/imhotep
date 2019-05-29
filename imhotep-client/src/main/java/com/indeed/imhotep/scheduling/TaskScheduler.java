@@ -22,6 +22,7 @@ import com.indeed.util.core.threads.NamedThreadFactory;
 import org.apache.log4j.Logger;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.List;
@@ -148,6 +149,15 @@ public class TaskScheduler {
         }
     }
 
+    @Nullable
+    public ImhotepTask getThreadLocalTaskForLocking() {
+        final ImhotepTask task = ImhotepTask.THREAD_LOCAL_TASK.get();
+        if (task == null) {
+            statsEmitter.count("scheduler." + schedulerType + ".threadlocal.task.absent", 1);
+        }
+        return task;
+    }
+
     /**
      * Blocks if necessary and returns once a slot is acquired.
      * Retrieves the ImhotepTask object from ThreadLocal. If absent results in a noop.
@@ -155,24 +165,24 @@ public class TaskScheduler {
      */
     @Nonnull
     public SilentCloseable lockSlot() {
-        final ImhotepTask task = ImhotepTask.THREAD_LOCAL_TASK.get();
+        final ImhotepTask task = getThreadLocalTaskForLocking();
         if(task != null) {
             return new CloseableImhotepTask(task, this);
         } else {
-            statsEmitter.count("scheduler." + schedulerType + ".threadlocal.task.absent", 1);
-            return () -> {}; // can't lock with no task
+             return () -> {}; // can't lock with no task
         }
     }
 
+    /** Stop execution of the task if running, and schedule the next task.
+     *  The task will be considered for scheduling only after the returned SilentCloseable is closed. */
     @Nonnull
     public SilentCloseable temporaryUnlock() {
-        final ImhotepTask task = ImhotepTask.THREAD_LOCAL_TASK.get();
+        final ImhotepTask task = getThreadLocalTaskForLocking();
         if(task == null) {
-            statsEmitter.count("scheduler." + schedulerType + ".threadlocal.task.absent", 1);
             return () -> {}; // can't lock with no task
         }
 
-        final boolean hadAlock = stopped(task, true);
+        final boolean hadAlock = stopped(task, true, true);
         if(!hadAlock) {
             return () -> {};
         } else {
@@ -188,8 +198,18 @@ public class TaskScheduler {
         }
     }
 
+    /** Stop the execution of the task if running, and schedule the next task.
+     * The task will also be considered while scheduling the next task.*/
     public void yield() {
-        temporaryUnlock().close();
+        final ImhotepTask task = getThreadLocalTaskForLocking();
+        if (task == null) {
+            return;
+        }
+
+        final boolean hadAlock = stopped(task, true, false);
+        if (hadAlock) {
+            schedule(task);
+        }
     }
 
     /** returns true iff a new lock was created */
@@ -210,7 +230,7 @@ public class TaskScheduler {
     }
 
     /** returns true iff a task was running */
-    synchronized boolean stopped(ImhotepTask task, boolean ignoreNotRunning) {
+    synchronized boolean stopped(ImhotepTask task, boolean ignoreNotRunning, boolean scheduleNextTask) {
         if(!runningTasks.remove(task)) {
             if(!ignoreNotRunning) {
                 statsEmitter.count("scheduler." + schedulerType + ".stop.already.stopped", 1);
@@ -222,7 +242,9 @@ public class TaskScheduler {
         final ConsumptionTracker consumptionTracker = ownerToConsumptionTracker.computeIfAbsent(ownerAndPriority,
                 (ignored) -> new ConsumptionTracker(historyLengthNanos, batchNanos));
         consumptionTracker.record(consumption);
-        tryStartTasks();
+        if (scheduleNextTask) {
+            tryStartTasks();
+        }
         return true;
     }
 
