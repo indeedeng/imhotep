@@ -1,6 +1,7 @@
 package com.indeed.imhotep.commands;
 
 import com.google.common.base.Throwables;
+import com.indeed.flamdex.MemoryFlamdex;
 import com.indeed.imhotep.SlotTiming;
 import com.indeed.imhotep.api.ImhotepCommand;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
@@ -13,7 +14,6 @@ import com.indeed.imhotep.scheduling.SchedulerType;
 import com.indeed.imhotep.scheduling.SilentCloseable;
 import com.indeed.imhotep.scheduling.TaskScheduler;
 import com.indeed.imhotep.service.MetricStatsEmitter;
-import com.indeed.imhotep.service.TestCachedFlamdexReader;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -59,7 +59,7 @@ public class TestCommandYield {
 
         ImhotepTask.setup(USER1, CLIENT1, (byte) 0, new SlotTiming());
         try (final SilentCloseable slot = TaskScheduler.CPUScheduler.lockSlot()) {
-            ImhotepTask.THREAD_LOCAL_TASK.get().overritdeTaskStartTime(System.nanoTime() - 1000000000L);
+            ImhotepTask.THREAD_LOCAL_TASK.get().overritdeTaskStartTime(System.nanoTime() - 1000_000_000L);
         }
 
         ImhotepTask.setup(USER2, CLIENT2, (byte) 0, new SlotTiming());
@@ -76,7 +76,7 @@ public class TestCommandYield {
     public Thread getCommandThread(final String username, final String clientName, final String commandID, long... commandsExecTimeMillis) {
         return new Thread(() -> {
             try {
-                final ImhotepLocalSession imhotepLocalSession = new ImhotepJavaLocalSession(SESSIONID, new TestCachedFlamdexReader.SillyFlamdexReader(), null );
+                final ImhotepLocalSession imhotepLocalSession = new ImhotepJavaLocalSession(SESSIONID, new MemoryFlamdex(), null );
 
                 final List<ImhotepCommand> firstCommands = new ArrayList<>();
                 for (int i = 0; i < commandsExecTimeMillis.length - 1; i++) {
