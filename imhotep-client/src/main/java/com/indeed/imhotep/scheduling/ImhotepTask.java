@@ -14,6 +14,7 @@
 
 package com.indeed.imhotep.scheduling;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.primitives.Longs;
 import com.indeed.imhotep.AbstractImhotepMultiSession;
 import com.indeed.imhotep.AbstractImhotepSession;
@@ -318,5 +319,10 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
 
     private interface SchedulerCallback {
         void call(SchedulerType schedulerType, long time);
+    }
+
+    @VisibleForTesting
+    public void overritdeTaskStartTime(long lastStartTime) {
+        this.lastExecutionStartTime = lastStartTime;
     }
 }
