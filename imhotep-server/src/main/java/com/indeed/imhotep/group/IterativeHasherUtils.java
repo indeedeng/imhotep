@@ -14,6 +14,7 @@
 
 package com.indeed.imhotep.group;
 
+import com.google.common.base.Preconditions;
 import com.indeed.flamdex.api.DocIdStream;
 import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.api.IntTermIterator;
@@ -254,18 +255,15 @@ public class IterativeHasherUtils {
     // uniformly choosing one of N options
     static class UniformGroupChooser implements GroupChooser {
         private final int n;
-        private final long divisor;
 
         UniformGroupChooser(final int n) {
-            final long fullRange = ((long)Integer.MAX_VALUE) - ((long)Integer.MIN_VALUE);
+            Preconditions.checkArgument(n > 0, "Number of groups for uniform group choosing must be at least 1");
             this.n = n;
-            this.divisor = ((fullRange + n)/n);
         }
 
         @Override
         public int getGroup(final int hash) {
-            final long shiftedHash = ((long)hash) - Integer.MIN_VALUE;
-            return (int)(shiftedHash/divisor);
+            return Math.floorMod(hash, n);
         }
     }
 

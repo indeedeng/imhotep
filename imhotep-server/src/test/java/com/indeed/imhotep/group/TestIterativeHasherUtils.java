@@ -99,44 +99,38 @@ public class TestIterativeHasherUtils {
 
     @Test
     public void testUniformGroupChooser() {
-        final IterativeHasherUtils.GroupChooser chooser = IterativeHasherUtils.createUniformChooser(4);
-        assertTrue(checkBounds(chooser, 4));
+        final IterativeHasherUtils.GroupChooser chooser4 = IterativeHasherUtils.createUniformChooser(4);
+        assertEquals(0, chooser4.getGroup(0));
+        assertEquals(1, chooser4.getGroup(1));
+        assertEquals(2, chooser4.getGroup(2));
+        assertEquals(3, chooser4.getGroup(3));
+        assertEquals(0, chooser4.getGroup(4));
+        assertEquals(3, chooser4.getGroup(-1));
+        assertEquals(0, chooser4.getGroup(160));
+        assertEquals(3, chooser4.getGroup(Integer.MAX_VALUE));
+        assertEquals(0, chooser4.getGroup(Integer.MIN_VALUE));
+
+        final IterativeHasherUtils.GroupChooser chooser1 = IterativeHasherUtils.createUniformChooser(1);
+        assertEquals(0, chooser1.getGroup(0));
+        assertEquals(0, chooser1.getGroup(Integer.MAX_VALUE));
+        assertEquals(0, chooser1.getGroup(Integer.MIN_VALUE));
+        assertEquals(0, chooser1.getGroup(1));
+        assertEquals(0, chooser1.getGroup(-1));
+        assertEquals(0, chooser1.getGroup(13));
+        assertEquals(0, chooser1.getGroup(-13));
+
+        final IterativeHasherUtils.GroupChooser chooser1000 = IterativeHasherUtils.createUniformChooser(1000);
+        assertEquals(0, chooser1000.getGroup(0));
+        assertEquals(647, chooser1000.getGroup(Integer.MAX_VALUE));
+        assertEquals(352, chooser1000.getGroup(Integer.MIN_VALUE));
+        assertEquals(1, chooser1000.getGroup(1));
+        assertEquals(999, chooser1000.getGroup(-1));
+        assertEquals(13, chooser1000.getGroup(13));
+        assertEquals(987, chooser1000.getGroup(-13));
     }
 
-    @Test
-    public void testUniformMatchesProportional() {
-        final List<Pair<IterativeHasherUtils.GroupChooser, IterativeHasherUtils.GroupChooser>> pairs = new ArrayList<>();
-        pairs.add(Pair.of(
-                IterativeHasherUtils.createChooser(new double[]{0.5}),
-                IterativeHasherUtils.createUniformChooser(2)
-        ));
-        pairs.add(Pair.of(
-                IterativeHasherUtils.createChooser(new double[]{0.2, 0.4, 0.6, 0.8}),
-                IterativeHasherUtils.createUniformChooser(5)
-        ));
-        pairs.add(Pair.of(
-                IterativeHasherUtils.createChooser(new double[]{0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9}),
-                IterativeHasherUtils.createUniformChooser(10)
-        ));
-
-        for (final Pair<IterativeHasherUtils.GroupChooser, IterativeHasherUtils.GroupChooser> pair : pairs) {
-            final Random random = new Random(0L);
-
-            final IterativeHasherUtils.GroupChooser proportional = pair.getFirst();
-            final IterativeHasherUtils.GroupChooser uniform = pair.getSecond();
-
-            assertEquals(proportional.getGroup(Integer.MAX_VALUE), uniform.getGroup(Integer.MAX_VALUE));
-            assertEquals(proportional.getGroup(Integer.MIN_VALUE), uniform.getGroup(Integer.MIN_VALUE));
-            assertEquals(proportional.getGroup(0), uniform.getGroup(0));
-            assertEquals(proportional.getGroup(100), uniform.getGroup(100));
-            assertEquals(proportional.getGroup(10000), uniform.getGroup(10000));
-            assertEquals(proportional.getGroup(1), uniform.getGroup(1));
-            assertEquals(proportional.getGroup(-1), uniform.getGroup(-1));
-            for (int i = 0; i < 1000; i++) {
-                final int r = random.nextInt();
-                assertEquals(proportional.getGroup(r), uniform.getGroup(r));
-            }
-        }
-
+    @Test(expected = IllegalArgumentException.class)
+    public void testUniformGroupChooserInvalidArgument() {
+        IterativeHasherUtils.createUniformChooser(-1);
     }
 }
