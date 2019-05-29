@@ -2,10 +2,10 @@ package com.indeed.imhotep.commands;
 
 import com.google.common.base.Throwables;
 import com.indeed.imhotep.SlotTiming;
-import com.indeed.imhotep.api.CommandSerializationParameters;
 import com.indeed.imhotep.api.ImhotepCommand;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
+import com.indeed.imhotep.io.RequestTools;
 import com.indeed.imhotep.local.ImhotepJavaLocalSession;
 import com.indeed.imhotep.local.ImhotepLocalSession;
 import com.indeed.imhotep.scheduling.ImhotepTask;
@@ -19,9 +19,6 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -40,37 +37,17 @@ public class TestCommandYield {
     private static String SESSIONID = "randomSessionIdString";
 
     private ImhotepCommand getSleepingCommand(final long milliSeconds, final String commandId) {
-        return new ImhotepCommand<Void>() {
+        return new VoidAbstractImhotepCommand(SESSIONID) {
             @Override
-            public Void combine(final List<Void> subResults) {
-                return null;
-            }
-
-            @Override
-            public void writeToOutputStream(final OutputStream os) throws IOException {
-            }
-
-            @Override
-            public Void readResponse(final InputStream is, final CommandSerializationParameters serializationParameters) throws IOException, ImhotepOutOfMemoryException {
-                return null;
-            }
-
-            @Override
-            public Class<Void> getResultClass() {
-                return null;
-            }
-
-            @Override
-            public Void apply(final ImhotepSession session) throws ImhotepOutOfMemoryException {
+            public void applyVoid(final ImhotepSession imhotepSession) throws ImhotepOutOfMemoryException {
                 synchronized (scheduleOrder) {
                     scheduleOrder.add(commandId);
                 }
                 ImhotepTask.THREAD_LOCAL_TASK.get().overritdeTaskStartTime(System.nanoTime() - milliSeconds*1000000L);
-                return null;
             }
 
             @Override
-            public String getSessionId() {
+            protected RequestTools.ImhotepRequestSender imhotepRequestSenderInitializer() {
                 return null;
             }
         };
@@ -96,17 +73,17 @@ public class TestCommandYield {
         TaskScheduler.CPUScheduler.close();
     }
 
-    public Thread getCommadThread(final String username, final String clientName, final List<Long> firstCommandsExecTimeMillis, final long lastCommandExectimeMillis, final String commandID) {
+    public Thread getCommandThread(final String username, final String clientName, final String commandID, long... commandsExecTimeMillis) {
         return new Thread(() -> {
             try {
                 final ImhotepLocalSession imhotepLocalSession = new ImhotepJavaLocalSession(SESSIONID, new TestCachedFlamdexReader.SillyFlamdexReader(), null );
 
                 final List<ImhotepCommand> firstCommands = new ArrayList<>();
-                for (final long exexutionTimeMillis: firstCommandsExecTimeMillis) {
-                    firstCommands.add(getSleepingCommand(exexutionTimeMillis, commandID));
+                for (int i = 0; i < commandsExecTimeMillis.length - 1; i++) {
+                    firstCommands.add(getSleepingCommand(commandsExecTimeMillis[i], commandID));
                 }
 
-                final ImhotepCommand lastCommand = getSleepingCommand(lastCommandExectimeMillis, commandID);
+                final ImhotepCommand lastCommand = getSleepingCommand(commandsExecTimeMillis[commandsExecTimeMillis.length - 1], commandID);
 
                 ImhotepTask.setup(username, clientName, (byte)0, new SlotTiming());
                 try (final SilentCloseable slot = TaskScheduler.CPUScheduler.lockSlot()) {
@@ -124,7 +101,7 @@ public class TestCommandYield {
         try (final SilentCloseable slot = TaskScheduler.CPUScheduler.lockSlot()) {
             thread1.start();
             thread2.start();
-            Thread.sleep(1000L);
+            Thread.sleep(100L);
         }
 
         thread1.join();
@@ -133,8 +110,8 @@ public class TestCommandYield {
 
     @Test
     public void testInterleaving() throws InterruptedException {
-        final Thread thread1 = getCommadThread(USER1, CLIENT1, new ArrayList<>(), 0, COMMANDID1);
-        final Thread thread2 = getCommadThread(USER2, CLIENT2, Arrays.asList(2000L), 2000L, COMMANDID2);
+        final Thread thread1 = getCommandThread(USER1, CLIENT1, COMMANDID1, 0);
+        final Thread thread2 = getCommandThread(USER2, CLIENT2, COMMANDID2, 2000, 2000);
         executeThreads(thread1, thread2);
 
         Assert.assertEquals(scheduleOrder, Arrays.asList(COMMANDID2, COMMANDID1, COMMANDID2));
@@ -142,8 +119,8 @@ public class TestCommandYield {
 
     @Test
     public void testUnweave() throws InterruptedException {
-        final Thread thread1 = getCommadThread(USER1, CLIENT1, new ArrayList<>(), 0, COMMANDID1);
-        final Thread thread2 = getCommadThread(USER2, CLIENT2, Arrays.asList(200L), 2000L, COMMANDID2);
+        final Thread thread1 = getCommandThread(USER1, CLIENT1, COMMANDID1, 0);
+        final Thread thread2 = getCommandThread(USER2, CLIENT2, COMMANDID2, 200L, 2000L);
         executeThreads(thread1, thread2);
 
         Assert.assertEquals(scheduleOrder, Arrays.asList(COMMANDID2, COMMANDID2, COMMANDID1));
@@ -151,8 +128,8 @@ public class TestCommandYield {
 
     @Test
     public void testLongInterleave() throws InterruptedException {
-        final Thread thread1 = getCommadThread(USER1, CLIENT1, new ArrayList<>(), 0, COMMANDID1);
-        final Thread thread2 = getCommadThread(USER2, CLIENT2, Arrays.asList(100L, 100L, 900L), 2000L, COMMANDID2);
+        final Thread thread1 = getCommandThread(USER1, CLIENT1, COMMANDID1, 0);
+        final Thread thread2 = getCommandThread(USER2, CLIENT2, COMMANDID2, 100L, 100L, 900L, 2000L);
         executeThreads(thread1, thread2);
 
         Assert.assertEquals(scheduleOrder, Arrays.asList(COMMANDID2, COMMANDID2, COMMANDID2, COMMANDID1, COMMANDID2));
@@ -160,8 +137,8 @@ public class TestCommandYield {
 
     @Test
     public void testLongerInterleave() throws InterruptedException {
-        final Thread thread1 = getCommadThread(USER1, CLIENT1, Arrays.asList(1000L), 200L, COMMANDID1);
-        final Thread thread2 = getCommadThread(USER2, CLIENT2, Arrays.asList(100L, 100L, 900L), 2000L, COMMANDID2);
+        final Thread thread1 = getCommandThread(USER1, CLIENT1, COMMANDID1, 1000L, 200L);
+        final Thread thread2 = getCommandThread(USER2, CLIENT2, COMMANDID2, 100L, 100L, 900L, 2000L);
         executeThreads(thread1, thread2);
 
         Assert.assertEquals(scheduleOrder, Arrays.asList(COMMANDID2, COMMANDID2, COMMANDID2, COMMANDID1, COMMANDID2, COMMANDID1));
@@ -169,8 +146,8 @@ public class TestCommandYield {
 
     @Test
     public void testLongerInterleave1() throws InterruptedException {
-        final Thread thread1 = getCommadThread(USER1, CLIENT1, Arrays.asList(100L), 100L, COMMANDID1);
-        final Thread thread2 = getCommadThread(USER2, CLIENT2, Arrays.asList(100L, 100L, 1900L), 2000L, COMMANDID2);
+        final Thread thread1 = getCommandThread(USER1, CLIENT1, COMMANDID1, 100L, 100L);
+        final Thread thread2 = getCommandThread(USER2, CLIENT2, COMMANDID2, 100L, 100L, 1900L, 2000L);
         executeThreads(thread1, thread2);
 
         Assert.assertEquals(scheduleOrder, Arrays.asList(COMMANDID2, COMMANDID2, COMMANDID2, COMMANDID1, COMMANDID1, COMMANDID2));
