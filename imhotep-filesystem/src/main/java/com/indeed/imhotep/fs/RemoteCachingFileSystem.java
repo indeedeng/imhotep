@@ -54,7 +54,7 @@ class RemoteCachingFileSystem extends FileSystem {
     private static final Logger LOGGER = Logger.getLogger(RemoteCachingFileSystem.class);
     private final RemoteCachingFileSystemProvider provider;
     private final SqarRemoteFileStore fileStore;
-    private final RemoteFileStore peerToPeerCacheFileStore;
+    private final PeerToPeerCacheFileStore peerToPeerCacheFileStore;
     private final LocalFileCache fileCache;
 
     RemoteCachingFileSystem(final RemoteCachingFileSystemProvider provider, final Map<String, ?> configuration, final MetricStatsEmitter statsEmitter) throws IOException {
@@ -108,6 +108,9 @@ class RemoteCachingFileSystem extends FileSystem {
     @Override
     public void close() {
         Closeables2.closeQuietly(fileStore, LOGGER);
+        if (peerToPeerCacheFileStore != null) {
+            Closeables2.closeQuietly(peerToPeerCacheFileStore, LOGGER);
+        }
     }
 
     @Override

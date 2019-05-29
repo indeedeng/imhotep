@@ -118,8 +118,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
 
     private static final ImmutableSet REQUEST_TYPES_NOT_CLOSING_SOCKET = ImmutableSet.of(
             ImhotepRequest.RequestType.GET_SHARD_FILE,
-            ImhotepRequest.RequestType.GET_SHARD_FILE_ATTRIBUTES,
-            ImhotepRequest.RequestType.LIST_SHARD_FILE_ATTRIBUTES
+            ImhotepRequest.RequestType.LIST_SHARD_DIR_FILES_RECURSIVELY
     );
 
     private static final class InstrumentationProvider
@@ -912,21 +911,12 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             service.handleGetAndSendShardFile(request.getShardFileUri(), slotTiming, builder, os);
         }
 
-        private ImhotepResponse getShardFileAttributes(
+        private ImhotepResponse listShardDirRecursively(
                 final ImhotepRequest request,
                 final ImhotepResponse.Builder builder) throws IOException {
             final SlotTiming slotTiming = new SlotTiming();
             ImhotepTask.setup(request.getUsername(), request.getClientName(), (byte) request.getSessionPriority(), slotTiming);
-            service.handleGetShardFileAttributes(request.getShardFileUri(), builder);
-            return builder.setSlotTiming(slotTiming.writeToSlotTimingMessage()).build();
-        }
-
-        private ImhotepResponse listShardFileAttributes(
-                final ImhotepRequest request,
-                final ImhotepResponse.Builder builder) throws IOException {
-            final SlotTiming slotTiming = new SlotTiming();
-            ImhotepTask.setup(request.getUsername(), request.getClientName(), (byte) request.getSessionPriority(), slotTiming);
-            service.handleListShardFileAttributes(request.getShardFileUri(), builder);
+            service.handleListShardDirRecursively(request.getShardFileUri(), builder);
             return builder.setSlotTiming(slotTiming.writeToSlotTimingMessage()).build();
         }
 
@@ -989,134 +979,132 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                     response = closeSession(request, builder);
                     break;
                 case QUERY_REGROUP:
-                            response = queryRegroup(request, builder);
-                            break;
-                        case INT_OR_REGROUP:
-                            response = intOrRegroup(request, builder);
-                            break;
-                        case STRING_OR_REGROUP:
-                            response = stringOrRegroup(request, builder);
-                            break;
-                        case RANDOM_REGROUP:
-                            response = randomRegroup(request, builder);
-                            break;
-                        case RANDOM_MULTI_REGROUP:
-                            response = randomMultiRegroup(request, builder);
-                            break;
-                        case RANDOM_METRIC_REGROUP:
-                            response = randomMetricRegroup(request, builder);
-                            break;
-                        case RANDOM_METRIC_MULTI_REGROUP:
-                            response = randomMetricMultiRegroup(request, builder);
-                            break;
-                        case REGEX_REGROUP:
-                            response = regexRegroup(request, builder);
-                            break;
-                        case GET_TOTAL_DOC_FREQ:
-                            response = getTotalDocFreq(request, builder);
-                            break;
-                        case STREAMING_GET_GROUP_STATS:
-                            final Pair<ImhotepResponse, GroupStatsIterator> responseAndStat = getStreamingGroupStats(request, builder);
-                            response = responseAndStat.getFirst();
-                            groupStats = Preconditions.checkNotNull(responseAndStat.getSecond());
-                            break;
-                        case GET_FTGS_ITERATOR:
-                            getFTGSIterator(request, builder, os);
-                            break;
-                        case GET_SUBSET_FTGS_ITERATOR:
-                            getSubsetFTGSIterator(request, builder, os);
-                            break;
-                        case GET_FTGS_SPLIT:
-                            getFTGSSplit(request, builder, os);
-                            break;
-                        case GET_SUBSET_FTGS_SPLIT:
-                            getSubsetFTGSSplit(request, builder, os);
-                            break;
-                        case MERGE_FTGS_SPLIT:
-                            mergeFTGSSplit(request, builder, os);
-                            break;
-                        case MERGE_SUBSET_FTGS_SPLIT:
-                            mergeSubsetFTGSSplit(request, builder, os);
-                            break;
-                        case MERGE_MULTI_FTGS_SPLIT:
-                            mergeMultiFTGSSplit(request, os);
-                            break;
-                        case PUSH_STAT:
-                            response = pushStat(request, builder);
-                            break;
-                        case POP_STAT:
-                            response = popStat(request, builder);
-                            break;
-                        case GET_NUM_GROUPS:
-                            response = getNumGroups(request, builder);
-                            break;
-                        case GET_STATUS_DUMP:
-                            response = getStatusDump(request, builder);
-                            break;
-                        case METRIC_REGROUP:
-                            response = metricRegroup(request, builder);
-                            break;
-                        case METRIC_FILTER:
-                            response = metricFilter(request, builder);
-                            break;
-                        case CREATE_DYNAMIC_METRIC:
-                            response = createDynamicMetric(request, builder);
-                            break;
-                        case UPDATE_DYNAMIC_METRIC:
-                            response = updateDynamicMetric(request, builder);
-                            break;
-                        case CONDITIONAL_UPDATE_DYNAMIC_METRIC:
-                            response = conditionalUpdateDynamicMetric(request, builder);
-                            break;
-                        case GROUP_CONDITIONAL_UPDATE_DYNAMIC_METRIC:
-                            response = groupConditionalUpdateDynamicMetric(request, builder);
-                            break;
-                        case GROUP_QUERY_UPDATE_DYNAMIC_METRIC:
-                            response = groupQueryUpdateDynamicMetric(request, builder);
-                            break;
-                        case OPTIMIZE_SESSION:
-                            response = optimizeSession(request, builder);
-                            break;
-                        case RESET_GROUPS:
-                            response = resetGroups(request, builder);
-                            break;
-                        case MULTISPLIT_REGROUP:
-                            response = multisplitRegroup(request, builder);
-                            break;
-                        case EXPLODED_MULTISPLIT_REGROUP:
-                            response = explodedMultisplitRegroup(request, builder, is);
-                            break;
-                        case APPROXIMATE_TOP_TERMS:
-                            response = approximateTopTerms(request, builder);
-                            break;
-                        case GET_PERFORMANCE_STATS:
-                            response = getPerformanceStats(request, builder);
-                            break;
-                        case GET_DISTINCT:
-                            final Pair<ImhotepResponse, GroupStatsIterator> responseAndDistinct = getDistinct(request, builder);
-                            response = responseAndDistinct.getFirst();
-                            groupStats = Preconditions.checkNotNull(responseAndDistinct.getSecond());
-                            break;
-                        case MERGE_DISTINCT_SPLIT:
-                            final Pair<ImhotepResponse, GroupStatsIterator> responseAndDistinctSplit = mergeDistinctSplit(request, builder);
-                            response = responseAndDistinctSplit.getFirst();
-                            groupStats = Preconditions.checkNotNull(responseAndDistinctSplit.getSecond());
-                            break;
-                        case MERGE_MULTI_DISTINCT_SPLIT:
-                            final Pair<ImhotepResponse, GroupStatsIterator> responseAndMultiDistinctSplit = mergeMultiDistinctSplit(request, builder);
-                            response = responseAndMultiDistinctSplit.getFirst();
-                            groupStats = Preconditions.checkNotNull(responseAndMultiDistinctSplit.getSecond());
-                            break;
-                        case REMAP_GROUPS:
-                            response = remapGroups(request, builder);break;
+                    response = queryRegroup(request, builder);
+                    break;
+                case INT_OR_REGROUP:
+                    response = intOrRegroup(request, builder);
+                    break;
+                case STRING_OR_REGROUP:
+                    response = stringOrRegroup(request, builder);
+                    break;
+                case RANDOM_REGROUP:
+                    response = randomRegroup(request, builder);
+                    break;
+                case RANDOM_MULTI_REGROUP:
+                    response = randomMultiRegroup(request, builder);
+                    break;
+                case RANDOM_METRIC_REGROUP:
+                    response = randomMetricRegroup(request, builder);
+                    break;
+                case RANDOM_METRIC_MULTI_REGROUP:
+                    response = randomMetricMultiRegroup(request, builder);
+                    break;
+                case REGEX_REGROUP:
+                    response = regexRegroup(request, builder);
+                    break;
+                case GET_TOTAL_DOC_FREQ:
+                    response = getTotalDocFreq(request, builder);
+                    break;
+                case STREAMING_GET_GROUP_STATS:
+                    final Pair<ImhotepResponse, GroupStatsIterator> responseAndStat = getStreamingGroupStats(request, builder);
+                    response = responseAndStat.getFirst();
+                    groupStats = Preconditions.checkNotNull(responseAndStat.getSecond());
+                    break;
+                case GET_FTGS_ITERATOR:
+                    getFTGSIterator(request, builder, os);
+                    break;
+                case GET_SUBSET_FTGS_ITERATOR:
+                    getSubsetFTGSIterator(request, builder, os);
+                    break;
+                case GET_FTGS_SPLIT:
+                    getFTGSSplit(request, builder, os);
+                    break;
+                case GET_SUBSET_FTGS_SPLIT:
+                    getSubsetFTGSSplit(request, builder, os);
+                    break;
+                case MERGE_FTGS_SPLIT:
+                    mergeFTGSSplit(request, builder, os);
+                    break;
+                case MERGE_SUBSET_FTGS_SPLIT:
+                    mergeSubsetFTGSSplit(request, builder, os);
+                    break;
+                case MERGE_MULTI_FTGS_SPLIT:
+                    mergeMultiFTGSSplit(request, os);
+                    break;
+                case PUSH_STAT:
+                    response = pushStat(request, builder);
+                    break;
+                case POP_STAT:
+                    response = popStat(request, builder);
+                    break;
+                case GET_NUM_GROUPS:
+                    response = getNumGroups(request, builder);
+                    break;
+                case GET_STATUS_DUMP:
+                    response = getStatusDump(request, builder);
+                    break;
+                case METRIC_REGROUP:
+                    response = metricRegroup(request, builder);
+                    break;
+                case METRIC_FILTER:
+                    response = metricFilter(request, builder);
+                    break;
+                case CREATE_DYNAMIC_METRIC:
+                    response = createDynamicMetric(request, builder);
+                    break;
+                case UPDATE_DYNAMIC_METRIC:
+                    response = updateDynamicMetric(request, builder);
+                    break;
+                case CONDITIONAL_UPDATE_DYNAMIC_METRIC:
+                    response = conditionalUpdateDynamicMetric(request, builder);
+                    break;
+                case GROUP_CONDITIONAL_UPDATE_DYNAMIC_METRIC:
+                    response = groupConditionalUpdateDynamicMetric(request, builder);
+                    break;
+                case GROUP_QUERY_UPDATE_DYNAMIC_METRIC:
+                    response = groupQueryUpdateDynamicMetric(request, builder);
+                    break;
+                case OPTIMIZE_SESSION:
+                    response = optimizeSession(request, builder);
+                    break;
+                case RESET_GROUPS:
+                    response = resetGroups(request, builder);
+                    break;
+                case MULTISPLIT_REGROUP:
+                    response = multisplitRegroup(request, builder);
+                    break;
+                case EXPLODED_MULTISPLIT_REGROUP:
+                    response = explodedMultisplitRegroup(request, builder, is);
+                    break;
+                case APPROXIMATE_TOP_TERMS:
+                    response = approximateTopTerms(request, builder);
+                    break;
+                case GET_PERFORMANCE_STATS:
+                    response = getPerformanceStats(request, builder);
+                    break;
+                case GET_DISTINCT:
+                    final Pair<ImhotepResponse, GroupStatsIterator> responseAndDistinct = getDistinct(request, builder);
+                    response = responseAndDistinct.getFirst();
+                    groupStats = Preconditions.checkNotNull(responseAndDistinct.getSecond());
+                    break;
+                case MERGE_DISTINCT_SPLIT:
+                    final Pair<ImhotepResponse, GroupStatsIterator> responseAndDistinctSplit = mergeDistinctSplit(request, builder);
+                    response = responseAndDistinctSplit.getFirst();
+                    groupStats = Preconditions.checkNotNull(responseAndDistinctSplit.getSecond());
+                    break;
+                case MERGE_MULTI_DISTINCT_SPLIT:
+                    final Pair<ImhotepResponse, GroupStatsIterator> responseAndMultiDistinctSplit = mergeMultiDistinctSplit(request, builder);
+                    response = responseAndMultiDistinctSplit.getFirst();
+                    groupStats = Preconditions.checkNotNull(responseAndMultiDistinctSplit.getSecond());
+                    break;
+                case REMAP_GROUPS:
+                    response = remapGroups(request, builder);
+                    break;
                 case GET_SHARD_FILE:
                     getAndSendShardFile(request, builder, os);
                     break;
-                case GET_SHARD_FILE_ATTRIBUTES:
-                    response = getShardFileAttributes(request, builder);
-                    break;
-                case LIST_SHARD_FILE_ATTRIBUTES:
-                    response = listShardFileAttributes(request, builder);
+                case LIST_SHARD_DIR_FILES_RECURSIVELY:
+                    response = listShardDirRecursively(request, builder);
                     break;
                 case BATCH_REQUESTS:
                     final Pair<ImhotepResponse, GroupStatsIterator> responseGroupStatsIteratorPair = executeBatchRequest(request, is, builder);

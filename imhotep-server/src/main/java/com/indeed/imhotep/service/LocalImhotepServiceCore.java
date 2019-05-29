@@ -16,7 +16,6 @@
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
-import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.indeed.imhotep.ImhotepMemoryPool;
@@ -32,7 +31,7 @@ import com.indeed.imhotep.io.ImhotepProtobufShipping;
 import com.indeed.imhotep.local.ImhotepJavaLocalSession;
 import com.indeed.imhotep.local.ImhotepLocalSession;
 import com.indeed.imhotep.local.MTImhotepLocalMultiSession;
-import com.indeed.imhotep.protobuf.FileAttributeMessage;
+import com.indeed.imhotep.protobuf.FileAttributesMessage;
 import com.indeed.imhotep.protobuf.HostAndPort;
 import com.indeed.imhotep.protobuf.ImhotepResponse;
 import com.indeed.imhotep.protobuf.ShardBasicInfoMessage;
@@ -61,6 +60,7 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Random;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -68,6 +68,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
 
 import static com.indeed.imhotep.utils.ImhotepResponseUtils.appendErrorMessage;
 import static com.indeed.imhotep.utils.ImhotepResponseUtils.newErrorResponse;
@@ -272,47 +273,33 @@ public class LocalImhotepServiceCore
     }
 
     @Override
-    public void handleGetShardFileAttributes(final String fileUri, final ImhotepResponse.Builder builder) throws IOException {
-        final Path path;
-        try {
-            path = getShardFilePath(fileUri);
-        } catch (final NoSuchFileException e) {
-            appendErrorMessage(e, builder);
-            return;
-        }
-        builder.setFileAttributes(getFileAttributeMessage(path));
-    }
-
-    @Override
-    public void handleListShardFileAttributes(final String fileUri, final ImhotepResponse.Builder builder) throws IOException {
+    public void handleListShardDirRecursively(final String shardDirUri, final ImhotepResponse.Builder builder) throws IOException {
         final Path dirPath;
         try {
-            dirPath = getShardFilePath(fileUri);
+            dirPath = getShardFilePath(shardDirUri);
         } catch (final NoSuchFileException e) {
             appendErrorMessage(e, builder);
             return;
         }
 
-        final List<FileAttributeMessage> attributeMessageList;
-        try (final DirectoryStream<Path> dirStream = Files.newDirectoryStream(dirPath)) {
-            attributeMessageList = FluentIterable.from(dirStream).transform(path -> {
-                try {
-                    return getFileAttributeMessage(path);
-                } catch (final IOException e) {
-                    throw new IllegalStateException("Failed to get attributes for " + path + " while listing " + dirPath, e);
+        final List<FileAttributesMessage> attributeMessageList = Files.walk(dirPath).map(path -> {
+            try {
+                final BasicFileAttributes attributes = Files.readAttributes(path, BasicFileAttributes.class);
+                // only list files
+                // don't call filter(Files::isRegularFile) to avoid readAttributes twice
+                if (attributes.isDirectory()) {
+                    return null;
                 }
-            }).toList();
-        }
-        builder.addAllSubFilesAttributes(attributeMessageList);
-    }
-
-    private FileAttributeMessage getFileAttributeMessage(final Path path) throws IOException {
-        final BasicFileAttributes attributes = Files.readAttributes(path, BasicFileAttributes.class);
-        return FileAttributeMessage.newBuilder()
-                .setPath(path.toUri().toString())
-                .setSize(attributes.size())
-                .setIsDirectory(attributes.isDirectory())
-                .build();
+                return FileAttributesMessage.newBuilder()
+                        .setPath(dirPath.relativize(path).toString())
+                        .setSize(attributes.size())
+                        .setIsDirectory(attributes.isDirectory())
+                        .build();
+            } catch (final IOException e) {
+                throw new RuntimeException(e);
+            }
+        }).filter(Objects::nonNull).collect(Collectors.toList());
+        builder.addAllFilesAttributes(attributeMessageList);
     }
 
     private Path getShardFilePath(final String fileUri) throws IOException {

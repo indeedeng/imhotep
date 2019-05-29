@@ -39,6 +39,12 @@ public class RemoteFileMetadata {
         compressedSize = -1;
     }
 
+    public RemoteFileMetadata(final String path, final boolean isDirectory, final long size) {
+        fileMetadata = new FileMetadata(path, size, -1, null, -1, SquallArchiveCompressor.NONE, null);
+        isFile = !isDirectory;
+        compressedSize = -1;
+    }
+
     /**
      * constructor for file entity
      * @param fileMetadata the file metadata

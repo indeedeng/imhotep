@@ -12,8 +12,8 @@
  * limitations under the License.
  */
  package com.indeed.imhotep.api;
-import com.indeed.imhotep.GroupMultiRemapRule;
 
+import com.indeed.imhotep.GroupMultiRemapRule;
 import com.indeed.imhotep.ImhotepStatusDump;
 import com.indeed.imhotep.QueryRemapRule;
 import com.indeed.imhotep.RegroupCondition;
@@ -86,8 +86,7 @@ public interface ImhotepServiceCore {
     // non-session-based methods
     ImhotepStatusDump handleGetStatusDump(boolean includeShardList);
     void handleGetAndSendShardFile(String fileUri, SlotTiming slotTiming, ImhotepResponse.Builder builder, OutputStream os) throws IOException;
-    void handleGetShardFileAttributes(String fileUri, ImhotepResponse.Builder builder) throws IOException;
-    void handleListShardFileAttributes(String fileUri, ImhotepResponse.Builder builder) throws IOException;
+    void handleListShardDirRecursively(String shardDirUri, ImhotepResponse.Builder builder) throws IOException;
     <T> T handleBatchRequest(String sessionId, List<ImhotepCommand> commands, ImhotepCommand<T> lastCommand) throws ImhotepOutOfMemoryException;
 
     void close();
