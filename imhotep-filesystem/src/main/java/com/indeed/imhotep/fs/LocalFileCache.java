@@ -41,6 +41,7 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
@@ -261,9 +262,10 @@ class LocalFileCache {
                             NIOFileUtils.fileCountOfDirectory(path)
                     );
                 } catch (final IOException e) {
-                    throw new IllegalStateException("Failed to list directory " + path, e);
+                    // cached files change frequently, so do nothing when errors happen
+                    return null;
                 }
-            }).toList();
+            }).filter(Objects::nonNull).toList();
         }
     }
 
