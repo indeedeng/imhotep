@@ -16,22 +16,17 @@ public class ImhotepConnectionPoolConfig {
     // keyedObjectPool doesn't handle the timeout during makeObject, we have to specify it in case of connection block
     private static final int SOCKET_CONNECTING_TIMEOUT_MILLIS = 30000;
 
-    private static final int STATS_REPORT_FREQUENCY_SECONDS = 10;
-
     private static final int MAX_IDLE_SOCKET_PER_HOST = 16;
 
     private int socketReadTimeoutMills;
 
     private int socketConnectingTimeoutMills;
 
-    private int statsReportFrequencySeconds;
-
     private int maxIdleSocketPerHost;
 
     public ImhotepConnectionPoolConfig() {
         socketReadTimeoutMills = SOCKET_READ_TIMEOUT_MILLIS;
         socketConnectingTimeoutMills = SOCKET_CONNECTING_TIMEOUT_MILLIS;
-        statsReportFrequencySeconds = STATS_REPORT_FREQUENCY_SECONDS;
         maxIdleSocketPerHost = MAX_IDLE_SOCKET_PER_HOST;
     }
 }

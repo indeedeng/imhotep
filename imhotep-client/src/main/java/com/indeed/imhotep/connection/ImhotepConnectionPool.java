@@ -2,11 +2,12 @@ package com.indeed.imhotep.connection;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.indeed.imhotep.client.Host;
-import com.indeed.imhotep.service.MetricStatsEmitter;
 import com.indeed.util.core.Throwables2;
 import com.indeed.util.core.io.Closeables2;
+import lombok.experimental.Delegate;
 import org.apache.commons.pool2.impl.GenericKeyedObjectPool;
 import org.apache.commons.pool2.impl.GenericKeyedObjectPoolConfig;
+import org.apache.commons.pool2.impl.GenericKeyedObjectPoolMXBean;
 import org.apache.log4j.Logger;
 
 import java.io.Closeable;
@@ -33,17 +34,12 @@ import java.util.concurrent.atomic.AtomicLong;
 public class ImhotepConnectionPool implements Closeable {
     private static final Logger logger = Logger.getLogger(ImhotepConnectionPool.class);
 
+    @Delegate(types = ImhotepConnectionPoolStats.class)
     private final GenericKeyedObjectPool<Host, Socket> sourcePool;
-
-    private final ImhotepConnectionPoolStatsReporter statsReporter;
 
     private final AtomicLong invalidatedConnectionCount;
 
     ImhotepConnectionPool(final ImhotepConnectionPoolConfig config) {
-        this(MetricStatsEmitter.NULL_EMITTER, config);
-    }
-
-    ImhotepConnectionPool(final MetricStatsEmitter statsEmitter, final ImhotepConnectionPoolConfig config) {
         final ImhotepConnectionKeyedPooledObjectFactory factory = new ImhotepConnectionKeyedPooledObjectFactory(
                 config.getSocketReadTimeoutMills(),
                 config.getSocketConnectingTimeoutMills());
@@ -54,10 +50,7 @@ public class ImhotepConnectionPool implements Closeable {
         sourcePoolConfig.setTestOnBorrow(true);
 
         sourcePool = new GenericKeyedObjectPool<>(factory, sourcePoolConfig);
-        statsReporter = new ImhotepConnectionPoolStatsReporter(this, statsEmitter);
         invalidatedConnectionCount = new AtomicLong(0);
-
-        statsReporter.start(config.getStatsReportFrequencySeconds());
     }
 
     /**
@@ -106,6 +99,7 @@ public class ImhotepConnectionPool implements Closeable {
         }
     }
 
+    @VisibleForTesting
     GenericKeyedObjectPool<Host, Socket> getSourcePool() {
         return sourcePool;
     }
@@ -159,5 +153,37 @@ public class ImhotepConnectionPool implements Closeable {
     @Override
     public void close() {
         Closeables2.closeQuietly(sourcePool, logger);
+    }
+
+    private interface ImhotepConnectionPoolStats {
+        /**
+         * See {@link GenericKeyedObjectPoolMXBean#getBorrowedCount()}
+         */
+        long getBorrowedCount();
+
+        /**
+         * See {@link GenericKeyedObjectPoolMXBean#getCreatedCount()}
+         */
+        long getCreatedCount();
+
+        /**
+         * See {@link GenericKeyedObjectPoolMXBean#getDestroyedCount()}
+         */
+        long getDestroyedCount();
+
+        /**
+         * See {@link GenericKeyedObjectPoolMXBean#getDestroyedByBorrowValidationCount()}
+         */
+        long getDestroyedByBorrowValidationCount();
+
+        /**
+         * See {@link GenericKeyedObjectPoolMXBean#getNumActive()}
+         */
+        int getNumActive();
+
+        /**
+         * See {@link GenericKeyedObjectPoolMXBean#getNumIdle()}
+         */
+        int getNumIdle();
     }
 }

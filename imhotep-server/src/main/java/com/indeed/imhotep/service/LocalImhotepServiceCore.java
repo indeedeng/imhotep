@@ -27,6 +27,7 @@ import com.indeed.imhotep.ShardDir;
 import com.indeed.imhotep.SlotTiming;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.client.Host;
+import com.indeed.imhotep.connection.ImhotepConnectionPoolStatsReporter;
 import com.indeed.imhotep.connection.ImhotepConnectionPoolWrapper;
 import com.indeed.imhotep.fs.RemoteCachingPath;
 import com.indeed.imhotep.io.ImhotepProtobufShipping;
@@ -80,6 +81,8 @@ public class LocalImhotepServiceCore
     extends AbstractImhotepServiceCore {
     private static final Logger log = Logger.getLogger(LocalImhotepServiceCore.class);
 
+    private static final int STATS_REPORT_FREQUENCY_SECONDS = 10;
+
     private final LocalSessionManager sessionManager;
 
     private final ScheduledExecutorService heartBeat;
@@ -89,6 +92,8 @@ public class LocalImhotepServiceCore
     private final Host myHost;
     private final MemoryReserver memory;
     private final ConcurrentFlamdexReaderFactory flamderReaderFactory;
+
+    private ImhotepConnectionPoolStatsReporter statsReporter;
 
     /**
      * @param shardTempDir
@@ -151,9 +156,10 @@ public class LocalImhotepServiceCore
                     statsEmitter);
         }
 
-        sessionManager = new LocalSessionManager(statsEmitter, config.getMaxSessionsTotal(), config.getMaxSessionsPerUser());
+        this.statsReporter = new ImhotepConnectionPoolStatsReporter(ImhotepConnectionPoolWrapper.INSTANCE, statsEmitter);
+        statsReporter.start(STATS_REPORT_FREQUENCY_SECONDS);
 
-        ImhotepConnectionPoolWrapper.initializeImhotepConnectionPool(statsEmitter);
+        sessionManager = new LocalSessionManager(statsEmitter, config.getMaxSessionsTotal(), config.getMaxSessionsPerUser());
 
         clearTempDir(shardTempDir);
 

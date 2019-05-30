@@ -48,7 +48,7 @@ public class PeerToPeerCacheFileStore extends RemoteFileStore {
     private static final Logger logger = Logger.getLogger(PeerToPeerCacheFileStore.class);
     private static final int FETCH_CONNECTION_TIMEOUT = (int) TimeUnit.SECONDS.toMillis(30);
     private static final int REMOTE_ATTRIBUTES_CACHE_CAPACITY = 65536;
-    private static final ImhotepConnectionPool CONNECTION_POOL = ImhotepConnectionPoolWrapper.getInstance();
+    private static final ImhotepConnectionPool CONNECTION_POOL = ImhotepConnectionPoolWrapper.INSTANCE;
 
     private final LocalFileCache fileCache;
     private final MetricStatsEmitter statsEmitter;

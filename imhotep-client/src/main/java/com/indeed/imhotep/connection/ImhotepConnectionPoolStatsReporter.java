@@ -1,11 +1,8 @@
 package com.indeed.imhotep.connection;
 
-import com.indeed.imhotep.client.Host;
 import com.indeed.imhotep.service.MetricStatsEmitter;
 import com.indeed.util.core.threads.NamedThreadFactory;
-import org.apache.commons.pool2.impl.GenericKeyedObjectPool;
 
-import java.net.Socket;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -22,7 +19,7 @@ public class ImhotepConnectionPoolStatsReporter {
 
     private final ImhotepConnectionPoolStats stats;
 
-    ImhotepConnectionPoolStatsReporter(
+    public ImhotepConnectionPoolStatsReporter(
             final ImhotepConnectionPool connectionPool,
             final MetricStatsEmitter statsEmitter) {
         this.connectionPool = connectionPool;
@@ -32,11 +29,12 @@ public class ImhotepConnectionPoolStatsReporter {
     }
 
     public void start(final int reportFrequencySeconds) {
+        stats.update(connectionPool);
         reportExecutor.scheduleAtFixedRate(this::report, reportFrequencySeconds, reportFrequencySeconds, TimeUnit.SECONDS);
     }
 
     private void report() {
-        stats.update(connectionPool.getSourcePool(), connectionPool.getAndResetInvalidatedCount());
+        stats.update(connectionPool);
 
         // the count of socket created recently
         statsEmitter.count("connection.pool.socket.created", stats.getSocketCreated());
@@ -49,9 +47,9 @@ public class ImhotepConnectionPoolStatsReporter {
         // the count of sockets invalidated manually when exceptions happen with that socket
         statsEmitter.count("connection.pool.socket.invalidated", stats.getSocketInvalidated());
         // active sockets count in the pool
-        statsEmitter.count("connection.pool.socket.active", stats.getActiveSocket());
+        statsEmitter.gauge("connection.pool.socket.active", stats.getActiveSocket());
         // idle sockets count in the pool
-        statsEmitter.count("connection.pool.socket.idle", stats.getIdleSocket());
+        statsEmitter.gauge("connection.pool.socket.idle", stats.getIdleSocket());
     }
 
     private static class ImhotepConnectionPoolStats {
@@ -68,26 +66,26 @@ public class ImhotepConnectionPoolStatsReporter {
         private long lastDestroyedCount = 0;
         private long lastDestroyedByValidationCount = 0;
 
-        public void update(final GenericKeyedObjectPool<Host, Socket> sourcePool, final long invalidatedCount) {
-            final long createdCount = sourcePool.getCreatedCount();
+        public void update(final ImhotepConnectionPool connectionPool) {
+            final long createdCount = connectionPool.getCreatedCount();
             socketCreated = createdCount - lastCreatedCount;
             lastCreatedCount = createdCount;
 
-            final long borrowedCount = sourcePool.getBorrowedCount();
+            final long borrowedCount = connectionPool.getBorrowedCount();
             socketBorrowed = borrowedCount - lastBorrowedCount;
             lastBorrowedCount = borrowedCount;
 
-            final long destroyedCount = sourcePool.getDestroyedCount();
+            final long destroyedCount = connectionPool.getDestroyedCount();
             socketDestroyed = destroyedCount - lastDestroyedCount;
             lastDestroyedCount = destroyedCount;
 
-            final long destroyedByValidationCount = sourcePool.getDestroyedByBorrowValidationCount();
+            final long destroyedByValidationCount = connectionPool.getDestroyedByBorrowValidationCount();
             socketFailedValidation = destroyedByValidationCount - lastDestroyedByValidationCount;
             lastDestroyedByValidationCount = destroyedByValidationCount;
 
-            socketInvalidated = invalidatedCount;
-            activeSocket = sourcePool.getNumActive();
-            idleSocket = sourcePool.getNumIdle();
+            socketInvalidated = connectionPool.getAndResetInvalidatedCount();
+            activeSocket = connectionPool.getNumActive();
+            idleSocket = connectionPool.getNumIdle();
         }
 
         long getSocketCreated() {
