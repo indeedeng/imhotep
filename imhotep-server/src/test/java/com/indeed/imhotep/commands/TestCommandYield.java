@@ -36,6 +36,8 @@ public class TestCommandYield {
     private static String COMMANDID2 = "commandId2";
     private static String SESSIONID = "randomSessionIdString";
 
+    private static TaskScheduler oldCPUScheduler = TaskScheduler.CPUScheduler;
+
     private ImhotepCommand getSleepingCommand(final long milliSeconds, final String commandId) {
         return new VoidAbstractImhotepCommand(SESSIONID) {
             @Override
@@ -70,7 +72,8 @@ public class TestCommandYield {
 
     @After
     public void clear() {
-        TaskScheduler.CPUScheduler.close();
+        TaskScheduler.CPUScheduler = oldCPUScheduler;
+        scheduleOrder.clear();
     }
 
     public Thread getCommandThread(final String username, final String clientName, final String commandID, long... commandsExecTimeMillis) {
@@ -79,7 +82,7 @@ public class TestCommandYield {
                 final ImhotepLocalSession imhotepLocalSession = new ImhotepJavaLocalSession(SESSIONID, new MemoryFlamdex(), null );
 
                 final List<ImhotepCommand> firstCommands = new ArrayList<>();
-                for (int i = 0; i < commandsExecTimeMillis.length - 1; i++) {
+                for (int i = 0; i < (commandsExecTimeMillis.length - 1); i++) {
                     firstCommands.add(getSleepingCommand(commandsExecTimeMillis[i], commandID));
                 }
 
@@ -89,6 +92,7 @@ public class TestCommandYield {
                 try (final SilentCloseable slot = TaskScheduler.CPUScheduler.lockSlot()) {
                     imhotepLocalSession.executeBatchRequest(firstCommands, lastCommand);
                 }
+                imhotepLocalSession.close();
 
             } catch (ImhotepOutOfMemoryException e) {
                 Throwables.propagate(e);
@@ -106,6 +110,7 @@ public class TestCommandYield {
 
         thread1.join();
         thread2.join();
+        ImhotepTask.clear();
     }
 
     @Test
