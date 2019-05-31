@@ -48,7 +48,11 @@ public class ImhotepConnectionPoolTest {
         host1 = new Host("localhost", serverSocket1.getLocalPort());
         host2 = new Host("localhost", serverSocket2.getLocalPort());
 
-        testConnnectionPool = new ImhotepConnectionPool(100, 1000);
+        final ImhotepConnectionPoolConfig config = new ImhotepConnectionPoolConfig();
+        config.setSocketReadTimeoutMills(100);
+        config.setSocketConnectingTimeoutMills(1000);
+        config.setMaxIdleSocketPerHost(8);
+        testConnnectionPool = new ImhotepConnectionPool(config);
     }
 
     @After
