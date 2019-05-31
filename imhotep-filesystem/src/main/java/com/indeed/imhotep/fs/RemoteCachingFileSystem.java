@@ -40,6 +40,7 @@ import java.nio.file.WatchService;
 import java.nio.file.attribute.UserPrincipalLookupService;
 import java.nio.file.spi.FileSystemProvider;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
@@ -50,11 +51,11 @@ import java.util.regex.Pattern;
  * @author kenh
  */
 
-class RemoteCachingFileSystem extends FileSystem {
+public class RemoteCachingFileSystem extends FileSystem {
     private static final Logger LOGGER = Logger.getLogger(RemoteCachingFileSystem.class);
     private final RemoteCachingFileSystemProvider provider;
     private final SqarRemoteFileStore fileStore;
-    private final RemoteFileStore peerToPeerCacheFileStore;
+    private final PeerToPeerCacheFileStore peerToPeerCacheFileStore;
     private final LocalFileCache fileCache;
 
     RemoteCachingFileSystem(final RemoteCachingFileSystemProvider provider, final Map<String, ?> configuration, final MetricStatsEmitter statsEmitter) throws IOException {
@@ -289,5 +290,13 @@ class RemoteCachingFileSystem extends FileSystem {
     @Override
     public WatchService newWatchService() throws IOException {
         throw new UnsupportedOperationException();
+    }
+
+    public List<CachedDatasetSnapshot> getLocalCacheSnapshot() throws IOException {
+        return fileCache.getCacheSnapshot();
+    }
+
+    public List<CachedDatasetSnapshot> getPeerToPeerCacheSnapshot() throws IOException {
+        return peerToPeerCacheFileStore == null ? Collections.emptyList() : peerToPeerCacheFileStore.getLocalCacheSnapshot();
     }
 }

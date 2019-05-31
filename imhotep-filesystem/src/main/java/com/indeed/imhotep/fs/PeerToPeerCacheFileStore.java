@@ -106,6 +106,10 @@ public class PeerToPeerCacheFileStore extends RemoteFileStore {
         }
     }
 
+    public List<CachedDatasetSnapshot> getLocalCacheSnapshot() throws IOException {
+        return fileCache.getCacheSnapshot();
+    }
+
     @Override
     List<RemoteFileAttributes> listDir(final RemoteCachingPath path) throws IOException {
         final PeerToPeerCachePath peerToPeerCachePath = (PeerToPeerCachePath) path;
