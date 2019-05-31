@@ -17,6 +17,7 @@ package com.indeed.imhotep.scheduling;
 import com.google.common.base.Joiner;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Queues;
+import com.indeed.imhotep.exceptions.ImhotepKnownException;
 import com.indeed.imhotep.service.MetricStatsEmitter;
 import com.indeed.util.core.threads.NamedThreadFactory;
 import org.apache.log4j.Logger;
@@ -214,6 +215,7 @@ public class TaskScheduler {
 
     /** returns true iff a new lock was created */
     boolean schedule(ImhotepTask task) {
+        final QueuedImhotepTask queuedTask = new QueuedImhotepTask(task);
         synchronized (this) {
             if (runningTasks.contains(task)) {
                 statsEmitter.count("scheduler." + schedulerType + ".schedule.already.running", 1);
@@ -221,11 +223,17 @@ public class TaskScheduler {
             }
             task.preExecInitialize(this);
             final TaskQueue queue = getOrCreateQueueForTask(task);
-            queue.offer(task);
+            queue.offer(queuedTask);
             tryStartTasks();
         }
-        // Blocks and waits if necessary
-        task.blockAndWait();
+
+        try {
+            // Blocks and waits if necessary
+            task.blockAndWait();
+        } catch (final Throwable t) {
+            cancelTask(queuedTask, t);
+            throw t;
+        }
         return true;
     }
 
@@ -260,17 +268,40 @@ public class TaskScheduler {
         while(!prioritizedQueues.isEmpty()) {
             final TaskQueue taskQueue = prioritizedQueues.poll();
             while(true) {
-                final ImhotepTask queuedTask = taskQueue.poll();
+                final QueuedImhotepTask queuedTask = taskQueue.poll();
                 if(queuedTask == null) {
                     queues.remove(taskQueue.getOwnerAndPriority());
                     break;
                 }
-                runningTasks.add(queuedTask);
-                queuedTask.markRunnable(schedulerType);
-                if(runningTasks.size() >= totalSlots) {
-                    return;
+
+                if (queuedTask.cancelled) {
+                    continue;
+                }
+                final ImhotepTask task = queuedTask.imhotepTask;
+                try {
+                    runningTasks.add(task);
+                    task.markRunnable(schedulerType);
+                    if(runningTasks.size() >= totalSlots) {
+                        return;
+                    }
+                } catch (final Throwable t) {
+                    cancelTask(queuedTask, t);
                 }
             }
+        }
+    }
+
+    private synchronized void cancelTask(@Nonnull final QueuedImhotepTask queuedTask, final Throwable t) {
+        final ImhotepTask task = queuedTask.imhotepTask;
+        if (runningTasks.contains(task)) {
+            runningTasks.remove(task);
+        } else {
+            queuedTask.cancelled = true;
+        }
+
+        // only log unknown errors to avoid verbose logging
+        if (!(t instanceof ImhotepKnownException)) {
+            LOGGER.error("Cancelled task as unexpected errors, task = " + task, t);
         }
     }
 
