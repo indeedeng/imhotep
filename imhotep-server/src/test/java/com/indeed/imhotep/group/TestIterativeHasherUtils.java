@@ -14,8 +14,13 @@
 
 package com.indeed.imhotep.group;
 
+import com.indeed.util.core.Pair;
 import org.apache.commons.lang.ArrayUtils;
 import org.junit.Test;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -90,5 +95,42 @@ public class TestIterativeHasherUtils {
             assertNotNull(chooser);
             assertTrue(checkBounds(chooser, p.length+1));
         }
+    }
+
+    @Test
+    public void testUniformGroupChooser() {
+        final IterativeHasherUtils.GroupChooser chooser4 = IterativeHasherUtils.createUniformChooser(4);
+        assertEquals(0, chooser4.getGroup(0));
+        assertEquals(1, chooser4.getGroup(1));
+        assertEquals(2, chooser4.getGroup(2));
+        assertEquals(3, chooser4.getGroup(3));
+        assertEquals(0, chooser4.getGroup(4));
+        assertEquals(3, chooser4.getGroup(-1));
+        assertEquals(0, chooser4.getGroup(160));
+        assertEquals(3, chooser4.getGroup(Integer.MAX_VALUE));
+        assertEquals(0, chooser4.getGroup(Integer.MIN_VALUE));
+
+        final IterativeHasherUtils.GroupChooser chooser1 = IterativeHasherUtils.createUniformChooser(1);
+        assertEquals(0, chooser1.getGroup(0));
+        assertEquals(0, chooser1.getGroup(Integer.MAX_VALUE));
+        assertEquals(0, chooser1.getGroup(Integer.MIN_VALUE));
+        assertEquals(0, chooser1.getGroup(1));
+        assertEquals(0, chooser1.getGroup(-1));
+        assertEquals(0, chooser1.getGroup(13));
+        assertEquals(0, chooser1.getGroup(-13));
+
+        final IterativeHasherUtils.GroupChooser chooser1000 = IterativeHasherUtils.createUniformChooser(1000);
+        assertEquals(0, chooser1000.getGroup(0));
+        assertEquals(647, chooser1000.getGroup(Integer.MAX_VALUE));
+        assertEquals(352, chooser1000.getGroup(Integer.MIN_VALUE));
+        assertEquals(1, chooser1000.getGroup(1));
+        assertEquals(999, chooser1000.getGroup(-1));
+        assertEquals(13, chooser1000.getGroup(13));
+        assertEquals(987, chooser1000.getGroup(-13));
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testUniformGroupChooserInvalidArgument() {
+        IterativeHasherUtils.createUniformChooser(-1);
     }
 }
