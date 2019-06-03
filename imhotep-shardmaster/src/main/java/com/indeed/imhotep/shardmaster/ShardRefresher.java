@@ -98,7 +98,6 @@ public class ShardRefresher {
         this.filter = filter;
         this.shardData = shardData;
         this.sqlWriteManager = manager;
-        this.lastUpdated = null;
     }
 
     public synchronized void refresh(final boolean readFilesystem, final boolean readSQL, final boolean delete, final boolean writeSQL, final boolean shouldRefreshFieldsForDataset) {
