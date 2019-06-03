@@ -32,16 +32,34 @@ import org.springframework.jdbc.core.BatchPreparedStatementSetter;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.ResultSetExtractor;
 
+import javax.annotation.Nullable;
 import java.io.IOException;
-import java.sql.*;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.*;
-import java.util.concurrent.*;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Queue;
+import java.util.Set;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
 
 /**
  * @author kornerup
@@ -59,15 +77,14 @@ public class ShardRefresher {
     private final FileSystem hadoopFileSystem;
     private final ShardFilter filter;
     private final ShardData shardData;
-    private Instant lastUpdated;
+    @Nullable
+    private Instant lastUpdated = null; // Nullable only on the first time
     private final SQLWriteManager sqlWriteManager;
     private final AtomicInteger numDatasetsFailedToRead = new AtomicInteger();
     private final AtomicInteger numDatasetsReadFromFilesystemOnCurrentRefresh = new AtomicInteger();
     private final AtomicInteger numDatasetsCompletedFieldsRefreshOnCurrentRefresh = new AtomicInteger();
     private final AtomicInteger totalDatasetsOnCurrentRefresh = new AtomicInteger();
     private Queue<Runnable> fieldRefreshQueue = new ConcurrentLinkedQueue<>();
-
-
 
     ShardRefresher(final Path datasetsDir,
                    final JdbcTemplate dbConnection,
@@ -81,7 +98,6 @@ public class ShardRefresher {
         this.filter = filter;
         this.shardData = shardData;
         this.sqlWriteManager = manager;
-        this.lastUpdated = Instant.MIN;
     }
 
     public synchronized void refresh(final boolean readFilesystem, final boolean readSQL, final boolean delete, final boolean writeSQL, final boolean shouldRefreshFieldsForDataset) {
@@ -99,7 +115,7 @@ public class ShardRefresher {
                             "Shard update threads: " + SHARDS_EXECUTOR_SERVICE.getActiveCount() + ". " +
                             "Dataset update threads: " + DATASETS_EXECUTOR_SERVICE.getActiveCount() + ". " +
                             "Used heap MB: " + ((Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / 1024 / 1024));
-                    if(numDatasetsCompletedFieldsRefreshOnCurrentRefresh.get() > 0) {
+                    if (numDatasetsCompletedFieldsRefreshOnCurrentRefresh.get() > 0) {
                         LOGGER.info("Processed complete field refreshes for " + numDatasetsCompletedFieldsRefreshOnCurrentRefresh + " datasets");
                     }
                 },
@@ -129,12 +145,12 @@ public class ShardRefresher {
         } else {
             fieldRefreshQueue = new ArrayDeque<>();
         }
-        if(readSQL) {
+        if (readSQL) {
             final long startSQLRead = System.currentTimeMillis();
             loadFromSQL(delete);
             LOGGER.info("Finished update from SQL in " + new Period(System.currentTimeMillis() - startSQLRead));
         }
-        if(readFilesystem) {
+        if (readFilesystem) {
             try {
                 scanFilesystemAndUpdateData(writeSQL, delete);
             } catch (final IOException e) {
@@ -156,20 +172,25 @@ public class ShardRefresher {
             }));
         }
 
-        for(final Future future: datasetRefreshFieldsFutures) {
+        for (final Future future : datasetRefreshFieldsFutures) {
             try {
                 future.get();
             } catch (final Exception e) {
                 LOGGER.error("Failure during complete field list refresh for dataset", e);
             }
         }
-        LOGGER.info("Finished complete dataset field refreshes in " +  new Period(System.currentTimeMillis() - startDatasetRefresh));
+        LOGGER.info("Finished complete dataset field refreshes in " + new Period(System.currentTimeMillis() - startDatasetRefresh));
     }
 
     private void loadFromSQL(final boolean shouldDelete) {
-        final Timestamp timestampToUse = Timestamp.from(lastUpdated.minus(10, ChronoUnit.SECONDS)); // To tolerate difference of clock time of servers
+        final Timestamp timestampToUse;
+        if (lastUpdated == null) {
+            timestampToUse = Timestamp.from(Instant.MIN);
+        } else {
+            timestampToUse = Timestamp.from(lastUpdated.minus(10, ChronoUnit.SECONDS)); // To tolerate difference of clock time of servers
+        }
         final Instant updateStarted = Instant.now();
-        if(shouldDelete){
+        if (shouldDelete) {
             dbConnection.query("SELECT * FROM tblshards;", (ResultSetExtractor<Void>) rs -> {
                 shardData.updateTableShardsRowsFromSQL(rs, true, filter);
                 return null;
@@ -194,13 +215,13 @@ public class ShardRefresher {
         totalDatasetsOnCurrentRefresh.set(datasets.size());
         LOGGER.info("Starting update on " + datasets.size() + " datasets");
         final Set<String> shardsInDatastructureThatMightBeDeleted;
-        if(delete) {
+        if (delete) {
             shardsInDatastructureThatMightBeDeleted = shardData.getCopyOfAllPaths();
         } else {
             shardsInDatastructureThatMightBeDeleted = Collections.emptySet();
         }
 
-        for (final Path dataset: datasets) {
+        for (final Path dataset : datasets) {
             if (filter.accept(dataset.getName())) {
                 futures.add(new Pair<>(dataset, DATASETS_EXECUTOR_SERVICE.submit(() -> {
                     scanShardsInFilesystem(dataset, writeToSQL, shardsInDatastructureThatMightBeDeleted);
@@ -209,7 +230,7 @@ public class ShardRefresher {
             }
         }
 
-        for(final Pair<Path, Future> pair: futures) {
+        for (final Pair<Path, Future> pair : futures) {
             try {
                 pair.getValue().get();
             } catch (final InterruptedException | ExecutionException e) {
@@ -217,8 +238,8 @@ public class ShardRefresher {
             }
         }
 
-        if(delete) {
-            if(numDatasetsFailedToRead.get() == 0) {
+        if (delete) {
+            if (numDatasetsFailedToRead.get() == 0) {
                 if (!shardsInDatastructureThatMightBeDeleted.isEmpty()) {
                     LOGGER.info("Deleting in memory info for " + shardsInDatastructureThatMightBeDeleted.size() + " deleted shards");
                     shardData.deleteShards(shardsInDatastructureThatMightBeDeleted);
@@ -250,8 +271,8 @@ public class ShardRefresher {
 
     private void scanShardsInFilesystem(final Path datasetPath, final boolean writeToSQL, final Set<String> allExistingPaths) {
         final List<ShardDir> shardDirs = getAllShardsForDatasetInReverseOrder(datasetPath);
-        if(!allExistingPaths.isEmpty()) {
-            for(final ShardDir shardDir : shardDirs) {
+        if (!allExistingPaths.isEmpty()) {
+            for (final ShardDir shardDir : shardDirs) {
                 // can't use removeAll() on the KeySetView of ConcurrentHashMap as it's super slow
                 allExistingPaths.remove(shardDir.getIndexDir().toString());
             }
@@ -259,16 +280,16 @@ public class ShardRefresher {
 
         final List<Pair<ShardDir, Future<FlamdexMetadata>>> pairs = getMetadataFutures(shardDirs.stream().filter(this::isValidAndNew).collect(Collectors.toList()));
         long shardsAdded = 0;
-        for(final Pair<ShardDir, Future<FlamdexMetadata>> shardDirMetadataPair: pairs) {
+        for (final Pair<ShardDir, Future<FlamdexMetadata>> shardDirMetadataPair : pairs) {
             try {
                 final ShardDir shardDir = shardDirMetadataPair.getKey();
                 final FlamdexMetadata metadata = shardDirMetadataPair.getValue().get();
 
-                if(metadata == null) {
+                if (metadata == null) {
                     continue;
                 }
 
-                if(writeToSQL) {
+                if (writeToSQL) {
                     addToSQL(shardDir, metadata);
                 }
                 shardData.addShardFromFilesystem(shardDir, metadata);
@@ -277,7 +298,7 @@ public class ShardRefresher {
                 LOGGER.error("Could not get metadata for shard", e);
             }
         }
-        if(shardsAdded > 0) {
+        if (shardsAdded > 0) {
             LOGGER.info("Added " + shardsAdded + " shards in dataset " + datasetPath.getName());
         }
     }
@@ -286,7 +307,7 @@ public class ShardRefresher {
         List<ShardDir> shardDirs;
         try {
             final FileStatus[] fileStatuses = hadoopFileSystem.listStatus(datasetPath);
-            shardDirs =  Arrays.stream(fileStatuses).map(file -> new ShardDir(file.getPath())).collect(Collectors.toList());
+            shardDirs = Arrays.stream(fileStatuses).map(file -> new ShardDir(file.getPath())).collect(Collectors.toList());
         } catch (final IOException e) {
             LOGGER.error("Could not read shards in dataset: " + datasetPath + " returning no shards for this dataset.", e);
             numDatasetsFailedToRead.getAndIncrement();
@@ -306,7 +327,7 @@ public class ShardRefresher {
     private List<Pair<ShardDir, Future<FlamdexMetadata>>> getMetadataFutures(final Iterable<ShardDir> shardScanner) {
         final List<Pair<ShardDir, Future<FlamdexMetadata>>> pairs = new ArrayList<>();
 
-        for(final ShardDir dir: shardScanner) {
+        for (final ShardDir dir : shardScanner) {
             pairs.add(new Pair<>(dir, SHARDS_EXECUTOR_SERVICE.submit(() -> {
                 try {
                     return collectShardMetadata(dir);
@@ -323,7 +344,7 @@ public class ShardRefresher {
         return FlamdexMetadata.readMetadata(hadoopFileSystem, shardDir.getHadoopPath());
     }
 
-    private void addToSQL(final ShardDir shardDir, final FlamdexMetadata metadata)  {
+    private void addToSQL(final ShardDir shardDir, final FlamdexMetadata metadata) {
         final String shardId = shardDir.getId();
         final String dataset = shardDir.getDataset();
         final Runnable tblShardsInsertStatement = () -> dbConnection.update("INSERT INTO tblshards (path, numDocs) VALUES (?, ?);", statement -> {
@@ -336,7 +357,6 @@ public class ShardRefresher {
         final Set<String> stringFields = new HashSet<>(metadata.getStringFields());
         final Set<String> intFields = new HashSet<>(metadata.getIntFields());
 
-
         final Stream<String> stringFieldsForInsert = metadata.getStringFields().stream().filter(field -> (!shardData.hasField(dataset, field)));
         final Stream<String> intFieldsForInsert = metadata.getIntFields().stream().filter(field -> (!shardData.hasField(dataset, field)));
         final Stream<String> stringFieldsForUpdate = metadata.getStringFields().stream().filter(field -> shardData.hasField(dataset, field) && (shardData.getFieldUpdateTime(dataset, field) < startTime));
@@ -345,7 +365,6 @@ public class ShardRefresher {
         final List<String> fieldsForInsert = Stream.concat(stringFieldsForInsert, intFieldsForInsert).collect(Collectors.toList());
         final List<String> fieldsForUpdate = Stream.concat(stringFieldsForUpdate, intFieldsForUpdate).collect(Collectors.toList());
 
-
         final Runnable tblFieldsInsertStatement = () -> dbConnection.batchUpdate("INSERT INTO tblfields (dataset, fieldname, type, lastshardstarttime) VALUES (?, ?, ?, ?);", new BatchPreparedStatementSetter() {
             @Override
             public void setValues(final PreparedStatement ps, final int i) throws SQLException {
@@ -353,7 +372,7 @@ public class ShardRefresher {
                 ps.setString(1, dataset);
                 ps.setString(2, fieldName);
 
-                if(!stringFields.contains(fieldName) && intFields.contains(fieldName)) {
+                if (!stringFields.contains(fieldName) && intFields.contains(fieldName)) {
                     ps.setString(3, "INT");
                 } else if (stringFields.contains(fieldName) && !intFields.contains(fieldName)) {
                     ps.setString(3, "STRING");
@@ -375,7 +394,7 @@ public class ShardRefresher {
             public void setValues(final PreparedStatement ps, final int i) throws SQLException {
                 final String fieldName = fieldsForUpdate.get(i);
 
-                if(!stringFields.contains(fieldName) && intFields.contains(fieldName)) {
+                if (!stringFields.contains(fieldName) && intFields.contains(fieldName)) {
                     ps.setString(1, "INT");
                 } else if (stringFields.contains(fieldName) && !intFields.contains(fieldName)) {
                     ps.setString(1, "STRING");
@@ -394,11 +413,11 @@ public class ShardRefresher {
             }
         });
 
-        if(!fieldsForInsert.isEmpty()) {
+        if (!fieldsForInsert.isEmpty()) {
             sqlWriteManager.addStatementToQueue(tblFieldsInsertStatement);
         }
 
-        if(!fieldsForUpdate.isEmpty()) {
+        if (!fieldsForUpdate.isEmpty()) {
             sqlWriteManager.addStatementToQueue(tblFieldsUpdateStatement);
         }
 
@@ -485,10 +504,10 @@ public class ShardRefresher {
         fieldRefreshQueue.add(refreshTask);
     }
 
-
     private class AllFieldsSet {
         final Map<String, Long> strFields;
         final Map<String, Long> intFields;
+
         public AllFieldsSet() {
             strFields = new HashMap<>();
             intFields = new HashMap<>();
@@ -501,18 +520,18 @@ public class ShardRefresher {
         final FileStatus[] fileStatuses = hadoopFileSystem.listStatus(datasetPath);
         final List<ShardDir> shardDirs = Arrays.stream(fileStatuses).map(FileStatus::getPath).map(ShardDir::new).collect(Collectors.toList());
         final List<Pair<ShardDir, Future<FlamdexMetadata>>> metadataFutures = getMetadataFutures(shardDirs);
-        for(final Pair<ShardDir, Future<FlamdexMetadata>> p: metadataFutures) {
+        for (final Pair<ShardDir, Future<FlamdexMetadata>> p : metadataFutures) {
             try {
                 final FlamdexMetadata metadata = p.getValue().get();
                 final long shardStartTime = ShardTimeUtils.parseStart(p.getKey().getId()).getMillis();
-                for(final String field: metadata.getStringFields()) {
-                    if(toReturn.strFields.containsKey(field) && (toReturn.strFields.get(field) > shardStartTime)) {
+                for (final String field : metadata.getStringFields()) {
+                    if (toReturn.strFields.containsKey(field) && (toReturn.strFields.get(field) > shardStartTime)) {
                         continue;
                     }
                     toReturn.strFields.put(field, shardStartTime);
                 }
-                for(final String field: metadata.getIntFields()) {
-                    if(toReturn.intFields.containsKey(field) && (toReturn.intFields.get(field) > shardStartTime)) {
+                for (final String field : metadata.getIntFields()) {
+                    if (toReturn.intFields.containsKey(field) && (toReturn.intFields.get(field) > shardStartTime)) {
                         continue;
                     }
                     toReturn.intFields.put(field, shardStartTime);
