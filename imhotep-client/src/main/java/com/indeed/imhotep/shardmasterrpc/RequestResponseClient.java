@@ -30,7 +30,9 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.net.SocketAddress;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -46,6 +48,11 @@ import java.util.stream.Collectors;
 
 public class RequestResponseClient implements ShardMaster {
     private static final Logger log = Logger.getLogger(RequestResponseClient.class);
+
+    private static final int SOCKET_READ_TIMEOUT_MILLIS = 60000;
+
+    private static final int SOCKET_CONNECTING_TIMEOUT_MILLIS = 30000;
+
     private final Random random = new Random();
     private final List<Host> serverHosts;
     private static String currentHostName;
@@ -100,7 +107,10 @@ public class RequestResponseClient implements ShardMaster {
     }
 
     private List<ShardMasterResponse> sendAndReceive(final ShardMasterRequest request, final Host serverHost) throws IOException {
-        try (final Socket socket = new Socket(serverHost.getHostname(), serverHost.getPort())) {
+        try (final Socket socket = new Socket()) {
+            final SocketAddress endpoint = new InetSocketAddress(serverHost.getHostname(), serverHost.getPort());
+            socket.connect(endpoint, SOCKET_CONNECTING_TIMEOUT_MILLIS);
+            socket.setSoTimeout(SOCKET_READ_TIMEOUT_MILLIS);
             ShardMasterMessageUtil.sendMessage(request, socket.getOutputStream());
             try (final InputStream socketInputStream = socket.getInputStream()) {
                 final List<ShardMasterResponse> responses = new ArrayList<>();
