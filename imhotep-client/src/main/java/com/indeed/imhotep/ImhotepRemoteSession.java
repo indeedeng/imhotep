@@ -460,7 +460,7 @@ public class ImhotepRemoteSession
                 .setSessionId(getSessionId())
                 .setSplitIndex(splitIndex)
                 .setNumSplits(numSplits)
-                .setInputGroups(groupsName);
+                .setInputGroups(groupsName)
                 .setUseFtgsPooledConnection(useFtgsPooledConnection);
         if (stats != null) {
             requestBuilder
