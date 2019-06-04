@@ -64,7 +64,6 @@ import javax.annotation.WillClose;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -737,14 +736,6 @@ public abstract class AbstractImhotepServiceCore
     public void handleGroupQueryUpdateDynamicMetric(final String sessionId, final String groupsName, final String dynamicMetricName, final int[] groups, final Query[] queries, final int[] deltas) throws ImhotepOutOfMemoryException {
         doWithSession(sessionId, (ThrowingFunction<MTImhotepLocalMultiSession, Void, ImhotepOutOfMemoryException>) session -> {
             session.groupQueryUpdateDynamicMetric(groupsName, dynamicMetricName, groups, queries, deltas);
-            return null;
-        });
-    }
-
-    @Override
-    public void handleRebuildAndFilterIndexes(final String sessionId, final String groupsName, final String[] intFields, final String[] stringFields) throws ImhotepOutOfMemoryException {
-        doWithSession(sessionId, (ThrowingFunction<MTImhotepLocalMultiSession, Void, ImhotepOutOfMemoryException>) session -> {
-            session.rebuildAndFilterIndexes(groupsName, Arrays.asList(intFields), Arrays.asList(stringFields));
             return null;
         });
     }

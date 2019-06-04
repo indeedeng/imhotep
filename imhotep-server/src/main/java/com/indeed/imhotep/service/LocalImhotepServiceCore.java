@@ -393,7 +393,6 @@ public class LocalImhotepServiceCore
                     localSession = new ImhotepJavaLocalSession(sessionId,
                             flamdexForSession,
                             new ShardDir(ShardDir.cleanPath(pathAndFlamdexReader.getKey())).getTimeInterval(),
-                            this.shardTempDir.toString(),
                             new MemoryReservationContext(multiSessionMemoryContext),
                             tempFileSizeBytesLeft);
                     localSession.addObserver(observer);

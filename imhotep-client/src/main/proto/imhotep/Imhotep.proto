@@ -128,7 +128,7 @@ message ImhotepRequest {
     METRIC_FILTER = 28;
     DELETED___GET_DOC_ITERATOR = 29; // No longer implemented.
     EXPLODED_REGROUP = 30;
-    OPTIMIZE_SESSION = 31;
+    DELETED___OPTIMIZE_SESSION = 31; // No longer implemented.
     GET_FTGS_SPLIT = 32;
     MERGE_FTGS_SPLIT = 33;
     GROUP_CONDITIONAL_UPDATE_DYNAMIC_METRIC = 34;

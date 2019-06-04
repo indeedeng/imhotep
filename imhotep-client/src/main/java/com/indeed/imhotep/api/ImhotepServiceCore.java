@@ -12,8 +12,8 @@
  * limitations under the License.
  */
  package com.indeed.imhotep.api;
-import com.indeed.imhotep.GroupMultiRemapRule;
 
+import com.indeed.imhotep.GroupMultiRemapRule;
 import com.indeed.imhotep.ImhotepStatusDump;
 import com.indeed.imhotep.QueryRemapRule;
 import com.indeed.imhotep.RegroupCondition;
@@ -76,7 +76,6 @@ public interface ImhotepServiceCore {
     void handleUpdateDynamicMetric(String sessionId, String groupsName, String dynamicMetricName, int[] deltas) throws ImhotepOutOfMemoryException;
     void handleConditionalUpdateDynamicMetric(String sessionId, String dynamicMetricName, RegroupCondition[] conditions, int[] deltas);
     void handleGroupConditionalUpdateDynamicMetric(String sessionId, String groupsName, String dynamicMetricName, int[] groups, RegroupCondition[] conditions, int[] deltas);
-    void handleRebuildAndFilterIndexes(String sessionId, String groupsName, String[] intFields, String[] stringFields) throws ImhotepOutOfMemoryException;
     void handleResetGroups(String sessionId, String groupsName) throws ImhotepOutOfMemoryException;
     int handleGetNumGroups(String sessionId, String groupsName);
     PerformanceStats handleGetPerformanceStats(String sessionId, boolean reset);

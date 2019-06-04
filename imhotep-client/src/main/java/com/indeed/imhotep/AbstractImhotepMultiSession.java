@@ -520,21 +520,6 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
     }
 
     @Override
-    public void rebuildAndFilterIndexes(
-            final String groupsName,
-            final List<String> intFields,
-            final List<String> stringFields)
-        throws ImhotepOutOfMemoryException {
-        executeMemoryException(nullBuf, new ThrowingFunction<ImhotepSession, Object>() {
-            @Override
-            public Object apply(final ImhotepSession imhotepSession) throws ImhotepOutOfMemoryException {
-                imhotepSession.rebuildAndFilterIndexes(groupsName, intFields, stringFields);
-                return null;
-          }
-        });
-    }
-
-    @Override
     public final void close() {
         closeWithOptionalPerformanceStats(false);
     }

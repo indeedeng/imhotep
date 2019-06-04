@@ -308,12 +308,6 @@ public class BatchRemoteImhotepMultiSession extends AbstractImhotepSession {
     }
 
     @Override
-    public void rebuildAndFilterIndexes(final String groupsName, final List<String> intFields, final List<String> stringFields) throws ImhotepOutOfMemoryException {
-        executeBatch();
-        remoteImhotepMultiSession.rebuildAndFilterIndexes(groupsName, intFields, stringFields);
-    }
-
-    @Override
     public long getNumDocs() {
         return remoteImhotepMultiSession.getNumDocs();
     }
