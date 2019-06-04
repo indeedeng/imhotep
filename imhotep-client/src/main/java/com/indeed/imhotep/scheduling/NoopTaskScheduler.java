@@ -18,7 +18,7 @@ class NoopTaskScheduler extends TaskScheduler {
     }
 
     @Override
-    public synchronized Closeable temporaryUnlock() {
+    public synchronized SilentCloseable temporaryUnlock() {
         return () -> {};
     }
 

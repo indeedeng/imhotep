@@ -15,8 +15,8 @@
 
 import com.indeed.flamdex.datastruct.FastBitSet;
 import com.indeed.imhotep.BitTree;
-import com.indeed.imhotep.GroupRemapRule;
-import com.indeed.util.core.threads.ThreadSafeBitSet;
+import com.indeed.imhotep.MemoryReservationContext;
+import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 
 import java.util.Arrays;
 
@@ -25,6 +25,10 @@ final class ByteGroupLookup extends GroupLookup implements ArrayBasedGroupLookup
 
     ByteGroupLookup(final int size) {
         docIdToGroup = new byte[size];
+    }
+
+    private ByteGroupLookup(final byte[] docIdToGroup) {
+        this.docIdToGroup = docIdToGroup;
     }
 
     byte[] getDocIdToGroup() { return docIdToGroup; }
@@ -62,56 +66,6 @@ final class ByteGroupLookup extends GroupLookup implements ArrayBasedGroupLookup
     }
 
     @Override
-    public void applyIntConditionsCallback(
-            final int n,
-            final int[] docIdBuf,
-            final ThreadSafeBitSet docRemapped,
-            final GroupRemapRule[] remapRules,
-            final String intField,
-            final long itrTerm) {
-        for (int i = 0; i < n; i++) {
-            final int docId = docIdBuf[i];
-            if (docRemapped.get(docId)) {
-                continue;
-            }
-            final int group = docIdToGroup[docId] & 0xFF;
-            if (remapRules[group] == null) {
-                continue;
-            }
-            if (ImhotepLocalSession.checkIntCondition(remapRules[group].condition, intField, itrTerm)) {
-                continue;
-            }
-            docIdToGroup[docId] = (byte)remapRules[group].positiveGroup;
-            docRemapped.set(docId);
-        }
-    }
-
-    @Override
-    public void applyStringConditionsCallback(
-            final int n,
-            final int[] docIdBuf,
-            final ThreadSafeBitSet docRemapped,
-            final GroupRemapRule[] remapRules,
-            final String stringField,
-            final String itrTerm) {
-        for (int i = 0; i < n; i++) {
-            final int docId = docIdBuf[i];
-            if (docRemapped.get(docId)) {
-                continue;
-            }
-            final int group = docIdToGroup[docId] & 0xFF;
-            if (remapRules[group] == null) {
-                continue;
-            }
-            if (ImhotepLocalSession.checkStringCondition(remapRules[group].condition, stringField, itrTerm)) {
-                continue;
-            }
-            docIdToGroup[docId] = (byte)remapRules[group].positiveGroup;
-            docRemapped.set(docId);
-        }
-    }
-
-    @Override
     public int get(final int doc) {
         return docIdToGroup[doc] & 0xFF;
     }
@@ -135,6 +89,16 @@ final class ByteGroupLookup extends GroupLookup implements ArrayBasedGroupLookup
         }
 
         Arrays.fill(docIdToGroup, (byte)group);
+    }
+
+    @Override
+    public GroupLookup makeCopy(final MemoryReservationContext memory) throws ImhotepOutOfMemoryException {
+        if (!memory.claimMemory(memoryUsed())) {
+            throw new ImhotepOutOfMemoryException();
+        }
+        final ByteGroupLookup byteGroupLookup = new ByteGroupLookup(Arrays.copyOf(docIdToGroup, docIdToGroup.length));
+        byteGroupLookup.numGroups = numGroups;
+        return byteGroupLookup;
     }
 
     @Override

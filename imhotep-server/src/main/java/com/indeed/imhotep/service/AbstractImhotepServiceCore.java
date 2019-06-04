@@ -21,7 +21,6 @@ import com.indeed.flamdex.query.Query;
 import com.indeed.imhotep.AbstractImhotepMultiSession;
 import com.indeed.imhotep.FTGSIteratorUtil;
 import com.indeed.imhotep.GroupMultiRemapRule;
-import com.indeed.imhotep.GroupRemapRule;
 import com.indeed.imhotep.ImhotepStatusDump;
 import com.indeed.imhotep.Instrumentation;
 import com.indeed.imhotep.Instrumentation.Keys;
@@ -40,6 +39,7 @@ import com.indeed.imhotep.api.ImhotepCommand;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepServiceCore;
 import com.indeed.imhotep.api.PerformanceStats;
+import com.indeed.imhotep.api.RegroupParams;
 import com.indeed.imhotep.io.ImhotepProtobufShipping;
 import com.indeed.imhotep.local.MTImhotepLocalMultiSession;
 import com.indeed.imhotep.metrics.aggregate.AggregateStatStack;
@@ -50,6 +50,7 @@ import com.indeed.imhotep.protobuf.AggregateStat;
 import com.indeed.imhotep.protobuf.HostAndPort;
 import com.indeed.imhotep.protobuf.ImhotepResponse;
 import com.indeed.imhotep.protobuf.MultiFTGSRequest;
+import com.indeed.imhotep.protobuf.Operator;
 import com.indeed.imhotep.protobuf.ShardBasicInfoMessage;
 import com.indeed.imhotep.protobuf.StatsSortOrder;
 import com.indeed.imhotep.scheduling.ImhotepTask;
@@ -145,37 +146,38 @@ public abstract class AbstractImhotepServiceCore
     }
 
     @Override
-    public GroupStatsIterator handleGetGroupStats(final String sessionId, final List<String> stat) throws ImhotepOutOfMemoryException {
-        return doWithSession(sessionId, (ThrowingFunction<MTImhotepLocalMultiSession, GroupStatsIterator, ImhotepOutOfMemoryException>) session -> session.getGroupStatsIterator(stat));
+    public GroupStatsIterator handleGetGroupStats(final String sessionId, final String groupsName, final List<String> stat) throws ImhotepOutOfMemoryException {
+        return doWithSession(sessionId, (ThrowingFunction<MTImhotepLocalMultiSession, GroupStatsIterator, ImhotepOutOfMemoryException>) session -> session.getGroupStatsIterator(groupsName, stat));
     }
 
     @Override
-    public GroupStatsIterator handleGetDistinct(final String sessionId, final String field, final boolean isIntField) {
-        return doWithSession(sessionId, (Function<MTImhotepLocalMultiSession, GroupStatsIterator>) session -> session.getDistinct(field, isIntField));
+    public GroupStatsIterator handleGetDistinct(final String sessionId, final String groupsName, final String field, final boolean isIntField) {
+        return doWithSession(sessionId, (Function<MTImhotepLocalMultiSession, GroupStatsIterator>) session -> session.getDistinct(groupsName, field, isIntField));
     }
 
     @Override
     public GroupStatsIterator handleMergeDistinctSplit(final String sessionId,
+                                                       final String groupsName,
                                                        final String field,
                                                        final boolean isIntField,
                                                        final HostAndPort[] nodes,
                                                        final int splitIndex) {
-        return doWithSession(sessionId, (Function<MTImhotepLocalMultiSession, GroupStatsIterator>) session -> session.mergeDistinctSplit(field, isIntField, nodes, splitIndex));
+        return doWithSession(sessionId, (Function<MTImhotepLocalMultiSession, GroupStatsIterator>) session -> session.mergeDistinctSplit(groupsName, field, isIntField, nodes, splitIndex));
     }
 
     @Override
-    public void handleGetFTGSIterator(final String sessionId, final FTGSParams params, final OutputStream os) throws
+    public void handleGetFTGSIterator(final String sessionId, final String groupsName, final FTGSParams params, final OutputStream os) throws
             IOException, ImhotepOutOfMemoryException {
         doWithSession(sessionId, (IOOrOutOfMemoryFunction<MTImhotepLocalMultiSession, Void>) session -> {
-            final FTGSIterator iterator = session.getFTGSIterator(params);
+            final FTGSIterator iterator = session.getFTGSIterator(groupsName, params);
             return sendFTGSIterator(iterator, os);
         });
     }
 
     @Override
-    public void handleGetSubsetFTGSIterator(final String sessionId, final Map<String, long[]> intFields, final Map<String, String[]> stringFields, @Nullable final List<List<String>> stats, final OutputStream os) throws IOException, ImhotepOutOfMemoryException {
+    public void handleGetSubsetFTGSIterator(final String sessionId, final String groupsName, final Map<String, long[]> intFields, final Map<String, String[]> stringFields, @Nullable final List<List<String>> stats, final OutputStream os) throws IOException, ImhotepOutOfMemoryException {
         doWithSession(sessionId, (IOOrOutOfMemoryFunction<MTImhotepLocalMultiSession, Void>) session -> {
-            final FTGSIterator iterator = session.getSubsetFTGSIterator(intFields, stringFields, stats);
+            final FTGSIterator iterator = session.getSubsetFTGSIterator(groupsName, intFields, stringFields, stats);
             return sendFTGSIterator(iterator, os);
         });
     }
@@ -274,37 +276,38 @@ public abstract class AbstractImhotepServiceCore
     }
 
     @Override
-    public void handleGetFTGSIteratorSplit(final String sessionId, final String[] intFields, final String[] stringFields, final OutputStream os, final int splitIndex, final int numSplits, final long termLimit, @Nullable final List<List<String>> stats) throws IOException, ImhotepOutOfMemoryException {
+    public void handleGetFTGSIteratorSplit(final String sessionId, final String groupsName, final String[] intFields, final String[] stringFields, final OutputStream os, final int splitIndex, final int numSplits, final long termLimit, @Nullable final List<List<String>> stats) throws IOException, ImhotepOutOfMemoryException {
         doWithSession(sessionId, (IOOrOutOfMemoryFunction<MTImhotepLocalMultiSession, Void>) session -> {
-            final FTGSIterator merger = session.getFTGSIteratorSplit(intFields, stringFields, splitIndex, numSplits, termLimit, stats);
+            final FTGSIterator merger = session.getFTGSIteratorSplit(groupsName, intFields, stringFields, splitIndex, numSplits, termLimit, stats);
             return sendFTGSIterator(merger, os);
         });
     }
 
     @Override
-    public void handleGetSubsetFTGSIteratorSplit(final String sessionId, final Map<String, long[]> intFields, final Map<String, String[]> stringFields, @Nullable final List<List<String>> stats, final OutputStream os, final int splitIndex, final int numSplits) throws IOException, ImhotepOutOfMemoryException {
+    public void handleGetSubsetFTGSIteratorSplit(final String sessionId, final String groupsName, final Map<String, long[]> intFields, final Map<String, String[]> stringFields, @Nullable final List<List<String>> stats, final OutputStream os, final int splitIndex, final int numSplits) throws IOException, ImhotepOutOfMemoryException {
         doWithSession(sessionId, (IOOrOutOfMemoryFunction<MTImhotepLocalMultiSession, Void>) session -> {
-            final FTGSIterator merger = session.getSubsetFTGSIteratorSplit(intFields, stringFields, stats, splitIndex, numSplits);
+            final FTGSIterator merger = session.getSubsetFTGSIteratorSplit(groupsName, intFields, stringFields, stats, splitIndex, numSplits);
             return sendFTGSIterator(merger, os);
         });
     }
 
     @Override
     public void handleMergeFTGSIteratorSplit(final String sessionId,
+                                             final String groupsName,
                                              final FTGSParams params,
                                              final OutputStream os,
                                              final HostAndPort[] nodes,
                                              final int splitIndex) throws IOException, ImhotepOutOfMemoryException {
         doWithSession(sessionId, (IOOrOutOfMemoryFunction<MTImhotepLocalMultiSession, Void>) session -> {
-            final FTGSIterator merger = session.mergeFTGSSplit(params, nodes, splitIndex);
+            final FTGSIterator merger = session.mergeFTGSSplit(groupsName, params, nodes, splitIndex);
             return sendFTGSIterator(merger, os);
         });
     }
 
     @Override
-    public void handleMergeSubsetFTGSIteratorSplit(final String sessionId, final Map<String, long[]> intFields, final Map<String, String[]> stringFields, @Nullable final List<List<String>> stats, final OutputStream os, final HostAndPort[] nodes, final int splitIndex) throws IOException, ImhotepOutOfMemoryException {
+    public void handleMergeSubsetFTGSIteratorSplit(final String sessionId, final String groupsName, final Map<String, long[]> intFields, final Map<String, String[]> stringFields, @Nullable final List<List<String>> stats, final OutputStream os, final HostAndPort[] nodes, final int splitIndex) throws IOException, ImhotepOutOfMemoryException {
         doWithSession(sessionId, (IOOrOutOfMemoryFunction<MTImhotepLocalMultiSession, Void>) session -> {
-            final FTGSIterator merger = session.mergeSubsetFTGSSplit(intFields, stringFields, stats, nodes, splitIndex);
+            final FTGSIterator merger = session.mergeSubsetFTGSSplit(groupsName, intFields, stringFields, stats, nodes, splitIndex);
             return sendFTGSIterator(merger, os);
         });
     }
@@ -346,7 +349,8 @@ public abstract class AbstractImhotepServiceCore
                         final String[] intFields = isIntField ? new String[]{sessionInfo.getField()} : new String[0];
                         final String[] stringFields = isIntField ? new String[0] : new String[]{sessionInfo.getField()};
                         final FTGSParams ftgsParams = new FTGSParams(intFields, stringFields, termLimit, -1, true, stats, StatsSortOrder.UNDEFINED);
-                        return session.partialMergeFTGSSplit(sessionInfo.getSessionId(), ftgsParams, sessionNodes, splitIndex, nodes.length, numLocalSplits);
+                        final String groupsName = sessionInfo.getGroupsName();
+                        return session.partialMergeFTGSSplit(sessionInfo.getSessionId(), groupsName, ftgsParams, sessionNodes, splitIndex, nodes.length, numLocalSplits);
                     });
                     closer.registerOrClose(Closeables2.forArray(log, sessionIterators));
                     if (numLocalSplits != sessionIterators.length) {
@@ -525,63 +529,55 @@ public abstract class AbstractImhotepServiceCore
     }
 
     @Override
-    public int handleRegroup(final String sessionId, final GroupRemapRule[] remapRules) throws ImhotepOutOfMemoryException {
-        return doWithSession(sessionId, (ThrowingFunction<MTImhotepLocalMultiSession, Integer, ImhotepOutOfMemoryException>) session -> session.regroup(remapRules));
-    }
-
-    public int handleRegroup(final String sessionId, final int numRemapRules, final Iterator<GroupRemapRule> remapRules) throws ImhotepOutOfMemoryException {
-        return doWithSession(sessionId, (ThrowingFunction<MTImhotepLocalMultiSession, Integer, ImhotepOutOfMemoryException>) session -> session.regroup2(numRemapRules, remapRules));
+    public int handleMultisplitRegroup(final String sessionId, final RegroupParams regroupParams, final GroupMultiRemapRule[] remapRules, final boolean errorOnCollisions) throws ImhotepOutOfMemoryException {
+        return doWithSession(sessionId, (ThrowingFunction<MTImhotepLocalMultiSession, Integer, ImhotepOutOfMemoryException>) session -> session.regroup(regroupParams, remapRules, errorOnCollisions));
     }
 
     @Override
-    public int handleMultisplitRegroup(final String sessionId, final GroupMultiRemapRule[] remapRules, final boolean errorOnCollisions) throws ImhotepOutOfMemoryException {
-        return doWithSession(sessionId, (ThrowingFunction<MTImhotepLocalMultiSession, Integer, ImhotepOutOfMemoryException>) session -> session.regroup(remapRules, errorOnCollisions));
+    public int handleMultisplitRegroup(final String sessionId, final RegroupParams regroupParams, final int numRemapRules, final Iterator<GroupMultiRemapRule> remapRules, final boolean errorOnCollisions) throws ImhotepOutOfMemoryException {
+        return doWithSession(sessionId, (ThrowingFunction<MTImhotepLocalMultiSession, Integer, ImhotepOutOfMemoryException>) session -> session.regroup(regroupParams, numRemapRules, remapRules, errorOnCollisions));
     }
 
     @Override
-    public int handleMultisplitRegroup(final String sessionId, final int numRemapRules, final Iterator<GroupMultiRemapRule> remapRules, final boolean errorOnCollisions) throws ImhotepOutOfMemoryException {
-        return doWithSession(sessionId, (ThrowingFunction<MTImhotepLocalMultiSession, Integer, ImhotepOutOfMemoryException>) session -> session.regroup(numRemapRules, remapRules, errorOnCollisions));
+    public int handleQueryRegroup(final String sessionId, final RegroupParams regroupParams, final QueryRemapRule remapRule) throws ImhotepOutOfMemoryException {
+        return doWithSession(sessionId, (ThrowingFunction<MTImhotepLocalMultiSession, Integer, ImhotepOutOfMemoryException>) session -> session.regroup(regroupParams, remapRule));
     }
 
     @Override
-    public int handleQueryRegroup(final String sessionId, final QueryRemapRule remapRule) throws ImhotepOutOfMemoryException {
-        return doWithSession(sessionId, (ThrowingFunction<MTImhotepLocalMultiSession, Integer, ImhotepOutOfMemoryException>) session -> session.regroup(remapRule));
-    }
-
-    @Override
-    public void handleIntOrRegroup(final String sessionId, final String field, final long[] terms, final int targetGroup, final int negativeGroup, final int positiveGroup) throws ImhotepOutOfMemoryException {
+    public void handleIntOrRegroup(final String sessionId, final RegroupParams regroupParams, final String field, final long[] terms, final int targetGroup, final int negativeGroup, final int positiveGroup) throws ImhotepOutOfMemoryException {
         doWithSession(sessionId, (ThrowingFunction<MTImhotepLocalMultiSession, Void, ImhotepOutOfMemoryException>) session -> {
-            session.intOrRegroup(field, terms, targetGroup, negativeGroup, positiveGroup);
+            session.intOrRegroup(regroupParams, field, terms, targetGroup, negativeGroup, positiveGroup);
             return null;
         });
     }
 
     @Override
-    public void handleStringOrRegroup(final String sessionId, final String field, final String[] terms, final int targetGroup, final int negativeGroup, final int positiveGroup) throws ImhotepOutOfMemoryException {
+    public void handleStringOrRegroup(final String sessionId, final RegroupParams regroupParams, final String field, final String[] terms, final int targetGroup, final int negativeGroup, final int positiveGroup) throws ImhotepOutOfMemoryException {
         doWithSession(sessionId, (ThrowingFunction<MTImhotepLocalMultiSession, Void, ImhotepOutOfMemoryException>) session -> {
-            session.stringOrRegroup(field, terms, targetGroup, negativeGroup, positiveGroup);
+            session.stringOrRegroup(regroupParams, field, terms, targetGroup, negativeGroup, positiveGroup);
             return null;
         });
     }
 
     @Override
-    public void handleRandomRegroup(final String sessionId, final String field, final boolean isIntField, final String salt, final double p, final int targetGroup, final int negativeGroup, final int positiveGroup) throws ImhotepOutOfMemoryException {
+    public void handleRandomRegroup(final String sessionId, final RegroupParams regroupParams, final String field, final boolean isIntField, final String salt, final double p, final int targetGroup, final int negativeGroup, final int positiveGroup) throws ImhotepOutOfMemoryException {
         doWithSession(sessionId, (ThrowingFunction<MTImhotepLocalMultiSession, Void, ImhotepOutOfMemoryException>) session -> {
-            session.randomRegroup(field, isIntField, salt, p, targetGroup, negativeGroup, positiveGroup);
+            session.randomRegroup(regroupParams, field, isIntField, salt, p, targetGroup, negativeGroup, positiveGroup);
             return null;
         });
     }
 
     @Override
-    public void handleRandomMultiRegroup(final String sessionId, final String field, final boolean isIntField, final String salt, final int targetGroup, final double[] percentages, final int[] resultGroups) throws ImhotepOutOfMemoryException {
+    public void handleRandomMultiRegroup(final String sessionId, final RegroupParams regroupParams, final String field, final boolean isIntField, final String salt, final int targetGroup, final double[] percentages, final int[] resultGroups) throws ImhotepOutOfMemoryException {
         doWithSession(sessionId, (ThrowingFunction<MTImhotepLocalMultiSession, Void, ImhotepOutOfMemoryException>) session -> {
-            session.randomMultiRegroup(field, isIntField, salt, targetGroup, percentages, resultGroups);
+            session.randomMultiRegroup(regroupParams, field, isIntField, salt, targetGroup, percentages, resultGroups);
             return null;
         });
     }
 
     @Override
     public void handleRandomMetricRegroup(final String sessionId,
+                                          final RegroupParams regroupParams,
                                           final List<String> stat,
                                           final String salt,
                                           final double p,
@@ -589,71 +585,91 @@ public abstract class AbstractImhotepServiceCore
                                           final int negativeGroup,
                                           final int positiveGroup) throws ImhotepOutOfMemoryException {
         doWithSession(sessionId, (ThrowingFunction<MTImhotepLocalMultiSession, Void, ImhotepOutOfMemoryException>) session -> {
-            session.randomMetricRegroup(stat, salt, p, targetGroup, negativeGroup, positiveGroup);
+            session.randomMetricRegroup(regroupParams, stat, salt, p, targetGroup, negativeGroup, positiveGroup);
             return null;
         });
     }
 
     @Override
     public void handleRandomMetricMultiRegroup(final String sessionId,
+                                               final RegroupParams regroupParams,
                                                final List<String> stat,
                                                final String salt,
                                                final int targetGroup,
                                                final double[] percentages,
                                                final int[] resultGroups) throws ImhotepOutOfMemoryException {
         doWithSession(sessionId, (ThrowingFunction<MTImhotepLocalMultiSession, Void, ImhotepOutOfMemoryException>) session -> {
-            session.randomMetricMultiRegroup(stat, salt, targetGroup, percentages, resultGroups);
+            session.randomMetricMultiRegroup(regroupParams, stat, salt, targetGroup, percentages, resultGroups);
             return null;
         });
     }
 
     @Override
-    public void handleRegexRegroup(final String sessionId, final String field, final String regex, final int targetGroup, final int negativeGroup, final int positiveGroup) throws ImhotepOutOfMemoryException {
+    public void handleRegexRegroup(final String sessionId, final RegroupParams regroupParams, final String field, final String regex, final int targetGroup, final int negativeGroup, final int positiveGroup) throws ImhotepOutOfMemoryException {
         doWithSession(sessionId, (ThrowingFunction<MTImhotepLocalMultiSession, Void, ImhotepOutOfMemoryException>) session -> {
-            session.regexRegroup(field, regex, targetGroup, negativeGroup, positiveGroup);
+            session.regexRegroup(regroupParams, field, regex, targetGroup, negativeGroup, positiveGroup);
             return null;
         });
     }
 
     @Override
-    public int handleMetricRegroup(final String sessionId, final List<String> stat, final long min, final long max, final long intervalSize, final boolean noGutters) throws ImhotepOutOfMemoryException {
-        return doWithSession(sessionId, (ThrowingFunction<MTImhotepLocalMultiSession, Integer, ImhotepOutOfMemoryException>) session -> session.metricRegroup(stat, min, max, intervalSize, noGutters));
+    public int handleMetricRegroup(final String sessionId, final RegroupParams regroupParams, final List<String> stat, final long min, final long max, final long intervalSize, final boolean noGutters) throws ImhotepOutOfMemoryException {
+        return doWithSession(sessionId, (ThrowingFunction<MTImhotepLocalMultiSession, Integer, ImhotepOutOfMemoryException>) session -> session.metricRegroup(regroupParams, stat, min, max, intervalSize, noGutters));
     }
 
     @Override
     public int handleRegroup(
             final String sessionId,
+            final RegroupParams regroupParams,
             final int[] fromGroups,
             final int[] toGroups,
             final boolean filterOutNotTargeted) throws ImhotepOutOfMemoryException {
         return doWithSession(sessionId, (ThrowingFunction<MTImhotepLocalMultiSession, Integer, ImhotepOutOfMemoryException>)
-                session -> session.regroup(fromGroups, toGroups, filterOutNotTargeted));
+                session -> session.regroup(regroupParams, fromGroups, toGroups, filterOutNotTargeted));
     }
 
     public int handleMetricFilter(
             final String sessionId,
+            final RegroupParams regroupParams,
             final List<String> stat,
             final long min,
             final long max,
             final boolean negate) throws ImhotepOutOfMemoryException {
-        return doWithSession(sessionId, (ThrowingFunction<MTImhotepLocalMultiSession, Integer, ImhotepOutOfMemoryException>) session -> session.metricFilter(stat, min, max, negate));
+        return doWithSession(sessionId, (ThrowingFunction<MTImhotepLocalMultiSession, Integer, ImhotepOutOfMemoryException>) session -> session.metricFilter(regroupParams, stat, min, max, negate));
     }
 
     @Override
     public int handleMetricFilter(
             final String sessionId,
+            final RegroupParams regroupParams,
             final List<String> stat,
             final long min,
             final long max,
             final int targetGroup,
             final int negativeGroup,
             final int positiveGroup) throws ImhotepOutOfMemoryException {
-        return doWithSession(sessionId, (ThrowingFunction<MTImhotepLocalMultiSession, Integer, ImhotepOutOfMemoryException>) session -> session.metricFilter(stat, min, max, targetGroup, negativeGroup, positiveGroup));
+        return doWithSession(sessionId, (ThrowingFunction<MTImhotepLocalMultiSession, Integer, ImhotepOutOfMemoryException>) session -> session.metricFilter(regroupParams, stat, min, max, targetGroup, negativeGroup, positiveGroup));
     }
 
     @Override
     public List<TermCount> handleApproximateTopTerms(final String sessionId, final String field, final boolean isIntField, final int k) {
         return doWithSession(sessionId, (Function<MTImhotepLocalMultiSession, List<TermCount>>) session -> session.approximateTopTerms(field, isIntField, k));
+    }
+
+    @Override
+    public void handleConsolidateGroups(final String sessionId, final List<String> consolidatedGroupsList, final Operator operation, final String outputGroups) throws ImhotepOutOfMemoryException {
+        doWithSession(sessionId, (ThrowingFunction<MTImhotepLocalMultiSession, List<TermCount>, ImhotepOutOfMemoryException>) session -> {
+            session.consolidateGroups(consolidatedGroupsList, operation, outputGroups);
+            return null;
+        });
+    }
+
+    @Override
+    public void handleDeleteGroups(final String sessionId, final List<String> groupsToDelete) {
+        doWithSession(sessionId, (Function<MTImhotepLocalMultiSession, Void>) session -> {
+            session.deleteGroups(groupsToDelete);
+            return null;
+        });
     }
 
     @Override
@@ -667,8 +683,8 @@ public abstract class AbstractImhotepServiceCore
     }
 
     @Override
-    public int handleGetNumGroups(final String sessionId) {
-        return doWithSession(sessionId, (Function<MTImhotepLocalMultiSession, Integer>) AbstractImhotepMultiSession::getNumGroups);
+    public int handleGetNumGroups(final String sessionId, final String groupsName) {
+        return doWithSession(sessionId, (Function<MTImhotepLocalMultiSession, Integer>) s -> s.getNumGroups(groupsName));
     }
 
     @Override
@@ -695,9 +711,9 @@ public abstract class AbstractImhotepServiceCore
     }
 
     @Override
-    public void handleUpdateDynamicMetric(final String sessionId, final String dynamicMetricName, final int[] deltas) throws ImhotepOutOfMemoryException {
+    public void handleUpdateDynamicMetric(final String sessionId, final String groupsName, final String dynamicMetricName, final int[] deltas) throws ImhotepOutOfMemoryException {
         doWithSession(sessionId, (ThrowingFunction<MTImhotepLocalMultiSession, Void, ImhotepOutOfMemoryException>) session -> {
-            session.updateDynamicMetric(dynamicMetricName, deltas);
+            session.updateDynamicMetric(groupsName, dynamicMetricName, deltas);
             return null;
         });
     }
@@ -711,32 +727,32 @@ public abstract class AbstractImhotepServiceCore
     }
 
     @Override
-    public void handleGroupConditionalUpdateDynamicMetric(final String sessionId, final String dynamicMetricName, final int[] groups, final RegroupCondition[] conditions, final int[] deltas) {
+    public void handleGroupConditionalUpdateDynamicMetric(final String sessionId, final String groupsName, final String dynamicMetricName, final int[] groups, final RegroupCondition[] conditions, final int[] deltas) {
         doWithSession(sessionId, (Function<MTImhotepLocalMultiSession, Void>) session -> {
-            session.groupConditionalUpdateDynamicMetric(dynamicMetricName, groups, conditions, deltas);
+            session.groupConditionalUpdateDynamicMetric(groupsName, dynamicMetricName, groups, conditions, deltas);
             return null;
         });
     }
 
-    public void handleGroupQueryUpdateDynamicMetric(final String sessionId, final String dynamicMetricName, final int[] groups, final Query[] queries, final int[] deltas) throws ImhotepOutOfMemoryException {
+    public void handleGroupQueryUpdateDynamicMetric(final String sessionId, final String groupsName, final String dynamicMetricName, final int[] groups, final Query[] queries, final int[] deltas) throws ImhotepOutOfMemoryException {
         doWithSession(sessionId, (ThrowingFunction<MTImhotepLocalMultiSession, Void, ImhotepOutOfMemoryException>) session -> {
-            session.groupQueryUpdateDynamicMetric(dynamicMetricName, groups, queries, deltas);
-            return null;
-        });
-    }
-
-    @Override
-    public void handleRebuildAndFilterIndexes(final String sessionId, final String[] intFields, final String[] stringFields) throws ImhotepOutOfMemoryException {
-        doWithSession(sessionId, (ThrowingFunction<MTImhotepLocalMultiSession, Void, ImhotepOutOfMemoryException>) session -> {
-            session.rebuildAndFilterIndexes(Arrays.asList(intFields), Arrays.asList(stringFields));
+            session.groupQueryUpdateDynamicMetric(groupsName, dynamicMetricName, groups, queries, deltas);
             return null;
         });
     }
 
     @Override
-    public void handleResetGroups(final String sessionId) throws ImhotepOutOfMemoryException {
+    public void handleRebuildAndFilterIndexes(final String sessionId, final String groupsName, final String[] intFields, final String[] stringFields) throws ImhotepOutOfMemoryException {
         doWithSession(sessionId, (ThrowingFunction<MTImhotepLocalMultiSession, Void, ImhotepOutOfMemoryException>) session -> {
-            session.resetGroups();
+            session.rebuildAndFilterIndexes(groupsName, Arrays.asList(intFields), Arrays.asList(stringFields));
+            return null;
+        });
+    }
+
+    @Override
+    public void handleResetGroups(final String sessionId, final String groupsName) throws ImhotepOutOfMemoryException {
+        doWithSession(sessionId, (ThrowingFunction<MTImhotepLocalMultiSession, Void, ImhotepOutOfMemoryException>) session -> {
+            session.resetGroups(groupsName);
             return null;
         });
     }

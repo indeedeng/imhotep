@@ -17,11 +17,13 @@ package com.indeed.imhotep.scheduling;
 import com.google.common.base.Joiner;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Queues;
+import com.indeed.imhotep.exceptions.ImhotepKnownException;
 import com.indeed.imhotep.service.MetricStatsEmitter;
 import com.indeed.util.core.threads.NamedThreadFactory;
 import org.apache.log4j.Logger;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.List;
@@ -149,6 +151,15 @@ public class TaskScheduler {
         }
     }
 
+    @Nullable
+    public ImhotepTask getThreadLocalTaskForLocking() {
+        final ImhotepTask task = ImhotepTask.THREAD_LOCAL_TASK.get();
+        if (task == null) {
+            statsEmitter.count("scheduler." + schedulerType + ".threadlocal.task.absent", 1);
+        }
+        return task;
+    }
+
     /**
      * Blocks if necessary and returns once a slot is acquired.
      * Retrieves the ImhotepTask object from ThreadLocal. If absent results in a noop.
@@ -156,31 +167,31 @@ public class TaskScheduler {
      */
     @Nonnull
     public SilentCloseable lockSlot() {
-        final ImhotepTask task = ImhotepTask.THREAD_LOCAL_TASK.get();
+        final ImhotepTask task = getThreadLocalTaskForLocking();
         if(task != null) {
             return new CloseableImhotepTask(task, this);
         } else {
-            statsEmitter.count("scheduler." + schedulerType + ".threadlocal.task.absent", 1);
-            return () -> {}; // can't lock with no task
+             return () -> {}; // can't lock with no task
         }
     }
 
+    /** Stop execution of the task if running, and schedule the next task.
+     *  The task will be considered for scheduling only after the returned SilentCloseable is closed. */
     @Nonnull
-    public Closeable temporaryUnlock() {
-        final ImhotepTask task = ImhotepTask.THREAD_LOCAL_TASK.get();
+    public SilentCloseable temporaryUnlock() {
+        final ImhotepTask task = getThreadLocalTaskForLocking();
         if(task == null) {
-            statsEmitter.count("scheduler." + schedulerType + ".threadlocal.task.absent", 1);
             return () -> {}; // can't lock with no task
         }
 
-        final boolean hadAlock = stopped(task, true);
+        final boolean hadAlock = stopped(task, true, true);
         if(!hadAlock) {
             return () -> {};
         } else {
-            return new Closeable() {
+            return new SilentCloseable() {
                 boolean closed = false;
                 @Override
-                public void close() throws IOException {
+                public void close() {
                     if(closed) return;
                     closed = true;
                     schedule(task);
@@ -189,8 +200,23 @@ public class TaskScheduler {
         }
     }
 
+    /** Stop the execution of the task if running, and schedule the next task.
+     * The task will also be considered while scheduling the next task.*/
+    public void yield() {
+        final ImhotepTask task = getThreadLocalTaskForLocking();
+        if (task == null) {
+            return;
+        }
+
+        final boolean hadAlock = stopped(task, true, false);
+        if (hadAlock) {
+            schedule(task);
+        }
+    }
+
     /** returns true iff a new lock was created */
     boolean schedule(ImhotepTask task) {
+        final QueuedImhotepTask queuedTask = new QueuedImhotepTask(task);
         synchronized (this) {
             if (runningTasks.contains(task)) {
                 statsEmitter.count("scheduler." + schedulerType + ".schedule.already.running", 1);
@@ -198,16 +224,22 @@ public class TaskScheduler {
             }
             task.preExecInitialize(this);
             final TaskQueue queue = getOrCreateQueueForTask(task);
-            queue.offer(task);
+            queue.offer(queuedTask);
             tryStartTasks();
         }
-        // Blocks and waits if necessary
-        task.blockAndWait();
+
+        try {
+            // Blocks and waits if necessary
+            task.blockAndWait();
+        } catch (final Throwable t) {
+            cancelTask(queuedTask, t);
+            throw t;
+        }
         return true;
     }
 
     /** returns true iff a task was running */
-    synchronized boolean stopped(ImhotepTask task, boolean ignoreNotRunning) {
+    synchronized boolean stopped(ImhotepTask task, boolean ignoreNotRunning, boolean scheduleNextTask) {
         if(!runningTasks.remove(task)) {
             if(!ignoreNotRunning) {
                 statsEmitter.count("scheduler." + schedulerType + ".stop.already.stopped", 1);
@@ -219,7 +251,9 @@ public class TaskScheduler {
         final ConsumptionTracker consumptionTracker = ownerToConsumptionTracker.computeIfAbsent(ownerAndPriority,
                 (ignored) -> new ConsumptionTracker(historyLengthNanos, batchNanos));
         consumptionTracker.record(consumption);
-        tryStartTasks();
+        if (scheduleNextTask) {
+            tryStartTasks();
+        }
         return true;
     }
 
@@ -235,17 +269,40 @@ public class TaskScheduler {
         while(!prioritizedQueues.isEmpty()) {
             final TaskQueue taskQueue = prioritizedQueues.poll();
             while(true) {
-                final ImhotepTask queuedTask = taskQueue.poll();
+                final QueuedImhotepTask queuedTask = taskQueue.poll();
                 if(queuedTask == null) {
                     queues.remove(taskQueue.getOwnerAndPriority());
                     break;
                 }
-                runningTasks.add(queuedTask);
-                queuedTask.markRunnable(schedulerType);
-                if(runningTasks.size() >= totalSlots) {
-                    return;
+
+                if (queuedTask.cancelled) {
+                    continue;
+                }
+                final ImhotepTask task = queuedTask.imhotepTask;
+                try {
+                    runningTasks.add(task);
+                    task.markRunnable(schedulerType);
+                    if(runningTasks.size() >= totalSlots) {
+                        return;
+                    }
+                } catch (final Throwable t) {
+                    cancelTask(queuedTask, t);
                 }
             }
+        }
+    }
+
+    private synchronized void cancelTask(@Nonnull final QueuedImhotepTask queuedTask, final Throwable t) {
+        final ImhotepTask task = queuedTask.imhotepTask;
+        if (runningTasks.contains(task)) {
+            runningTasks.remove(task);
+        } else {
+            queuedTask.cancelled = true;
+        }
+
+        // only log unknown errors to avoid verbose logging
+        if (!(t instanceof ImhotepKnownException)) {
+            LOGGER.error("Cancelled task as unexpected errors, task = " + task, t);
         }
     }
 

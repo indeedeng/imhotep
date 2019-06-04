@@ -18,10 +18,8 @@ import com.google.protobuf.Message;
 import com.indeed.imhotep.GroupStatsStreamReader;
 import com.indeed.imhotep.api.GroupStatsIterator;
 import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
-import com.indeed.imhotep.protobuf.GroupRemapMessage;
 import com.indeed.imhotep.protobuf.ImhotepRequest;
 import com.indeed.imhotep.protobuf.ImhotepResponse;
-import it.unimi.dsi.fastutil.ints.IntArrayList;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -70,10 +68,6 @@ public final class ImhotepProtobufShipping {
 
     public static GroupMultiRemapMessage readGroupMultiRemapMessage(final InputStream is) throws IOException {
         return GroupMultiRemapMessage.parseFrom(readPayloadStream(is));
-    }
-
-    public static GroupRemapMessage readGroupRemapMessage(final InputStream is) throws IOException {
-        return GroupRemapMessage.parseFrom(readPayloadStream(is));
     }
 
     public static ImhotepResponse readResponse(final InputStream is) throws IOException {

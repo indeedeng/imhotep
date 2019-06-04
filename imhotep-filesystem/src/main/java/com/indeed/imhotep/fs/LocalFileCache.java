@@ -21,6 +21,7 @@ import com.google.common.cache.AbstractCache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
+import com.google.common.collect.FluentIterable;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.indeed.imhotep.scheduling.TaskScheduler;
 import com.indeed.imhotep.service.MetricStatsEmitter;
@@ -39,6 +40,8 @@ import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
@@ -246,6 +249,23 @@ class LocalFileCache {
             Files.createDirectories(cacheRootDir);
             // force clean up
             unusedFilesCache.cleanUp();
+        }
+    }
+
+    public List<CachedDatasetSnapshot> getCacheSnapshot() throws IOException {
+        try (final DirectoryStream<Path> dirStream = Files.newDirectoryStream(cacheRootDir)) {
+            return FluentIterable.from(dirStream).transform(path -> {
+                try {
+                    return new CachedDatasetSnapshot(
+                            path.getFileName().toString(),
+                            (int) (NIOFileUtils.sizeOfDirectory(path) / 1024 / 1024),
+                            NIOFileUtils.fileCountOfDirectory(path)
+                    );
+                } catch (final IOException e) {
+                    // cached files change frequently, so do nothing when errors happen
+                    return null;
+                }
+            }).filter(Objects::nonNull).toList();
         }
     }
 

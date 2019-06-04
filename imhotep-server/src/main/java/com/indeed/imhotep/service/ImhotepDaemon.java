@@ -24,7 +24,6 @@ import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
 import com.indeed.flamdex.query.Query;
 import com.indeed.imhotep.GroupMultiRemapRule;
-import com.indeed.imhotep.GroupRemapRule;
 import com.indeed.imhotep.ImhotepRemoteSession;
 import com.indeed.imhotep.ImhotepStatusDump;
 import com.indeed.imhotep.Instrumentation;
@@ -40,6 +39,7 @@ import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepServiceCore;
 import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.api.PerformanceStats;
+import com.indeed.imhotep.api.RegroupParams;
 import com.indeed.imhotep.client.Host;
 import com.indeed.imhotep.exceptions.InvalidSessionException;
 import com.indeed.imhotep.fs.RemoteCachingFileSystemProvider;
@@ -48,7 +48,6 @@ import com.indeed.imhotep.io.NioPathUtil;
 import com.indeed.imhotep.io.Streams;
 import com.indeed.imhotep.marshal.ImhotepDaemonMarshaller;
 import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
-import com.indeed.imhotep.protobuf.GroupRemapMessage;
 import com.indeed.imhotep.protobuf.HostAndPort;
 import com.indeed.imhotep.protobuf.ImhotepRequest;
 import com.indeed.imhotep.protobuf.ImhotepResponse;
@@ -344,52 +343,6 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             return builder.build();
         }
 
-        private ImhotepResponse regroup(final ImhotepRequest          request,
-                                        final ImhotepResponse.Builder builder)
-            throws ImhotepOutOfMemoryException {
-            final List<GroupRemapMessage> remapRulesList = request.getRemapRulesList();
-            final GroupRemapRule[] groupRemapMessageList =
-                ImhotepDaemonMarshaller.marshalGroupRemapMessageList(remapRulesList);
-            final int numGroups =
-                service.handleRegroup(request.getSessionId(), groupRemapMessageList);
-            builder.setNumGroups(numGroups);
-            return builder.build();
-        }
-
-        private ImhotepResponse explodedRegroup(
-                final ImhotepRequest          request,
-                final ImhotepResponse.Builder builder,
-                final InputStream             is)
-            throws ImhotepOutOfMemoryException {
-            final int numRules = request.getLength();
-            final int numGroups =
-                service.handleRegroup(request.getSessionId(),
-                                      numRules,
-                                      new UnmodifiableIterator<GroupRemapRule>() {
-                                          private int i = 0;
-
-                                          @Override
-                                          public boolean hasNext() {
-                                              return i < numRules;
-                                          }
-
-                                          @Override
-                                          public GroupRemapRule next() {
-                                              try {
-                                                  final GroupRemapMessage message =
-                                                  ImhotepProtobufShipping.readGroupRemapMessage(is);
-                                                  final GroupRemapRule rule =
-                                                  ImhotepDaemonMarshaller.marshal(message);
-                                                  i++;
-                                                  return rule;
-                                              } catch (final IOException e) {
-                                                  throw Throwables.propagate(e);
-                                              }
-                                          }
-                                      });
-            return builder.setNumGroups(numGroups).build();
-        }
-
         private ImhotepResponse queryRegroup(
                 final ImhotepRequest          request,
                 final ImhotepResponse.Builder builder)
@@ -397,6 +350,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             final QueryRemapMessage remapMessage = request.getQueryRemapRule();
             final int numGroups =
                 service.handleQueryRegroup(request.getSessionId(),
+                                           RegroupParams.fromImhotepRequest(request),
                                            ImhotepDaemonMarshaller.marshal(remapMessage));
             return builder.setNumGroups(numGroups).build();
         }
@@ -406,6 +360,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 final ImhotepResponse.Builder builder)
             throws ImhotepOutOfMemoryException {
             service.handleIntOrRegroup(request.getSessionId(),
+                                       RegroupParams.fromImhotepRequest(request),
                                        request.getField(),
                                        Longs.toArray(request.getIntTermList()),
                                        request.getTargetGroup(),
@@ -420,6 +375,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             throws ImhotepOutOfMemoryException {
             final String[] termList = new String[request.getStringTermCount()];
             service.handleStringOrRegroup(request.getSessionId(),
+                                          RegroupParams.fromImhotepRequest(request),
                                           request.getField(),
                                           request.getStringTermList().toArray(termList),
                                           request.getTargetGroup(),
@@ -433,6 +389,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 final ImhotepResponse.Builder builder)
             throws ImhotepOutOfMemoryException {
             service.handleRandomRegroup(request.getSessionId(),
+                                        RegroupParams.fromImhotepRequest(request),
                                         request.getField(),
                                         request.getIsIntField(),
                                         request.getSalt(),
@@ -448,6 +405,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 final ImhotepResponse.Builder builder)
             throws ImhotepOutOfMemoryException {
             service.handleRandomMultiRegroup(request.getSessionId(),
+                                             RegroupParams.fromImhotepRequest(request),
                                              request.getField(),
                                              request.getIsIntField(),
                                              request.getSalt(),
@@ -462,6 +420,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 final ImhotepResponse.Builder builder)
                 throws ImhotepOutOfMemoryException {
             service.handleRandomMetricRegroup(request.getSessionId(),
+                    RegroupParams.fromImhotepRequest(request),
                     getSingleStat(request),
                     request.getSalt(),
                     request.getP(),
@@ -476,6 +435,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 final ImhotepResponse.Builder builder)
                 throws ImhotepOutOfMemoryException {
             service.handleRandomMetricMultiRegroup(request.getSessionId(),
+                    RegroupParams.fromImhotepRequest(request),
                     getSingleStat(request),
                     request.getSalt(),
                     request.getTargetGroup(),
@@ -489,6 +449,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 final ImhotepResponse.Builder builder)
             throws ImhotepOutOfMemoryException {
             service.handleRegexRegroup(request.getSessionId(),
+                                       RegroupParams.fromImhotepRequest(request),
                                        request.getField(),
                                        request.getRegex(),
                                        request.getTargetGroup(),
@@ -504,6 +465,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             final int[] fromGroups = Ints.toArray(request.getFromGroupsList());
             final int[] toGroups = Ints.toArray(request.getToGroupsList());
             final int numGroups = service.handleRegroup(request.getSessionId(),
+                    RegroupParams.fromImhotepRequest(request),
                     fromGroups,
                     toGroups,
                     request.getFilterOutNotTargeted());
@@ -528,6 +490,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             final GroupStatsIterator groupStats =
                 service.handleGetGroupStats(
                         request.getSessionId(),
+                        request.getInputGroups(),
                         stat
                 );
             builder.setGroupStatSize(groupStats.getNumGroups());
@@ -538,8 +501,12 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                                                           final ImhotepResponse.Builder builder)
         {
             final GroupStatsIterator groupStats =
-                    service.handleGetDistinct(request.getSessionId(),
-                            request.getField(), request.getIsIntField());
+                    service.handleGetDistinct(
+                            request.getSessionId(),
+                            request.getInputGroups(),
+                            request.getField(),
+                            request.getIsIntField()
+                    );
             builder.setGroupStatSize(groupStats.getNumGroups());
             return Pair.of(builder.build(), groupStats);
         }
@@ -550,6 +517,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             final GroupStatsIterator groupStats =
                     service.handleMergeDistinctSplit(
                             request.getSessionId(),
+                            request.getInputGroups(),
                             request.getField(),
                             request.getIsIntField(),
                             request.getNodesList().toArray(new HostAndPort[0]),
@@ -594,6 +562,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 throws IOException, ImhotepOutOfMemoryException {
             checkSessionValidity(request);
             service.handleGetFTGSIterator(request.getSessionId(),
+                                          request.getInputGroups(),
                                           getFTGSParams(request),
                                           os);
         }
@@ -606,6 +575,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             checkSessionValidity(request);
             service.handleGetSubsetFTGSIterator(
                     request.getSessionId(),
+                    request.getInputGroups(),
                     getIntFieldsToTerms(request),
                     getStringFieldsToTerms(request),
                     getStats(request),
@@ -621,6 +591,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             checkSessionValidity(request);
             service.handleGetFTGSIteratorSplit(
                     request.getSessionId(),
+                    request.getInputGroups(),
                     getIntFields(request),
                     getStringFields(request),
                     os,
@@ -639,6 +610,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             checkSessionValidity(request);
             service.handleGetSubsetFTGSIteratorSplit(
                     request.getSessionId(),
+                    request.getInputGroups(),
                     getIntFieldsToTerms(request),
                     getStringFieldsToTerms(request),
                     getStats(request),
@@ -657,6 +629,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             final HostAndPort[] nodes = request.getNodesList().toArray(new HostAndPort[0]);
             final FTGSParams params = getFTGSParams(request);
             service.handleMergeFTGSIteratorSplit(request.getSessionId(),
+                                                 request.getInputGroups(),
                                                  params,
                                                  os, nodes, request.getSplitIndex());
         }
@@ -670,6 +643,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             final HostAndPort[] nodes = request.getNodesList().toArray(new HostAndPort[0]);
             service.handleMergeSubsetFTGSIteratorSplit(
                     request.getSessionId(),
+                    request.getInputGroups(),
                     getIntFieldsToTerms(request),
                     getStringFieldsToTerms(request),
                     getStats(request),
@@ -733,7 +707,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 final ImhotepRequest          request,
                 final ImhotepResponse.Builder builder)
             throws ImhotepOutOfMemoryException {
-            final int numGroups = service.handleGetNumGroups(request.getSessionId());
+            final int numGroups = service.handleGetNumGroups(request.getSessionId(), request.getInputGroups());
             builder.setNumGroups(numGroups);
             return builder.build();
         }
@@ -753,6 +727,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             throws ImhotepOutOfMemoryException {
             final int numGroups = service.handleMetricRegroup(
                     request.getSessionId(),
+                    RegroupParams.fromImhotepRequest(request),
                     getXStat(request),
                     request.getXMin(),
                     request.getXMax(),
@@ -771,6 +746,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             if (request.getTargetGroup() > 0) {
                 numGroups = service.handleMetricFilter(
                         request.getSessionId(),
+                        RegroupParams.fromImhotepRequest(request),
                         getXStat(request),
                         request.getXMin(),
                         request.getXMax(),
@@ -781,6 +757,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             } else {
                 numGroups = service.handleMetricFilter(
                         request.getSessionId(),
+                        RegroupParams.fromImhotepRequest(request),
                         getXStat(request),
                         request.getXMin(),
                         request.getXMax(),
@@ -805,6 +782,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 final ImhotepResponse.Builder builder)
             throws ImhotepOutOfMemoryException {
             service.handleUpdateDynamicMetric(request.getSessionId(),
+                                              request.getInputGroups(),
                                               request.getDynamicMetricName(),
                                               Ints.toArray(request.getDynamicMetricDeltasList()));
             return builder.build();
@@ -833,6 +811,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 ImhotepDaemonMarshaller.marshalRegroupConditionMessageList(conditionsList);
             final int[] deltas = Ints.toArray(request.getDynamicMetricDeltasList());
             service.handleGroupConditionalUpdateDynamicMetric(request.getSessionId(),
+                                                              request.getInputGroups(),
                                                               request.getDynamicMetricName(),
                                                               Ints.toArray(request.getGroupsList()),
                                                               conditions, deltas);
@@ -850,6 +829,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             }
             final int[] deltas = Ints.toArray(request.getDynamicMetricDeltasList());
             service.handleGroupQueryUpdateDynamicMetric(request.getSessionId(),
+                    request.getInputGroups(),
                     request.getDynamicMetricName(),
                     Ints.toArray(request.getGroupsList()),
                     queries, deltas);
@@ -861,6 +841,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 final ImhotepResponse.Builder builder)
             throws ImhotepOutOfMemoryException {
             service.handleRebuildAndFilterIndexes(request.getSessionId(),
+                                                  request.getInputGroups(),
                                                   getIntFields(request),
                                                   getStringFields(request));
             return builder.build();
@@ -870,7 +851,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 final ImhotepRequest          request,
                 final ImhotepResponse.Builder builder)
             throws ImhotepOutOfMemoryException {
-            service.handleResetGroups(request.getSessionId());
+            service.handleResetGroups(request.getSessionId(), request.getInputGroups());
             return builder.build();
         }
 
@@ -883,6 +864,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 ImhotepDaemonMarshaller.marshalGroupMultiRemapMessageList(ruleList);
             final int numGroups =
                 service.handleMultisplitRegroup(request.getSessionId(),
+                                                RegroupParams.fromImhotepRequest(request),
                                                 remapRules,
                                                 request.getErrorOnCollisions());
             builder.setNumGroups(numGroups);
@@ -920,6 +902,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                     };
             final int numGroups =
                     service.handleMultisplitRegroup(request.getSessionId(),
+                            RegroupParams.fromImhotepRequest(request),
                             numRules,
                             it,
                             request.getErrorOnCollisions());
@@ -1007,6 +990,23 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             }
         }
 
+        private ImhotepResponse consolidateGroups(final ImhotepRequest request, final ImhotepResponse.Builder builder) throws ImhotepOutOfMemoryException {
+            service.handleConsolidateGroups(
+                request.getSessionId(),
+                request.getConsolidatedGroupsList(),
+                request.getGroupConsolidationOperation(),
+                request.getOutputGroups()
+            );
+            return builder.build();
+        }
+
+        private ImhotepResponse deleteGroups(final ImhotepRequest request, final ImhotepResponse.Builder builder) throws ImhotepOutOfMemoryException {
+            service.handleDeleteGroups(
+                request.getSessionId(),
+                request.getGroupsToDeleteList()
+            );
+            return builder.build();
+        }
 
         private void shutdown(
                 final ImhotepRequest request,
@@ -1036,134 +1036,127 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 case CLOSE_SESSION:
                     response = closeSession(request, builder);
                     break;
-                case REGROUP:
-                    response = regroup(request, builder);
-                    break;
-                case EXPLODED_REGROUP:
-                    response = explodedRegroup(request, builder, is);
-                    break;
                 case QUERY_REGROUP:
-                    response = queryRegroup(request, builder);
-                    break;
-                case INT_OR_REGROUP:
-                    response = intOrRegroup(request, builder);
-                    break;
-                case STRING_OR_REGROUP:
-                    response = stringOrRegroup(request, builder);
-                    break;
-                case RANDOM_REGROUP:
-                    response = randomRegroup(request, builder);
-                    break;
-                case RANDOM_MULTI_REGROUP:
-                    response = randomMultiRegroup(request, builder);
-                    break;
-                case RANDOM_METRIC_REGROUP:
-                    response = randomMetricRegroup(request, builder);
-                    break;
-                case RANDOM_METRIC_MULTI_REGROUP:
-                    response = randomMetricMultiRegroup(request, builder);
-                    break;
-                case REGEX_REGROUP:
-                    response = regexRegroup(request, builder);
-                    break;
-                case GET_TOTAL_DOC_FREQ:
-                    response = getTotalDocFreq(request, builder);
-                    break;
-                case STREAMING_GET_GROUP_STATS:
-                    final Pair<ImhotepResponse, GroupStatsIterator> responseAndStat = getStreamingGroupStats(request, builder);
-                    response = responseAndStat.getFirst();
-                    groupStats = Preconditions.checkNotNull(responseAndStat.getSecond());
-                    break;
-                case GET_FTGS_ITERATOR:
-                    getFTGSIterator(request, builder, os);
-                    break;
-                case GET_SUBSET_FTGS_ITERATOR:
-                    getSubsetFTGSIterator(request, builder, os);
-                    break;
-                case GET_FTGS_SPLIT:
-                    getFTGSSplit(request, builder, os);
-                    break;
-                case GET_SUBSET_FTGS_SPLIT:
-                    getSubsetFTGSSplit(request, builder, os);
-                    break;
-                case MERGE_FTGS_SPLIT:
-                    mergeFTGSSplit(request, builder, os);
-                    break;
-                case MERGE_SUBSET_FTGS_SPLIT:
-                    mergeSubsetFTGSSplit(request, builder, os);
-                    break;
-                case MERGE_MULTI_FTGS_SPLIT:
-                    mergeMultiFTGSSplit(request, os);
-                    break;
-                case PUSH_STAT:
-                    response = pushStat(request, builder);
-                    break;
-                case POP_STAT:
-                    response = popStat(request, builder);
-                    break;
-                case GET_NUM_GROUPS:
-                    response = getNumGroups(request, builder);
-                    break;
-                case GET_STATUS_DUMP:
-                    response = getStatusDump(request, builder);
-                    break;
-                case METRIC_REGROUP:
-                    response = metricRegroup(request, builder);
-                    break;
-                case METRIC_FILTER:
-                    response = metricFilter(request, builder);
-                    break;
-                case CREATE_DYNAMIC_METRIC:
-                    response = createDynamicMetric(request, builder);
-                    break;
-                case UPDATE_DYNAMIC_METRIC:
-                    response = updateDynamicMetric(request, builder);
-                    break;
-                case CONDITIONAL_UPDATE_DYNAMIC_METRIC:
-                    response = conditionalUpdateDynamicMetric(request, builder);
-                    break;
-                case GROUP_CONDITIONAL_UPDATE_DYNAMIC_METRIC:
-                    response = groupConditionalUpdateDynamicMetric(request, builder);
-                    break;
-                case GROUP_QUERY_UPDATE_DYNAMIC_METRIC:
-                    response = groupQueryUpdateDynamicMetric(request, builder);
-                    break;
-                case OPTIMIZE_SESSION:
-                    response = optimizeSession(request, builder);
-                    break;
-                case RESET_GROUPS:
-                    response = resetGroups(request, builder);
-                    break;
-                case MULTISPLIT_REGROUP:
-                    response = multisplitRegroup(request, builder);
-                    break;
-                case EXPLODED_MULTISPLIT_REGROUP:
-                    response = explodedMultisplitRegroup(request, builder, is);
-                    break;
-                case APPROXIMATE_TOP_TERMS:
-                    response = approximateTopTerms(request, builder);
-                    break;
-                case GET_PERFORMANCE_STATS:
-                    response = getPerformanceStats(request, builder);
-                    break;
-                case GET_DISTINCT:
-                    final Pair<ImhotepResponse, GroupStatsIterator> responseAndDistinct = getDistinct(request, builder);
-                    response = responseAndDistinct.getFirst();
-                    groupStats = Preconditions.checkNotNull(responseAndDistinct.getSecond());
-                    break;
-                case MERGE_DISTINCT_SPLIT:
-                    final Pair<ImhotepResponse, GroupStatsIterator> responseAndDistinctSplit = mergeDistinctSplit(request, builder);
-                    response = responseAndDistinctSplit.getFirst();
-                    groupStats = Preconditions.checkNotNull(responseAndDistinctSplit.getSecond());
-                    break;
-                case MERGE_MULTI_DISTINCT_SPLIT:
-                    final Pair<ImhotepResponse, GroupStatsIterator> responseAndMultiDistinctSplit = mergeMultiDistinctSplit(request, builder);
-                    response = responseAndMultiDistinctSplit.getFirst();
-                    groupStats = Preconditions.checkNotNull(responseAndMultiDistinctSplit.getSecond());
-                    break;
-                case REMAP_GROUPS:
-                    response = remapGroups(request, builder);
-                    break;
+                            response = queryRegroup(request, builder);
+                            break;
+                        case INT_OR_REGROUP:
+                            response = intOrRegroup(request, builder);
+                            break;
+                        case STRING_OR_REGROUP:
+                            response = stringOrRegroup(request, builder);
+                            break;
+                        case RANDOM_REGROUP:
+                            response = randomRegroup(request, builder);
+                            break;
+                        case RANDOM_MULTI_REGROUP:
+                            response = randomMultiRegroup(request, builder);
+                            break;
+                        case RANDOM_METRIC_REGROUP:
+                            response = randomMetricRegroup(request, builder);
+                            break;
+                        case RANDOM_METRIC_MULTI_REGROUP:
+                            response = randomMetricMultiRegroup(request, builder);
+                            break;
+                        case REGEX_REGROUP:
+                            response = regexRegroup(request, builder);
+                            break;
+                        case GET_TOTAL_DOC_FREQ:
+                            response = getTotalDocFreq(request, builder);
+                            break;
+                        case STREAMING_GET_GROUP_STATS:
+                            final Pair<ImhotepResponse, GroupStatsIterator> responseAndStat = getStreamingGroupStats(request, builder);
+                            response = responseAndStat.getFirst();
+                            groupStats = Preconditions.checkNotNull(responseAndStat.getSecond());
+                            break;
+                        case GET_FTGS_ITERATOR:
+                            getFTGSIterator(request, builder, os);
+                            break;
+                        case GET_SUBSET_FTGS_ITERATOR:
+                            getSubsetFTGSIterator(request, builder, os);
+                            break;
+                        case GET_FTGS_SPLIT:
+                            getFTGSSplit(request, builder, os);
+                            break;
+                        case GET_SUBSET_FTGS_SPLIT:
+                            getSubsetFTGSSplit(request, builder, os);
+                            break;
+                        case MERGE_FTGS_SPLIT:
+                            mergeFTGSSplit(request, builder, os);
+                            break;
+                        case MERGE_SUBSET_FTGS_SPLIT:
+                            mergeSubsetFTGSSplit(request, builder, os);
+                            break;
+                        case MERGE_MULTI_FTGS_SPLIT:
+                            mergeMultiFTGSSplit(request, os);
+                            break;
+                        case PUSH_STAT:
+                            response = pushStat(request, builder);
+                            break;
+                        case POP_STAT:
+                            response = popStat(request, builder);
+                            break;
+                        case GET_NUM_GROUPS:
+                            response = getNumGroups(request, builder);
+                            break;
+                        case GET_STATUS_DUMP:
+                            response = getStatusDump(request, builder);
+                            break;
+                        case METRIC_REGROUP:
+                            response = metricRegroup(request, builder);
+                            break;
+                        case METRIC_FILTER:
+                            response = metricFilter(request, builder);
+                            break;
+                        case CREATE_DYNAMIC_METRIC:
+                            response = createDynamicMetric(request, builder);
+                            break;
+                        case UPDATE_DYNAMIC_METRIC:
+                            response = updateDynamicMetric(request, builder);
+                            break;
+                        case CONDITIONAL_UPDATE_DYNAMIC_METRIC:
+                            response = conditionalUpdateDynamicMetric(request, builder);
+                            break;
+                        case GROUP_CONDITIONAL_UPDATE_DYNAMIC_METRIC:
+                            response = groupConditionalUpdateDynamicMetric(request, builder);
+                            break;
+                        case GROUP_QUERY_UPDATE_DYNAMIC_METRIC:
+                            response = groupQueryUpdateDynamicMetric(request, builder);
+                            break;
+                        case OPTIMIZE_SESSION:
+                            response = optimizeSession(request, builder);
+                            break;
+                        case RESET_GROUPS:
+                            response = resetGroups(request, builder);
+                            break;
+                        case MULTISPLIT_REGROUP:
+                            response = multisplitRegroup(request, builder);
+                            break;
+                        case EXPLODED_MULTISPLIT_REGROUP:
+                            response = explodedMultisplitRegroup(request, builder, is);
+                            break;
+                        case APPROXIMATE_TOP_TERMS:
+                            response = approximateTopTerms(request, builder);
+                            break;
+                        case GET_PERFORMANCE_STATS:
+                            response = getPerformanceStats(request, builder);
+                            break;
+                        case GET_DISTINCT:
+                            final Pair<ImhotepResponse, GroupStatsIterator> responseAndDistinct = getDistinct(request, builder);
+                            response = responseAndDistinct.getFirst();
+                            groupStats = Preconditions.checkNotNull(responseAndDistinct.getSecond());
+                            break;
+                        case MERGE_DISTINCT_SPLIT:
+                            final Pair<ImhotepResponse, GroupStatsIterator> responseAndDistinctSplit = mergeDistinctSplit(request, builder);
+                            response = responseAndDistinctSplit.getFirst();
+                            groupStats = Preconditions.checkNotNull(responseAndDistinctSplit.getSecond());
+                            break;
+                        case MERGE_MULTI_DISTINCT_SPLIT:
+                            final Pair<ImhotepResponse, GroupStatsIterator> responseAndMultiDistinctSplit = mergeMultiDistinctSplit(request, builder);
+                            response = responseAndMultiDistinctSplit.getFirst();
+                            groupStats = Preconditions.checkNotNull(responseAndMultiDistinctSplit.getSecond());
+                            break;
+                        case REMAP_GROUPS:
+                            response = remapGroups(request, builder);break;
                 case GET_SHARD_FILE:
                     getAndSendShardFile(request, builder, os);
                     break;
@@ -1177,6 +1170,12 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                     final Pair<ImhotepResponse, GroupStatsIterator> responseGroupStatsIteratorPair = executeBatchRequest(request, is, builder);
                     response = responseGroupStatsIteratorPair.getFirst();
                     groupStats = responseGroupStatsIteratorPair.getSecond();
+                    break;
+                case CONSOLIDATE_GROUPS:
+                    response = consolidateGroups(request, builder);
+                    break;
+                case DELETE_GROUPS:
+                    response = deleteGroups(request, builder);
                     break;
                 case SHUTDOWN:
                     shutdown(request, is, os);

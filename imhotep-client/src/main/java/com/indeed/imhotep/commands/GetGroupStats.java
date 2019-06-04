@@ -19,20 +19,23 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
 
-@EqualsAndHashCode
+@EqualsAndHashCode(callSuper = true)
 @ToString
 public class GetGroupStats extends AbstractImhotepCommand<GroupStatsIterator> {
 
+    private final String groupsName;
     private final List<String> stats;
 
-    public GetGroupStats(final List<String> stats, final String sessionId) {
+    public GetGroupStats(final String groupsName, final List<String> stats, final String sessionId) {
         super(sessionId, GroupStatsIterator.class);
+        this.groupsName = groupsName;
         this.stats = stats;
     }
 
     @Override
     public ImhotepRequestSender imhotepRequestSenderInitializer() {
         final ImhotepRequest request = ImhotepRequest.newBuilder().setRequestType(ImhotepRequest.RequestType.STREAMING_GET_GROUP_STATS)
+                .setInputGroups(groupsName)
                 .setSessionId(getSessionId())
                 .addDocStat(DocStat.newBuilder().addAllStat(stats))
                 .setHasStats(true)
@@ -48,7 +51,7 @@ public class GetGroupStats extends AbstractImhotepCommand<GroupStatsIterator> {
 
     @Override
     public GroupStatsIterator apply(final ImhotepSession session) throws ImhotepOutOfMemoryException {
-        return session.getGroupStatsIterator(stats);
+        return session.getGroupStatsIterator(groupsName, stats);
     }
 
     @Override

@@ -15,8 +15,8 @@
 
 import com.indeed.flamdex.datastruct.FastBitSet;
 import com.indeed.imhotep.BitTree;
-import com.indeed.imhotep.GroupRemapRule;
-import com.indeed.util.core.threads.ThreadSafeBitSet;
+import com.indeed.imhotep.MemoryReservationContext;
+import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 
 import java.util.Arrays;
 
@@ -59,28 +59,6 @@ final class ConstantGroupLookup extends GroupLookup {
     }
 
     @Override
-    public void applyIntConditionsCallback(
-            final int n,
-            final int[] docIdBuf,
-            final ThreadSafeBitSet docRemapped,
-            final GroupRemapRule[] remapRules,
-            final String intField,
-            final long itrTerm) {
-        throw new UnsupportedOperationException("bug!");
-    }
-
-    @Override
-    public void applyStringConditionsCallback(
-            final int n,
-            final int[] docIdBuf,
-            final ThreadSafeBitSet docRemapped,
-            final GroupRemapRule[] remapRules,
-            final String stringField,
-            final String itrTerm) {
-        throw new UnsupportedOperationException("bug!");
-    }
-
-    @Override
     public int get(final int doc) {
         return constant;
     }
@@ -98,6 +76,17 @@ final class ConstantGroupLookup extends GroupLookup {
     @Override
     public void fill(final int group) {
         // no-op
+    }
+
+    @Override
+    public GroupLookup makeCopy(final MemoryReservationContext memory) throws ImhotepOutOfMemoryException {
+        if (!memory.claimMemory(memoryUsed())) {
+            // can't happen right now but who knows in the future?
+            throw new ImhotepOutOfMemoryException();
+        }
+        final ConstantGroupLookup constantGroupLookup = new ConstantGroupLookup(constant, size);
+        constantGroupLookup.numGroups = numGroups;
+        return constantGroupLookup;
     }
 
     @Override

@@ -37,23 +37,27 @@ public class IndexReWriter {
     private final List<ImhotepJavaLocalSession> sessions;
     private final ImhotepJavaLocalSession newSession;
     private final int[] sessionDocIdOffsets;
+    private final String groupsName;
     private final MemoryReservationContext memory;
-    private GroupLookup newGroupLookup;
+    private NamedGroupManager newGroupLookups;
     private List<int[]> perSessionMappings;
     private Map<String, DynamicMetric> dynamicMetrics;
     private long newMaxDocs;
 
     public IndexReWriter(final List<ImhotepJavaLocalSession> localSessions,
                          final ImhotepJavaLocalSession newSession,
+                         final String groupsName,
                          final MemoryReservationContext memory) throws ImhotepOutOfMemoryException {
         this.sessions = localSessions;
         this.newSession = newSession;
+        this.groupsName = groupsName;
         this.memory = memory;
+        this.newGroupLookups = new NamedGroupManager(newSession.memory);
         this.sessionDocIdOffsets = new int[localSessions.size()];
     }
 
-    public GroupLookup getNewGroupLookup() {
-        return this.newGroupLookup;
+    public NamedGroupManager getNewGroupLookups() {
+        return this.newGroupLookups;
     }
 
     public Map<String, DynamicMetric> getDynamicMetrics() {
@@ -229,9 +233,9 @@ public class IndexReWriter {
         for (int i = 0; i < sessions.size(); i++) {
             this.sessionDocIdOffsets[i] = nTotalDocs;
             final ImhotepJavaLocalSession session = sessions.get(i);
-            final GroupLookup gl = session.docIdToGroup;
+            final GroupLookup gl = session.namedGroupLookups.get(groupsName);
             final int numDocs = gl.size();
-            final int grp0Docs = session.getZeroGroupDocCount();
+            final int grp0Docs = gl.countGroupZeroDocs();
             nTotalDocs += numDocs;
             newNumDocs += numDocs - grp0Docs;
             numGroups = Math.max(numGroups, gl.getNumGroups());
@@ -245,24 +249,49 @@ public class IndexReWriter {
         }
         final int[] mapping = new int[nTotalDocs];
 
-        /* populate mapping and new GroupLookup */
-        final GroupLookup newGL = GroupLookupFactory.create(numGroups, newNumDocs, memory);
-        for (int i = 0; i < sessions.size(); i++) {
-            final GroupLookup gl = sessions.get(i).docIdToGroup;
-            final int offset = this.sessionDocIdOffsets[i];
-            for (int j = 0; j < gl.size(); j++) {
-                final int group = gl.get(j);
-                if (group != 0) {
-                    mapping[j + offset] = nextDocId;
-                    newGL.set(nextDocId, group);
-                    ++nextDocId;
-                } else {
-                    mapping[j + offset] = -1;
+        /* populate mapping and filtered GroupLookup */
+        {
+            final GroupLookup newGL = GroupLookupFactory.create(numGroups - 1, newNumDocs, memory);
+            for (int i = 0; i < sessions.size(); i++) {
+                final GroupLookup gl = sessions.get(i).namedGroupLookups.get(groupsName);
+                final int offset = this.sessionDocIdOffsets[i];
+                for (int j = 0; j < gl.size(); j++) {
+                    final int group = gl.get(j);
+                    if (group != 0) {
+                        mapping[j + offset] = nextDocId;
+                        newGL.set(nextDocId, group);
+                        ++nextDocId;
+                    } else {
+                        mapping[j + offset] = -1;
+                    }
                 }
             }
+            newGL.recalculateNumGroups();
+            this.newGroupLookups.put(groupsName, newGL);
         }
-        newGL.recalculateNumGroups();
-        this.newGroupLookup = newGL;
+
+        /* filter other group lookups based on new mapping */
+        for (final String groupName : sessions.get(0).namedGroupLookups.groupNames()) {
+            if (groupName.equals(groupsName)) {
+                // already remapped this one
+                continue;
+            }
+            final int maxGroup = sessions.stream().mapToInt(x -> x.namedGroupLookups.get(groupName).getNumGroups() - 1).max().getAsInt();
+            final GroupLookup newGL = GroupLookupFactory.create(maxGroup, newNumDocs, memory);
+            for (int i = 0; i < sessions.size(); i++) {
+                final GroupLookup gl = sessions.get(i).namedGroupLookups.get(groupName);
+                final int offset = this.sessionDocIdOffsets[i];
+                for (int j = 0; j < gl.size(); j++) {
+                    final int newDocId = mapping[j + offset];
+                    if (newDocId != -1) {
+                        final int group = gl.get(j);
+                        newGL.set(newDocId, group);
+                    }
+                }
+            }
+            newGL.recalculateNumGroups();
+            this.newGroupLookups.put(groupName, newGL);
+        }
 
         /*
          * remap the dynamic metrics
@@ -277,7 +306,7 @@ public class IndexReWriter {
         final Map<String, DynamicMetric> newDynMetrics = Maps.newHashMap();
         for (int i = 0; i < sessions.size(); i++) {
             final ImhotepJavaLocalSession s = sessions.get(i);
-            final GroupLookup gl = s.docIdToGroup;
+            final GroupLookup gl = s.namedGroupLookups.get(groupsName);
             final int offset = this.sessionDocIdOffsets[i];
             for (final Map.Entry<String, DynamicMetric> e : s.getDynamicMetrics().entrySet()) {
                 final DynamicMetric oldDM = e.getValue();

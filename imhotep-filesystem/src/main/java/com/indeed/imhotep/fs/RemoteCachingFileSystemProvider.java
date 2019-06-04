@@ -51,8 +51,10 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.FileAttribute;
 import java.nio.file.attribute.FileAttributeView;
 import java.nio.file.spi.FileSystemProvider;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
@@ -383,5 +385,15 @@ public class RemoteCachingFileSystemProvider extends FileSystemProvider {
     @Override
     public void setAttribute(final Path path, final String attribute, final Object value, final LinkOption... options) throws IOException {
         throw new UnsupportedOperationException();
+    }
+
+    public List<CachedDatasetSnapshot> getFileSystemLocalCacheSnapshot() throws IOException {
+        final RemoteCachingFileSystem fileSystem = FILE_SYSTEM_HOLDER.get();
+        return fileSystem == null ? Collections.emptyList() : fileSystem.getLocalCacheSnapshot();
+    }
+
+    public List<CachedDatasetSnapshot> getFileSystemPeerToPeerCacheSnapshot() throws IOException {
+        final RemoteCachingFileSystem fileSystem = FILE_SYSTEM_HOLDER.get();
+        return fileSystem == null ? Collections.emptyList() : fileSystem.getPeerToPeerCacheSnapshot();
     }
 }

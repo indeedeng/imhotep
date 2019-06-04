@@ -21,7 +21,6 @@ import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
 import com.indeed.flamdex.query.Query;
-import com.indeed.imhotep.Instrumentation.Keys;
 import com.indeed.imhotep.api.CommandSerializationParameters;
 import com.indeed.imhotep.api.FTGAIterator;
 import com.indeed.imhotep.api.FTGSIterator;
@@ -31,6 +30,7 @@ import com.indeed.imhotep.api.HasSessionId;
 import com.indeed.imhotep.api.ImhotepCommand;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.PerformanceStats;
+import com.indeed.imhotep.api.RegroupParams;
 import com.indeed.imhotep.io.ImhotepProtobufShipping;
 import com.indeed.imhotep.io.LimitedBufferedOutputStream;
 import com.indeed.imhotep.io.RequestTools;
@@ -42,12 +42,12 @@ import com.indeed.imhotep.io.WriteLimitExceededException;
 import com.indeed.imhotep.marshal.ImhotepClientMarshaller;
 import com.indeed.imhotep.protobuf.DocStat;
 import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
-import com.indeed.imhotep.protobuf.GroupRemapMessage;
 import com.indeed.imhotep.protobuf.HostAndPort;
 import com.indeed.imhotep.protobuf.ImhotepRequest;
 import com.indeed.imhotep.protobuf.ImhotepResponse;
 import com.indeed.imhotep.protobuf.IntFieldAndTerms;
 import com.indeed.imhotep.protobuf.MultiFTGSRequest;
+import com.indeed.imhotep.protobuf.Operator;
 import com.indeed.imhotep.protobuf.QueryMessage;
 import com.indeed.imhotep.protobuf.QueryRemapMessage;
 import com.indeed.imhotep.protobuf.RegroupConditionMessage;
@@ -300,8 +300,8 @@ public class ImhotepRemoteSession
     }
 
     @Override
-    public long[] getGroupStats(final List<String> stat) throws ImhotepOutOfMemoryException {
-        try (final GroupStatsIterator reader = getGroupStatsIterator(stat)) {
+    public long[] getGroupStats(final String groupsName, final List<String> stat) throws ImhotepOutOfMemoryException {
+        try (final GroupStatsIterator reader = getGroupStatsIterator(groupsName, stat)) {
             return LongIterators.unwrap(reader, reader.getNumGroups());
         } catch(final IOException e) {
             throw newRuntimeException(e);
@@ -309,24 +309,26 @@ public class ImhotepRemoteSession
     }
 
     @Override
-    public GroupStatsIterator getGroupStatsIterator(final List<String> stat) throws ImhotepOutOfMemoryException {
+    public GroupStatsIterator getGroupStatsIterator(final String groupsName, final List<String> stat) throws ImhotepOutOfMemoryException {
         final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.STREAMING_GET_GROUP_STATS)
                 .setSessionId(getSessionId())
                 .addDocStat(DocStat.newBuilder().addAllStat(stat))
                 .setHasStats(true)
+                .setInputGroups(groupsName)
                 .build();
         return sendGroupStatsIteratorRequest(request);
     }
 
     @Override
-    public FTGSIterator getFTGSIterator(final FTGSParams params) throws ImhotepOutOfMemoryException {
+    public FTGSIterator getFTGSIterator(final String groupsName, final FTGSParams params) throws ImhotepOutOfMemoryException {
         final ImhotepRequest.Builder requestBuilder = getBuilderForType(ImhotepRequest.RequestType.GET_FTGS_ITERATOR)
                 .setSessionId(getSessionId())
                 .addAllIntFields(Arrays.asList(params.intFields))
                 .addAllStringFields(Arrays.asList(params.stringFields))
                 .setTermLimit(params.termLimit)
                 .setSortStat(params.sortStat)
-                .setSortedFTGS(params.sorted);
+                .setSortedFTGS(params.sorted)
+                .setInputGroups(groupsName);
 
         if (params.stats != null) {
             requestBuilder
@@ -365,9 +367,10 @@ public class ImhotepRemoteSession
     }
 
     @Override
-    public FTGSIterator getSubsetFTGSIterator(final Map<String, long[]> intFields, final Map<String, String[]> stringFields, @Nullable final List<List<String>> stats) throws ImhotepOutOfMemoryException {
+    public FTGSIterator getSubsetFTGSIterator(final String groupsName, final Map<String, long[]> intFields, final Map<String, String[]> stringFields, @Nullable final List<List<String>> stats) throws ImhotepOutOfMemoryException {
         final ImhotepRequest.Builder requestBuilder = getBuilderForType(ImhotepRequest.RequestType.GET_SUBSET_FTGS_ITERATOR)
-                .setSessionId(getSessionId());
+                .setSessionId(getSessionId())
+                .setInputGroups(groupsName);
         addSubsetFieldsAndTermsToBuilder(intFields, stringFields, requestBuilder);
         if (stats != null) {
             for (final List<String> stat : stats) {
@@ -397,7 +400,7 @@ public class ImhotepRemoteSession
         }
     }
 
-    public FTGSIterator getFTGSIteratorSplit(final String[] intFields, final String[] stringFields, @Nullable final List<List<String>> stats, final int splitIndex, final int numSplits, final long termLimit) throws ImhotepOutOfMemoryException {
+    public FTGSIterator getFTGSIteratorSplit(final String groupsName, final String[] intFields, final String[] stringFields, @Nullable final List<List<String>> stats, final int splitIndex, final int numSplits, final long termLimit) throws ImhotepOutOfMemoryException {
         checkSplitParams(splitIndex, numSplits);
         final ImhotepRequest.Builder builder = getBuilderForType(ImhotepRequest.RequestType.GET_FTGS_SPLIT)
                 .setSessionId(getSessionId())
@@ -406,6 +409,7 @@ public class ImhotepRemoteSession
                 .setSplitIndex(splitIndex)
                 .setNumSplits(numSplits)
                 .setTermLimit(termLimit)
+                .setInputGroups(groupsName)
                 .setSortStat(-1) // never top terms
                 .setSortedFTGS(true); // always sorted
         if (stats != null) {
@@ -419,6 +423,7 @@ public class ImhotepRemoteSession
     }
 
     public FTGSIterator getSubsetFTGSIteratorSplit(
+            final String groupsName,
             final Map<String, long[]> intFields,
             final Map<String, String[]> stringFields,
             @Nullable final List<List<String>> stats,
@@ -428,7 +433,8 @@ public class ImhotepRemoteSession
         final ImhotepRequest.Builder requestBuilder = getBuilderForType(ImhotepRequest.RequestType.GET_SUBSET_FTGS_SPLIT)
                 .setSessionId(getSessionId())
                 .setSplitIndex(splitIndex)
-                .setNumSplits(numSplits);
+                .setNumSplits(numSplits)
+                .setInputGroups(groupsName);
         if (stats != null) {
             requestBuilder
                     .addAllDocStat(stats.stream().map(x -> DocStat.newBuilder().addAllStat(x).build()).collect(Collectors.toList()))
@@ -441,6 +447,7 @@ public class ImhotepRemoteSession
     }
 
     public FTGSIterator mergeFTGSSplit(
+            final String groupsName,
             final FTGSParams params,
             final InetSocketAddress[] nodes,
             final int splitIndex) throws ImhotepOutOfMemoryException {
@@ -454,6 +461,7 @@ public class ImhotepRemoteSession
                 .setSortStat(params.sortStat)
                 .setSortedFTGS(params.sorted)
                 .setStatsSortOrder(params.statsSortOrder)
+                .setInputGroups(groupsName)
                 .addAllNodes(Iterables.transform(Arrays.asList(nodes), new Function<InetSocketAddress, HostAndPort>() {
                     public HostAndPort apply(final InetSocketAddress input) {
                         return HostAndPort.newBuilder().setHost(input.getHostName()).setPort(input.getPort()).build();
@@ -471,7 +479,8 @@ public class ImhotepRemoteSession
         return result;
     }
 
-    public GroupStatsIterator mergeDistinctSplit(final String field,
+    public GroupStatsIterator mergeDistinctSplit(final String groupsName,
+                                                 final String field,
                                                  final boolean isIntField,
                                                  final InetSocketAddress[] nodes,
                                                  final int splitIndex) {
@@ -481,6 +490,7 @@ public class ImhotepRemoteSession
                 .setField(field)
                 .setIsIntField(isIntField)
                 .setSplitIndex(splitIndex)
+                .setInputGroups(groupsName)
                 .addAllNodes(Iterables.transform(Arrays.asList(nodes), input -> HostAndPort.newBuilder().setHost(input.getHostName()).setPort(input.getPort()).build()))
                 .build();
         try {
@@ -503,6 +513,7 @@ public class ImhotepRemoteSession
     }
 
     public FTGSIterator mergeSubsetFTGSSplit(
+            final String groupsName,
             final Map<String, long[]> intFields,
             final Map<String, String[]> stringFields,
             @Nullable final List<List<String>> stats,
@@ -512,6 +523,7 @@ public class ImhotepRemoteSession
         final ImhotepRequest.Builder requestBuilder = getBuilderForType(ImhotepRequest.RequestType.MERGE_SUBSET_FTGS_SPLIT)
                 .setSessionId(getSessionId())
                 .setSplitIndex(splitIndex)
+                .setInputGroups(groupsName)
                 .addAllNodes(Iterables.transform(Arrays.asList(nodes), new Function<InetSocketAddress, HostAndPort>() {
                     public HostAndPort apply(final InetSocketAddress input) {
                         return HostAndPort.newBuilder().setHost(input.getHostName()).setPort(input.getPort()).build();
@@ -530,11 +542,12 @@ public class ImhotepRemoteSession
     }
 
     @Override
-    public GroupStatsIterator getDistinct(final String field, final boolean isIntField) {
+    public GroupStatsIterator getDistinct(final String groupsName, final String field, final boolean isIntField) {
         final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.GET_DISTINCT)
                 .setSessionId(getSessionId())
                 .setField(field)
                 .setIsIntField(isIntField)
+                .setInputGroups(groupsName)
                 .build();
         try {
             return sendGroupStatsIteratorRequest(request);
@@ -612,25 +625,28 @@ public class ImhotepRemoteSession
     }
 
     @Override
-    public int regroup(final GroupMultiRemapRule[] rawRules,
+    public int regroup(final RegroupParams regroupParams,
+                       final GroupMultiRemapRule[] rawRules,
                        final boolean errorOnCollisions) throws ImhotepOutOfMemoryException {
         final GroupMultiRemapRuleSender ruleSender =
                 GroupMultiRemapRuleSender.createFromRules(Arrays.asList(rawRules).iterator(), false);
-        return regroupWithSender(ruleSender, errorOnCollisions);
+        return regroupWithSender(regroupParams, ruleSender, errorOnCollisions);
     }
 
     @Override
-    public int regroupWithProtos(final GroupMultiRemapMessage[] rawRuleMessages,
+    public int regroupWithProtos(final RegroupParams regroupParams,
+                                 final GroupMultiRemapMessage[] rawRuleMessages,
                                  final boolean errorOnCollisions) throws ImhotepOutOfMemoryException {
         final RequestTools.GroupMultiRemapRuleSender ruleSender =
                 GroupMultiRemapRuleSender.createFromMessages(Arrays.asList(rawRuleMessages).iterator(), false);
-        return regroupWithSender(ruleSender, errorOnCollisions);
+        return regroupWithSender(regroupParams, ruleSender, errorOnCollisions);
     }
 
-    public int regroupWithSender(final GroupMultiRemapRuleSender ruleSender,
+    public int regroupWithSender(final RegroupParams regroupParams,
+                                 final GroupMultiRemapRuleSender ruleSender,
                                  final boolean errorOnCollisions) throws ImhotepOutOfMemoryException {
         try {
-            final int result = sendMultisplitRegroupRequest(ruleSender, errorOnCollisions);
+            final int result = sendMultisplitRegroupRequest(regroupParams, ruleSender, errorOnCollisions);
             return result;
         } catch (final IOException e) {
             throw newRuntimeException(e);
@@ -638,38 +654,23 @@ public class ImhotepRemoteSession
     }
 
     @Override
-    public int regroup(final int numRawRules,
+    public int regroup(final RegroupParams regroupParams,
+                       final int numRawRules,
                        final Iterator<GroupMultiRemapRule> rawRules,
                        final boolean errorOnCollisions) throws ImhotepOutOfMemoryException {
         final GroupMultiRemapRuleSender ruleSender = GroupMultiRemapRuleSender.createFromRules(rawRules, false);
-        return regroupWithSender(ruleSender, errorOnCollisions);
+        return regroupWithSender(regroupParams, ruleSender, errorOnCollisions);
     }
 
     @Override
-    public int regroup(final GroupRemapRule[] rawRules) throws ImhotepOutOfMemoryException {
-        final List<GroupRemapMessage> protoRules = ImhotepClientMarshaller.marshal(rawRules);
-
-        final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.REGROUP)
-                .setSessionId(getSessionId())
-                .addAllRemapRules(protoRules)
-                .build();
-
-        try {
-            final ImhotepResponse response = sendRequestWithMemoryException(request, host, port, socketTimeout);
-            final int result = response.getNumGroups();
-            return result;
-        } catch (final IOException e) {
-            throw newRuntimeException(e);
-        }
-    }
-
-    @Override
-    public int regroup(final QueryRemapRule rule) throws ImhotepOutOfMemoryException {
+    public int regroup(final RegroupParams regroupParams, final QueryRemapRule rule) throws ImhotepOutOfMemoryException {
         final QueryRemapMessage protoRule = ImhotepClientMarshaller.marshal(rule);
 
         final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.QUERY_REGROUP)
                 .setSessionId(getSessionId())
                 .setQueryRemapRule(protoRule)
+                .setInputGroups(regroupParams.getInputGroups())
+                .setOutputGroups(regroupParams.getOutputGroups())
                 .build();
 
         try {
@@ -683,12 +684,13 @@ public class ImhotepRemoteSession
 
     @Override
     public void intOrRegroup(
+            final RegroupParams regroupParams,
             final String field,
             final long[] terms,
             final int targetGroup,
             final int negativeGroup,
             final int positiveGroup) throws ImhotepOutOfMemoryException {
-        final ImhotepRequestSender request = createSender(buildIntOrRegroupRequest(field, terms, targetGroup, negativeGroup, positiveGroup));
+        final ImhotepRequestSender request = createSender(buildIntOrRegroupRequest(regroupParams, field, terms, targetGroup, negativeGroup, positiveGroup));
         sendVoidRequest(request);
     }
 
@@ -700,7 +702,7 @@ public class ImhotepRemoteSession
         }
     }
 
-    protected ImhotepRequest buildIntOrRegroupRequest(String field, long[] terms, int targetGroup, int negativeGroup, int positiveGroup) {
+    protected ImhotepRequest buildIntOrRegroupRequest(final RegroupParams regroupParams, String field, long[] terms, int targetGroup, int negativeGroup, int positiveGroup) {
         return getBuilderForType(ImhotepRequest.RequestType.INT_OR_REGROUP)
                     .setSessionId(getSessionId())
                     .setField(field)
@@ -708,21 +710,24 @@ public class ImhotepRemoteSession
                     .setTargetGroup(targetGroup)
                     .setNegativeGroup(negativeGroup)
                     .setPositiveGroup(positiveGroup)
+                    .setInputGroups(regroupParams.getInputGroups())
+                    .setOutputGroups(regroupParams.getOutputGroups())
                     .build();
     }
 
     @Override
     public void stringOrRegroup(
+            final RegroupParams regroupParams,
             final String field,
             final String[] terms,
             final int targetGroup,
             final int negativeGroup,
             final int positiveGroup) throws ImhotepOutOfMemoryException {
-        final ImhotepRequestSender request = createSender(buildStringOrRegroupRequest(field, terms, targetGroup, negativeGroup, positiveGroup));
+        final ImhotepRequestSender request = createSender(buildStringOrRegroupRequest(regroupParams, field, terms, targetGroup, negativeGroup, positiveGroup));
         sendVoidRequest(request);
     }
 
-    protected ImhotepRequest buildStringOrRegroupRequest(String field, String[] terms, int targetGroup, int negativeGroup, int positiveGroup) {
+    protected ImhotepRequest buildStringOrRegroupRequest(final RegroupParams regroupParams, String field, String[] terms, int targetGroup, int negativeGroup, int positiveGroup) {
         return getBuilderForType(ImhotepRequest.RequestType.STRING_OR_REGROUP)
                     .setSessionId(getSessionId())
                     .setField(field)
@@ -730,11 +735,14 @@ public class ImhotepRemoteSession
                     .setTargetGroup(targetGroup)
                     .setNegativeGroup(negativeGroup)
                     .setPositiveGroup(positiveGroup)
+                    .setInputGroups(regroupParams.getInputGroups())
+                    .setOutputGroups(regroupParams.getOutputGroups())
                     .build();
     }
 
     @Override
     public void regexRegroup(
+            final RegroupParams regroupParams,
             final String field,
             final String regex,
             final int targetGroup,
@@ -747,6 +755,8 @@ public class ImhotepRemoteSession
                 .setTargetGroup(targetGroup)
                 .setNegativeGroup(negativeGroup)
                 .setPositiveGroup(positiveGroup)
+                .setInputGroups(regroupParams.getInputGroups())
+                .setOutputGroups(regroupParams.getOutputGroups())
                 .build();
 
         try {
@@ -758,6 +768,7 @@ public class ImhotepRemoteSession
 
     @Override
     public void randomRegroup(
+            final RegroupParams regroupParams,
             final String field,
             final boolean isIntField,
             final String salt,
@@ -774,6 +785,8 @@ public class ImhotepRemoteSession
                 .setTargetGroup(targetGroup)
                 .setNegativeGroup(negativeGroup)
                 .setPositiveGroup(positiveGroup)
+                .setInputGroups(regroupParams.getInputGroups())
+                .setOutputGroups(regroupParams.getOutputGroups())
                 .build();
 
         try {
@@ -785,6 +798,7 @@ public class ImhotepRemoteSession
 
     @Override
     public void randomMultiRegroup(
+            final RegroupParams regroupParams,
             final String field,
             final boolean isIntField,
             final String salt,
@@ -799,6 +813,8 @@ public class ImhotepRemoteSession
                 .setTargetGroup(targetGroup)
                 .addAllPercentages(Doubles.asList(percentages))
                 .addAllResultGroups(Ints.asList(resultGroups))
+                .setInputGroups(regroupParams.getInputGroups())
+                .setOutputGroups(regroupParams.getOutputGroups())
                 .build();
 
         try {
@@ -809,7 +825,7 @@ public class ImhotepRemoteSession
     }
 
     @Override
-    public void randomMetricRegroup(final List<String> stat, final String salt, final double p, final int targetGroup, final int negativeGroup, final int positiveGroup) throws ImhotepOutOfMemoryException {
+    public void randomMetricRegroup(final RegroupParams regroupParams, final List<String> stat, final String salt, final double p, final int targetGroup, final int negativeGroup, final int positiveGroup) throws ImhotepOutOfMemoryException {
         final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.RANDOM_METRIC_REGROUP)
                 .setSessionId(getSessionId())
                 .addDocStat(DocStat.newBuilder().addAllStat(stat))
@@ -819,6 +835,8 @@ public class ImhotepRemoteSession
                 .setTargetGroup(targetGroup)
                 .setNegativeGroup(negativeGroup)
                 .setPositiveGroup(positiveGroup)
+                .setInputGroups(regroupParams.getInputGroups())
+                .setOutputGroups(regroupParams.getOutputGroups())
                 .build();
 
         try {
@@ -829,7 +847,7 @@ public class ImhotepRemoteSession
     }
 
     @Override
-    public void randomMetricMultiRegroup(final List<String> stat, final String salt, final int targetGroup, final double[] percentages, final int[] resultGroups) throws ImhotepOutOfMemoryException {
+    public void randomMetricMultiRegroup(final RegroupParams regroupParams, final List<String> stat, final String salt, final int targetGroup, final double[] percentages, final int[] resultGroups) throws ImhotepOutOfMemoryException {
         final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.RANDOM_METRIC_MULTI_REGROUP)
                 .setSessionId(getSessionId())
                 .addDocStat(DocStat.newBuilder().addAllStat(stat))
@@ -838,6 +856,8 @@ public class ImhotepRemoteSession
                 .setTargetGroup(targetGroup)
                 .addAllPercentages(Doubles.asList(percentages))
                 .addAllResultGroups(Ints.asList(resultGroups))
+                .setInputGroups(regroupParams.getInputGroups())
+                .setOutputGroups(regroupParams.getOutputGroups())
                 .build();
 
         try {
@@ -848,7 +868,7 @@ public class ImhotepRemoteSession
     }
 
     @Override
-    public int metricRegroup(final List<String> stat, final long min, final long max, final long intervalSize, final boolean noGutters) throws ImhotepOutOfMemoryException {
+    public int metricRegroup(final RegroupParams regroupParams, final List<String> stat, final long min, final long max, final long intervalSize, final boolean noGutters) throws ImhotepOutOfMemoryException {
         final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.METRIC_REGROUP)
                 .setSessionId(getSessionId())
                 .setXStatDocstat(DocStat.newBuilder().addAllStat(stat))
@@ -856,6 +876,8 @@ public class ImhotepRemoteSession
                 .setXMax(max)
                 .setXIntervalSize(intervalSize)
                 .setNoGutters(noGutters)
+                .setInputGroups(regroupParams.getInputGroups())
+                .setOutputGroups(regroupParams.getOutputGroups())
                 .build();
 
         try {
@@ -868,17 +890,19 @@ public class ImhotepRemoteSession
     }
 
     @Override
-    public int regroup(final int[] fromGroups, final int[] toGroups, final boolean filterOutNotTargeted) throws ImhotepOutOfMemoryException {
-        final ImhotepRequestSender request = createSender(buildGroupRemapRequest(fromGroups, toGroups, filterOutNotTargeted));
+    public int regroup(final RegroupParams regroupParams, final int[] fromGroups, final int[] toGroups, final boolean filterOutNotTargeted) throws ImhotepOutOfMemoryException {
+        final ImhotepRequestSender request = createSender(buildGroupRemapRequest(regroupParams, fromGroups, toGroups, filterOutNotTargeted));
         return sendRegroupRequest(request);
     }
 
-    public ImhotepRequest buildGroupRemapRequest(final int[] fromGroups, final int[] toGroups, final boolean filterOutNotTargeted) throws ImhotepOutOfMemoryException {
+    public ImhotepRequest buildGroupRemapRequest(final RegroupParams regroupParams, final int[] fromGroups, final int[] toGroups, final boolean filterOutNotTargeted) throws ImhotepOutOfMemoryException {
         return getBuilderForType(ImhotepRequest.RequestType.REMAP_GROUPS)
                 .setSessionId(getSessionId())
                 .addAllFromGroups(Ints.asList(fromGroups))
                 .addAllToGroups(Ints.asList(toGroups))
                 .setFilterOutNotTargeted(filterOutNotTargeted)
+                .setInputGroups(regroupParams.getInputGroups())
+                .setOutputGroups(regroupParams.getOutputGroups())
                 .build();
     }
 
@@ -893,13 +917,15 @@ public class ImhotepRemoteSession
     }
 
     @Override
-    public int metricFilter(final List<String> stat, final long min, final long max, final boolean negate) throws ImhotepOutOfMemoryException {
+    public int metricFilter(final RegroupParams regroupParams, final List<String> stat, final long min, final long max, final boolean negate) throws ImhotepOutOfMemoryException {
         final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.METRIC_FILTER)
                 .setSessionId(getSessionId())
                 .setXStatDocstat(DocStat.newBuilder().addAllStat(stat))
                 .setXMin(min)
                 .setXMax(max)
                 .setNegate(negate)
+                .setInputGroups(regroupParams.getInputGroups())
+                .setOutputGroups(regroupParams.getOutputGroups())
                 .build();
         try {
             final ImhotepResponse response = sendRequestWithMemoryException(request, host, port, socketTimeout);
@@ -911,7 +937,7 @@ public class ImhotepRemoteSession
     }
 
     @Override
-    public int metricFilter(final List<String> stat, final long min, final long max, final int targetGroup, final int negativeGroup, final int positiveGroup) throws ImhotepOutOfMemoryException {
+    public int metricFilter(final RegroupParams regroupParams, final List<String> stat, final long min, final long max, final int targetGroup, final int negativeGroup, final int positiveGroup) throws ImhotepOutOfMemoryException {
         final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.METRIC_FILTER)
                 .setSessionId(getSessionId())
                 .setXStatDocstat(DocStat.newBuilder().addAllStat(stat))
@@ -920,6 +946,8 @@ public class ImhotepRemoteSession
                 .setTargetGroup(targetGroup)
                 .setPositiveGroup(positiveGroup)
                 .setNegativeGroup(negativeGroup)
+                .setInputGroups(regroupParams.getInputGroups())
+                .setOutputGroups(regroupParams.getOutputGroups())
                 .build();
         try {
             final ImhotepResponse response = sendRequestWithMemoryException(request, host, port, socketTimeout);
@@ -944,6 +972,36 @@ public class ImhotepRemoteSession
             final List<TermCount> result =
                 ImhotepClientMarshaller.marshal(response.getTopTermsList());
             return result;
+        } catch (final IOException e) {
+            throw newRuntimeException(e);
+        }
+    }
+
+    @Override
+    public void consolidateGroups(final List<String> inputGroups, final Operator operation, final String outputGroups) throws ImhotepOutOfMemoryException {
+        final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.CONSOLIDATE_GROUPS)
+                .setSessionId(getSessionId())
+                .addAllConsolidatedGroups(inputGroups)
+                .setOutputGroups(outputGroups)
+                .setGroupConsolidationOperation(operation)
+                .build();
+
+        try {
+            sendRequestWithMemoryException(request, host, port, socketTimeout);
+        } catch (final IOException e) {
+            throw newRuntimeException(e);
+        }
+    }
+
+    @Override
+    public void deleteGroups(final List<String> groupsToDelete) {
+        final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.DELETE_GROUPS)
+                .setSessionId(getSessionId())
+                .addAllGroupsToDelete(groupsToDelete)
+                .build();
+
+        try {
+            sendRequest(request, host, port, socketTimeout);
         } catch (final IOException e) {
             throw newRuntimeException(e);
         }
@@ -996,9 +1054,10 @@ public class ImhotepRemoteSession
     }
 
     @Override
-    public int getNumGroups() {
+    public int getNumGroups(final String groupsName) {
         final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.GET_NUM_GROUPS)
                 .setSessionId(getSessionId())
+                .setInputGroups(groupsName)
                 .build();
         try {
             final ImhotepResponse response = sendRequest(request, host, port, socketTimeout);
@@ -1024,11 +1083,12 @@ public class ImhotepRemoteSession
     }
 
     @Override
-    public void updateDynamicMetric(final String name, final int[] deltas) {
+    public void updateDynamicMetric(final String groupsName, final String name, final int[] deltas) {
         final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.UPDATE_DYNAMIC_METRIC)
                 .setSessionId(getSessionId())
                 .setDynamicMetricName(name)
                 .addAllDynamicMetricDeltas(Ints.asList(deltas))
+                .setInputGroups(groupsName)
                 .build();
 
         try {
@@ -1058,7 +1118,7 @@ public class ImhotepRemoteSession
     }
 
     @Override
-    public void groupConditionalUpdateDynamicMetric(final String name, final int[] groups, final RegroupCondition[] conditions, final int[] deltas) {
+    public void groupConditionalUpdateDynamicMetric(final String groupsName, final String name, final int[] groups, final RegroupCondition[] conditions, final int[] deltas) {
         final List<RegroupConditionMessage> conditionMessages = ImhotepClientMarshaller.marshal(conditions);
 
         final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.GROUP_CONDITIONAL_UPDATE_DYNAMIC_METRIC)
@@ -1067,6 +1127,7 @@ public class ImhotepRemoteSession
                 .addAllGroups(Ints.asList(groups))
                 .addAllConditions(conditionMessages)
                 .addAllDynamicMetricDeltas(Ints.asList(deltas))
+                .setInputGroups(groupsName)
                 .build();
         try {
             sendRequest(request, host, port, socketTimeout);
@@ -1076,7 +1137,7 @@ public class ImhotepRemoteSession
     }
 
     @Override
-    public void groupQueryUpdateDynamicMetric(final String name, final int[] groups, final Query[] conditions, final int[] deltas) {
+    public void groupQueryUpdateDynamicMetric(final String groupsName, final String name, final int[] groups, final Query[] conditions, final int[] deltas) {
         final List<QueryMessage> queryMessages = new ArrayList<>();
         for (final Query q : conditions) {
             queryMessages.add(ImhotepClientMarshaller.marshal(q));
@@ -1088,6 +1149,7 @@ public class ImhotepRemoteSession
                 .addAllGroups(Ints.asList(groups))
                 .addAllQueryMessages(queryMessages)
                 .addAllDynamicMetricDeltas(Ints.asList(deltas))
+                .setInputGroups(groupsName)
                 .build();
         try {
             sendRequest(request, host, port, socketTimeout);
@@ -1097,11 +1159,12 @@ public class ImhotepRemoteSession
     }
 
     @Override
-    public void rebuildAndFilterIndexes(final List<String> intFields, final List<String> stringFields) throws ImhotepOutOfMemoryException {
+    public void rebuildAndFilterIndexes(final String groupsName, final List<String> intFields, final List<String> stringFields) throws ImhotepOutOfMemoryException {
         final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.OPTIMIZE_SESSION)
                 .setSessionId(getSessionId())
                 .addAllIntFields(intFields)
                 .addAllStringFields(stringFields)
+                .setInputGroups(groupsName)
                 .build();
 
         try {
@@ -1144,9 +1207,10 @@ public class ImhotepRemoteSession
     }
 
     @Override
-    public void resetGroups() {
+    public void resetGroups(final String groupsName) {
         final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.RESET_GROUPS)
                 .setSessionId(getSessionId())
+                .setInputGroups(groupsName)
                 .build();
 
         try {
@@ -1227,12 +1291,15 @@ public class ImhotepRemoteSession
     }
 
     public int sendMultisplitRegroupRequest(
+            final RegroupParams regroupParams,
             final GroupMultiRemapRuleSender rulesSender,
             final boolean errorOnCollisions) throws IOException, ImhotepOutOfMemoryException {
         final ImhotepRequest initialRequest = getBuilderForType(ImhotepRequest.RequestType.EXPLODED_MULTISPLIT_REGROUP)
                 .setLength(rulesSender.getRulesCount())
                 .setSessionId(getSessionId())
                 .setErrorOnCollisions(errorOnCollisions)
+                .setInputGroups(regroupParams.getInputGroups())
+                .setOutputGroups(regroupParams.getOutputGroups())
                 .build();
 
         final Socket socket = newSocket(host, port, socketTimeout);
