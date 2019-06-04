@@ -8,6 +8,7 @@ import javax.annotation.Nullable;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -23,7 +24,7 @@ public class TaskSnapshot {
     @Nullable public final String shardPath;
     @Nullable public final RequestContext requestContext;
     @Nullable public final Long numDocs;
-    @Nullable public final Integer numGroups;
+    @Nullable public final Map<String, Integer> numGroups;
     @Nullable public final Integer numStats;
     public final Duration timeSinceCreation;
     @Nullable public final String userName;
@@ -77,6 +78,7 @@ public class TaskSnapshot {
                 .orElse(null);
         this.numDocs = (innerSession == null) ? ((numDocs != null) ? (long)(int)numDocs : null) : (Long)innerSession.getNumDocs();
         this.numStats = (innerSession == null) ? null : innerSession.weakGetNumStats();
+        // TODO: is this good? maybe Map<String, Integer>?
         this.numGroups = (innerSession == null) ? null : innerSession.weakGetNumGroups();
         // end innerSession access
     }

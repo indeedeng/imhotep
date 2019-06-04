@@ -16,6 +16,8 @@
 import com.google.common.base.Preconditions;
 import com.indeed.flamdex.datastruct.FastBitSet;
 import com.indeed.imhotep.BitTree;
+import com.indeed.imhotep.MemoryReservationContext;
+import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 
 import java.util.Arrays;
 
@@ -36,6 +38,12 @@ final class BitSetGroupLookup extends GroupLookup {
         this.nonZeroGroup = nonZeroGroup;
     }
 
+    private BitSetGroupLookup(final FastBitSet bitSet, final int size, final int nonZeroGroup) {
+        this.bitSet = bitSet;
+        this.size = size;
+        this.nonZeroGroup = nonZeroGroup;
+    }
+
     int getNonZeroGroup() {
         return nonZeroGroup;
     }
@@ -43,6 +51,24 @@ final class BitSetGroupLookup extends GroupLookup {
     void setNonZeroGroup(final int nonZeroGroup) {
         Preconditions.checkArgument(nonZeroGroup > 0, "nonZeroGroup must be positive");
         this.nonZeroGroup = nonZeroGroup;
+    }
+
+    void invertAllGroups() {
+        Preconditions.checkState(nonZeroGroup == 1, "Can only invert 0 <-> 1");
+        bitSet.invertAll();
+        recalculateNumGroups();
+    }
+
+    void and(final BitSetGroupLookup other) {
+        Preconditions.checkState((nonZeroGroup == 1) && (other.nonZeroGroup == 1), "Can only do AND on {0, 1} bitsets");
+        bitSet.and(other.bitSet);
+        recalculateNumGroups();
+    }
+
+    void or(final BitSetGroupLookup other) {
+        Preconditions.checkState((nonZeroGroup == 1) && (other.nonZeroGroup == 1), "Can only do OR on {0, 1} bitsets");
+        bitSet.or(other.bitSet);
+        recalculateNumGroups();
     }
 
     @Override
@@ -110,6 +136,16 @@ final class BitSetGroupLookup extends GroupLookup {
     }
 
     @Override
+    public BitSetGroupLookup makeCopy(final MemoryReservationContext memory) throws ImhotepOutOfMemoryException {
+        if (!memory.claimMemory(memoryUsed())) {
+            throw new ImhotepOutOfMemoryException();
+        }
+        final BitSetGroupLookup bitSetGroupLookup = new BitSetGroupLookup(new FastBitSet(this.bitSet), size, nonZeroGroup);
+        bitSetGroupLookup.numGroups = numGroups;
+        return bitSetGroupLookup;
+    }
+
+    @Override
     public void copyInto(final GroupLookup other) {
         if (size != other.size()) {
             throw new IllegalArgumentException("size does not match other.size: size="+size+", other.size="+other.size());
@@ -133,7 +169,7 @@ final class BitSetGroupLookup extends GroupLookup {
 
     @Override
     public long memoryUsed() {
-        return bitSet.memoryUsage();
+        return calcMemUsageForSize(size);
     }
 
     @Override
@@ -193,6 +229,9 @@ final class BitSetGroupLookup extends GroupLookup {
     }
 
     public static long calcMemUsageForSize(final int sz) {
-        return 8L * ((sz + 64) >> 6);
+        // Deliberately undercount by a tiny amount in order to not shrink into ByteGroupLookup
+        // when we have a very small number of documents.
+        return 1 + (sz / 8);
+        // return 8L * ((sz + 64) >> 6);
     }
 }

@@ -39,11 +39,12 @@ class FlamdexSubsetFTGSIterator extends AbstractFlamdexFTGSIterator {
 
     public FlamdexSubsetFTGSIterator(
             final ImhotepLocalSession imhotepLocalSession,
+            final GroupLookup docIdToGroup,
             final SharedReference<FlamdexReader> flamdexReader,
             final Map<String, long[]> intFieldToTerms,
             final Map<String, String[]> stringFieldToTerms,
             final ImhotepLocalSession.MetricStack stack) throws ImhotepOutOfMemoryException {
-        super(imhotepLocalSession, flamdexReader, stack);
+        super(imhotepLocalSession, docIdToGroup, flamdexReader, stack);
         this.intFieldToTermsIterator = intFieldToTerms.entrySet().iterator();
         this.stringFieldToTermsIterator = stringFieldToTerms.entrySet().iterator();
         docIdStream = flamdexReader.get().getDocIdStream();

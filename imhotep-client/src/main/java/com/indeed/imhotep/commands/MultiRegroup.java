@@ -5,6 +5,7 @@ import com.indeed.imhotep.ImhotepRemoteSession;
 import com.indeed.imhotep.api.CommandSerializationParameters;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
+import com.indeed.imhotep.api.RegroupParams;
 import com.indeed.imhotep.io.RequestTools.GroupMultiRemapRuleSender;
 import com.indeed.imhotep.io.RequestTools.ImhotepRequestSender;
 import com.indeed.imhotep.protobuf.ImhotepRequest;
@@ -20,32 +21,36 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-@EqualsAndHashCode
+@EqualsAndHashCode(callSuper = true)
 @ToString
 /**
  * Initializes the groupMultiRemapRuleSender only when its getter is called, to avoid its creation on the server side.
  */
 public class MultiRegroup extends AbstractImhotepCommand<Integer> {
 
+    private final RegroupParams regroupParams;
     private final GroupMultiRemapRule[] rules;
     @Getter(lazy = true)
     private final GroupMultiRemapRuleSender groupMultiRemapRuleSender = GroupMultiRemapRuleSender.createFromRules(Arrays.asList(rules).iterator(), true);
     private final boolean errorOnCollision;
 
-    private MultiRegroup(final GroupMultiRemapRule[] rules, final boolean errorOnCollision, final String sessionId) {
+    private MultiRegroup(final RegroupParams regroupParams, final GroupMultiRemapRule[] rules, final boolean errorOnCollision, final String sessionId) {
         super(sessionId, Integer.class);
+        this.regroupParams = regroupParams;
         this.rules = rules;
         this.errorOnCollision = errorOnCollision;
     }
 
-    public static MultiRegroup createMultiRegroupCommand(final GroupMultiRemapRule[] rules, final boolean errorOnCollision, final String sessionId) {
-        return new MultiRegroup(rules, errorOnCollision, sessionId);
+    public static MultiRegroup createMultiRegroupCommand(final RegroupParams regroupParams, final GroupMultiRemapRule[] rules, final boolean errorOnCollision, final String sessionId) {
+        return new MultiRegroup(regroupParams, rules, errorOnCollision, sessionId);
     }
 
     @Override
     protected ImhotepRequestSender imhotepRequestSenderInitializer() {
         final ImhotepRequest header = ImhotepRequest.newBuilder()
                 .setRequestType(ImhotepRequest.RequestType.EXPLODED_MULTISPLIT_REGROUP)
+                .setInputGroups(regroupParams.getInputGroups())
+                .setOutputGroups(regroupParams.getOutputGroups())
                 .setSessionId(getSessionId())
                 .setLength(rules.length)
                 .setErrorOnCollisions(errorOnCollision)
@@ -67,7 +72,7 @@ public class MultiRegroup extends AbstractImhotepCommand<Integer> {
     }
 
     public Integer apply(final ImhotepSession session) throws ImhotepOutOfMemoryException {
-        return session.regroup(rules, errorOnCollision);
+        return session.regroup(regroupParams, rules, errorOnCollision);
     }
 
     @Override

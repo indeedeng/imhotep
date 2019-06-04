@@ -6,6 +6,8 @@ import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
 import com.indeed.imhotep.GroupMultiRemapRule;
+import com.indeed.imhotep.commands.ConsolidateGroups;
+import com.indeed.imhotep.commands.DeleteGroups;
 import com.indeed.imhotep.commands.GetGroupStats;
 import com.indeed.imhotep.commands.IntOrRegroup;
 import com.indeed.imhotep.commands.MetricRegroup;
@@ -16,6 +18,7 @@ import com.indeed.imhotep.commands.RandomMetricRegroup;
 import com.indeed.imhotep.commands.RandomMultiRegroup;
 import com.indeed.imhotep.commands.RandomRegroup;
 import com.indeed.imhotep.commands.RegexRegroup;
+import com.indeed.imhotep.commands.ResetGroups;
 import com.indeed.imhotep.commands.StringOrRegroup;
 import com.indeed.imhotep.commands.TargetedMetricFilter;
 import com.indeed.imhotep.commands.UnconditionalRegroup;
@@ -74,9 +77,10 @@ public interface ImhotepCommand<T> extends HasSessionId {
         final int numRules;
         switch (request.getRequestType()) {
             case STREAMING_GET_GROUP_STATS:
-                return new GetGroupStats(getSingleDocStatsList(request), request.getSessionId());
+                return new GetGroupStats(request.getInputGroups(), getSingleDocStatsList(request), request.getSessionId());
             case INT_OR_REGROUP:
                 return new IntOrRegroup(
+                        RegroupParams.fromImhotepRequest(request),
                         request.getField(),
                         Longs.toArray(request.getIntTermList()),
                         request.getTargetGroup(),
@@ -86,6 +90,7 @@ public interface ImhotepCommand<T> extends HasSessionId {
                 );
             case STRING_OR_REGROUP:
                 return new StringOrRegroup(
+                        RegroupParams.fromImhotepRequest(request),
                         request.getField(),
                         request.getStringTermList(),
                         request.getTargetGroup(),
@@ -95,6 +100,7 @@ public interface ImhotepCommand<T> extends HasSessionId {
                 );
             case METRIC_REGROUP:
                 return MetricRegroup.createMetricRegroup(
+                        RegroupParams.fromImhotepRequest(request),
                         request.getXStatDocstat().getStatList(),
                         request.getXMin(),
                         request.getXMax(),
@@ -104,6 +110,7 @@ public interface ImhotepCommand<T> extends HasSessionId {
                 );
             case RANDOM_METRIC_MULTI_REGROUP:
                 return new RandomMetricMultiRegroup(
+                        RegroupParams.fromImhotepRequest(request),
                         getSingleDocStatsList(request),
                         request.getSalt(),
                         request.getTargetGroup(),
@@ -113,6 +120,7 @@ public interface ImhotepCommand<T> extends HasSessionId {
                 );
             case RANDOM_METRIC_REGROUP:
                 return new RandomMetricRegroup(
+                        RegroupParams.fromImhotepRequest(request),
                         getSingleDocStatsList(request),
                         request.getSalt(),
                         request.getP(),
@@ -123,6 +131,7 @@ public interface ImhotepCommand<T> extends HasSessionId {
                 );
             case RANDOM_MULTI_REGROUP:
                 return new RandomMultiRegroup(
+                        RegroupParams.fromImhotepRequest(request),
                         request.getField(),
                         request.getIsIntField(),
                         request.getSalt(),
@@ -133,6 +142,7 @@ public interface ImhotepCommand<T> extends HasSessionId {
                 );
             case RANDOM_REGROUP:
                 return new RandomRegroup(
+                        RegroupParams.fromImhotepRequest(request),
                         request.getField(),
                         request.getIsIntField(),
                         request.getSalt(),
@@ -144,6 +154,7 @@ public interface ImhotepCommand<T> extends HasSessionId {
                 );
             case REGEX_REGROUP:
                 return new RegexRegroup(
+                        RegroupParams.fromImhotepRequest(request),
                         request.getField(),
                         request.getRegex(),
                         request.getTargetGroup(),
@@ -154,6 +165,7 @@ public interface ImhotepCommand<T> extends HasSessionId {
             case METRIC_FILTER:
                 if (request.getTargetGroup() > 0) {
                     return new TargetedMetricFilter(
+                            RegroupParams.fromImhotepRequest(request),
                             request.getXStatDocstat().getStatList(),
                             request.getXMin(),
                             request.getXMax(),
@@ -164,6 +176,7 @@ public interface ImhotepCommand<T> extends HasSessionId {
                     );
                 } else {
                     return new UntargetedMetricFilter(
+                            RegroupParams.fromImhotepRequest(request),
                             request.getXStatDocstat().getStatList(),
                             request.getXMin(),
                             request.getXMax(),
@@ -177,17 +190,36 @@ public interface ImhotepCommand<T> extends HasSessionId {
                 for (int i = 0; i < numRules; i++) {
                     rules[i] = ImhotepDaemonMarshaller.marshal(ImhotepProtobufShipping.readGroupMultiRemapMessage(is));
                 }
-                return MultiRegroup.createMultiRegroupCommand(rules, request.getErrorOnCollisions(), request.getSessionId());
+                return MultiRegroup.createMultiRegroupCommand(RegroupParams.fromImhotepRequest(request), rules, request.getErrorOnCollisions(), request.getSessionId());
             case QUERY_REGROUP:
                 return new QueryRegroup(
+                        RegroupParams.fromImhotepRequest(request),
                         ImhotepDaemonMarshaller.marshal(request.getQueryRemapRule()),
                         request.getSessionId()
                 );
             case REMAP_GROUPS:
                 return new UnconditionalRegroup(
+                        RegroupParams.fromImhotepRequest(request),
                         Ints.toArray(request.getFromGroupsList()),
                         Ints.toArray(request.getToGroupsList()),
                         request.getFilterOutNotTargeted(),
+                        request.getSessionId()
+                );
+            case CONSOLIDATE_GROUPS:
+                return new ConsolidateGroups(
+                        request.getConsolidatedGroupsList(),
+                        request.getGroupConsolidationOperation(),
+                        request.getOutputGroups(),
+                        request.getSessionId()
+                );
+            case RESET_GROUPS:
+                return new ResetGroups(
+                        request.getInputGroups(),
+                        request.getSessionId()
+                );
+            case DELETE_GROUPS:
+                return new DeleteGroups(
+                        request.getGroupsToDeleteList(),
                         request.getSessionId()
                 );
             default:

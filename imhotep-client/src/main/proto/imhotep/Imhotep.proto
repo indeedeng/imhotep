@@ -154,6 +154,8 @@ message ImhotepRequest {
     GET_SHARD_FILE_ATTRIBUTES = 54;
     LIST_SHARD_FILE_ATTRIBUTES = 55;
     BATCH_REQUESTS = 56;
+    CONSOLIDATE_GROUPS = 57;
+    DELETE_GROUPS = 58;
     SHUTDOWN = 255;
   }
 
@@ -327,6 +329,16 @@ message ImhotepRequest {
 
   // Number of individual requests in ImhotepBatchRequest
   optional uint32 imhotepRequestCount = 75;
+
+  optional string input_groups = 76 [default="DEFAULT"];
+  optional string output_groups = 77 [default="DEFAULT"];
+
+  // for CONSOLIDATE_GROUPS
+  repeated string consolidated_groups = 78;
+  optional Operator group_consolidation_operation = 79;
+
+  // for DELETE_GROUPS
+  repeated string groups_to_delete = 80;
 }
 
 message DocStat {
@@ -364,6 +376,7 @@ message MultiFTGSRequest {
     optional string field = 3;
     repeated DocStat stats = 4;
     optional bool hasStats = 5 [default=false];
+    optional string groups_name = 6 [default="DEFAULT"];
   }
 
   repeated MultiFTGSSession sessionInfo = 1;

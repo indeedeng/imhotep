@@ -15,6 +15,8 @@ package com.indeed.imhotep.local;
 
 import com.indeed.flamdex.datastruct.FastBitSet;
 import com.indeed.imhotep.BitTree;
+import com.indeed.imhotep.MemoryReservationContext;
+import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 
 import java.util.Arrays;
 
@@ -23,6 +25,10 @@ final class CharGroupLookup extends GroupLookup implements ArrayBasedGroupLookup
 
     CharGroupLookup(final int size) {
         docIdToGroup = new char[size];
+    }
+
+    private CharGroupLookup(final char[] docIdToGroup) {
+        this.docIdToGroup = docIdToGroup;
     }
 
     char[] getDocIdToGroup() { return docIdToGroup; }
@@ -83,6 +89,16 @@ final class CharGroupLookup extends GroupLookup implements ArrayBasedGroupLookup
         }
 
         Arrays.fill(docIdToGroup, (char)group);
+    }
+
+    @Override
+    public GroupLookup makeCopy(final MemoryReservationContext memory) throws ImhotepOutOfMemoryException {
+        if (!memory.claimMemory(memoryUsed())) {
+            throw new ImhotepOutOfMemoryException();
+        }
+        final CharGroupLookup charGroupLookup = new CharGroupLookup(Arrays.copyOf(docIdToGroup, docIdToGroup.length));
+        charGroupLookup.numGroups = numGroups;
+        return charGroupLookup;
     }
 
     @Override

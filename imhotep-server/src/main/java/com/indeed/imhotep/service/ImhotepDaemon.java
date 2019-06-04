@@ -39,6 +39,7 @@ import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepServiceCore;
 import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.api.PerformanceStats;
+import com.indeed.imhotep.api.RegroupParams;
 import com.indeed.imhotep.client.Host;
 import com.indeed.imhotep.exceptions.InvalidSessionException;
 import com.indeed.imhotep.fs.RemoteCachingFileSystemProvider;
@@ -349,6 +350,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             final QueryRemapMessage remapMessage = request.getQueryRemapRule();
             final int numGroups =
                 service.handleQueryRegroup(request.getSessionId(),
+                                           RegroupParams.fromImhotepRequest(request),
                                            ImhotepDaemonMarshaller.marshal(remapMessage));
             return builder.setNumGroups(numGroups).build();
         }
@@ -358,6 +360,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 final ImhotepResponse.Builder builder)
             throws ImhotepOutOfMemoryException {
             service.handleIntOrRegroup(request.getSessionId(),
+                                       RegroupParams.fromImhotepRequest(request),
                                        request.getField(),
                                        Longs.toArray(request.getIntTermList()),
                                        request.getTargetGroup(),
@@ -372,6 +375,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             throws ImhotepOutOfMemoryException {
             final String[] termList = new String[request.getStringTermCount()];
             service.handleStringOrRegroup(request.getSessionId(),
+                                          RegroupParams.fromImhotepRequest(request),
                                           request.getField(),
                                           request.getStringTermList().toArray(termList),
                                           request.getTargetGroup(),
@@ -385,6 +389,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 final ImhotepResponse.Builder builder)
             throws ImhotepOutOfMemoryException {
             service.handleRandomRegroup(request.getSessionId(),
+                                        RegroupParams.fromImhotepRequest(request),
                                         request.getField(),
                                         request.getIsIntField(),
                                         request.getSalt(),
@@ -400,6 +405,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 final ImhotepResponse.Builder builder)
             throws ImhotepOutOfMemoryException {
             service.handleRandomMultiRegroup(request.getSessionId(),
+                                             RegroupParams.fromImhotepRequest(request),
                                              request.getField(),
                                              request.getIsIntField(),
                                              request.getSalt(),
@@ -414,6 +420,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 final ImhotepResponse.Builder builder)
                 throws ImhotepOutOfMemoryException {
             service.handleRandomMetricRegroup(request.getSessionId(),
+                    RegroupParams.fromImhotepRequest(request),
                     getSingleStat(request),
                     request.getSalt(),
                     request.getP(),
@@ -428,6 +435,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 final ImhotepResponse.Builder builder)
                 throws ImhotepOutOfMemoryException {
             service.handleRandomMetricMultiRegroup(request.getSessionId(),
+                    RegroupParams.fromImhotepRequest(request),
                     getSingleStat(request),
                     request.getSalt(),
                     request.getTargetGroup(),
@@ -441,6 +449,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 final ImhotepResponse.Builder builder)
             throws ImhotepOutOfMemoryException {
             service.handleRegexRegroup(request.getSessionId(),
+                                       RegroupParams.fromImhotepRequest(request),
                                        request.getField(),
                                        request.getRegex(),
                                        request.getTargetGroup(),
@@ -456,6 +465,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             final int[] fromGroups = Ints.toArray(request.getFromGroupsList());
             final int[] toGroups = Ints.toArray(request.getToGroupsList());
             final int numGroups = service.handleRegroup(request.getSessionId(),
+                    RegroupParams.fromImhotepRequest(request),
                     fromGroups,
                     toGroups,
                     request.getFilterOutNotTargeted());
@@ -480,6 +490,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             final GroupStatsIterator groupStats =
                 service.handleGetGroupStats(
                         request.getSessionId(),
+                        request.getInputGroups(),
                         stat
                 );
             builder.setGroupStatSize(groupStats.getNumGroups());
@@ -490,8 +501,12 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                                                           final ImhotepResponse.Builder builder)
         {
             final GroupStatsIterator groupStats =
-                    service.handleGetDistinct(request.getSessionId(),
-                            request.getField(), request.getIsIntField());
+                    service.handleGetDistinct(
+                            request.getSessionId(),
+                            request.getInputGroups(),
+                            request.getField(),
+                            request.getIsIntField()
+                    );
             builder.setGroupStatSize(groupStats.getNumGroups());
             return Pair.of(builder.build(), groupStats);
         }
@@ -502,6 +517,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             final GroupStatsIterator groupStats =
                     service.handleMergeDistinctSplit(
                             request.getSessionId(),
+                            request.getInputGroups(),
                             request.getField(),
                             request.getIsIntField(),
                             request.getNodesList().toArray(new HostAndPort[0]),
@@ -546,6 +562,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 throws IOException, ImhotepOutOfMemoryException {
             checkSessionValidity(request);
             service.handleGetFTGSIterator(request.getSessionId(),
+                                          request.getInputGroups(),
                                           getFTGSParams(request),
                                           os);
         }
@@ -558,6 +575,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             checkSessionValidity(request);
             service.handleGetSubsetFTGSIterator(
                     request.getSessionId(),
+                    request.getInputGroups(),
                     getIntFieldsToTerms(request),
                     getStringFieldsToTerms(request),
                     getStats(request),
@@ -573,6 +591,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             checkSessionValidity(request);
             service.handleGetFTGSIteratorSplit(
                     request.getSessionId(),
+                    request.getInputGroups(),
                     getIntFields(request),
                     getStringFields(request),
                     os,
@@ -591,6 +610,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             checkSessionValidity(request);
             service.handleGetSubsetFTGSIteratorSplit(
                     request.getSessionId(),
+                    request.getInputGroups(),
                     getIntFieldsToTerms(request),
                     getStringFieldsToTerms(request),
                     getStats(request),
@@ -609,6 +629,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             final HostAndPort[] nodes = request.getNodesList().toArray(new HostAndPort[0]);
             final FTGSParams params = getFTGSParams(request);
             service.handleMergeFTGSIteratorSplit(request.getSessionId(),
+                                                 request.getInputGroups(),
                                                  params,
                                                  os, nodes, request.getSplitIndex());
         }
@@ -622,6 +643,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             final HostAndPort[] nodes = request.getNodesList().toArray(new HostAndPort[0]);
             service.handleMergeSubsetFTGSIteratorSplit(
                     request.getSessionId(),
+                    request.getInputGroups(),
                     getIntFieldsToTerms(request),
                     getStringFieldsToTerms(request),
                     getStats(request),
@@ -685,7 +707,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 final ImhotepRequest          request,
                 final ImhotepResponse.Builder builder)
             throws ImhotepOutOfMemoryException {
-            final int numGroups = service.handleGetNumGroups(request.getSessionId());
+            final int numGroups = service.handleGetNumGroups(request.getSessionId(), request.getInputGroups());
             builder.setNumGroups(numGroups);
             return builder.build();
         }
@@ -705,6 +727,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             throws ImhotepOutOfMemoryException {
             final int numGroups = service.handleMetricRegroup(
                     request.getSessionId(),
+                    RegroupParams.fromImhotepRequest(request),
                     getXStat(request),
                     request.getXMin(),
                     request.getXMax(),
@@ -723,6 +746,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             if (request.getTargetGroup() > 0) {
                 numGroups = service.handleMetricFilter(
                         request.getSessionId(),
+                        RegroupParams.fromImhotepRequest(request),
                         getXStat(request),
                         request.getXMin(),
                         request.getXMax(),
@@ -733,6 +757,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             } else {
                 numGroups = service.handleMetricFilter(
                         request.getSessionId(),
+                        RegroupParams.fromImhotepRequest(request),
                         getXStat(request),
                         request.getXMin(),
                         request.getXMax(),
@@ -757,6 +782,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 final ImhotepResponse.Builder builder)
             throws ImhotepOutOfMemoryException {
             service.handleUpdateDynamicMetric(request.getSessionId(),
+                                              request.getInputGroups(),
                                               request.getDynamicMetricName(),
                                               Ints.toArray(request.getDynamicMetricDeltasList()));
             return builder.build();
@@ -785,6 +811,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 ImhotepDaemonMarshaller.marshalRegroupConditionMessageList(conditionsList);
             final int[] deltas = Ints.toArray(request.getDynamicMetricDeltasList());
             service.handleGroupConditionalUpdateDynamicMetric(request.getSessionId(),
+                                                              request.getInputGroups(),
                                                               request.getDynamicMetricName(),
                                                               Ints.toArray(request.getGroupsList()),
                                                               conditions, deltas);
@@ -802,6 +829,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             }
             final int[] deltas = Ints.toArray(request.getDynamicMetricDeltasList());
             service.handleGroupQueryUpdateDynamicMetric(request.getSessionId(),
+                    request.getInputGroups(),
                     request.getDynamicMetricName(),
                     Ints.toArray(request.getGroupsList()),
                     queries, deltas);
@@ -813,6 +841,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 final ImhotepResponse.Builder builder)
             throws ImhotepOutOfMemoryException {
             service.handleRebuildAndFilterIndexes(request.getSessionId(),
+                                                  request.getInputGroups(),
                                                   getIntFields(request),
                                                   getStringFields(request));
             return builder.build();
@@ -822,7 +851,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 final ImhotepRequest          request,
                 final ImhotepResponse.Builder builder)
             throws ImhotepOutOfMemoryException {
-            service.handleResetGroups(request.getSessionId());
+            service.handleResetGroups(request.getSessionId(), request.getInputGroups());
             return builder.build();
         }
 
@@ -835,6 +864,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 ImhotepDaemonMarshaller.marshalGroupMultiRemapMessageList(ruleList);
             final int numGroups =
                 service.handleMultisplitRegroup(request.getSessionId(),
+                                                RegroupParams.fromImhotepRequest(request),
                                                 remapRules,
                                                 request.getErrorOnCollisions());
             builder.setNumGroups(numGroups);
@@ -872,6 +902,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                     };
             final int numGroups =
                     service.handleMultisplitRegroup(request.getSessionId(),
+                            RegroupParams.fromImhotepRequest(request),
                             numRules,
                             it,
                             request.getErrorOnCollisions());
@@ -959,6 +990,23 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             }
         }
 
+        private ImhotepResponse consolidateGroups(final ImhotepRequest request, final ImhotepResponse.Builder builder) throws ImhotepOutOfMemoryException {
+            service.handleConsolidateGroups(
+                request.getSessionId(),
+                request.getConsolidatedGroupsList(),
+                request.getGroupConsolidationOperation(),
+                request.getOutputGroups()
+            );
+            return builder.build();
+        }
+
+        private ImhotepResponse deleteGroups(final ImhotepRequest request, final ImhotepResponse.Builder builder) throws ImhotepOutOfMemoryException {
+            service.handleDeleteGroups(
+                request.getSessionId(),
+                request.getGroupsToDeleteList()
+            );
+            return builder.build();
+        }
 
         private void shutdown(
                 final ImhotepRequest request,
@@ -1122,6 +1170,12 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                     final Pair<ImhotepResponse, GroupStatsIterator> responseGroupStatsIteratorPair = executeBatchRequest(request, is, builder);
                     response = responseGroupStatsIteratorPair.getFirst();
                     groupStats = responseGroupStatsIteratorPair.getSecond();
+                    break;
+                case CONSOLIDATE_GROUPS:
+                    response = consolidateGroups(request, builder);
+                    break;
+                case DELETE_GROUPS:
+                    response = deleteGroups(request, builder);
                     break;
                 case SHUTDOWN:
                     shutdown(request, is, os);

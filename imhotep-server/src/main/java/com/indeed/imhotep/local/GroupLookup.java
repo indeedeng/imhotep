@@ -15,6 +15,8 @@ package com.indeed.imhotep.local;
 
 import com.indeed.flamdex.datastruct.FastBitSet;
 import com.indeed.imhotep.BitTree;
+import com.indeed.imhotep.MemoryReservationContext;
+import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 
 public abstract class GroupLookup {
     protected int numGroups;
@@ -33,6 +35,7 @@ public abstract class GroupLookup {
     public abstract void set(int doc, int group);
     public abstract void batchSet(int[] docIdBuf, int[] docGrpBuffer, int n);
     public abstract void fill(int group);
+    public abstract GroupLookup makeCopy(final MemoryReservationContext memory) throws ImhotepOutOfMemoryException;
     public abstract void copyInto(GroupLookup other);
     public abstract int size();
     public abstract int maxGroup();
@@ -47,5 +50,20 @@ public abstract class GroupLookup {
     // If this definition changes, please see ImhotepLocalSession::weakGetNumGroups
     public final int getNumGroups() {
         return numGroups;
+    }
+
+    public final boolean isFilteredOut() {
+        return numGroups == 1;
+    }
+
+    public int countGroupZeroDocs() {
+        final int numDocs = size();
+        int zeroCount = 0;
+        for (int i = 0; i < numDocs; i++) {
+            if (get(i) == 0) {
+                zeroCount += 1;
+            }
+        }
+        return zeroCount;
     }
 }

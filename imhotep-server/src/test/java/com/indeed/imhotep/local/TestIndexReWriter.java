@@ -23,6 +23,7 @@ import com.indeed.imhotep.ImhotepMemoryPool;
 import com.indeed.imhotep.MemoryReservationContext;
 import com.indeed.imhotep.RegroupCondition;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
+import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.io.TestFileUtils;
 import org.junit.Test;
 
@@ -112,6 +113,7 @@ public class TestIndexReWriter {
                     new IndexReWriter(
                             Arrays.asList(session3, session1, session2),
                             session1,
+                            ImhotepLocalSession.DEFAULT_GROUPS,
                             new MemoryReservationContext(
                                     new ImhotepMemoryPool(Long.MAX_VALUE)));
             irw.optimizeIndices(Arrays.asList("if1", "if2"), new ArrayList<String>(), w);
@@ -227,6 +229,7 @@ public class TestIndexReWriter {
                     new IndexReWriter(
                             Arrays.asList(session3, session1, session2),
                             session1,
+                            ImhotepSession.DEFAULT_GROUPS,
                             new MemoryReservationContext(
                                     new ImhotepMemoryPool(Long.MAX_VALUE)));
             irw.optimizeIndices(new ArrayList<String>(), Arrays.asList("sf1", "sf2"), w);
@@ -330,10 +333,11 @@ public class TestIndexReWriter {
                 new IndexReWriter(
                                   Arrays.asList(session1, session2),
                                   session1,
+                                  ImhotepSession.DEFAULT_GROUPS,
                                   new MemoryReservationContext(
                                                                new ImhotepMemoryPool(Long.MAX_VALUE)));
         irw.optimizeIndices(Arrays.asList("if1", "if3"), Arrays.asList("sf1", "sf3", "sf4"), w);
-        final GroupLookup gl = irw.getNewGroupLookup();
+        final GroupLookup gl = irw.getNewGroupLookups().get(ImhotepSession.DEFAULT_GROUPS);
         gl.recalculateNumGroups();
         assertEquals(5, gl.getNumGroups());
         assertEquals(40, gl.size());
@@ -486,10 +490,11 @@ public class TestIndexReWriter {
                 new IndexReWriter(
                                   Arrays.asList(session1, session2),
                                   session1,
+                                  ImhotepSession.DEFAULT_GROUPS,
                                   new MemoryReservationContext(
                                                                new ImhotepMemoryPool(Long.MAX_VALUE)));
         irw.optimizeIndices(Arrays.asList("if1", "if3"), Arrays.asList("sf1", "sf3", "sf4"), w);
-        final GroupLookup gl = irw.getNewGroupLookup();
+        final GroupLookup gl = irw.getNewGroupLookups().get(ImhotepSession.DEFAULT_GROUPS);
         gl.recalculateNumGroups();
         assertEquals(5, gl.getNumGroups());
         assertEquals(30, gl.size());

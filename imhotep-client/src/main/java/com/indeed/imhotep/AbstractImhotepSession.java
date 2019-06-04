@@ -17,6 +17,7 @@ import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.api.FTGSParams;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
+import com.indeed.imhotep.api.RegroupParams;
 import com.indeed.imhotep.exceptions.GenericImhotepKnownException;
 import com.indeed.imhotep.exceptions.ImhotepKnownException;
 import com.indeed.imhotep.exceptions.QueryCancelledException;
@@ -26,8 +27,10 @@ import com.indeed.imhotep.protobuf.StatsSortOrder;
 import javax.annotation.Nullable;
 import java.nio.channels.ClosedByInterruptException;
 import java.nio.file.Path;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 /**
  * @author jsadun
@@ -65,22 +68,23 @@ public abstract class AbstractImhotepSession implements ImhotepSession {
      * Read numGroups without providing any guarantees about reading
      * the most up to date value
      */
-    public int weakGetNumGroups() {
-        return -1;
+    public Map<String, Integer> weakGetNumGroups() {
+        return Collections.emptyMap();
     }
 
     @Override
-    public FTGSIterator getFTGSIterator(final String[] intFields, final String[] stringFields, @Nullable final List<List<String>> stats) throws ImhotepOutOfMemoryException {
-        return getFTGSIterator(intFields, stringFields, 0, stats);
+    public FTGSIterator getFTGSIterator(final String groupsName, final String[] intFields, final String[] stringFields, @Nullable final List<List<String>> stats) throws ImhotepOutOfMemoryException {
+        return getFTGSIterator(groupsName, intFields, stringFields, 0, stats);
     }
 
     @Override
-    public FTGSIterator getFTGSIterator(final String[] intFields, final String[] stringFields, final long termLimit, @Nullable final List<List<String>> stats) throws ImhotepOutOfMemoryException {
-        return getFTGSIterator(intFields, stringFields, termLimit, -1, stats, StatsSortOrder.UNDEFINED);
+    public FTGSIterator getFTGSIterator(final String groupsName, final String[] intFields, final String[] stringFields, final long termLimit, @Nullable final List<List<String>> stats) throws ImhotepOutOfMemoryException {
+        return getFTGSIterator(groupsName, intFields, stringFields, termLimit, -1, stats, StatsSortOrder.UNDEFINED);
     }
 
     @Override
     public FTGSIterator getFTGSIterator(
+            final String groupsName,
             final String[] intFields,
             final String[] stringFields,
             final long termLimit,
@@ -88,34 +92,34 @@ public abstract class AbstractImhotepSession implements ImhotepSession {
             @Nullable final List<List<String>> stats,
             final StatsSortOrder statsSortOrder) throws ImhotepOutOfMemoryException {
         final FTGSParams params = new FTGSParams(intFields, stringFields, termLimit, sortStat, true, stats, statsSortOrder);
-        return getFTGSIterator(params);
+        return getFTGSIterator(groupsName, params);
     }
 
     @Override
-    public int regroup(final int numRawRules, final Iterator<GroupMultiRemapRule> rawRules) throws ImhotepOutOfMemoryException {
-        return regroup(numRawRules, rawRules, false);
+    public int regroup(final RegroupParams regroupParams, final int numRawRules, final Iterator<GroupMultiRemapRule> rawRules) throws ImhotepOutOfMemoryException {
+        return regroup(regroupParams, numRawRules, rawRules, false);
     }
 
     @Override
-    public int regroup(final int numRawRules, final Iterator<GroupMultiRemapRule> rawRules, final boolean errorOnCollisions) throws ImhotepOutOfMemoryException {
+    public int regroup(final RegroupParams regroupParams, final int numRawRules, final Iterator<GroupMultiRemapRule> rawRules, final boolean errorOnCollisions) throws ImhotepOutOfMemoryException {
         final GroupMultiRemapRuleArray rulesArray = new GroupMultiRemapRuleArray(numRawRules, rawRules);
-        return regroup(rulesArray.elements(), errorOnCollisions);
+        return regroup(regroupParams, rulesArray.elements(), errorOnCollisions);
     }
 
     @Override
-    public int regroup(final GroupMultiRemapRule[] rawRules) throws ImhotepOutOfMemoryException {
-        return regroup(rawRules, false);
+    public int regroup(final RegroupParams regroupParams, final GroupMultiRemapRule[] rawRules) throws ImhotepOutOfMemoryException {
+        return regroup(regroupParams, rawRules, false);
     }
 
     @Override
-    public int regroupWithProtos(final GroupMultiRemapMessage[] rawRuleMessages,
+    public int regroupWithProtos(final RegroupParams regroupParams, final GroupMultiRemapMessage[] rawRuleMessages,
                           final boolean errorOnCollisions) throws ImhotepOutOfMemoryException {
         throw newUnsupportedOperationException("Local imhotep sessions don't use protobufs, only remote sessions do");
     }
 
     @Override
-    public int metricRegroup(final List<String> stat, final long min, final long max, final long intervalSize) throws ImhotepOutOfMemoryException {
-        return metricRegroup(stat, min, max, intervalSize, false);
+    public int metricRegroup(final RegroupParams regroupParams, final List<String> stat, final long min, final long max, final long intervalSize) throws ImhotepOutOfMemoryException {
+        return metricRegroup(regroupParams, stat, min, max, intervalSize, false);
     }
 
     @Override

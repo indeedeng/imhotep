@@ -20,6 +20,8 @@ import com.indeed.imhotep.QueryRemapRule;
 import com.indeed.imhotep.RegroupCondition;
 import com.indeed.imhotep.TermCount;
 import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
+import com.indeed.imhotep.protobuf.ImhotepRequest;
+import com.indeed.imhotep.protobuf.Operator;
 import com.indeed.imhotep.protobuf.StatsSortOrder;
 
 import javax.annotation.Nullable;
@@ -33,6 +35,8 @@ import java.util.Map;
 @NotThreadSafe
 public interface ImhotepSession
     extends Closeable, Instrumentation.Provider {
+
+    String DEFAULT_GROUPS = ImhotepRequest.getDefaultInstance().getInputGroups();
 
     static List<String> stackStat(final int stat) {
         return Collections.singletonList("global_stack " + stat);
@@ -54,7 +58,10 @@ public interface ImhotepSession
      * @param stat the metric
      * @return an array with the metric values, indexed by group
      */
-    long[] getGroupStats(List<String> stat) throws ImhotepOutOfMemoryException;
+    default long[] getGroupStats(final List<String> stat) throws ImhotepOutOfMemoryException {
+        return getGroupStats(DEFAULT_GROUPS, stat);
+    }
+    long[] getGroupStats(String groupsName, List<String> stat) throws ImhotepOutOfMemoryException;
 
     // TODO:
     // long[][] getGroupStats(List<List<String>> stats) throws ImhotepOutOfMemoryException;
@@ -65,7 +72,10 @@ public interface ImhotepSession
      * @param stat the metric
      * @return an iterator with the metric values, indexed by group
      */
-    GroupStatsIterator getGroupStatsIterator(List<String> stat) throws ImhotepOutOfMemoryException;
+    default GroupStatsIterator getGroupStatsIterator(final List<String> stat) throws ImhotepOutOfMemoryException {
+        return getGroupStatsIterator(DEFAULT_GROUPS, stat);
+    }
+    GroupStatsIterator getGroupStatsIterator(String groupsName, List<String> stat) throws ImhotepOutOfMemoryException;
 
     // TODO:
     // GroupStatsIterator getGroupStatsIterator(List<List<String>> stats) throws ImhotepOutOfMemoryException;
@@ -78,7 +88,10 @@ public interface ImhotepSession
      * @return an iterator. result is the same as after calling
      *          getFTGSIterator(new FTGSParams(intFields, stringFields, 0, -1, true, stats, StatsSortOrder.UNDEFINED));
      */
-    FTGSIterator getFTGSIterator(String[] intFields, String[] stringFields, @Nullable List<List<String>> stats) throws ImhotepOutOfMemoryException;
+    default FTGSIterator getFTGSIterator(final String[] intFields, final String[] stringFields, @Nullable final List<List<String>> stats) throws ImhotepOutOfMemoryException {
+        return getFTGSIterator(DEFAULT_GROUPS, intFields, stringFields, stats);
+    }
+    FTGSIterator getFTGSIterator(String groupsName, String[] intFields, String[] stringFields, @Nullable List<List<String>> stats) throws ImhotepOutOfMemoryException;
 
     /**
      * get an iterator over up to termLimit (field, term, group, stat) tuples for the given fields
@@ -89,7 +102,10 @@ public interface ImhotepSession
      * @return an iterator. result is the same as after calling
      *          getFTGSIterator(new FTGSParams(intFields, stringFields, termLimit, -1, true, stats, StatsSortOrder.UNDEFINED));
      */
-    FTGSIterator getFTGSIterator(String[] intFields, String[] stringFields, long termLimit, @Nullable List<List<String>> stats) throws ImhotepOutOfMemoryException;
+    default FTGSIterator getFTGSIterator(final String[] intFields, final String[] stringFields, final long termLimit, @Nullable final List<List<String>> stats) throws ImhotepOutOfMemoryException {
+        return getFTGSIterator(DEFAULT_GROUPS, intFields, stringFields, termLimit, stats);
+    }
+    FTGSIterator getFTGSIterator(String groupsName, String[] intFields, String[] stringFields, long termLimit, @Nullable List<List<String>> stats) throws ImhotepOutOfMemoryException;
 
     /**
      * get an iterator over (field, term, group, stat) for top termLimit terms sorted by stats in sortStat in order given in sortOrder
@@ -102,9 +118,15 @@ public interface ImhotepSession
      * @return an iterator. result is the same as after calling
      *          getFTGSIterator(new FTGSParams(intFields, stringFields, termLimit, sortStat, true, stats, statsSortOrder));
      */
-    FTGSIterator getFTGSIterator(String[] intFields, String[] stringFields, long termLimit, int sortStat, @Nullable List<List<String>> stats, StatsSortOrder statsSortOrder) throws ImhotepOutOfMemoryException;
+    default FTGSIterator getFTGSIterator(final String[] intFields, final String[] stringFields, final long termLimit, final int sortStat, @Nullable final List<List<String>> stats, final StatsSortOrder statsSortOrder) throws ImhotepOutOfMemoryException {
+        return getFTGSIterator(DEFAULT_GROUPS, intFields, stringFields, termLimit, sortStat, stats, statsSortOrder);
+    }
+    FTGSIterator getFTGSIterator(String groupsName, String[] intFields, String[] stringFields, long termLimit, int sortStat, @Nullable List<List<String>> stats, StatsSortOrder statsSortOrder) throws ImhotepOutOfMemoryException;
 
-    FTGSIterator getSubsetFTGSIterator(Map<String, long[]> intFields, Map<String, String[]> stringFields, @Nullable List<List<String>> stats) throws ImhotepOutOfMemoryException;
+    default FTGSIterator getSubsetFTGSIterator(final Map<String, long[]> intFields, final Map<String, String[]> stringFields, @Nullable final List<List<String>> stats) throws ImhotepOutOfMemoryException {
+        return getSubsetFTGSIterator(DEFAULT_GROUPS, intFields, stringFields, stats);
+    }
+    FTGSIterator getSubsetFTGSIterator(String groupsName, Map<String, long[]> intFields, Map<String, String[]> stringFields, @Nullable List<List<String>> stats) throws ImhotepOutOfMemoryException;
 
     /**
      * get an iterator over some subset (maybe all) of (field, term, group, stat) tuples for the given fields
@@ -146,7 +168,10 @@ public interface ImhotepSession
      * @param params params for resulting iterator
      * @return an iterator
      */
-    FTGSIterator getFTGSIterator(FTGSParams params) throws ImhotepOutOfMemoryException;
+    default FTGSIterator getFTGSIterator(final FTGSParams params) throws ImhotepOutOfMemoryException {
+        return getFTGSIterator(DEFAULT_GROUPS, params);
+    }
+    FTGSIterator getFTGSIterator(String groupsName, FTGSParams params) throws ImhotepOutOfMemoryException;
 
     /**
      * Get distinct terms count per group.
@@ -154,7 +179,10 @@ public interface ImhotepSession
      * @param isIntField whether the field is int or string type
      * @return an iterator with the distinct terms count, indexed by group
      */
-    GroupStatsIterator getDistinct(String field, boolean isIntField);
+    default GroupStatsIterator getDistinct(final String field, final boolean isIntField) {
+        return getDistinct(DEFAULT_GROUPS, field, isIntField);
+    }
+    GroupStatsIterator getDistinct(String groupsName, String field, boolean isIntField);
 
     /**
      * apply the list of remap rules to remap documents into a different group. Preconditions:
@@ -183,20 +211,36 @@ public interface ImhotepSession
      * @throws IllegalArgumentException if there are duplicate targetGroups, non-positive targetGroups, or regroup
      *                                  conditions do not meet the above prescribed requirements
      */
-    int regroup(GroupMultiRemapRule[] rawRules) throws ImhotepOutOfMemoryException;
+    default int regroup(final GroupMultiRemapRule[] rawRules) throws ImhotepOutOfMemoryException {
+        return regroup(RegroupParams.DEFAULT, rawRules);
+    }
+    int regroup(RegroupParams regroupParams, GroupMultiRemapRule[] rawRules) throws ImhotepOutOfMemoryException;
 
-    int regroup(int numRawRules, Iterator<GroupMultiRemapRule> rawRules) throws ImhotepOutOfMemoryException;
+    default int regroup(final int numRawRules, final Iterator<GroupMultiRemapRule> rawRules) throws ImhotepOutOfMemoryException {
+        return regroup(RegroupParams.DEFAULT, numRawRules, rawRules);
+    }
+    int regroup(RegroupParams regroupParams, int numRawRules, Iterator<GroupMultiRemapRule> rawRules) throws ImhotepOutOfMemoryException;
 
-    int regroup(GroupMultiRemapRule[] rawRules, boolean errorOnCollisions) throws ImhotepOutOfMemoryException;
+    default int regroup(final GroupMultiRemapRule[] rawRules, final boolean errorOnCollisions) throws ImhotepOutOfMemoryException {
+        return regroup(RegroupParams.DEFAULT, rawRules, errorOnCollisions);
+    }
+    int regroup(RegroupParams regroupParams, GroupMultiRemapRule[] rawRules, boolean errorOnCollisions) throws ImhotepOutOfMemoryException;
 
     /**
      * Performs a regroup same as the GroupMultiRemapRule[] overload but takes protobuf objects
      * to avoid serialization costs.
      */
-    int regroupWithProtos(GroupMultiRemapMessage[] rawRuleMessages,
+    default int regroupWithProtos(final GroupMultiRemapMessage[] rawRuleMessages, final boolean errorOnCollisions) throws ImhotepOutOfMemoryException {
+        return regroupWithProtos(RegroupParams.DEFAULT, rawRuleMessages, errorOnCollisions);
+    }
+    int regroupWithProtos(RegroupParams regroupParams,
+                          GroupMultiRemapMessage[] rawRuleMessages,
                           boolean errorOnCollisions) throws ImhotepOutOfMemoryException;
 
-    int regroup(int numRawRules, Iterator<GroupMultiRemapRule> rawRules, boolean errorOnCollisions) throws ImhotepOutOfMemoryException;
+    default int regroup(final int numRawRules, final Iterator<GroupMultiRemapRule> rawRules, final boolean errorOnCollisions) throws ImhotepOutOfMemoryException {
+        return regroup(RegroupParams.DEFAULT, numRawRules, rawRules, errorOnCollisions);
+    }
+    int regroup(RegroupParams regroupParams, int numRawRules, Iterator<GroupMultiRemapRule> rawRules, boolean errorOnCollisions) throws ImhotepOutOfMemoryException;
 
     /**
      * apply this query to the dataset and regroup based on whether or not a document matches the query
@@ -213,7 +257,10 @@ public interface ImhotepSession
      * @return the number of groups after applying the regroup
      * @throws ImhotepOutOfMemoryException if performing this operation would cause imhotep to run out of memory
      */
-    int regroup(QueryRemapRule rule) throws ImhotepOutOfMemoryException;
+    default int regroup(final QueryRemapRule rule) throws ImhotepOutOfMemoryException {
+        return regroup(RegroupParams.DEFAULT, rule);
+    }
+    int regroup(RegroupParams regroupParams, QueryRemapRule rule) throws ImhotepOutOfMemoryException;
 
     /**
      * a regroup for doing OR queries over int fields
@@ -224,7 +271,10 @@ public interface ImhotepSession
      * @param positiveGroup group into witch to map docs that contain any of the terms
      * @throws ImhotepOutOfMemoryException if performing this operation would cause imhotep to run out of memory
      */
-    void intOrRegroup(String field, long[] terms, int targetGroup, int negativeGroup, int positiveGroup) throws ImhotepOutOfMemoryException;
+    default void intOrRegroup(final String field, final long[] terms, final int targetGroup, final int negativeGroup, final int positiveGroup) throws ImhotepOutOfMemoryException {
+        intOrRegroup(RegroupParams.DEFAULT, field, terms, targetGroup, negativeGroup, positiveGroup);
+    }
+    void intOrRegroup(RegroupParams regroupParams, String field, long[] terms, int targetGroup, int negativeGroup, int positiveGroup) throws ImhotepOutOfMemoryException;
 
     /**
      * a regroup for doing OR queries over string fields
@@ -235,7 +285,10 @@ public interface ImhotepSession
      * @param positiveGroup group into witch to map docs that contain any of the terms
      * @throws ImhotepOutOfMemoryException if performing this operation would cause imhotep to run out of memory
      */
-    void stringOrRegroup(String field, String[] terms, int targetGroup, int negativeGroup, int positiveGroup) throws ImhotepOutOfMemoryException;
+    default void stringOrRegroup(final String field, final String[] terms, final int targetGroup, final int negativeGroup, final int positiveGroup) throws ImhotepOutOfMemoryException {
+        stringOrRegroup(RegroupParams.DEFAULT, field, terms, targetGroup, negativeGroup, positiveGroup);
+    }
+    void stringOrRegroup(RegroupParams regroupParams, String field, String[] terms, int targetGroup, int negativeGroup, int positiveGroup) throws ImhotepOutOfMemoryException;
 
     /**
      * a regroup for doing regex filtering over string fields
@@ -246,7 +299,10 @@ public interface ImhotepSession
      * @param positiveGroup group into witch to map docs that contain terms that match the regex
      * @throws ImhotepOutOfMemoryException if performing this operation would cause imhotep to run out of memory
      */
-    void regexRegroup(String field, String regex, int targetGroup, int negativeGroup, int positiveGroup) throws ImhotepOutOfMemoryException;
+    default void regexRegroup(final String field, final String regex, final int targetGroup, final int negativeGroup, final int positiveGroup) throws ImhotepOutOfMemoryException {
+        regexRegroup(RegroupParams.DEFAULT, field, regex, targetGroup, negativeGroup, positiveGroup);
+    }
+    void regexRegroup(RegroupParams regroupParams, String field, String regex, int targetGroup, int negativeGroup, int positiveGroup) throws ImhotepOutOfMemoryException;
 
 
     /**
@@ -264,7 +320,10 @@ public interface ImhotepSession
      * @param positiveGroup the group where terms with values &gt;= p will go
      * @throws ImhotepOutOfMemoryException if performing this operation would cause imhotep to go out of memory
      */
-    void randomRegroup(String field, boolean isIntField, String salt, double p, int targetGroup, int negativeGroup, int positiveGroup) throws ImhotepOutOfMemoryException;
+    default void randomRegroup(final String field, final boolean isIntField, final String salt, final double p, final int targetGroup, final int negativeGroup, final int positiveGroup) throws ImhotepOutOfMemoryException {
+        randomRegroup(RegroupParams.DEFAULT, field, isIntField, salt, p, targetGroup, negativeGroup, positiveGroup);
+    }
+    void randomRegroup(RegroupParams regroupParams, String field, boolean isIntField, String salt, double p, int targetGroup, int negativeGroup, int positiveGroup) throws ImhotepOutOfMemoryException;
 
     /**
      * Performs a random regroup, except instead of a binary decision, partitions into groups based on a percentage map.
@@ -287,7 +346,10 @@ public interface ImhotepSession
      * @param resultGroups The groups to regroup into, works together with percentages
      * @throws ImhotepOutOfMemoryException if performing this operation would cause imhotep to go out of memory
      */
-    void randomMultiRegroup(String field, boolean isIntField, String salt, int targetGroup, double[] percentages, int[] resultGroups) throws ImhotepOutOfMemoryException;
+    default void randomMultiRegroup(final String field, final boolean isIntField, final String salt, final int targetGroup, final double[] percentages, final int[] resultGroups) throws ImhotepOutOfMemoryException {
+        randomMultiRegroup(RegroupParams.DEFAULT, field, isIntField, salt, targetGroup, percentages, resultGroups);
+    }
+    void randomMultiRegroup(RegroupParams regroupParams, String field, boolean isIntField, String salt, int targetGroup, double[] percentages, int[] resultGroups) throws ImhotepOutOfMemoryException;
 
     /**
      * Same as <code>randomRegroup</code> but regrouping is based on metric value
@@ -299,7 +361,10 @@ public interface ImhotepSession
      * @param positiveGroup the group where terms with values &gt;= p will go
      * @throws ImhotepOutOfMemoryException if performing this operation would cause imhotep to go out of memory
      */
-    void randomMetricRegroup(List<String> stat, String salt, double p, int targetGroup, int negativeGroup, int positiveGroup) throws ImhotepOutOfMemoryException;
+    default void randomMetricRegroup(final List<String> stat, final String salt, final double p, final int targetGroup, final int negativeGroup, final int positiveGroup) throws ImhotepOutOfMemoryException {
+        randomMetricRegroup(RegroupParams.DEFAULT, stat, salt, p, targetGroup, negativeGroup, positiveGroup);
+    }
+    void randomMetricRegroup(RegroupParams regroupParams, List<String> stat, String salt, double p, int targetGroup, int negativeGroup, int positiveGroup) throws ImhotepOutOfMemoryException;
 
     /**
      * Same as <code>randomMultiRegroup</code> but regrouping is based on metric value
@@ -310,11 +375,20 @@ public interface ImhotepSession
      * @param resultGroups The groups to regroup into, works together with percentages
      * @throws ImhotepOutOfMemoryException if performing this operation would cause imhotep to go out of memory
      */
-    void randomMetricMultiRegroup(List<String> stat, String salt, int targetGroup, double[] percentages, int[] resultGroups) throws ImhotepOutOfMemoryException;
+    default void randomMetricMultiRegroup(final List<String> stat, final String salt, final int targetGroup, final double[] percentages, final int[] resultGroups) throws ImhotepOutOfMemoryException {
+        randomMetricMultiRegroup(RegroupParams.DEFAULT, stat, salt, targetGroup, percentages, resultGroups);
+    }
+    void randomMetricMultiRegroup(RegroupParams regroupParams, List<String> stat, String salt, int targetGroup, double[] percentages, int[] resultGroups) throws ImhotepOutOfMemoryException;
 
-    int metricRegroup(List<String> stat, long min, long max, long intervalSize) throws ImhotepOutOfMemoryException;
+    default int metricRegroup(final List<String> stat, final long min, final long max, final long intervalSize) throws ImhotepOutOfMemoryException {
+        return metricRegroup(RegroupParams.DEFAULT, stat, min, max, intervalSize);
+    }
+    int metricRegroup(RegroupParams regroupParams, List<String> stat, long min, long max, long intervalSize) throws ImhotepOutOfMemoryException;
 
-    int metricRegroup(List<String> stat, long min, long max, long intervalSize, boolean noGutters) throws ImhotepOutOfMemoryException;
+    default int metricRegroup(final List<String> stat, final long min, final long max, final long intervalSize, final boolean noGutters) throws ImhotepOutOfMemoryException {
+        return metricRegroup(RegroupParams.DEFAULT, stat, min, max, intervalSize, noGutters);
+    }
+    int metricRegroup(RegroupParams regroupParams, List<String> stat, long min, long max, long intervalSize, boolean noGutters) throws ImhotepOutOfMemoryException;
 
     /**
      * Unconditional remapping from one groups to another groups.
@@ -330,7 +404,10 @@ public interface ImhotepSession
      * @return the number of groups after applying the regroup
      * @throws ImhotepOutOfMemoryException if performing this operation would cause imhotep to run out of memory
      */
-    int regroup(final int[] fromGroups, final int[] toGroups, final boolean filterOutNotTargeted) throws ImhotepOutOfMemoryException;
+    default int regroup(final int[] fromGroups, final int[] toGroups, final boolean filterOutNotTargeted) throws ImhotepOutOfMemoryException {
+        return regroup(RegroupParams.DEFAULT, fromGroups, toGroups, filterOutNotTargeted);
+    }
+    int regroup(final RegroupParams regroupParams, final int[] fromGroups, final int[] toGroups, final boolean filterOutNotTargeted) throws ImhotepOutOfMemoryException;
 
     /**
      * Filters documents based on whether or not the given stat is within the specified range.
@@ -346,7 +423,10 @@ public interface ImhotepSession
      * @return the number of groups after applying the regroup
      * @throws ImhotepOutOfMemoryException if performing this operation would cause imhotep to run out of memory
      */
-    int metricFilter(List<String> stat, long min, long max, boolean negate) throws ImhotepOutOfMemoryException;
+    default int metricFilter(final List<String> stat, final long min, final long max, final boolean negate) throws ImhotepOutOfMemoryException {
+        return metricFilter(RegroupParams.DEFAULT, stat, min, max, negate);
+    }
+    int metricFilter(RegroupParams regroupParams, List<String> stat, long min, long max, boolean negate) throws ImhotepOutOfMemoryException;
 
     /**
      * Move documents based on whether or not the given stat is within the specified range.
@@ -360,7 +440,10 @@ public interface ImhotepSession
      * @return the number of groups after applying the regroup
      * @throws ImhotepOutOfMemoryException if performing this operation would cause imhotep to run out of memory
      */
-    int metricFilter(List<String> stat, long min, long max, int targetGroup, int negativeGroup, int positiveGroup) throws ImhotepOutOfMemoryException;
+    default int metricFilter(final List<String> stat, final long min, final long max, final int targetGroup, final int negativeGroup, final int positiveGroup) throws ImhotepOutOfMemoryException {
+        return metricFilter(RegroupParams.DEFAULT, stat, min, max, targetGroup, negativeGroup, positiveGroup);
+    }
+    int metricFilter(RegroupParams regroupParams, List<String> stat, long min, long max, int targetGroup, int negativeGroup, int positiveGroup) throws ImhotepOutOfMemoryException;
 
     /**
      * Return a list of the top k terms for a field, sorted by document frequency descending.
@@ -376,6 +459,26 @@ public interface ImhotepSession
      * @return approximate top terms
      */
     List<TermCount> approximateTopTerms(String field, boolean isIntField, int k);
+
+    /**
+     * Combine the different named input groups together on a per-document using the specified operator.
+     * The resulting groups will be stored in the specified outputGroups.
+     *
+     * All input groups must only have groups that are 0 or 1. They must also be ConstantGroupLookup or BitSetGroupLookups.
+     * If the operation is AND or OR and there are fewer than 2 arguments, an IllegalArgumentException will be thrown.
+     * If the operation is NOT and there is not exactly 1 argument, an IllegalArgumentException will be thrown.
+     *
+     * @param inputGroups collection of named input groups
+     * @param operation operator to use
+     * @param outputGroups where to store the result
+     * @throws ImhotepOutOfMemoryException if performing this operation would cause imhotep to run out of memory
+     */
+    void consolidateGroups(final List<String> inputGroups, final Operator operation, final String outputGroups) throws ImhotepOutOfMemoryException;
+
+    /**
+     * Delete the given groups
+     */
+    void deleteGroups(final List<String> groupsToDelete);
 
     /**
      * push the metric specified by statName
@@ -410,7 +513,10 @@ public interface ImhotepSession
     /**
      * @return number of groups including zero group (maxGroup+1)
      */
-    int getNumGroups();
+    default int getNumGroups() {
+        return getNumGroups(ImhotepSession.DEFAULT_GROUPS);
+    }
+    int getNumGroups(String groupsName);
 
     /**
      * create a per-document dynamic metric
@@ -425,7 +531,10 @@ public interface ImhotepSession
      * @param deltas an array of constant values to add for each group
      * @throws ImhotepOutOfMemoryException in case there's not enough memory
      */
-    void updateDynamicMetric(String name, int[] deltas) throws ImhotepOutOfMemoryException;
+    default void updateDynamicMetric(final String name, final int[] deltas) throws ImhotepOutOfMemoryException {
+        updateDynamicMetric(DEFAULT_GROUPS, name, deltas);
+    }
+    void updateDynamicMetric(String groupsName, String name, int[] deltas) throws ImhotepOutOfMemoryException;
 
     /**
      * Adjusts the given dynamic metric on a per-document basis where the delta for each condition that matches
@@ -438,9 +547,15 @@ public interface ImhotepSession
      */
     void conditionalUpdateDynamicMetric(String name, RegroupCondition[] conditions, int[] deltas);
 
-    void groupConditionalUpdateDynamicMetric(String name, int[] groups, RegroupCondition[] conditions, int[] deltas);
+    default void groupConditionalUpdateDynamicMetric(final String name, final int[] groups, final RegroupCondition[] conditions, final int[] deltas) {
+        groupConditionalUpdateDynamicMetric(DEFAULT_GROUPS, name, groups, conditions, deltas);
+    }
+    void groupConditionalUpdateDynamicMetric(String groupsName, String name, int[] groups, RegroupCondition[] conditions, int[] deltas);
 
-    void groupQueryUpdateDynamicMetric(String name, int[] groups, Query[] conditions, int[] deltas) throws ImhotepOutOfMemoryException;
+    default void groupQueryUpdateDynamicMetric(final String name, final int[] groups, final Query[] conditions, final int[] deltas) throws ImhotepOutOfMemoryException {
+        groupQueryUpdateDynamicMetric(DEFAULT_GROUPS, name, groups, conditions, deltas);
+    }
+    void groupQueryUpdateDynamicMetric(String groupsName, String name, int[] groups, Query[] conditions, int[] deltas) throws ImhotepOutOfMemoryException;
 
     /**
      * close the session and free up any associated resources
@@ -450,14 +565,20 @@ public interface ImhotepSession
     /**
      * reset groups to their original state (all documents in group 1)
      */
-    void resetGroups() throws ImhotepOutOfMemoryException;
+    default void resetGroups() throws ImhotepOutOfMemoryException {
+        resetGroups(DEFAULT_GROUPS);
+    }
+    void resetGroups(String groupsName) throws ImhotepOutOfMemoryException;
 
     /**
      * Rebuilds the Indexes and removes all docs in group 0. May make 
      * future FTGS passes more efficent.
      * @throws ImhotepOutOfMemoryException in case there's not enough memory
      */
-    void rebuildAndFilterIndexes(List<String> intFields, List<String> stringFields) throws ImhotepOutOfMemoryException;
+    default void rebuildAndFilterIndexes(final List<String> intFields, final List<String> stringFields) throws ImhotepOutOfMemoryException {
+        rebuildAndFilterIndexes(DEFAULT_GROUPS, intFields, stringFields);
+    }
+    void rebuildAndFilterIndexes(String groupsName, List<String> intFields, List<String> stringFields) throws ImhotepOutOfMemoryException;
 
     /** Returns the number of docs in the shards handled by this session */
     long getNumDocs();
