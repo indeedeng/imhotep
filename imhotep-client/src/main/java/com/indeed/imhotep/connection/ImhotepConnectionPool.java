@@ -4,13 +4,16 @@ import com.google.common.annotations.VisibleForTesting;
 import com.indeed.imhotep.client.Host;
 import com.indeed.util.core.Throwables2;
 import com.indeed.util.core.io.Closeables2;
+import lombok.experimental.Delegate;
 import org.apache.commons.pool2.impl.GenericKeyedObjectPool;
 import org.apache.commons.pool2.impl.GenericKeyedObjectPoolConfig;
+import org.apache.commons.pool2.impl.GenericKeyedObjectPoolMXBean;
 import org.apache.log4j.Logger;
 
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.Socket;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * @author xweng
@@ -31,28 +34,23 @@ import java.net.Socket;
 public class ImhotepConnectionPool implements Closeable {
     private static final Logger logger = Logger.getLogger(ImhotepConnectionPool.class);
 
-    // We hope the client side time out at first, and then the server socket received EOFException and close it self.
-    // The socket time out of server side is 60 seconds, so here we set is as 45 seconds
-    private static final int SOCKET_READ_TIMEOUT_MILLIS = 45000;
-
-    // keyedObjectPool doesn't handle the timeout during makeObject, we have to specify it in case of connection block
-    private static final int SOCKET_CONNECTING_TIMEOUT_MILLIS = 30000;
-
+    @Delegate(types = ImhotepConnectionPoolStats.class)
     private final GenericKeyedObjectPool<Host, Socket> sourcePool;
 
-    ImhotepConnectionPool() {
-        this(SOCKET_READ_TIMEOUT_MILLIS, SOCKET_CONNECTING_TIMEOUT_MILLIS);
-    }
+    private final AtomicLong invalidatedConnectionCount;
 
-    ImhotepConnectionPool(final int socketReadTimeoutMills, final int socketConnectingTimeoutMills) {
-        final ImhotepConnectionKeyedPooledObjectFactory factory = new ImhotepConnectionKeyedPooledObjectFactory(socketReadTimeoutMills, socketConnectingTimeoutMills);
+    ImhotepConnectionPool(final ImhotepConnectionPoolConfig config) {
+        final ImhotepConnectionKeyedPooledObjectFactory factory = new ImhotepConnectionKeyedPooledObjectFactory(
+                config.getSocketReadTimeoutMills(),
+                config.getSocketConnectingTimeoutMills());
 
-        final GenericKeyedObjectPoolConfig<Socket> config = new GenericKeyedObjectPoolConfig<>();
-        config.setMaxIdlePerKey(16);
-        config.setLifo(true);
-        config.setTestOnBorrow(true);
+        final GenericKeyedObjectPoolConfig<Socket> sourcePoolConfig = new GenericKeyedObjectPoolConfig<>();
+        sourcePoolConfig.setMaxIdlePerKey(config.getMaxIdleSocketPerHost());
+        sourcePoolConfig.setLifo(true);
+        sourcePoolConfig.setTestOnBorrow(true);
 
-        sourcePool = new GenericKeyedObjectPool<>(factory, config);
+        sourcePool = new GenericKeyedObjectPool<>(factory, sourcePoolConfig);
+        invalidatedConnectionCount = new AtomicLong(0);
     }
 
     /**
@@ -106,6 +104,10 @@ public class ImhotepConnectionPool implements Closeable {
         return sourcePool;
     }
 
+    long getAndResetInvalidatedCount() {
+        return invalidatedConnectionCount.getAndSet(0);
+    }
+
     /**
      * Execute the function with connection
      */
@@ -116,7 +118,7 @@ public class ImhotepConnectionPool implements Closeable {
             try {
                 return function.apply(connection);
             } catch (final Throwable t) {
-                connection.markAsInvalid();
+                invalidateConnection(connection);
                 throw t;
             }
         }
@@ -133,10 +135,15 @@ public class ImhotepConnectionPool implements Closeable {
             try {
                 return function.apply(connection);
             } catch (final Throwable t) {
-                connection.markAsInvalid();
+                invalidateConnection(connection);
                 throw t;
             }
         }
+    }
+
+    private void invalidateConnection(final ImhotepConnection connection) {
+        invalidatedConnectionCount.incrementAndGet();
+        connection.markAsInvalid();
     }
 
     /**
@@ -184,5 +191,37 @@ public class ImhotepConnectionPool implements Closeable {
     @Override
     public void close() {
         Closeables2.closeQuietly(sourcePool, logger);
+    }
+
+    private interface ImhotepConnectionPoolStats {
+        /**
+         * See {@link GenericKeyedObjectPoolMXBean#getBorrowedCount()}
+         */
+        long getBorrowedCount();
+
+        /**
+         * See {@link GenericKeyedObjectPoolMXBean#getCreatedCount()}
+         */
+        long getCreatedCount();
+
+        /**
+         * See {@link GenericKeyedObjectPoolMXBean#getDestroyedCount()}
+         */
+        long getDestroyedCount();
+
+        /**
+         * See {@link GenericKeyedObjectPoolMXBean#getDestroyedByBorrowValidationCount()}
+         */
+        long getDestroyedByBorrowValidationCount();
+
+        /**
+         * See {@link GenericKeyedObjectPoolMXBean#getNumActive()}
+         */
+        int getNumActive();
+
+        /**
+         * See {@link GenericKeyedObjectPoolMXBean#getNumIdle()}
+         */
+        int getNumIdle();
     }
 }

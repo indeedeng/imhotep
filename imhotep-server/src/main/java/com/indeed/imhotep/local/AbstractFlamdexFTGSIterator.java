@@ -41,6 +41,7 @@ public abstract class AbstractFlamdexFTGSIterator implements FTGSIterator {
      *
      */
     protected final ImhotepLocalSession session;
+    private final GroupLookup docIdToGroup;
     private final ImhotepLocalSession.MetricStack stack;
 
     protected final int[] groupsSeen;
@@ -70,18 +71,20 @@ public abstract class AbstractFlamdexFTGSIterator implements FTGSIterator {
 
     public AbstractFlamdexFTGSIterator(
             final ImhotepLocalSession imhotepLocalSession,
+            final GroupLookup docIdToGroup,
             final SharedReference<FlamdexReader> flamdexReader,
             final ImhotepLocalSession.MetricStack stack) throws ImhotepOutOfMemoryException {
         this.session = imhotepLocalSession;
+        this.docIdToGroup = docIdToGroup;
 
-        reservedMemory = Long.BYTES * stack.getNumStats() * session.docIdToGroup.getNumGroups();
+        reservedMemory = Long.BYTES * stack.getNumStats() * docIdToGroup.getNumGroups();
         if (!session.memory.claimMemory(reservedMemory)) {
             throw session.newImhotepOutOfMemoryException();
         }
 
-        this.termGrpStats = new long[stack.getNumStats()][session.docIdToGroup.getNumGroups()];
-        this.groupsSeen = new int[session.docIdToGroup.getNumGroups()];
-        this.bitTree = new BitTree(session.docIdToGroup.getNumGroups());
+        this.termGrpStats = new long[stack.getNumStats()][docIdToGroup.getNumGroups()];
+        this.groupsSeen = new int[docIdToGroup.getNumGroups()];
+        this.bitTree = new BitTree(docIdToGroup.getNumGroups());
         this.flamdexReader = flamdexReader;
         this.stack = stack;
         this.calculator = getCalculator();
@@ -94,7 +97,7 @@ public abstract class AbstractFlamdexFTGSIterator implements FTGSIterator {
 
     @Override
     public int getNumGroups() {
-        return session.docIdToGroup.getNumGroups();
+        return docIdToGroup.getNumGroups();
     }
 
     @Override
@@ -190,7 +193,7 @@ public abstract class AbstractFlamdexFTGSIterator implements FTGSIterator {
                         docsTime += System.nanoTime();
                         lookupsTime -= System.nanoTime();
                     }
-                    session.docIdToGroup.nextGroupCallback(n, termGrpStats, bitTree, docIdBuf, valBuf, docGroupBuf, stack);
+                    docIdToGroup.nextGroupCallback(n, termGrpStats, bitTree, docIdBuf, valBuf, docGroupBuf, stack);
 
                     if (ImhotepLocalSession.logTiming) {
                         lookupsTime += System.nanoTime();
@@ -324,7 +327,7 @@ public abstract class AbstractFlamdexFTGSIterator implements FTGSIterator {
                         docsTime += System.nanoTime();
                         lookupsTime -= System.nanoTime();
                     }
-                    final int processed = session.docIdToGroup.nextGroupCallback(n, termGrpStats, bitTree, docIdBuf, valBuf, docGroupBuf, stack);
+                    final int processed = docIdToGroup.nextGroupCallback(n, termGrpStats, bitTree, docIdBuf, valBuf, docGroupBuf, stack);
 
                     if (ImhotepLocalSession.logTiming) {
                         lookupsTime += System.nanoTime();
@@ -363,18 +366,18 @@ public abstract class AbstractFlamdexFTGSIterator implements FTGSIterator {
 
     // choose calculator based on groups and stats
     private TermGroupStatsCalculator getCalculator() {
-        if (session.docIdToGroup instanceof ConstantGroupLookup) {
+        if (docIdToGroup instanceof ConstantGroupLookup) {
             if ((stack.getNumStats() == 0)
                     || ((stack.getNumStats() == 1) && (stack.get(0) instanceof Count))) {
                 if (isCountMethodsReliable(flamdexReader.get())) {
-                    final int group = ((ConstantGroupLookup) session.docIdToGroup).getConstantGroup();
+                    final int group = ((ConstantGroupLookup) docIdToGroup).getConstantGroup();
                     return new ConstGroupCalculator(group);
                 }
             }
         }
 
-        if (session.docIdToGroup instanceof BitSetGroupLookup) {
-            final BitSetGroupLookup bitSetGroupLookup = (BitSetGroupLookup) session.docIdToGroup;
+        if (docIdToGroup instanceof BitSetGroupLookup) {
+            final BitSetGroupLookup bitSetGroupLookup = (BitSetGroupLookup) docIdToGroup;
             if(stack.getNumStats() == 0) {
                 return new BitSetGroupNoStatsCalculator(bitSetGroupLookup.getNonZeroGroup());
             }

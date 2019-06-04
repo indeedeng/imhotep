@@ -7,7 +7,6 @@ import com.indeed.flamdex.query.Query;
 import com.indeed.flamdex.query.Term;
 import com.indeed.flamdex.writer.FlamdexDocument;
 import com.indeed.imhotep.GroupMultiRemapRule;
-import com.indeed.imhotep.GroupRemapRule;
 import com.indeed.imhotep.QueryRemapRule;
 import com.indeed.imhotep.RegroupCondition;
 import com.indeed.imhotep.RemoteImhotepMultiSession;
@@ -26,7 +25,6 @@ import org.junit.Test;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
@@ -60,7 +58,7 @@ public class TestThrowingImhotepOutOfMemoryExceptions {
         }
         clusterRunner.createDailyShard(DATASET, START, shard);
 
-        clusterRunner.setMemoryCapacity(ImhotepLocalSession.BUFFERS_TOTAL_SIZE + 500);
+        clusterRunner.setMemoryCapacity(500);
         clusterRunner.startDaemon();
         client = clusterRunner.createClient();
     }
@@ -107,15 +105,6 @@ public class TestThrowingImhotepOutOfMemoryExceptions {
         try (final ImhotepSession session = client.sessionBuilder(DATASET, START, END).build()) {
             session.regroup(new GroupMultiRemapRule[] {
                     new GroupMultiRemapRule(1, 1000000, new int[]{1000000}, new RegroupCondition[]{new RegroupCondition("sf1", false, 0, "sf1", false)})
-            });
-        }
-    }
-
-    @Test(expected = ImhotepOutOfMemoryException.class)
-    public void testSingleRegroup() throws ImhotepOutOfMemoryException {
-        try (final ImhotepSession session = client.sessionBuilder(DATASET, START, END).build()) {
-            session.regroup(new GroupRemapRule[] {
-                    new GroupRemapRule(1, new RegroupCondition("sf1", false, 0, "sf1", false), 1000000, 1000000)
             });
         }
     }

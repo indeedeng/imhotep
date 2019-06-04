@@ -29,6 +29,8 @@ public final class LocalImhotepServiceConfig {
     private int cpuSchedulerHistoryLengthSeconds = 60;
     private int remoteFSIOSlots = 0;  // 0 = disabled
     private int remoteFSIOSchedulerHistoryLengthSeconds = 60;
+    private int p2pFSIOSlots = 0; // 0 = disabled
+    private int p2pFSIOSchedulerHistoryLengthSeconds = 60;
     private int maxSessionsTotal = Integer.MAX_VALUE;
     private int maxSessionsPerUser = Integer.MAX_VALUE;
     @Nullable
@@ -66,6 +68,15 @@ public final class LocalImhotepServiceConfig {
         return this;
     }
 
+    public int getP2pFSIOSlots() {
+        return p2pFSIOSlots;
+    }
+
+    public LocalImhotepServiceConfig setP2PFSIOSlots(int p2pFSIOSlots) {
+        this.p2pFSIOSlots = p2pFSIOSlots;
+        return this;
+    }
+
     public int getCpuSchedulerHistoryLengthSeconds() {
         return cpuSchedulerHistoryLengthSeconds;
     }
@@ -80,6 +91,14 @@ public final class LocalImhotepServiceConfig {
 
     public void setRemoteFSIOSchedulerHistoryLengthSeconds(int remoteFSIOSchedulerHistoryLengthSeconds) {
         this.remoteFSIOSchedulerHistoryLengthSeconds = remoteFSIOSchedulerHistoryLengthSeconds;
+    }
+
+    public int getP2PFSIOSchedulerHistoryLengthSeconds() {
+        return p2pFSIOSchedulerHistoryLengthSeconds;
+    }
+
+    public void setP2PFSIOSchedulerHistoryLengthSeconds(int p2pFSIOSchedulerHistoryLengthSeconds) {
+        this.p2pFSIOSchedulerHistoryLengthSeconds = p2pFSIOSchedulerHistoryLengthSeconds;
     }
 
     public int getMaxSessionsTotal() {

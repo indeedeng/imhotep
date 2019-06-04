@@ -14,11 +14,13 @@
 
 package com.indeed.imhotep.scheduling;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.primitives.Longs;
 import com.indeed.imhotep.AbstractImhotepMultiSession;
 import com.indeed.imhotep.AbstractImhotepSession;
 import com.indeed.imhotep.RequestContext;
 import com.indeed.imhotep.SlotTiming;
+import com.indeed.imhotep.exceptions.InvalidSessionException;
 import org.apache.log4j.Logger;
 
 import javax.annotation.Nonnull;
@@ -171,10 +173,9 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
             try {
                 lockToWaitOn.await();
                 finishedWaiting = true;
-                // Commented out pending a change to make TaskScheduler::schedule exception-safe in IMTEPD-450
-                //  if (session != null && session.isClosed()) {
-                //      throw new InvalidSessionException("Session with id " + session.getSessionId() + " was already closed");
-                //  }
+                if (session != null && session.isClosed()) {
+                    throw new InvalidSessionException("Session with id " + session.getSessionId() + " was already closed");
+                }
             } catch(InterruptedException ignored){ }
         }
     }
@@ -318,5 +319,10 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
 
     private interface SchedulerCallback {
         void call(SchedulerType schedulerType, long time);
+    }
+
+    @VisibleForTesting
+    public void overritdeTaskStartTime(long lastStartTime) {
+        this.lastExecutionStartTime = lastStartTime;
     }
 }

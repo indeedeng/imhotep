@@ -14,6 +14,7 @@
 
 package com.indeed.imhotep.group;
 
+import com.google.common.base.Preconditions;
 import com.indeed.flamdex.api.DocIdStream;
 import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.api.IntTermIterator;
@@ -163,14 +164,14 @@ public class IterativeHasherUtils {
     // If group percentiles correspond as small numbers ratio,
     // i.e. 20%-80% (p ={0.2}) or 30%-30%-40% (p={0.3, 0.6})
     // then we can have small array of group indexes and divisor constant
-    // to calculate group index from hash as indexes[Math.abs(hash)/divisor]
-    // For 20%-80% case indexes = {0, 1, 1, 1, 1} and divisor = Integer.MAX_VALUE/5
-    // and for 30%-30%-40% case indexes = {0, 0, 0, 1, 1, 1, 2, 2, 2, 2} and divisor = Integer.MAX_VALUE/10
+    // to calculate group index from hash as indexes[(hash - Integer.MIN_VALUE)/divisor]
+    // For 20%-80% case indexes = {0, 1, 1, 1, 1} and divisor = ceil((Integer.MAX_VALUE - Integer.MIN_VALUE)/5)
+    // and for 30%-30%-40% case indexes = {0, 0, 0, 1, 1, 1, 2, 2, 2, 2} and divisor = ceil((Integer.MAX_VALUE - Integer.MIN_VALUE)/10)
     public static class ProportionalMultiGroupChooser implements GroupChooser {
         private final int[] indexes;
-        private final int divisor;
+        private final long divisor;
 
-        private ProportionalMultiGroupChooser(final int divisor, final int[] indexes) {
+        private ProportionalMultiGroupChooser(final long divisor, final int[] indexes) {
             this.divisor = divisor;
             this.indexes = indexes;
         }
@@ -208,7 +209,7 @@ public class IterativeHasherUtils {
                 // getGroup(Integer.MAX_VALUE) should return last group
                 // so we need to round result of division up.
                 final long fullRange = ((long)Integer.MAX_VALUE) - ((long)Integer.MIN_VALUE);
-                final int divisor = (int)((fullRange + size - 1)/size);
+                final long divisor = (fullRange + size)/size;
                 return new ProportionalMultiGroupChooser(divisor, groups);
             }
 
@@ -249,6 +250,25 @@ public class IterativeHasherUtils {
             }
             return new MultiGroupChooser(groupBounds);
         }
+    }
+
+    // uniformly choosing one of N options
+    static class UniformGroupChooser implements GroupChooser {
+        private final int n;
+
+        UniformGroupChooser(final int n) {
+            Preconditions.checkArgument(n > 0, "Number of groups for uniform group choosing must be at least 1");
+            this.n = n;
+        }
+
+        @Override
+        public int getGroup(final int hash) {
+            return Math.floorMod(hash, n);
+        }
+    }
+
+    public static GroupChooser createUniformChooser(final int n) {
+        return new UniformGroupChooser(n);
     }
 
     public static GroupChooser createChooser(final double[] percentages) {

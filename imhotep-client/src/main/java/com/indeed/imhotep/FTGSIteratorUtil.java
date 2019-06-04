@@ -575,11 +575,12 @@ public class FTGSIteratorUtil {
      * but provide equivalent functionality to Imhotep clients
      */
     public static FTGSIterator[] getFTGSIteratorSplits(final ImhotepSession session,
+                                                       final String groupsName,
                                                        final String[] intFields,
                                                        final String[] stringFields,
                                                        final long termLimit) throws ImhotepOutOfMemoryException {
         if (session instanceof RemoteImhotepMultiSession) {
-            return ((RemoteImhotepMultiSession)session).getFTGSIteratorSplits(intFields, stringFields, termLimit);
+            return ((RemoteImhotepMultiSession)session).getFTGSIteratorSplits(groupsName, intFields, stringFields, termLimit);
         }
 
         throw new UnsupportedOperationException();

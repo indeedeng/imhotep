@@ -59,15 +59,15 @@ public class TestImhotepMultiSession {
         ){
             // groups: s1=[1], s2=[1]
 
-            s.regroup(new GroupRemapRule[]{
-                    new GroupRemapRule(1, new RegroupCondition("f", false, 0, "baz", false), 2, 3)
+            s.regroup(new GroupMultiRemapRule[]{
+                    new GroupMultiRemapRule(1, 2, new int[]{3}, new RegroupCondition[]{new RegroupCondition("f", false, 0, "baz", false)})
             });
 
             // groups: s1=[2], s2=[3]
             assertEquals(Arrays.asList(0L, 0L, 1L, 1L), Longs.asList(s.getGroupStats(Collections.singletonList("count()"))).subList(0, 4));
 
-            s.regroup(new GroupRemapRule[]{
-                    new GroupRemapRule(3, new RegroupCondition("f", false, 0, "foo", false), 4, 5)
+            s.regroup(new GroupMultiRemapRule[]{
+                    new GroupMultiRemapRule(3, 4, new int[]{5}, new RegroupCondition[]{new RegroupCondition("f", false, 0, "foo", false)})
             });
 
             // groups: s1=[0], s2=[5]

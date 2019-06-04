@@ -34,7 +34,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -104,6 +103,10 @@ public class PeerToPeerCacheFileStore extends RemoteFileStore {
         } catch (final ExecutionException e) {
             throw Throwables2.propagate(e.getCause(), IOException.class, RuntimeException.class);
         }
+    }
+
+    public List<CachedDatasetSnapshot> getLocalCacheSnapshot() throws IOException {
+        return fileCache.getCacheSnapshot();
     }
 
     @Override
@@ -203,17 +206,19 @@ public class PeerToPeerCacheFileStore extends RemoteFileStore {
         // here the connection will be closed with the closure of ConnectionInputStream
         final ImhotepConnection connection = CONNECTION_POOL.getConnection(host, FETCH_CONNECTION_TIMEOUT);
         final Closeable unlockCloseable = TaskScheduler.CPUScheduler.temporaryUnlock();
-        try {
-            final Socket socket = connection.getSocket();
-            final OutputStream os = Streams.newBufferedOutputStream(socket.getOutputStream());
-            final InputStream is = Streams.newBufferedInputStream(socket.getInputStream());
-            final ImhotepResponse response = sendRequest(newRequestBuilder, is, os, host);
-            reportFileDownload(response.getFileLength(), System.currentTimeMillis() - downloadStartMillis);
-            return new ConnectionInputStream(ByteStreams.limit(is, response.getFileLength()), connection, unlockCloseable);
-        } catch (final Throwable t) {
-            connection.markAsInvalid();
-            unlockCloseable.close();
-            throw t;
+        try (final Closeable ignored = TaskScheduler.P2PFSIOScheduler.lockSlot()) {
+            try {
+                final Socket socket = connection.getSocket();
+                final OutputStream os = Streams.newBufferedOutputStream(socket.getOutputStream());
+                final InputStream is = Streams.newBufferedInputStream(socket.getInputStream());
+                final ImhotepResponse response = sendRequest(newRequestBuilder, is, os, host);
+                reportFileDownload(response.getFileLength(), System.currentTimeMillis() - downloadStartMillis);
+                return new ConnectionInputStream(ByteStreams.limit(is, response.getFileLength()), connection, unlockCloseable);
+            } catch (final Throwable t) {
+                connection.markAsInvalid();
+                unlockCloseable.close();
+                throw t;
+            }
         }
     }
 

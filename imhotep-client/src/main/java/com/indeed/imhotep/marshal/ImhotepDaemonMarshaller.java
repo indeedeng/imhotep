@@ -19,13 +19,11 @@ import com.indeed.flamdex.query.BooleanOp;
 import com.indeed.flamdex.query.Query;
 import com.indeed.flamdex.query.Term;
 import com.indeed.imhotep.GroupMultiRemapRule;
-import com.indeed.imhotep.GroupRemapRule;
 import com.indeed.imhotep.QueryRemapRule;
 import com.indeed.imhotep.RegroupCondition;
 import com.indeed.imhotep.TermCount;
 import com.indeed.imhotep.api.PerformanceStats;
 import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
-import com.indeed.imhotep.protobuf.GroupRemapMessage;
 import com.indeed.imhotep.protobuf.Operator;
 import com.indeed.imhotep.protobuf.PerformanceStatsMessage;
 import com.indeed.imhotep.protobuf.QueryMessage;
@@ -85,20 +83,6 @@ public final class ImhotepDaemonMarshaller {
                 protoRule.getNegativeGroup(),
                 protoRule.getPositiveGroup()
         );
-    }
-
-    public static GroupRemapRule[] marshalGroupRemapMessageList(final List<GroupRemapMessage> protoRemapRules) {
-        final GroupRemapRule[] ret = new GroupRemapRule[protoRemapRules.size()];
-        for (int i = 0; i < protoRemapRules.size(); ++i) {
-            final GroupRemapMessage protoRule = protoRemapRules.get(i);
-            ret[i] = marshal(protoRule);
-        }
-        return ret;
-    }
-
-    public static GroupRemapRule marshal(final GroupRemapMessage protoRule) {
-        final RegroupCondition condition = marshal(protoRule.getCondition());
-        return new GroupRemapRule(protoRule.getTargetGroup(), condition, protoRule.getNegativeGroup(), protoRule.getPositiveGroup());
     }
 
     public static RegroupCondition marshal(final RegroupConditionMessage condition) {
@@ -161,7 +145,9 @@ public final class ImhotepDaemonMarshaller {
                 .setCpuSlotsExecTimeMs(stats.cpuSlotsExecTimeMs)
                 .setCpuSlotsWaitTimeMs(stats.cpuSlotsWaitTimeMs)
                 .setIoSlotsExecTimeMs(stats.ioSlotsExecTimeMs)
-                .setIoSlotsWaitTimeMs(stats.ioSlotsWaitTimeMs);
+                .setIoSlotsWaitTimeMs(stats.ioSlotsWaitTimeMs)
+                .setP2PIoSlotsExecTimeMs(stats.p2pIOSlotsExecTimeMs)
+                .setP2PIoSlotsWaitTimeMs(stats.p2pIOSlotsWaitTimeMs);
         for (final Map.Entry<String, Long> entry : stats.customStats.entrySet()) {
             builder.addCustomStats(
                     StringLongMessage.newBuilder()

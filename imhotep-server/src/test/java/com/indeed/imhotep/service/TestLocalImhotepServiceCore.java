@@ -18,6 +18,7 @@ import com.indeed.flamdex.reader.MockFlamdexReader;
 import com.indeed.flamdex.simple.TestSimpleFlamdexDocWriter;
 import com.indeed.imhotep.api.FTGSParams;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
+import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.client.Host;
 import com.indeed.imhotep.io.TestFileUtils;
 import com.indeed.imhotep.protobuf.ShardBasicInfoMessage;
@@ -88,7 +89,7 @@ public class TestLocalImhotepServiceCore {
                 @Override
                 public void run() {
                     try {
-                        service.handleGetFTGSIterator(sessionId, new FTGSParams(new String[]{"if1"}, new String[0], 0, -1, true, null, StatsSortOrder.UNDEFINED), os);
+                        service.handleGetFTGSIterator(sessionId, ImhotepSession.DEFAULT_GROUPS, new FTGSParams(new String[]{"if1"}, new String[0], 0, -1, true, null, StatsSortOrder.UNDEFINED), os);
                         fail();
                     } catch (final Exception expected) {
                         expected.printStackTrace();
