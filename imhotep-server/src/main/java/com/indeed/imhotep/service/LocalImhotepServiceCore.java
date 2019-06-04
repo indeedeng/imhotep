@@ -363,7 +363,8 @@ public class LocalImhotepServiceCore
             boolean optimizeGroupZeroLookups,
             String sessionId,
             AtomicLong tempFileSizeBytesLeft,
-            long sessionTimeout) throws ImhotepOutOfMemoryException {
+            long sessionTimeout,
+            final boolean useFtgsPooledConnection) throws ImhotepOutOfMemoryException {
         if (Strings.isNullOrEmpty(sessionId)) {
             sessionId = generateSessionId();
         }
@@ -418,7 +419,8 @@ public class LocalImhotepServiceCore
                     tempFileSizeBytesLeft,
                     username,
                     clientName,
-                    priority);
+                    priority,
+                    useFtgsPooledConnection);
 
             // create flamdex reference copies for the session manager
             final Map<Path, CachedFlamdexReaderReference> flamdexesForSessionManager = Maps.newHashMap();

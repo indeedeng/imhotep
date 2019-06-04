@@ -146,8 +146,46 @@ public class ImhotepConnectionPool implements Closeable {
         connection.markAsInvalid();
     }
 
+    /**
+     * Execute the function with the connection and it may throw two kinds of exceptions
+     */
+    public <R, E1 extends Exception, E2 extends Exception> R withConnectionBinaryException(
+            final Host host,
+            final BinaryThrowingFunction<ImhotepConnection, R, E1, E2> function) throws E1, E2, IOException {
+        try (final ImhotepConnection connection = getConnection(host)) {
+            try {
+                return function.apply(connection);
+            } catch (final Throwable t) {
+                connection.markAsInvalid();
+                throw t;
+            }
+        }
+    }
+
+    /**
+     * Execute the function with the connection and it may throw two kinds of exceptions,
+     * also set the timeout when getting connection
+     */
+    public <R, E1 extends Exception, E2 extends Exception> R withConnectionBinaryException(
+            final Host host,
+            final int timeoutMillis,
+            final BinaryThrowingFunction<ImhotepConnection, R, E1, E2> function) throws E1, E2, IOException {
+        try (final ImhotepConnection connection = getConnection(host, timeoutMillis)) {
+            try {
+                return function.apply(connection);
+            } catch (final Throwable t) {
+                connection.markAsInvalid();
+                throw t;
+            }
+        }
+    }
+
     public interface ThrowingFunction<K, R, E extends Exception> {
         R apply(K k) throws E;
+    }
+
+    public interface BinaryThrowingFunction<K, R, E1 extends Exception, E2 extends Exception> {
+        R apply(K k) throws E1, E2;
     }
 
     @Override

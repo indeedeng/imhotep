@@ -339,6 +339,9 @@ message ImhotepRequest {
 
   // for DELETE_GROUPS
   repeated string groups_to_delete = 80;
+
+  // for ftgs pooled socket optimization
+  optional bool useFtgsPooledConnection = 81 [default = false];
 }
 
 message DocStat {
