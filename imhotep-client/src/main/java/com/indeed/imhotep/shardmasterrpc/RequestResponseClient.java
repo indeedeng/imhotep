@@ -49,9 +49,9 @@ import java.util.stream.Collectors;
 public class RequestResponseClient implements ShardMaster {
     private static final Logger log = Logger.getLogger(RequestResponseClient.class);
 
-    private static final int SOCKET_READ_TIMEOUT_MILLIS = 5000;
+    private static final int SOCKET_READ_TIMEOUT_MILLIS = 30000;
 
-    private static final int SOCKET_CONNECTING_TIMEOUT_MILLIS = 5000;
+    private static final int SOCKET_CONNECTING_TIMEOUT_MILLIS = 30000;
 
     private final Random random = new Random();
     private final List<Host> serverHosts;
