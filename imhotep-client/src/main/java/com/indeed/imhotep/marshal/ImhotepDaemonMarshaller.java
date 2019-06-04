@@ -145,7 +145,9 @@ public final class ImhotepDaemonMarshaller {
                 .setCpuSlotsExecTimeMs(stats.cpuSlotsExecTimeMs)
                 .setCpuSlotsWaitTimeMs(stats.cpuSlotsWaitTimeMs)
                 .setIoSlotsExecTimeMs(stats.ioSlotsExecTimeMs)
-                .setIoSlotsWaitTimeMs(stats.ioSlotsWaitTimeMs);
+                .setIoSlotsWaitTimeMs(stats.ioSlotsWaitTimeMs)
+                .setP2PIoSlotsExecTimeMs(stats.p2pIOSlotsExecTimeMs)
+                .setP2PIoSlotsWaitTimeMs(stats.p2pIOSlotsWaitTimeMs);
         for (final Map.Entry<String, Long> entry : stats.customStats.entrySet()) {
             builder.addCustomStats(
                     StringLongMessage.newBuilder()

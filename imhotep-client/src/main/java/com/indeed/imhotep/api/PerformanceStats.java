@@ -28,6 +28,8 @@ public class PerformanceStats {
     public final long cpuSlotsWaitTimeMs;
     public final long ioSlotsExecTimeMs;
     public final long ioSlotsWaitTimeMs;
+    public final long p2pIOSlotsExecTimeMs;
+    public final long p2pIOSlotsWaitTimeMs;
     public final ImmutableMap<String, Long> customStats;
 
     public PerformanceStats(
@@ -39,6 +41,8 @@ public class PerformanceStats {
             final long cpuSlotsWaitTimeMs,
             final long ioSlotsExecTimeMs,
             final long ioSlotsWaitTimeMs,
+            final long p2pIOSlotsExecTimeMs,
+            final long p2pIOSlotsWaitTimeMs,
             final ImmutableMap<String, Long> customStats) {
         this.cpuTime = cpuTime;
         this.maxMemoryUsage = maxMemoryUsage;
@@ -48,6 +52,8 @@ public class PerformanceStats {
         this.cpuSlotsWaitTimeMs = cpuSlotsWaitTimeMs;
         this.ioSlotsExecTimeMs = ioSlotsExecTimeMs;
         this.ioSlotsWaitTimeMs = ioSlotsWaitTimeMs;
+        this.p2pIOSlotsExecTimeMs = p2pIOSlotsExecTimeMs;
+        this.p2pIOSlotsWaitTimeMs = p2pIOSlotsWaitTimeMs;
         this.customStats = customStats;
     }
 
@@ -64,6 +70,8 @@ public class PerformanceStats {
         private long cpuSlotsWaitTimeMs = 0;
         private long ioSlotsExecTimeMs = 0;
         private long ioSlotsWaitTimeMs = 0;
+        private long p2pIOSlotsExecTimeMs;
+        private long p2pIOSlotsWaitTimeMs;
         private final Map<String, Long> customStats = new HashMap<>();
 
         public void setCpuTime(final long cpuTime) {
@@ -130,6 +138,22 @@ public class PerformanceStats {
             this.ioSlotsWaitTimeMs = ioSlotsWaitTimeMs;
         }
 
+        public long getP2pIOSlotsExecTimeMs() {
+            return p2pIOSlotsExecTimeMs;
+        }
+
+        public void setP2pIOSlotsExecTimeMs(final long p2pIOSlotsExecTimeMs) {
+            this.p2pIOSlotsExecTimeMs = p2pIOSlotsExecTimeMs;
+        }
+
+        public long getP2pIOSlotsWaitTimeMs() {
+            return p2pIOSlotsWaitTimeMs;
+        }
+
+        public void setP2pIOSlotsWaitTimeMs(final long p2pIOSlotsWaitTimeMs) {
+            this.p2pIOSlotsWaitTimeMs = p2pIOSlotsWaitTimeMs;
+        }
+
         public void setCustomStat(final String statKey, final long statValue) {
             customStats.put(statKey, statValue);
         }
@@ -151,7 +175,8 @@ public class PerformanceStats {
             cpuSlotsWaitTimeMs += stats.cpuSlotsWaitTimeMs;
             ioSlotsExecTimeMs += stats.ioSlotsExecTimeMs;
             ioSlotsWaitTimeMs += stats.ioSlotsWaitTimeMs;
-
+            p2pIOSlotsExecTimeMs += stats.p2pIOSlotsExecTimeMs;
+            p2pIOSlotsWaitTimeMs += stats.p2pIOSlotsWaitTimeMs;
 
             for(final Map.Entry<String, Long> entry : stats.customStats.entrySet()) {
                 Long value = customStats.get(entry.getKey());
@@ -170,6 +195,8 @@ public class PerformanceStats {
                     cpuSlotsWaitTimeMs,
                     ioSlotsExecTimeMs,
                     ioSlotsWaitTimeMs,
+                    p2pIOSlotsExecTimeMs,
+                    p2pIOSlotsWaitTimeMs,
                     ImmutableMap.copyOf(customStats));
         }
     }

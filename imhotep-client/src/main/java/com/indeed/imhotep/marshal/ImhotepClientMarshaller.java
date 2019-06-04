@@ -153,6 +153,8 @@ public final class ImhotepClientMarshaller {
                 stat.getCpuSlotsWaitTimeMs(),
                 stat.getIoSlotsExecTimeMs(),
                 stat.getIoSlotsWaitTimeMs(),
+                stat.getP2PIoSlotsExecTimeMs(),
+                stat.getP2PIoSlotsWaitTimeMs(),
                 ImmutableMap.copyOf(customStringStats));
     }
 }
