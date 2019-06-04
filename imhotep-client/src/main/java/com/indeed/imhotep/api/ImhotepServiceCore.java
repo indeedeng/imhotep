@@ -58,8 +58,8 @@ public interface ImhotepServiceCore {
     int handlePopStat(String sessionId);
     void handleGetFTGSIterator(String sessionId, String groupsName, FTGSParams params, OutputStream os) throws IOException, ImhotepOutOfMemoryException;
     void handleGetSubsetFTGSIterator(String sessionId, String groupsName, Map<String, long[]> intFields, Map<String, String[]> stringFields, final List<List<String>> stats, OutputStream os) throws IOException, ImhotepOutOfMemoryException;
-    void handleGetFTGSIteratorSplit(String sessionId, String groupsName, String[] intFields, String[] stringFields, OutputStream os, int splitIndex, int numSplits, long termLimit, final List<List<String>> stats) throws IOException, ImhotepOutOfMemoryException;
-    void handleGetSubsetFTGSIteratorSplit(String sessionId, String groupsName, Map<String, long[]> intFields, Map<String, String[]> stringFields, final List<List<String>> stats, OutputStream os, int splitIndex, int numSplits) throws IOException, ImhotepOutOfMemoryException;
+    void handleGetFTGSIteratorSplit(String sessionId, String groupsName, String[] intFields, String[] stringFields, OutputStream os, int splitIndex, int numSplits, long termLimit, final List<List<String>> stats, final boolean useFtgsPooledConnection) throws IOException, ImhotepOutOfMemoryException;
+    void handleGetSubsetFTGSIteratorSplit(String sessionId, String groupsName, Map<String, long[]> intFields, Map<String, String[]> stringFields, final List<List<String>> stats, OutputStream os, int splitIndex, int numSplits, final boolean useFtgsPooledConnection) throws IOException, ImhotepOutOfMemoryException;
     void handleMergeFTGSIteratorSplit(String sessionId, String groupsName, FTGSParams params, OutputStream os, HostAndPort[] nodes, int splitIndex) throws IOException, ImhotepOutOfMemoryException;
     void handleMergeSubsetFTGSIteratorSplit(String sessionId, String groupsName, Map<String, long[]> intFields, Map<String, String[]> stringFields, final List<List<String>> stats, OutputStream os, HostAndPort[] nodes, int splitIndex) throws IOException, ImhotepOutOfMemoryException;
     void handleMergeMultiFTGSSplit(MultiFTGSRequest request, String validLocalSessionId, OutputStream os, HostAndPort[] nodes) throws IOException, ImhotepOutOfMemoryException;
@@ -84,7 +84,7 @@ public interface ImhotepServiceCore {
     // open session methods return session id
     String handleOpenSession(String dataset, List<ShardBasicInfoMessage> shardRequestList, String username, String clientName,
                              String ipAddress, byte priority, int clientVersion, int mergeThreadLimit, boolean optimizeGroupZeroLookups,
-                             String sessionId, AtomicLong tempFileSizeBytesLeft, long sessionTimeout) throws ImhotepOutOfMemoryException;
+                             String sessionId, AtomicLong tempFileSizeBytesLeft, long sessionTimeout, boolean useFtgsPooledConnection) throws ImhotepOutOfMemoryException;
 
     // non-session-based methods
     ImhotepStatusDump handleGetStatusDump(boolean includeShardList);

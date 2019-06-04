@@ -339,6 +339,9 @@ message ImhotepRequest {
 
   // for DELETE_GROUPS
   repeated string groups_to_delete = 80;
+
+  // for ftgs pooled socket optimization
+  optional bool useFtgsPooledConnection = 81 [default = false];
 }
 
 message DocStat {
@@ -530,6 +533,8 @@ message PerformanceStatsMessage {
   optional int64 cpu_slots_wait_time_ms = 7;
   optional int64 io_slots_exec_time_ms = 8;
   optional int64 io_slots_wait_time_ms = 9;
+  optional int64 p2p_io_slots_exec_time_ms = 10;
+  optional int64 p2p_io_slots_wait_time_ms = 11;
 }
 
 message SlotTimingMessage {

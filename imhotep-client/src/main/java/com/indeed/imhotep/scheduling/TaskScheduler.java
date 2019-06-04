@@ -61,6 +61,7 @@ public class TaskScheduler {
 
     public static TaskScheduler CPUScheduler = new NoopTaskScheduler();
     public static TaskScheduler RemoteFSIOScheduler = new NoopTaskScheduler();
+    public static TaskScheduler P2PFSIOScheduler = new NoopTaskScheduler();
 
     private ScheduledExecutorService datadogStatsReportingExecutor = null;
     private ScheduledExecutorService cleanupExecutor = null;

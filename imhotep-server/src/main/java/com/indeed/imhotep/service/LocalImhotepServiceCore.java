@@ -156,6 +156,13 @@ public class LocalImhotepServiceCore
                     statsEmitter);
         }
 
+        if (config.getP2pFSIOSlots() > 0) {
+            TaskScheduler.P2PFSIOScheduler = new TaskScheduler(config.getP2pFSIOSlots(),
+                    TimeUnit.SECONDS.toNanos(config.getP2PFSIOSchedulerHistoryLengthSeconds()),
+                    TimeUnit.SECONDS.toNanos(1), SchedulerType.P2P_FS_IO,
+                    statsEmitter);
+        }
+
         this.statsReporter = new ImhotepConnectionPoolStatsReporter(ImhotepConnectionPoolWrapper.INSTANCE, statsEmitter);
         statsReporter.start(STATS_REPORT_FREQUENCY_SECONDS);
 
@@ -356,7 +363,8 @@ public class LocalImhotepServiceCore
             boolean optimizeGroupZeroLookups,
             String sessionId,
             AtomicLong tempFileSizeBytesLeft,
-            long sessionTimeout) throws ImhotepOutOfMemoryException {
+            long sessionTimeout,
+            final boolean useFtgsPooledConnection) throws ImhotepOutOfMemoryException {
         if (Strings.isNullOrEmpty(sessionId)) {
             sessionId = generateSessionId();
         }
@@ -411,7 +419,8 @@ public class LocalImhotepServiceCore
                     tempFileSizeBytesLeft,
                     username,
                     clientName,
-                    priority);
+                    priority,
+                    useFtgsPooledConnection);
 
             // create flamdex reference copies for the session manager
             final Map<Path, CachedFlamdexReaderReference> flamdexesForSessionManager = Maps.newHashMap();

@@ -67,6 +67,8 @@ public class Instrumentation {
         public static final String CPU_SLOTS_EXEC_TIME_MILLIS   = "cpuexecmillis";
         public static final String IO_SLOTS_WAIT_TIME_MILLIS   = "iowaitmillis";
         public static final String IO_SLOTS_EXEC_TIME_MILLIS   = "ioexecmillis";
+        public static final String P2P_IO_SLOTS_EXEC_TIME_MILLIS   = "p2pioexecmillis";
+        public static final String P2P_IO_SLOTS_WAIT_TIME_MILLIS   = "p2piowaitmillis";
     }
 
     public static class Event {
