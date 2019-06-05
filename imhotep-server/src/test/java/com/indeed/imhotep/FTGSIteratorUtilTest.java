@@ -21,6 +21,7 @@ import com.indeed.imhotep.FTGSBinaryFormat.FieldStat;
 import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.protobuf.StatsSortOrder;
 import com.indeed.imhotep.service.FTGSOutputStreamWriter;
+import com.indeed.imhotep.utils.tempfiles.TempFile;
 import com.indeed.util.core.Pair;
 import org.apache.log4j.Logger;
 import org.junit.After;
@@ -56,12 +57,12 @@ public class FTGSIteratorUtilTest {
 
     @Rule
     public final ExpectedException expected = ExpectedException.none();
-    private Pair<File, FieldStat[]> fileAndStats;
+    private Pair<TempFile, FieldStat[]> fileAndStats;
 
     @After
-    public void tearDown() {
+    public void tearDown() throws IOException {
         if (fileAndStats != null) {
-            fileAndStats.getFirst().delete();
+            fileAndStats.getFirst().removeFile();
         }
     }
 

@@ -18,7 +18,10 @@ import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.io.MultiFile;
 import com.indeed.imhotep.io.TempFileSizeLimitExceededException;
 import com.indeed.imhotep.io.WriteLimitExceededException;
+import com.indeed.imhotep.scheduling.SilentCloseable;
 import com.indeed.imhotep.service.FTGSOutputStreamWriter;
+import com.indeed.imhotep.utils.tempfiles.ImhotepTempFiles;
+import com.indeed.imhotep.utils.tempfiles.TempFile;
 import com.indeed.util.core.Throwables2;
 import com.indeed.util.core.hash.MurmurHash;
 import com.indeed.util.core.io.Closeables2;
@@ -47,6 +50,7 @@ public final class FTGSSplitter implements Closeable {
 
     private final OutputStream[] outputStreams;
     private final FTGSIterator[] ftgsIterators;
+    private final SilentCloseable fileHandle;
 
     private final AtomicBoolean done = new AtomicBoolean(false);
 
@@ -61,12 +65,13 @@ public final class FTGSSplitter implements Closeable {
         this.largePrime = largePrime;
         outputStreams = new OutputStream[numSplits];
         try {
-            final File file = Files.createTempFile("ftgsSplitter", ".tmp").toFile();
+            final TempFile tempFile = ImhotepTempFiles.getInstance().createFTGSSplitterTempFile();
             final MultiFile multiFile;
             try {
-                multiFile = MultiFile.create(file, numSplits, 256 * 1024, tempFileSizeBytesLeft);
+                multiFile = MultiFile.create(tempFile.getFile(), numSplits, 256 * 1024, tempFileSizeBytesLeft);
+                fileHandle = tempFile.addReference();
             } finally {
-                file.delete();
+                tempFile.removeFileStillReferenced();
             }
             for (int i = 0; i < numSplits; i++) {
                 outputStreams[i] = multiFile.getOutputStream(i);
@@ -164,7 +169,7 @@ public final class FTGSSplitter implements Closeable {
         if (done.compareAndSet(false, true)) {
             final Closeable closeIterators = Closeables2.forArray(log, ftgsIterators);
             final Closeable closeOutputStreams = Closeables2.forArray(log, outputStreams);
-            Closeables2.closeAll(log, iterator, closeIterators, closeOutputStreams);
+            Closeables2.closeAll(log, iterator, closeIterators, closeOutputStreams, fileHandle);
         }
     }
 

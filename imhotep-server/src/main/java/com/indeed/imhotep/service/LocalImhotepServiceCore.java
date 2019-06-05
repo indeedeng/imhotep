@@ -40,6 +40,7 @@ import com.indeed.imhotep.protobuf.ImhotepResponse;
 import com.indeed.imhotep.protobuf.ShardBasicInfoMessage;
 import com.indeed.imhotep.scheduling.SchedulerType;
 import com.indeed.imhotep.scheduling.TaskScheduler;
+import com.indeed.imhotep.utils.tempfiles.ImhotepTempFiles;
 import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.core.reference.SharedReference;
 import com.indeed.util.core.shell.PosixFileOperations;
@@ -168,6 +169,7 @@ public class LocalImhotepServiceCore
 
         sessionManager = new LocalSessionManager(statsEmitter, config.getMaxSessionsTotal(), config.getMaxSessionsPerUser());
 
+        ImhotepTempFiles.getInstance().tryCleanupTempDirectory();
         clearTempDir(shardTempDir);
 
 
@@ -234,10 +236,6 @@ public class LocalImhotepServiceCore
                 }
                 if (!isDirectory && baseName.startsWith(".tmp")) {
                     /* an optimization log */
-                    Files.delete(p);
-                }
-                if (!isDirectory && baseName.startsWith("ftgs") && baseName.endsWith(".tmp")) {
-                    /* created by AbstractImhotepMultisession::persist() */
                     Files.delete(p);
                 }
                 if (!isDirectory && baseName.startsWith("native-split")) {
