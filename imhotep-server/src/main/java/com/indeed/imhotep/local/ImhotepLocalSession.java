@@ -130,7 +130,6 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -219,9 +218,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
 
         namedGroupLookups = new NamedGroupManager(memory);
         resetGroupsTo(ImhotepSession.DEFAULT_GROUPS, 1);
-        // put it into a special name in named group lookups in order to automatically make
-        // rebuildAndFilterIndexes work correctly for free.
-        // also allows (careful) use in operations if necessary.
+        // put it into a special name in named group lookups in order to allow (careful) use in operations if necessary.
         namedGroupLookups.copyInto(new RegroupParams(ImhotepSession.DEFAULT_GROUPS, NON_DELETED_DOCUMENTS));
 
         this.metricStack.addObserver(new StatLookup.Observer() {

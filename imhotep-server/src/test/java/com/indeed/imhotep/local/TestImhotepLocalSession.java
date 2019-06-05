@@ -46,7 +46,6 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -59,7 +58,6 @@ import static java.util.Collections.singletonList;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -1781,297 +1779,10 @@ public class TestImhotepLocalSession {
     }
 
     @Test
-    public void testGroup0Filtering() throws ImhotepOutOfMemoryException, IOException {
-        /* make session 1 */
-        final FlamdexReader r1 = MakeAFlamdex.make();
-        final Path testDir = Files.createTempDirectory("imhotep.test");
-
-        try (ImhotepLocalSession session1 = new ImhotepJavaLocalSession("testLocalSession", r1, null, testDir.toString(),
-                new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE)),
-                null)) {
-            session1.createDynamicMetric("foo");
-            session1.createDynamicMetric("bar");
-            final int[] bar = {0, 13};
-            session1.updateDynamicMetric("bar", bar);
-            session1.regroup(new GroupMultiRemapRule[]{new GroupMultiRemapRule(1, 1, new int[]{2}, new RegroupCondition[]{new RegroupCondition("if3", true, 9999, null, false)})});
-            final int[] foo = {0, 1, 2};
-            session1.updateDynamicMetric("foo", foo);
-            session1.regroup(new GroupMultiRemapRule[]{
-                    new GroupMultiRemapRule(1, 0, new int[]{2}, new RegroupCondition[]{new RegroupCondition("if3", true, 19, null, false)}),
-                    new GroupMultiRemapRule(2, 3, new int[]{4}, new RegroupCondition[]{new RegroupCondition("sf2", false, 0, "b", false)})
-            });
-            final int[] fo = {0, 0, 0, 0, 1};
-            session1.updateDynamicMetric("foo", fo);
-
-            long[] stats1 = session1.getGroupStats(singletonList("count()"));
-            assertEquals(0, stats1[0]);
-            assertEquals(0, stats1[1]);
-            assertEquals(5, stats1[2]);
-            assertEquals(4, stats1[3]);
-            assertEquals(1, stats1[4]);
-
-        /* optimize session */
-            session1.rebuildAndFilterIndexes(ImhotepSession.DEFAULT_GROUPS, Arrays.asList("if1", "if3"), Arrays.asList("sf1", "sf3", "sf4"));
-
-            GroupLookup gl = session1.namedGroupLookups.get(ImhotepSession.DEFAULT_GROUPS);
-            assertEquals(5, gl.getNumGroups());
-            assertEquals(10, gl.size());
-            for (int i = 0; i < gl.size(); i++) {
-                if (i >= 0 && i < 5) {
-                    assertEquals(Integer.toString(i) + " in wrong group", 2, gl.get(i));
-                }
-                if (i >= 5 && i < 7) {
-                    assertEquals(Integer.toString(i) + " in wrong group", 3, gl.get(i));
-                }
-                if (i >= 7 && i < 8) {
-                    assertEquals(Integer.toString(i) + " in wrong group", 4, gl.get(i));
-                }
-                if (i >= 8 && i < 10) {
-                    assertEquals(Integer.toString(i) + " in wrong group", 3, gl.get(i));
-                }
-            }
-
-        /* check the dynamic metric */
-            Map<String, DynamicMetric> dynamicMetrics = session1.getDynamicMetrics();
-        /* check all the groups are there */
-            assertEquals(dynamicMetrics.size(), 2);
-            assertNotNull(dynamicMetrics.get("foo"));
-            assertNotNull(dynamicMetrics.get("bar"));
-
-        /* check dynamic metrics per group */
-            DynamicMetric dm = dynamicMetrics.get("foo");
-            for (int i = 0; i < gl.size(); i++) {
-                if (i >= 0 && i < 5) {
-                    assertEquals(Integer.toString(i) + " has wrong dynamic metric",
-                            1,
-                            dm.lookupSingleVal(i));
-                }
-                if (i >= 5 && i < 7) {
-                    assertEquals(Integer.toString(i) + " has wrong dynamic metric",
-                            2,
-                            dm.lookupSingleVal(i));
-                }
-                if (i >= 7 && i < 8) {
-                    assertEquals(Integer.toString(i) + " has wrong dynamic metric",
-                            3,
-                            dm.lookupSingleVal(i));
-                }
-                if (i >= 8 && i < 10) {
-                    assertEquals(Integer.toString(i) + " has wrong dynamic metric",
-                            2,
-                            dm.lookupSingleVal(i));
-                }
-            }
-
-            dm = dynamicMetrics.get("bar");
-            for (int i = 0; i < gl.size(); i++) {
-                if (i >= 0 && i < 10) {
-                    assertEquals(Integer.toString(i) + " has wrong dynamic metric",
-                            13,
-                            dm.lookupSingleVal(i));
-                }
-            }
-
-        /* try another regroup */
-            session1.createDynamicMetric("cat");
-            final int[] cat = {0, 17};
-            session1.updateDynamicMetric("cat", cat);
-            session1.regroup(new GroupMultiRemapRule[]{
-                    new GroupMultiRemapRule(2, 1, new int[]{6}, new RegroupCondition[]{new RegroupCondition("if3", true, 5, null, false)}),
-                    new GroupMultiRemapRule(3, 2, new int[]{7}, new RegroupCondition[]{new RegroupCondition("if3", true, 10000, null, false)}),
-            });
-            stats1 = session1.getGroupStats(singletonList("count()"));
-            assertEquals(0, stats1[0]);
-            assertEquals(5, stats1[1]);
-            assertEquals(4, stats1[2]);
-
-            final int[] foo2 = {0, 7, 11};
-            session1.updateDynamicMetric("foo", foo2);
-
-        /* optimize session */
-            session1.rebuildAndFilterIndexes(ImhotepSession.DEFAULT_GROUPS, Arrays.asList("if1", "if3"), Arrays.asList("sf1", "sf3", "sf4"));
-
-            stats1 = session1.getGroupStats(singletonList("count()"));
-            assertEquals(0, stats1[0]);
-            assertEquals(5, stats1[1]);
-            assertEquals(4, stats1[2]);
-
-            gl = session1.namedGroupLookups.get(ImhotepSession.DEFAULT_GROUPS);
-            assertEquals(3, gl.getNumGroups());
-            assertEquals(9, gl.size());
-            for (int i = 0; i < gl.size(); i++) {
-                if (i >= 0 && i < 5) {
-                    assertEquals(Integer.toString(i) + " in wrong group", 1, gl.get(i));
-                }
-                if (i >= 5 && i < 9) {
-                    assertEquals(Integer.toString(i) + " in wrong group", 2, gl.get(i));
-                }
-            }
-
-        /* check dynamic metrics per group */
-            dynamicMetrics = session1.getDynamicMetrics();
-            dm = dynamicMetrics.get("foo");
-            for (int i = 0; i < gl.size(); i++) {
-                if (i >= 0 && i < 5) {
-                    assertEquals(Integer.toString(i) + " has wrong dynamic metric",
-                            8,
-                            dm.lookupSingleVal(i));
-                }
-                if (i >= 5 && i < 9) {
-                    assertEquals(Integer.toString(i) + " has wrong dynamic metric",
-                            13,
-                            dm.lookupSingleVal(i));
-                }
-            }
-
-            dm = dynamicMetrics.get("bar");
-            for (int i = 0; i < gl.size(); i++) {
-                if (i >= 0 && i < 9) {
-                    assertEquals(Integer.toString(i) + " has wrong dynamic metric",
-                            13,
-                            dm.lookupSingleVal(i));
-                }
-            }
-        } finally {
-            TestFileUtils.deleteDirTree(testDir);
-        }
-    }
-
-    @Test
-    public void testOptimizeThenReset() throws ImhotepOutOfMemoryException, IOException {
-        /* make session 1 */
-        final FlamdexReader r1 = MakeAFlamdex.make();
-        final Path testDir = Files.createTempDirectory("imhotep.test");
-        try (ImhotepLocalSession session1 = new ImhotepJavaLocalSession("testLocalSession", r1,
-                null, testDir.toString(),
-                new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE)),
-                null)) {
-            session1.createDynamicMetric("foo");
-            session1.createDynamicMetric("bar");
-            final int[] bar = {0, 13};
-            session1.updateDynamicMetric("bar", bar);
-            session1.regroup(new GroupMultiRemapRule[]{new GroupMultiRemapRule(1, 1, new int[]{2}, new RegroupCondition[]{new RegroupCondition("if3", true, 9999, null, false)})});
-            final int[] foo = {0, 1, 2};
-            session1.updateDynamicMetric("foo", foo);
-            session1.regroup(new GroupMultiRemapRule[]{
-                    new GroupMultiRemapRule(1, 0, new int[]{2}, new RegroupCondition[]{new RegroupCondition("if3", true, 19, null, false)}),
-                    new GroupMultiRemapRule(2, 3, new int[]{4}, new RegroupCondition[]{new RegroupCondition("sf2", false, 0, "b", false)})
-            });
-            final int[] fo = {0, 0, 0, 0, 1};
-            session1.updateDynamicMetric("foo", fo);
-
-        /* optimize session */
-            session1.rebuildAndFilterIndexes(ImhotepSession.DEFAULT_GROUPS, Arrays.asList("if1", "if3"), Arrays.asList("sf1", "sf3", "sf4"));
-
-        /* try another regroup */
-            session1.createDynamicMetric("cat");
-            final int[] cat = {0, 3, 3, 3, 3};
-            session1.updateDynamicMetric("cat", cat);
-            final int[] fo2 = {0, 0, 0, 0, 2};
-            session1.updateDynamicMetric("foo", fo2);
-            session1.regroup(new GroupMultiRemapRule[]{
-                    new GroupMultiRemapRule(2, 1, new int[]{6}, new RegroupCondition[]{new RegroupCondition("if3", true, 5, null, false)}),
-                    new GroupMultiRemapRule(3, 2, new int[]{7}, new RegroupCondition[]{new RegroupCondition("if3", true, 10000, null, false)})
-            });
-
-            final int[] foo2 = {0, 7, 11};
-            session1.updateDynamicMetric("foo", foo2);
-
-        /* optimize session */
-            session1.rebuildAndFilterIndexes(ImhotepSession.DEFAULT_GROUPS, Arrays.asList("if1", "if3"), Arrays.asList("sf1", "sf3", "sf4"));
-
-            final int[] foo3 = {0, 0, 1};
-            session1.updateDynamicMetric("foo", foo3);
-
-        /* reset */
-            session1.resetGroups();
-
-        /* check groups */
-            final GroupLookup gl = session1.namedGroupLookups.get(ImhotepSession.DEFAULT_GROUPS);
-            assertEquals(2, gl.getNumGroups());
-            assertEquals(20, gl.size());
-
-        /* check the dynamic metric */
-            final Map<String, DynamicMetric> dynamicMetrics = session1.getDynamicMetrics();
-        /* check all the groups are there */
-            assertEquals(dynamicMetrics.size(), 3);
-            assertNotNull(dynamicMetrics.get("foo"));
-            assertNotNull(dynamicMetrics.get("bar"));
-            assertNotNull(dynamicMetrics.get("cat"));
-
-        /* check dynamic metrics per group */
-            DynamicMetric dm = dynamicMetrics.get("bar");
-            for (int i = 0; i < gl.size(); i++) {
-                if (i >= 0 && i < 20) {
-                    assertEquals(Integer.toString(i) + " has wrong dynamic metric",
-                            13,
-                            dm.lookupSingleVal(i));
-                }
-            }
-
-            dm = dynamicMetrics.get("cat");
-            for (int i = 0; i < gl.size(); i++) {
-                if (i >= 0 && i < 5) {
-                    assertEquals(Integer.toString(i) + " has wrong dynamic metric",
-                            0,
-                            dm.lookupSingleVal(i));
-                }
-                if (i >= 5 && i < 15) {
-                    assertEquals(Integer.toString(i) + " has wrong dynamic metric",
-                            3,
-                            dm.lookupSingleVal(i));
-                }
-                if (i >= 15 && i < 20) {
-                    assertEquals(Integer.toString(i) + " has wrong dynamic metric",
-                            0,
-                            dm.lookupSingleVal(i));
-                }
-            }
-
-            dm = dynamicMetrics.get("foo");
-            for (int i = 0; i < gl.size(); i++) {
-                if (i >= 0 && i < 5) {
-                    assertEquals(Integer.toString(i) + " has wrong dynamic metric",
-                            1,
-                            dm.lookupSingleVal(i));
-                }
-                if (i >= 5 && i < 10) {
-                    assertEquals(Integer.toString(i) + " has wrong dynamic metric",
-                            8,
-                            dm.lookupSingleVal(i));
-                }
-                if (i >= 10 && i < 12) {
-                    assertEquals(Integer.toString(i) + " has wrong dynamic metric",
-                            14,
-                            dm.lookupSingleVal(i));
-                }
-                if (i >= 12 && i < 13) {
-                    assertEquals(Integer.toString(i) + " has wrong dynamic metric",
-                            5,
-                            dm.lookupSingleVal(i));
-                }
-                if (i >= 13 && i < 15) {
-                    assertEquals(Integer.toString(i) + " has wrong dynamic metric",
-                            14,
-                            dm.lookupSingleVal(i));
-                }
-                if (i >= 15 && i < 20) {
-                    assertEquals(Integer.toString(i) + " has wrong dynamic metric",
-                            1,
-                            dm.lookupSingleVal(i));
-                }
-            }
-        } finally {
-            TestFileUtils.deleteDirTree(testDir);
-        }
-    }
-
-    @Test
-    public void testRegexMetric() throws ImhotepOutOfMemoryException, IOException {
+    public void testRegexMetric() throws ImhotepOutOfMemoryException {
         final FlamdexReader r = MakeAFlamdex.make();
-        final Path testDir = Files.createTempDirectory("imhotep.test");
-        try (ImhotepLocalSession session = new ImhotepJavaLocalSession("testLocalSession", r,
-                null, testDir.toString(),
+        try (final ImhotepLocalSession session = new ImhotepJavaLocalSession("testLocalSession", r,
+                null,
                 new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE)),
                 null)) {
 
@@ -2082,17 +1793,14 @@ public class TestImhotepLocalSession {
             Assert.assertArrayEquals(new long[]{0, 4}, session.getGroupStats(singletonList("regex sf2:b")));
             Assert.assertArrayEquals(new long[]{0, 10}, session.getGroupStats(singletonList("regex floatfield:[0-9]*\\.[0-9]*")));
             Assert.assertArrayEquals(new long[]{0, 0}, session.getGroupStats(singletonList("regex nonexistent:anything")));
-        } finally {
-            TestFileUtils.deleteDirTree(testDir);
         }
     }
 
     @Test
     public void testGetPerformanceStats() throws ImhotepOutOfMemoryException, IOException {
         final FlamdexReader r = MakeAFlamdex.make();
-        final Path testDir = Files.createTempDirectory("imhotep.test");
-        try (ImhotepLocalSession session = new ImhotepJavaLocalSession("testLocalSession", r,
-                null, testDir.toString(),
+        try (final ImhotepLocalSession session = new ImhotepJavaLocalSession("testLocalSession", r,
+                null,
                 new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE)),
                 null)) {
 
@@ -2104,17 +1812,14 @@ public class TestImhotepLocalSession {
             Assert.assertTrue(stats.ftgsTempFileSize >= 0);
             Assert.assertTrue(stats.fieldFilesReadSize >= 0);
 
-        } finally {
-            TestFileUtils.deleteDirTree(testDir);
         }
     }
 
     @Test
-    public void testCloseAndGetPerformanceStats() throws ImhotepOutOfMemoryException, IOException {
+    public void testCloseAndGetPerformanceStats() throws ImhotepOutOfMemoryException {
         final FlamdexReader r = MakeAFlamdex.make();
-        final Path testDir = Files.createTempDirectory("imhotep.test");
         try (ImhotepLocalSession session = new ImhotepJavaLocalSession("testLocalSession", r,
-                null, testDir.toString(),
+                null,
                 new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE)),
                 null)) {
 
@@ -2126,17 +1831,14 @@ public class TestImhotepLocalSession {
             stats = session.closeAndGetPerformanceStats();
             Assert.assertNull(stats);
 
-        } finally {
-            TestFileUtils.deleteDirTree(testDir);
         }
     }
 
     @Test
-    public void testGetDistinct() throws ImhotepOutOfMemoryException, IOException {
+    public void testGetDistinct() throws ImhotepOutOfMemoryException {
         final FlamdexReader r = MakeAFlamdex.make();
-        final Path testDir = Files.createTempDirectory("imhotep.test");
         try (final ImhotepLocalSession session = new ImhotepJavaLocalSession("testLocalSession", r,
-                null, testDir.toString(),
+                null,
                 new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE)),
                 null)) {
 
@@ -2171,17 +1873,14 @@ public class TestImhotepLocalSession {
                 session.resetGroupsTo(ImhotepSession.DEFAULT_GROUPS, 1);
             }
 
-        } finally {
-            TestFileUtils.deleteDirTree(testDir);
         }
     }
 
     @Test
     public void testConsolidateGroups() throws IOException, ImhotepOutOfMemoryException {
         final FlamdexReader r = MakeAFlamdex.make();
-        final Path testDir = Files.createTempDirectory("imhotep.test");
         try (final ImhotepLocalSession session = new ImhotepJavaLocalSession("testLocalSession", r,
-                null, testDir.toString(),
+                null,
                 new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE)),
                 null)) {
 
@@ -2290,11 +1989,10 @@ public class TestImhotepLocalSession {
     }
 
     @Test
-    public void testDeleteGroups() throws IOException, ImhotepOutOfMemoryException {
+    public void testDeleteGroups() throws ImhotepOutOfMemoryException {
         final FlamdexReader r = MakeAFlamdex.make();
-        final Path testDir = Files.createTempDirectory("imhotep.test");
         try (final ImhotepLocalSession session = new ImhotepJavaLocalSession("testLocalSession", r,
-                null, testDir.toString(),
+                null,
                 new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE)),
                 null)) {
             Assert.assertNotNull(session.namedGroupLookups.get(ImhotepSession.DEFAULT_GROUPS));

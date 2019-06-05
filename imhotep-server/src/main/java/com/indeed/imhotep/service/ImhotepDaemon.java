@@ -833,17 +833,6 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             return builder.build();
         }
 
-        private ImhotepResponse optimizeSession(
-                final ImhotepRequest          request,
-                final ImhotepResponse.Builder builder)
-            throws ImhotepOutOfMemoryException {
-            service.handleRebuildAndFilterIndexes(request.getSessionId(),
-                                                  request.getInputGroups(),
-                                                  getIntFields(request),
-                                                  getStringFields(request));
-            return builder.build();
-        }
-
         private ImhotepResponse resetGroups(
                 final ImhotepRequest          request,
                 final ImhotepResponse.Builder builder)
@@ -1121,9 +1110,6 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                     break;
                 case GROUP_QUERY_UPDATE_DYNAMIC_METRIC:
                     response = groupQueryUpdateDynamicMetric(request, builder);
-                    break;
-                case OPTIMIZE_SESSION:
-                    response = optimizeSession(request, builder);
                     break;
                 case RESET_GROUPS:
                     response = resetGroups(request, builder);

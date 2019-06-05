@@ -1212,22 +1212,6 @@ public class ImhotepRemoteSession
     }
 
     @Override
-    public void rebuildAndFilterIndexes(final String groupsName, final List<String> intFields, final List<String> stringFields) throws ImhotepOutOfMemoryException {
-        final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.OPTIMIZE_SESSION)
-                .setSessionId(getSessionId())
-                .addAllIntFields(intFields)
-                .addAllStringFields(stringFields)
-                .setInputGroups(groupsName)
-                .build();
-
-        try {
-            sendRequest(request, host, port, socketTimeout);
-        } catch (final IOException e) {
-            throw newRuntimeException(e);
-        }
-    }
-
-    @Override
     public void close() {
         internalClose(false);
     }
