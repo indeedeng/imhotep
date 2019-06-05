@@ -33,6 +33,9 @@ dependencies {
     testCompile 'junit:junit:4.8.2'
     testCompile 'org.easymock:easymock:2.4'
     testCompile 'org.apache.curator:curator-test:2.7.1'
+    testCompile 'org.hamcrest:hamcrest:2.1'
+    testCompileOnly 'org.projectlombok:lombok:1.18.4'
+    testAnnotationProcessor 'org.projectlombok:lombok:1.18.4'
 }
 
 ext['indeed.publish.name'] = 'imhotep-client'
