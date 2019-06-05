@@ -58,6 +58,8 @@ import com.indeed.imhotep.protobuf.QueryRemapMessage;
 import com.indeed.imhotep.protobuf.RegroupConditionMessage;
 import com.indeed.imhotep.protobuf.ShardBasicInfoMessage;
 import com.indeed.imhotep.protobuf.StringFieldAndTerms;
+import com.indeed.imhotep.utils.tempfiles.ImhotepTempFiles;
+import com.indeed.imhotep.utils.tempfiles.TempFile;
 import com.indeed.util.core.Pair;
 import com.indeed.util.core.io.Closeables2;
 import io.opentracing.ActiveSpan;
@@ -75,8 +77,6 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -362,7 +362,7 @@ public class ImhotepRemoteSession
                 .build();
 
         try {
-            final Pair<ImhotepResponse, InputStream> responseAndFile = sendRequestAndSaveResponseToFile(request, "ftgs", false);
+            final Pair<ImhotepResponse, InputStream> responseAndFile = sendRequestAndSaveResponseToFile(request, ImhotepTempFiles.Type.MULTI_FTGS, false);
             final int numStats = responseAndFile.getFirst().getNumStats();
             final int numGroups = responseAndFile.getFirst().getNumGroups();
             return new InputStreamFTGAIterator(responseAndFile.getSecond(), null, numStats, numGroups);
@@ -529,7 +529,7 @@ public class ImhotepRemoteSession
 
     private GroupStatsIterator sendGroupStatsIteratorRequest(final ImhotepRequest request) throws ImhotepOutOfMemoryException {
         try {
-            final Pair<ImhotepResponse, InputStream> responceAndFile = sendRequestAndSaveResponseToFile(request, "groupStatsIterator", false);
+            final Pair<ImhotepResponse, InputStream> responceAndFile = sendRequestAndSaveResponseToFile(request, ImhotepTempFiles.Type.GROUP_STATS_ITERATOR, false);
             return ImhotepProtobufShipping.readGroupStatsIterator(
                     responceAndFile.getSecond(),
                     responceAndFile.getFirst().getGroupStatSize(),
@@ -585,7 +585,7 @@ public class ImhotepRemoteSession
 
     private FTGSIterator fileBufferedFTGSRequest(final ImhotepRequest request, final boolean useFtgsPooledConnection) throws ImhotepOutOfMemoryException {
         try {
-            final Pair<ImhotepResponse, InputStream> responseAndFile = sendRequestAndSaveResponseToFile(request, "ftgs", useFtgsPooledConnection);
+            final Pair<ImhotepResponse, InputStream> responseAndFile = sendRequestAndSaveResponseToFile(request, ImhotepTempFiles.Type.FTGS, useFtgsPooledConnection);
             final int numStats = responseAndFile.getFirst().getNumStats();
             final int numGroups = responseAndFile.getFirst().getNumGroups();
             return new InputStreamFTGSIterator(responseAndFile.getSecond(), null, numStats, numGroups);
@@ -596,15 +596,15 @@ public class ImhotepRemoteSession
 
     public static BufferedInputStream saveResponseToFileFromStream(
             final InputStream is,
-            final String tempFilePrefix,
+            final ImhotepTempFiles.Type tempFileType,
             final AtomicLong tempFileSizeBytesLeft,
             final String sessionId
     ) throws IOException {
-        Path tmp = null;
+        TempFile tmp = null;
         try {
-            tmp = Files.createTempFile(tempFilePrefix, ".tmp");
+            tmp = ImhotepTempFiles.getInstance().createTempFile(tempFileType, sessionId);
             final long start = System.currentTimeMillis();
-            try (final OutputStream out = new LimitedBufferedOutputStream(Files.newOutputStream(tmp), tempFileSizeBytesLeft)) {
+            try (final OutputStream out = new LimitedBufferedOutputStream(tmp.outputStream(), tempFileSizeBytesLeft)) {
                 ByteStreams.copy(is, out);
             } catch (final WriteLimitExceededException t) {
                 final String messageWithSessionId = createMessageWithSessionId(
@@ -613,15 +613,14 @@ public class ImhotepRemoteSession
             } finally {
                 if(log.isDebugEnabled()) {
                     log.debug("[" + sessionId + "] time to copy split data to file: " + (System.currentTimeMillis()
-                            - start) + " ms, file length: " + Files.size(tmp));
+                            - start) + " ms, file length: " + tmp.getFileLength());
                 }
             }
-            final BufferedInputStream bufferedInputStream = new BufferedInputStream(Files.newInputStream(tmp));
-            return bufferedInputStream;
+            return tmp.bufferedInputStream();
         } finally {
             if (tmp != null) {
                 try {
-                    Files.delete(tmp);
+                    tmp.removeFileStillReferenced();
                 } catch (final Exception e) {
                     log.warn("[" + sessionId + "] Failed to delete temp file " + tmp);
                 }
@@ -631,26 +630,26 @@ public class ImhotepRemoteSession
 
     public BufferedInputStream saveResponseToFileFromStream(
             final InputStream is,
-            final String tempFilePrefix
+            final ImhotepTempFiles.Type tempFileType
     ) throws IOException {
-        return saveResponseToFileFromStream(is, tempFilePrefix, tempFileSizeBytesLeft, getSessionId());
+        return saveResponseToFileFromStream(is, tempFileType, tempFileSizeBytesLeft, getSessionId());
     }
 
     private Pair<ImhotepResponse, InputStream> sendRequestAndSaveResponseToFile(
             final ImhotepRequest request,
-            final String tempFilePrefix,
+            final ImhotepTempFiles.Type tempFileType,
             final boolean useFtgsPooledConnection) throws IOException, ImhotepOutOfMemoryException {
         if (useFtgsPooledConnection) {
             return CONNECTION_POOL.withConnectionBinaryException(hostAndPort, new ImhotepConnectionPool.BinaryThrowingFunction<ImhotepConnection, Pair<ImhotepResponse, InputStream>, IOException, ImhotepOutOfMemoryException>() {
                 @Override
                 public Pair<ImhotepResponse, InputStream> apply(final ImhotepConnection connection) throws IOException, ImhotepOutOfMemoryException {
-                    return sendRequestAndSaveResponseWithSocket(request, tempFilePrefix, connection.getSocket(), true);
+                    return sendRequestAndSaveResponseWithSocket(request, tempFileType, connection.getSocket(), true);
                 }
             });
         } else {
             final Socket socket = newSocket(host, port, socketTimeout);
             try {
-                return sendRequestAndSaveResponseWithSocket(request, tempFilePrefix, socket, false);
+                return sendRequestAndSaveResponseWithSocket(request, tempFileType, socket, false);
             } finally {
                 socket.close();
             }
@@ -659,7 +658,7 @@ public class ImhotepRemoteSession
 
     private Pair<ImhotepResponse, InputStream> sendRequestAndSaveResponseWithSocket(
             final ImhotepRequest request,
-            final String tempFilePrefix,
+            final ImhotepTempFiles.Type tempFileType,
             final Socket socket,
             final boolean fromPooledConnection) throws IOException, ImhotepOutOfMemoryException {
         final InputStream is = Streams.newBufferedInputStream(socket.getInputStream());
@@ -669,10 +668,10 @@ public class ImhotepRemoteSession
         final BufferedInputStream tempFileStream;
         if (fromPooledConnection) {
             try (final BlockInputStream blockIs = new BlockInputStream(is)) {
-                tempFileStream = saveResponseToFileFromStream(blockIs, tempFilePrefix);
+                tempFileStream = saveResponseToFileFromStream(blockIs, tempFileType);
             }
         } else {
-            tempFileStream = saveResponseToFileFromStream(is, tempFilePrefix);
+            tempFileStream = saveResponseToFileFromStream(is, tempFileType);
         }
         return new Pair<>(response, tempFileStream);
     }

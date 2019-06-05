@@ -11,6 +11,7 @@ import com.indeed.imhotep.io.RequestTools.ImhotepRequestSender;
 import com.indeed.imhotep.protobuf.DocStat;
 import com.indeed.imhotep.protobuf.ImhotepRequest;
 import com.indeed.imhotep.protobuf.ImhotepResponse;
+import com.indeed.imhotep.utils.tempfiles.ImhotepTempFiles;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
 
@@ -57,7 +58,7 @@ public class GetGroupStats extends AbstractImhotepCommand<GroupStatsIterator> {
     @Override
     public GroupStatsIterator readResponse(final InputStream is, final CommandSerializationParameters serializationParameters) throws IOException, ImhotepOutOfMemoryException {
         final ImhotepResponse response = ImhotepRemoteSession.readResponseWithMemoryExceptionSessionId(is, serializationParameters.getHost(), serializationParameters.getPort(), getSessionId());
-        final BufferedInputStream tempFileStream = ImhotepRemoteSession.saveResponseToFileFromStream(is, "batchGroupStatsIterator", serializationParameters.getTempFileSizeBytesLeft(), getSessionId());
+        final BufferedInputStream tempFileStream = ImhotepRemoteSession.saveResponseToFileFromStream(is, ImhotepTempFiles.Type.BATCH_GROUP_STATS_ITERATOR, serializationParameters.getTempFileSizeBytesLeft(), getSessionId());
         final GroupStatsIterator groupStatsIterator = ImhotepProtobufShipping.readGroupStatsIterator(
                 tempFileStream, response.getGroupStatSize(), false
         );
