@@ -602,7 +602,7 @@ public class ImhotepRemoteSession
     ) throws IOException {
         TempFile tmp = null;
         try {
-            tmp = ImhotepTempFiles.getInstance().createTempFile(tempFileType, sessionId);
+            tmp = ImhotepTempFiles.create(tempFileType, sessionId);
             final long start = System.currentTimeMillis();
             try (final OutputStream out = new LimitedBufferedOutputStream(tmp.outputStream(), tempFileSizeBytesLeft)) {
                 ByteStreams.copy(is, out);

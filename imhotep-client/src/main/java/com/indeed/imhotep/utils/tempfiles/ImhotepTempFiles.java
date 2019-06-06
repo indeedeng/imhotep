@@ -30,16 +30,20 @@ public class ImhotepTempFiles extends AbstractTempFiles<ImhotepTempFiles.Type> {
         super(builder);
     }
 
-    public TempFile createFTGSTempFile(final String sessionId) throws IOException {
-        return createTempFile(Type.FTGS, sessionId);
+    public static TempFile create(final Type type, final String sessionId) throws IOException {
+        return getInstance().createTempFile(type, sessionId);
     }
 
-    public TempFile createFTGATempFile(final String sessionId) throws IOException {
-        return createTempFile(Type.FTGA, sessionId);
+    public static TempFile createFTGSTempFile(final String sessionId) throws IOException {
+        return getInstance().createTempFile(Type.FTGS, sessionId);
     }
 
-    public TempFile createFTGSSplitterTempFile() throws IOException {
-        return createTempFile(Type.FTGS_SPLITTER);
+    public static TempFile createFTGATempFile(final String sessionId) throws IOException {
+        return getInstance().createTempFile(Type.FTGA, sessionId);
+    }
+
+    public static TempFile createFTGSSplitterTempFile() throws IOException {
+        return getInstance().createTempFile(Type.FTGS_SPLITTER);
     }
 
     public static Builder<Type, ImhotepTempFiles> builder() {
