@@ -30,11 +30,6 @@ public class ImhotepTempFiles extends AbstractTempFiles<ImhotepTempFiles.Type> {
         super(builder);
     }
 
-    @Override
-    public TempFile createTempFile(final Type type, final String sessionId) throws IOException {
-        return super.createTempFile(type, sessionId);
-    }
-
     public TempFile createFTGSTempFile(final String sessionId) throws IOException {
         return createTempFile(Type.FTGS, sessionId);
     }

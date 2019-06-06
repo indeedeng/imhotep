@@ -69,11 +69,11 @@ public abstract class AbstractTempFiles<E extends Enum<E> & TempFileType<E>> {
         return result;
     }
 
-    protected TempFile createTempFile(final E type) throws IOException {
+    public TempFile createTempFile(final E type) throws IOException {
         return createTempFileImpl(type, null);
     }
 
-    protected TempFile createTempFile(final E type, final String extraInfo) throws IOException {
+    public TempFile createTempFile(final E type, final String extraInfo) throws IOException {
         return createTempFileImpl(type, extraInfo);
     }
 
