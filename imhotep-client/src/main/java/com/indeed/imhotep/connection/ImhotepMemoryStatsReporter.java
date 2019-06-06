@@ -21,7 +21,7 @@ public class ImhotepMemoryStatsReporter implements SilentCloseable {
     ) {
         this.statsEmitter = statsEmitter;
         this.memoryReserver = memoryReserver;
-        this.reportExecutor = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("imhotepConnectionPoolReporter"));
+        this.reportExecutor = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("imhotepMemoryPoolReporter"));
         reportExecutor.scheduleAtFixedRate(this::report, 1, 1, TimeUnit.SECONDS);
     }
 
