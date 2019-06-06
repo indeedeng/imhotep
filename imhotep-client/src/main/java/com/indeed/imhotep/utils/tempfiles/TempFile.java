@@ -141,6 +141,9 @@ public class TempFile {
         private final FileInputStream inner;
         private final AtomicBoolean closed = new AtomicBoolean(false);
 
+        /**
+         * Only accepts {@link FileInputStream} for monomorphicity, and let JVM optimize delegate method calls.
+         */
         private TrackedInputStream(final FileInputStream inner) {
             incRef();
             this.inner = inner;
@@ -176,6 +179,9 @@ public class TempFile {
         private final FileOutputStream inner;
         private final AtomicBoolean closed = new AtomicBoolean(false);
 
+        /**
+         * Only accepts {@link FileOutputStream} for monomorphicity, and let JVM optimize delegate method calls.
+         */
         private TrackedOutputStream(final FileOutputStream inner) {
             incRef();
             this.inner = inner;
