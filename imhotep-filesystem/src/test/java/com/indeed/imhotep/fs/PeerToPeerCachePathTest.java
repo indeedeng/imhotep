@@ -53,6 +53,7 @@ public class PeerToPeerCachePathTest {
                         // hdfs
                         .put("imhotep.fs.filestore.hdfs.root.uri", localStoreDir.toURI().toString())
                         .put("imhotep.fs.sqar.metadata.cache.path", new File(tempDir.newFolder("sqardb"), "lsmtree").toString())
+                        .put("imhotep.fs.p2p.sqar.metadata.cache.path", new File(tempDir.newFolder("sqardb"), "p2plsmtree").toString())
                         .put("imhotep.fs.store.type", "local")
                         .put("imhotep.fs.cache.size.gb", "1")
                         .put("imhotep.fs.cache.block.size.bytes", "4096")

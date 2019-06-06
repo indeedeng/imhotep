@@ -128,10 +128,8 @@ class SqarMetaDataManager {
                 final List<RemoteFileMetadata> fileList;
                 try (final Closeable ignored = TaskScheduler.CPUScheduler.temporaryUnlock()) {
                     try (final Closeable ignored2 = TaskScheduler.RemoteFSIOScheduler.lockSlot()) {
-                        try (InputStream metadataInputStream = fs.newInputStream(SqarMetaDataUtil.getMetadataPath(shardPath), 0, -1)) {
-                            fileList = readMetadata(metadataInputStream);
-                        } catch (final NoSuchFileException | FileNotFoundException e) {
-                            // when the metadata file doesn't exist, there is nothing to return
+                        fileList = loadFileList(fs, shardPath);
+                        if (fileList == null) {
                             return null;
                         }
                     }
@@ -141,6 +139,19 @@ class SqarMetaDataManager {
             }
         }
         return fileMetadata;
+    }
+
+    private List<RemoteFileMetadata> loadFileList(final RemoteFileStore remoteFileStore, final RemoteCachingPath shardPath) throws IOException {
+        if (shardPath instanceof PeerToPeerCachePath) {
+            return ((PeerToPeerCacheFileStore) remoteFileStore).listShardDirFilesRecursively(shardPath);
+        } else {
+            try (InputStream metadataInputStream = remoteFileStore.newInputStream(SqarMetaDataUtil.getMetadataPath(shardPath), 0, -1)) {
+                return readMetadata(metadataInputStream);
+            } catch (final NoSuchFileException | FileNotFoundException e) {
+                // when the metadata file doesn't exist, there is nothing to return
+                return null;
+            }
+        }
     }
 
     void copyDecompressed(final InputStream is,

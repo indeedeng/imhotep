@@ -929,21 +929,12 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             service.handleGetAndSendShardFile(request.getShardFileUri(), slotTiming, builder, os);
         }
 
-        private ImhotepResponse getShardFileAttributes(
+        private ImhotepResponse listShardDirRecursively(
                 final ImhotepRequest request,
                 final ImhotepResponse.Builder builder) throws IOException {
             final SlotTiming slotTiming = new SlotTiming();
             ImhotepTask.setup(request.getUsername(), request.getClientName(), (byte) request.getSessionPriority(), slotTiming);
-            service.handleGetShardFileAttributes(request.getShardFileUri(), builder);
-            return builder.setSlotTiming(slotTiming.writeToSlotTimingMessage()).build();
-        }
-
-        private ImhotepResponse listShardFileAttributes(
-                final ImhotepRequest request,
-                final ImhotepResponse.Builder builder) throws IOException {
-            final SlotTiming slotTiming = new SlotTiming();
-            ImhotepTask.setup(request.getUsername(), request.getClientName(), (byte) request.getSessionPriority(), slotTiming);
-            service.handleListShardFileAttributes(request.getShardFileUri(), builder);
+            service.handleListShardDirRecursively(request.getShardFileUri(), builder);
             return builder.setSlotTiming(slotTiming.writeToSlotTimingMessage()).build();
         }
 
@@ -1148,13 +1139,9 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                     closeSocket = false;
                     getAndSendShardFile(request, builder, os);
                     break;
-                case GET_SHARD_FILE_ATTRIBUTES:
+                case LIST_SHARD_DIR_FILES_RECURSIVELY:
                     closeSocket = false;
-                    response = getShardFileAttributes(request, builder);
-                    break;
-                case LIST_SHARD_FILE_ATTRIBUTES:
-                    closeSocket = false;
-                    response = listShardFileAttributes(request, builder);
+                    response = listShardDirRecursively(request, builder);
                     break;
                 case BATCH_REQUESTS:
                     final Pair<ImhotepResponse, GroupStatsIterator> responseGroupStatsIteratorPair = executeBatchRequest(request, is, builder);

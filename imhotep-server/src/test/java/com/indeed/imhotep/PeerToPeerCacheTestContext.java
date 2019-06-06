@@ -194,6 +194,7 @@ public class PeerToPeerCacheTestContext extends ExternalResource {
                 // hdfs
                 .put("imhotep.fs.filestore.hdfs.root.uri", hdfsStoreDir.toString())
                 .put("imhotep.fs.sqar.metadata.cache.path", new File(sqarDbDir, "lsmtree").toString())
+                .put("imhotep.fs.p2p.sqar.metadata.cache.path", new File(sqarDbDir, "p2plsmtree").toString())
                 .put("imhotep.fs.store.type", "local")
                 .put("imhotep.fs.cache.size.gb", "1")
                 .put("imhotep.fs.cache.block.size.bytes", "4096")

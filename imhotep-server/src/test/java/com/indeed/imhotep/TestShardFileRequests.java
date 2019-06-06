@@ -1,21 +1,15 @@
 package com.indeed.imhotep;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Maps;
 import com.google.common.io.ByteStreams;
 import com.indeed.imhotep.client.Host;
-import com.indeed.imhotep.fs.RemoteCachingPath;
 import com.indeed.imhotep.io.ImhotepProtobufShipping;
 import com.indeed.imhotep.io.Streams;
-import com.indeed.imhotep.protobuf.FileAttributeMessage;
+import com.indeed.imhotep.protobuf.FileAttributesMessage;
 import com.indeed.imhotep.protobuf.ImhotepRequest;
 import com.indeed.imhotep.protobuf.ImhotepResponse;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -26,25 +20,21 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
-import java.net.URI;
-import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.TimeoutException;
+import java.util.stream.Collectors;
 
 import static com.indeed.imhotep.utils.ImhotepExceptionUtils.buildIOExceptionFromResponse;
 import static com.indeed.imhotep.utils.ImhotepExceptionUtils.buildImhotepKnownExceptionFromResponse;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 /**
  * @author xweng
@@ -90,47 +80,31 @@ public class TestShardFileRequests {
 
 
     @Test
-    public void testGetShardFileAttributes() throws IOException {
-        testContext.createDailyShard("dataset3", 1, false);
-        final Path shardPath = testContext.getShardPaths("dataset3").get(0);
-
-        // file
-        final Path remoteFilePath = shardPath.resolve("fld-if1.intdocs");
-        final FileAttributeMessage fileAttributes = getShardFileAttributes(remoteFilePath);
-        assertNotNull(fileAttributes);
-        assertFalse(fileAttributes.getIsDirectory());
-        assertEquals(20, fileAttributes.getSize());
-
-        // directory
-        final FileAttributeMessage dirAttributes = getShardFileAttributes(shardPath);
-        assertNotNull(dirAttributes);
-        assertTrue(dirAttributes.getIsDirectory());
-    }
-
-    @Test
-    public void testListShardFileAttributes() throws IOException {
+    public void testListShardDirRecursively() throws IOException {
         testContext.createDailyShard("dataset4", 1, false);
         final Path shardPath = testContext.getShardPaths("dataset4").get(0);
 
         final Path remoteDirPath = testContext.getRootPath().resolve(shardPath);
-        final List<FileAttributeMessage> subFileAttributes = listShardFileAttributes(remoteDirPath);
-        final Map<Path, FileAttributeMessage> pathToAttributesMap = Maps.newHashMap();
-        subFileAttributes.forEach(attribute ->  pathToAttributesMap.put(
-                Paths.get(URI.create(attribute.getPath())),
-                attribute));
+        // copy as the list from request is immutable
+        final List<FileAttributesMessage> attrMessageListFromRequest = new ArrayList<>(listShardFileRecursively(remoteDirPath));
+        Collections.sort(attrMessageListFromRequest, Comparator.comparing(FileAttributesMessage::getPath));
 
-        try (final DirectoryStream<Path> dirStream = Files.newDirectoryStream(remoteDirPath)) {
-            dirStream.forEach(localPath -> {
-                try {
-                    final BasicFileAttributes attributes = Files.readAttributes(localPath, BasicFileAttributes.class);
-                    final FileAttributeMessage message = pathToAttributesMap.getOrDefault(localPath, null);
-                    assertNotNull(message);
-                    assertEquals(attributes.isDirectory(), message.getIsDirectory());
-                    assertEquals(attributes.size(), message.getSize());
-                } catch (final IOException e) {
-                    fail("IOException: " + e.getMessage());
-                }
-            });
+        final List<FileAttributesMessage> localAttrMessageList = Files.walk(shardPath).filter(Files::isRegularFile).map(path -> {
+            try {
+                final BasicFileAttributes attrs = Files.readAttributes(path, BasicFileAttributes.class);
+                return FileAttributesMessage.newBuilder()
+                        .setPath(shardPath.relativize(path).toString())
+                        .setSize(attrs.isDirectory() ? -1 : attrs.size())
+                        .setIsDirectory(attrs.isDirectory())
+                        .build();
+            } catch (final IOException e) {
+                throw new RuntimeException(e);
+            }
+        }).sorted(Comparator.comparing(FileAttributesMessage::getPath)).collect(Collectors.toList());
+
+        assertEquals(localAttrMessageList.size(), attrMessageListFromRequest.size());
+        for (int i = 0; i < localAttrMessageList.size(); i++) {
+            assertEquals(localAttrMessageList.get(i), attrMessageListFromRequest.get(i));
         }
     }
 
@@ -143,20 +117,12 @@ public class TestShardFileRequests {
         }
     }
 
-    private FileAttributeMessage getShardFileAttributes(final Path path) throws IOException {
+    private List<FileAttributesMessage> listShardFileRecursively(final Path path) throws IOException {
         final ImhotepRequest newRequest = ImhotepRequest.newBuilder()
-                .setRequestType(ImhotepRequest.RequestType.GET_SHARD_FILE_ATTRIBUTES)
+                .setRequestType(ImhotepRequest.RequestType.LIST_SHARD_DIR_FILES_RECURSIVELY)
                 .setShardFileUri(path.toUri().toString())
                 .build();
-        return handleRequest(newRequest, (response, is) -> response.getFileAttributes());
-    }
-
-    private List<FileAttributeMessage> listShardFileAttributes(final Path path) throws IOException {
-        final ImhotepRequest newRequest = ImhotepRequest.newBuilder()
-                .setRequestType(ImhotepRequest.RequestType.LIST_SHARD_FILE_ATTRIBUTES)
-                .setShardFileUri(path.toUri().toString())
-                .build();
-        return handleRequest(newRequest, (response, is) -> response.getSubFilesAttributesList());
+        return handleRequest(newRequest, (response, is) -> response.getFilesAttributesList());
     }
 
     private void downloadShardFiles(final String remoteFileUri, final File destFile) throws IOException {

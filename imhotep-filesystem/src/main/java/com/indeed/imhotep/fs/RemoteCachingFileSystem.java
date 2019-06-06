@@ -109,6 +109,9 @@ public class RemoteCachingFileSystem extends FileSystem {
     @Override
     public void close() {
         Closeables2.closeQuietly(fileStore, LOGGER);
+        if (peerToPeerCacheFileStore != null) {
+            Closeables2.closeQuietly(peerToPeerCacheFileStore, LOGGER);
+        }
     }
 
     @Override

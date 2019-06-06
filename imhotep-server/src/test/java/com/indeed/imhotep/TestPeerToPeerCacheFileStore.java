@@ -1,5 +1,6 @@
 package com.indeed.imhotep;
 
+import com.google.common.collect.Lists;
 import com.indeed.imhotep.fs.PeerToPeerCachePath;
 import com.indeed.imhotep.fs.RemoteCachingPath;
 import org.apache.commons.io.FileUtils;
@@ -13,7 +14,7 @@ import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
-import java.util.Iterator;
+import java.util.Collections;
 import java.util.List;
 import java.util.Spliterator;
 import java.util.Spliterators;
@@ -28,6 +29,7 @@ import java.util.stream.StreamSupport;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -60,25 +62,30 @@ public class TestPeerToPeerCacheFileStore {
     @Test
     public void testRemotePathListDir() throws IOException {
         final RemoteCachingPath localFilePath = shardPath;
+
+        final List<Path> localListItems;
         try (final DirectoryStream<Path> localDirStream = Files.newDirectoryStream(localFilePath)) {
-            final Path peerToPeerCachePath = toLocalHostP2PCachingPath(rootPath, localFilePath);
-            try (final DirectoryStream<Path> remoteDirStream = Files.newDirectoryStream(peerToPeerCachePath)) {
-                Iterator<Path> localIterator = localDirStream.iterator();
-                Iterator<Path> remoteIterator = remoteDirStream.iterator();
+            localListItems = Lists.newArrayList(localDirStream.iterator());
+            Collections.sort(localListItems);
+        }
 
-                while (localIterator.hasNext() && remoteIterator.hasNext()) {
-                    final Path nextRemotePath = remoteIterator.next();
-                    final Path nextLocalPath = localIterator.next();
+        final List<Path> remoteListItems;
+        final Path peerToPeerCachePath = toLocalHostP2PCachingPath(rootPath, localFilePath);
+        try (final DirectoryStream<Path> localDirStream = Files.newDirectoryStream(peerToPeerCachePath)) {
+            remoteListItems = Lists.newArrayList(localDirStream.iterator());
+            Collections.sort(remoteListItems);
+        }
 
-                    assertTrue(nextRemotePath instanceof PeerToPeerCachePath);
-                    assertTrue(nextLocalPath instanceof RemoteCachingPath);
-                    assertEquals(nextLocalPath, ((PeerToPeerCachePath) nextRemotePath).getRealPath());
-                }
+        assertNotNull(localListItems);
+        assertNotNull(remoteListItems);
+        assertEquals(localListItems.size(), remoteListItems.size());
+        for (int i = 0; i < localListItems.size(); i++) {
+            final Path localPath = localListItems.get(i);
+            final Path remotePath = remoteListItems.get(i);
 
-                if (localIterator.hasNext() || remoteIterator.hasNext()) {
-                    fail("The sub files count isn't equal");
-                }
-            }
+            assertTrue(remotePath instanceof PeerToPeerCachePath);
+            assertTrue(localPath instanceof RemoteCachingPath);
+            assertEquals(localPath, ((PeerToPeerCachePath) remotePath).getRealPath());
         }
     }
 
