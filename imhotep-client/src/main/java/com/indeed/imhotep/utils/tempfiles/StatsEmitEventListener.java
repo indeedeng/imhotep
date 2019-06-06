@@ -19,7 +19,7 @@ public class StatsEmitEventListener implements EventListener {
 
     @Override
     public void removeTwice(final TempFileState tempFileState) {
-        statsEmitter.count(statsName, 1, getTags("rempveTwice", tempFileState));
+        statsEmitter.count(statsName, 1, getTags("removeTwice", tempFileState));
     }
 
     @Override
