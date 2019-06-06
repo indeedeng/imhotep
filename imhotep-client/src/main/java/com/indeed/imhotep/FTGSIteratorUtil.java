@@ -75,7 +75,7 @@ public class FTGSIteratorUtil {
             @WillClose final FTGSIterator iterator
     ) throws IOException {
         try {
-            final TempFile tempFile = ImhotepTempFiles.getInstance().createFTGSTempFile(sessionId);
+            final TempFile tempFile = ImhotepTempFiles.createFTGSTempFile(sessionId);
             final FieldStat[] stats;
             final long start = System.currentTimeMillis();
             try (final OutputStream out = tempFile.bufferedOutputStream()) {
@@ -106,7 +106,7 @@ public class FTGSIteratorUtil {
             @WillClose final FTGAIterator iterator
     ) throws IOException {
         try {
-            final TempFile tempFile = ImhotepTempFiles.getInstance().createFTGATempFile(sessionId);
+            final TempFile tempFile = ImhotepTempFiles.createFTGATempFile(sessionId);
             final FieldStat[] stats;
             final long start = System.currentTimeMillis();
             try (final OutputStream out = tempFile.bufferedOutputStream()) {
