@@ -1,5 +1,6 @@
 package com.indeed.imhotep.connection;
 
+import com.indeed.imhotep.scheduling.SilentCloseable;
 import com.indeed.imhotep.service.MetricStatsEmitter;
 import com.indeed.util.core.threads.NamedThreadFactory;
 
@@ -10,7 +11,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * @author xweng
  */
-public class ImhotepConnectionPoolStatsReporter {
+public class ImhotepConnectionPoolStatsReporter implements SilentCloseable {
     private final ImhotepConnectionPool connectionPool;
 
     private final ScheduledExecutorService reportExecutor;
@@ -21,14 +22,14 @@ public class ImhotepConnectionPoolStatsReporter {
 
     public ImhotepConnectionPoolStatsReporter(
             final ImhotepConnectionPool connectionPool,
-            final MetricStatsEmitter statsEmitter) {
+            final MetricStatsEmitter statsEmitter,
+            final int reportFrequencySeconds
+    ) {
         this.connectionPool = connectionPool;
         this.statsEmitter = statsEmitter;
         this.stats = new ImhotepConnectionPoolStats();
         this.reportExecutor = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("imhotepConnectionPoolReporter"));
-    }
 
-    public void start(final int reportFrequencySeconds) {
         stats.update(connectionPool);
         reportExecutor.scheduleAtFixedRate(this::report, reportFrequencySeconds, reportFrequencySeconds, TimeUnit.SECONDS);
     }
@@ -50,6 +51,11 @@ public class ImhotepConnectionPoolStatsReporter {
         statsEmitter.gauge("connection.pool.socket.active", stats.getActiveSocket());
         // idle sockets count in the pool
         statsEmitter.gauge("connection.pool.socket.idle", stats.getIdleSocket());
+    }
+
+    @Override
+    public void close() {
+        reportExecutor.shutdown();
     }
 
     private static class ImhotepConnectionPoolStats {
