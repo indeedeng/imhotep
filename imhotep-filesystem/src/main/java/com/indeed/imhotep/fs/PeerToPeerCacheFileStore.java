@@ -223,10 +223,7 @@ public class PeerToPeerCacheFileStore extends RemoteFileStore implements Closeab
         final Host srcHost = peerToPeerCachePath.getRemoteHost();
 
         try (final Closeable ignored = TaskScheduler.CPUScheduler.temporaryUnlock()) {
-            return CONNECTION_POOL.withConnection(srcHost, FETCH_CONNECTION_TIMEOUT, connection -> {
-                final Socket socket = connection.getSocket();
-                final OutputStream os = Streams.newBufferedOutputStream(socket.getOutputStream());
-                final InputStream is = Streams.newBufferedInputStream(socket.getInputStream());
+            return CONNECTION_POOL.withBufferedSocketStream(srcHost, FETCH_CONNECTION_TIMEOUT, (is, os) -> {
                 final ImhotepResponse response = sendRequest(requestBuilder, is, os, srcHost);
                 return function.apply(response);
             });

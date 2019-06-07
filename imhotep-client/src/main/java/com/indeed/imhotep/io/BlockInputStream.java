@@ -21,8 +21,7 @@ import java.io.InputStream;
  *  [block size]      [actual data]
  * At the end of stream, it has an empty block with 0 block size, which indicates no following blocks will come and the stream ends.
  *
- * The inner input stream won't be closed when {@link BlockInputStream} is closed. You need to close the inner stream manually if necessary.
- * Also you need to read through the end of the block input stream, or otherwise the original input stream will contain garbage.
+ * You need to read through the end of the block input stream, or otherwise the original input stream will contain garbage.
  */
 @NotThreadSafe
 public class BlockInputStream extends FilterInputStream {
@@ -198,5 +197,6 @@ public class BlockInputStream extends FilterInputStream {
             return;
         }
         closed = true;
+        in.close();
     }
 }

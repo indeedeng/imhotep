@@ -2,6 +2,7 @@ package com.indeed.imhotep.connection;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.indeed.imhotep.client.Host;
+import com.indeed.util.core.Pair;
 import com.indeed.util.core.Throwables2;
 import com.indeed.util.core.io.Closeables2;
 import lombok.experimental.Delegate;
@@ -10,8 +11,14 @@ import org.apache.commons.pool2.impl.GenericKeyedObjectPoolConfig;
 import org.apache.commons.pool2.impl.GenericKeyedObjectPoolMXBean;
 import org.apache.log4j.Logger;
 
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
 import java.io.Closeable;
+import java.io.FilterInputStream;
+import java.io.FilterOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.Socket;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -20,14 +27,12 @@ import java.util.concurrent.atomic.AtomicLong;
  *
  * recommended usage:
  *
- * testConnnectionPool.withConnection(host, timeoutMillis, connection -&gt; {
- *     // do something with the connection and return a value
+ * testConnnectionPool.withConnection(host, timeoutMillis, function -&gt; {
+ *     // do something in function with the connection and return a value
  * });
  *
- * or without timeout
- *
- * testConnnectionPool.withConnection(host, connection -&gt; {
- *     // do something with the connection and return a value
+ * testConnnectionPool.withBufferedSocketStream(host, timeoutMillis, function -&gt; {
+ *     // do something in function with the wrapped inputstream and outputstream
  * });
  */
 
@@ -108,89 +113,171 @@ public class ImhotepConnectionPool implements Closeable {
         return invalidatedConnectionCount.getAndSet(0);
     }
 
-    /**
-     * Execute the function with connection
-     */
-    public <R, E extends Exception> R withConnection(
-            final Host host,
-            final ThrowingFunction<ImhotepConnection, R, E> function) throws E, IOException {
-        try (final ImhotepConnection connection = getConnection(host)) {
-            try {
-                return function.apply(connection);
-            } catch (final Throwable t) {
-                invalidateConnection(connection);
-                throw t;
-            }
-        }
-    }
-
-    /**
-     * Execute the function with the connection, also set the timeout when getting connection
-     */
-    public <R, E extends Exception> R withConnection(
-            final Host host,
-            final int timeoutMillis,
-            final ThrowingFunction<ImhotepConnection, R, E> function) throws E, IOException {
-        try (final ImhotepConnection connection = getConnection(host, timeoutMillis)) {
-            try {
-                return function.apply(connection);
-            } catch (final Throwable t) {
-                invalidateConnection(connection);
-                throw t;
-            }
-        }
-    }
-
     private void invalidateConnection(final ImhotepConnection connection) {
         invalidatedConnectionCount.incrementAndGet();
         connection.markAsInvalid();
     }
 
+    private Pair<InputStream, OutputStream> getBufferedSocketStream(final ImhotepConnection connection) throws IOException {
+        final Socket socket = connection.getSocket();
+        return Pair.of(
+                new PooledConnectionInputStream(new BufferedInputStream(socket.getInputStream())),
+                new PooledConnectionOutputStream(new BufferedOutputStream(socket.getOutputStream())));
+    }
+
     /**
-     * Execute the function with the connection and it may throw two kinds of exceptions
+     * An execution function to operate with connection.
      */
-    public <R, E1 extends Exception, E2 extends Exception> R withConnectionBinaryException(
+    public <R, E extends Exception> R withConnection(
             final Host host,
-            final BinaryThrowingFunction<ImhotepConnection, R, E1, E2> function) throws E1, E2, IOException {
+            final UnaryThrowingFunction<ImhotepConnection, R, E> function) throws E, IOException {
         try (final ImhotepConnection connection = getConnection(host)) {
             try {
                 return function.apply(connection);
             } catch (final Throwable t) {
-                connection.markAsInvalid();
+                invalidateConnection(connection);
                 throw t;
             }
         }
     }
 
     /**
-     * Execute the function with the connection and it may throw two kinds of exceptions,
-     * also set the timeout when getting connection
+     * An execution function to operate with connection with timeout when getting sockets.
      */
-    public <R, E1 extends Exception, E2 extends Exception> R withConnectionBinaryException(
+    public <R, E extends Exception> R withConnection(
             final Host host,
             final int timeoutMillis,
-            final BinaryThrowingFunction<ImhotepConnection, R, E1, E2> function) throws E1, E2, IOException {
+            final UnaryThrowingFunction<ImhotepConnection, R, E> function) throws E, IOException {
         try (final ImhotepConnection connection = getConnection(host, timeoutMillis)) {
             try {
                 return function.apply(connection);
             } catch (final Throwable t) {
-                connection.markAsInvalid();
+                invalidateConnection(connection);
                 throw t;
             }
         }
     }
 
-    public interface ThrowingFunction<K, R, E extends Exception> {
+    /**
+     * An execution function to read/write to the buffered socket stream.
+     * IMPORTANT: You shouldn't return any streams from {@code is} or {@code os} to outside callers in {@code function}.
+     * When it reaches to the end of {@code function}, the socket will be returned to the pool automatically.
+     * If you really need to return, please take the {@code withConnection} method and close the connection when stream is closed.
+     */
+    public <R, E extends Exception> R withBufferedSocketStream(
+            final Host host,
+            final BinaryThrowingFunction<InputStream, OutputStream, R, E> function) throws E, IOException {
+        try (final ImhotepConnection connection = getConnection(host)) {
+            final Pair<InputStream, OutputStream> socketStream = getBufferedSocketStream(connection);
+            try {
+                return function.apply(socketStream.getFirst(), socketStream.getSecond());
+            } catch (final Throwable t) {
+                invalidateConnection(connection);
+                throw t;
+            }
+        }
+    }
+
+    /**
+     * An execution function to read/write to the buffered socket stream with timeout when getting connections.
+     * IMPORTANT: You shouldn't return any streams from {@code is} or {@code os} to outside callers in {@code function}.
+     * When it reaches to the end of {@code function}, the socket will be returned to the pool automatically.
+     * If you really need to return, please take the {@code withConnection} method and close the connection when stream is closed.
+     */
+    public <R, E extends Exception> R withBufferedSocketStream(
+            final Host host,
+            final int timeoutMillis,
+            final BinaryThrowingFunction<InputStream, OutputStream, R, E> function) throws E, IOException {
+        try (final ImhotepConnection connection = getConnection(host, timeoutMillis)) {
+            final Pair<InputStream, OutputStream> socketStream = getBufferedSocketStream(connection);
+            try {
+                return function.apply(socketStream.getFirst(), socketStream.getSecond());
+            } catch (final Throwable t) {
+                invalidateConnection(connection);
+                throw t;
+            }
+        }
+    }
+
+    /**
+     * An execution function to read/write to the buffered socket stream, which may throw two kinds of exceptions.
+     * IMPORTANT: You shouldn't return any streams from {@code is} or {@code os} to outside callers in {@code function}.
+     * When it reaches to the end of {@code function}, the socket will be returned to the pool automatically.
+     * If you really need to return, please take the {@code withConnection} method and close the connection when stream is closed.
+     */
+    public <R, E1 extends Exception, E2 extends Exception> R withBufferedSocketStream2Throwings(
+            final Host host,
+            final Binary2ThrowingsFunction<InputStream, OutputStream, R, E1, E2> function) throws E1, E2, IOException {
+        try (final ImhotepConnection connection = getConnection(host)) {
+            final Pair<InputStream, OutputStream> socketStream = getBufferedSocketStream(connection);
+            try {
+                return function.apply(socketStream.getFirst(), socketStream.getSecond());
+            } catch (final Throwable t) {
+                invalidateConnection(connection);
+                throw t;
+            }
+        }
+    }
+
+    /**
+     * An execution function to read/write to the buffered socket stream with timeout when getting connections. It may throw two kinds of exceptions.
+     * IMPORTANT: You shouldn't return any streams from {@code is} or {@code os} to outside callers in {@code function}.
+     * When it reaches to the end of {@code function}, the socket will be returned to the pool automatically.
+     * If you really need to return, please take the {@code withConnection} method and close the connection when stream is closed.
+     */
+    public <R, E1 extends Exception, E2 extends Exception> R withBufferedSocketStream2Throwings(
+            final Host host,
+            final int timeoutMillis,
+            final Binary2ThrowingsFunction<InputStream, OutputStream, R, E1, E2> function) throws E1, E2, IOException {
+        try (final ImhotepConnection connection = getConnection(host, timeoutMillis)) {
+            final Pair<InputStream, OutputStream> socketStream = getBufferedSocketStream(connection);
+            try {
+                return function.apply(socketStream.getFirst(), socketStream.getSecond());
+            } catch (final Throwable t) {
+                invalidateConnection(connection);
+                throw t;
+            }
+        }
+    }
+
+    interface UnaryThrowingFunction<K, R, E extends Exception> {
         R apply(K k) throws E;
     }
 
-    public interface BinaryThrowingFunction<K, R, E1 extends Exception, E2 extends Exception> {
-        R apply(K k) throws E1, E2;
+    public interface BinaryThrowingFunction<K1, K2, R, E extends Exception> {
+        R apply(K1 k1, K2 k2) throws E;
+    }
+
+    public interface Binary2ThrowingsFunction<K1, K2, R, E1 extends Exception, E2 extends Exception> {
+        R apply(K1 k, K2 k2) throws E1, E2;
     }
 
     @Override
     public void close() {
         Closeables2.closeQuietly(sourcePool, logger);
+    }
+
+    private class PooledConnectionInputStream extends FilterInputStream {
+        PooledConnectionInputStream(final InputStream in) {
+            super(in);
+        }
+
+        @Override
+        public void close() throws IOException { }
+    }
+
+    private class PooledConnectionOutputStream extends FilterOutputStream {
+        private final OutputStream out;
+
+        PooledConnectionOutputStream(final OutputStream out) {
+            super(out);
+            this.out = out;
+        }
+
+        @Override
+        public void close() throws IOException {
+            out.flush();
+        }
     }
 
     private interface ImhotepConnectionPoolStats {
