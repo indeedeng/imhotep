@@ -125,14 +125,14 @@ public class TempFile {
     /**
      * If you open a file handle, you should call {@link TempFile#addReference()} to let {@link TempFile} track the usage.
      */
-    public Path getPath() {
+    public Path getInternalPath() {
         return path;
     }
 
     /**
      * If you open a file handle, you should call {@link TempFile#addReference()} to let {@link TempFile} track the usage.
      */
-    public File getFile() {
+    public File getInternalFile() {
         return path.toFile();
     }
 

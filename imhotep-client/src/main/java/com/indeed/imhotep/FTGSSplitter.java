@@ -29,11 +29,9 @@ import org.apache.log4j.Logger;
 
 import javax.annotation.WillClose;
 import java.io.Closeable;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.nio.file.Files;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -68,7 +66,7 @@ public final class FTGSSplitter implements Closeable {
             final TempFile tempFile = ImhotepTempFiles.createFTGSSplitterTempFile();
             final MultiFile multiFile;
             try {
-                multiFile = MultiFile.create(tempFile.getFile(), numSplits, 256 * 1024, tempFileSizeBytesLeft);
+                multiFile = MultiFile.create(tempFile.getInternalFile(), numSplits, 256 * 1024, tempFileSizeBytesLeft);
                 fileHandle = tempFile.addReference();
             } finally {
                 tempFile.removeFileStillReferenced();

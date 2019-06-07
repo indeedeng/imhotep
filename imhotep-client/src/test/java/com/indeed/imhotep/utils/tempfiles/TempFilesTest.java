@@ -295,22 +295,22 @@ public class TempFilesTest {
                 .build();
         {
             final TempFile tempFile = tempFilesForTest.createTempFile(TempFilesForTest.Type.A);
-            assertEquals(temporaryFolder.getRoot().getPath(), tempFile.getFile().getParent());
-            final String name = tempFile.getFile().getName();
+            assertEquals(temporaryFolder.getRoot().getPath(), tempFile.getInternalFile().getParent());
+            final String name = tempFile.getInternalFile().getName();
             assertThat(name, matchesRegex("a\\.[^.]*\\.tmp"));
             tempFile.removeFile();
         }
         {
             final TempFile tempFile = tempFilesForTest.createTempFile(TempFilesForTest.Type.A, "extra");
-            assertEquals(temporaryFolder.getRoot().getPath(), tempFile.getFile().getParent());
-            final String name = tempFile.getFile().getName();
+            assertEquals(temporaryFolder.getRoot().getPath(), tempFile.getInternalFile().getParent());
+            final String name = tempFile.getInternalFile().getName();
             assertThat(name, matchesRegex("a\\.extra\\.[^.]*\\.tmp"));
             tempFile.removeFile();
         }
         {
             final TempFile tempFile = tempFilesForTest.createTempFile(TempFilesForTest.Type.B, "extra");
-            assertEquals(temporaryFolder.getRoot().getPath(), tempFile.getFile().getParent());
-            final String name = tempFile.getFile().getName();
+            assertEquals(temporaryFolder.getRoot().getPath(), tempFile.getInternalFile().getParent());
+            final String name = tempFile.getInternalFile().getName();
             assertThat(name, matchesRegex("b\\.extra\\.[^.]*\\.tmp"));
             tempFile.removeFile();
         }
