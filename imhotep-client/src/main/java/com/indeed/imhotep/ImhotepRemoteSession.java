@@ -640,7 +640,7 @@ public class ImhotepRemoteSession
             final String tempFilePrefix,
             final boolean useFtgsPooledConnection) throws IOException, ImhotepOutOfMemoryException {
         if (useFtgsPooledConnection) {
-            return CONNECTION_POOL.withBufferedSocketStream2Throwings(hostAndPort, new ImhotepConnectionPool.Binary2ThrowingsFunction<InputStream, OutputStream, Pair<ImhotepResponse, InputStream>, IOException, ImhotepOutOfMemoryException>() {
+            return CONNECTION_POOL.withBufferedSocketStream2Throwings(hostAndPort, new ImhotepConnectionPool.SocketStreamUser2Throwings<Pair<ImhotepResponse, InputStream>, IOException, ImhotepOutOfMemoryException>() {
                 @Override
                 public Pair<ImhotepResponse, InputStream> apply(final InputStream is, final OutputStream os) throws IOException, ImhotepOutOfMemoryException {
                     return sendRequestAndSaveResponseWithSocket(request, tempFilePrefix, is, os, true);

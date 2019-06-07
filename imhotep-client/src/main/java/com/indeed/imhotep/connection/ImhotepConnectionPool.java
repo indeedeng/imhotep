@@ -14,8 +14,6 @@ import org.apache.log4j.Logger;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.Closeable;
-import java.io.FilterInputStream;
-import java.io.FilterOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -27,12 +25,12 @@ import java.util.concurrent.atomic.AtomicLong;
  *
  * recommended usage:
  *
- * testConnnectionPool.withConnection(host, timeoutMillis, function -&gt; {
- *     // do something in function with the connection and return a value
+ * testConnnectionPool.withBufferedSocketStream(host, timeoutMillis, (in, out) -&gt; {
+ *     // do something with the wrapped inputstream and outputstream
  * });
  *
- * testConnnectionPool.withBufferedSocketStream(host, timeoutMillis, function -&gt; {
- *     // do something in function with the wrapped inputstream and outputstream
+ * testConnnectionPool.withConnection(host, timeoutMillis, connection -&gt; {
+ *     // do something with the connection
  * });
  */
 
@@ -121,8 +119,8 @@ public class ImhotepConnectionPool implements Closeable {
     private Pair<InputStream, OutputStream> getBufferedSocketStream(final ImhotepConnection connection) throws IOException {
         final Socket socket = connection.getSocket();
         return Pair.of(
-                new PooledConnectionInputStream(new BufferedInputStream(socket.getInputStream())),
-                new PooledConnectionOutputStream(new BufferedOutputStream(socket.getOutputStream())));
+                new NonClosingInputStream(new BufferedInputStream(socket.getInputStream())),
+                new NonClosingOutputStream(new BufferedOutputStream(socket.getOutputStream())));
     }
 
     /**
@@ -130,7 +128,7 @@ public class ImhotepConnectionPool implements Closeable {
      */
     public <R, E extends Exception> R withConnection(
             final Host host,
-            final UnaryThrowingFunction<ImhotepConnection, R, E> function) throws E, IOException {
+            final ConnectionUser<R, E> function) throws E, IOException {
         try (final ImhotepConnection connection = getConnection(host)) {
             try {
                 return function.apply(connection);
@@ -147,7 +145,7 @@ public class ImhotepConnectionPool implements Closeable {
     public <R, E extends Exception> R withConnection(
             final Host host,
             final int timeoutMillis,
-            final UnaryThrowingFunction<ImhotepConnection, R, E> function) throws E, IOException {
+            final ConnectionUser<R, E> function) throws E, IOException {
         try (final ImhotepConnection connection = getConnection(host, timeoutMillis)) {
             try {
                 return function.apply(connection);
@@ -166,7 +164,7 @@ public class ImhotepConnectionPool implements Closeable {
      */
     public <R, E extends Exception> R withBufferedSocketStream(
             final Host host,
-            final BinaryThrowingFunction<InputStream, OutputStream, R, E> function) throws E, IOException {
+            final SocketStreamUser<R, E> function) throws E, IOException {
         try (final ImhotepConnection connection = getConnection(host)) {
             final Pair<InputStream, OutputStream> socketStream = getBufferedSocketStream(connection);
             try {
@@ -187,7 +185,7 @@ public class ImhotepConnectionPool implements Closeable {
     public <R, E extends Exception> R withBufferedSocketStream(
             final Host host,
             final int timeoutMillis,
-            final BinaryThrowingFunction<InputStream, OutputStream, R, E> function) throws E, IOException {
+            final SocketStreamUser<R, E> function) throws E, IOException {
         try (final ImhotepConnection connection = getConnection(host, timeoutMillis)) {
             final Pair<InputStream, OutputStream> socketStream = getBufferedSocketStream(connection);
             try {
@@ -207,7 +205,7 @@ public class ImhotepConnectionPool implements Closeable {
      */
     public <R, E1 extends Exception, E2 extends Exception> R withBufferedSocketStream2Throwings(
             final Host host,
-            final Binary2ThrowingsFunction<InputStream, OutputStream, R, E1, E2> function) throws E1, E2, IOException {
+            final SocketStreamUser2Throwings<R, E1, E2> function) throws E1, E2, IOException {
         try (final ImhotepConnection connection = getConnection(host)) {
             final Pair<InputStream, OutputStream> socketStream = getBufferedSocketStream(connection);
             try {
@@ -228,7 +226,7 @@ public class ImhotepConnectionPool implements Closeable {
     public <R, E1 extends Exception, E2 extends Exception> R withBufferedSocketStream2Throwings(
             final Host host,
             final int timeoutMillis,
-            final Binary2ThrowingsFunction<InputStream, OutputStream, R, E1, E2> function) throws E1, E2, IOException {
+            final SocketStreamUser2Throwings<R, E1, E2> function) throws E1, E2, IOException {
         try (final ImhotepConnection connection = getConnection(host, timeoutMillis)) {
             final Pair<InputStream, OutputStream> socketStream = getBufferedSocketStream(connection);
             try {
@@ -240,44 +238,21 @@ public class ImhotepConnectionPool implements Closeable {
         }
     }
 
-    interface UnaryThrowingFunction<K, R, E extends Exception> {
-        R apply(K k) throws E;
+    interface ConnectionUser<R, E extends Exception> {
+        R apply(ImhotepConnection connection) throws E;
     }
 
-    public interface BinaryThrowingFunction<K1, K2, R, E extends Exception> {
-        R apply(K1 k1, K2 k2) throws E;
+    public interface SocketStreamUser<R, E extends Exception> {
+        R apply(InputStream in, OutputStream out) throws E;
     }
 
-    public interface Binary2ThrowingsFunction<K1, K2, R, E1 extends Exception, E2 extends Exception> {
-        R apply(K1 k, K2 k2) throws E1, E2;
+    public interface SocketStreamUser2Throwings<R, E1 extends Exception, E2 extends Exception> {
+        R apply(InputStream in, OutputStream out) throws E1, E2;
     }
 
     @Override
     public void close() {
         Closeables2.closeQuietly(sourcePool, logger);
-    }
-
-    private class PooledConnectionInputStream extends FilterInputStream {
-        PooledConnectionInputStream(final InputStream in) {
-            super(in);
-        }
-
-        @Override
-        public void close() throws IOException { }
-    }
-
-    private class PooledConnectionOutputStream extends FilterOutputStream {
-        private final OutputStream out;
-
-        PooledConnectionOutputStream(final OutputStream out) {
-            super(out);
-            this.out = out;
-        }
-
-        @Override
-        public void close() throws IOException {
-            out.flush();
-        }
     }
 
     private interface ImhotepConnectionPoolStats {

@@ -21,8 +21,7 @@ import java.io.OutputStream;
  * At the end of stream, it has an empty block with block size as 0, which indicates no following blocks will come and the stream ends.
  * So except the last empty block, all blocks should have a block size greater than 0.
  *
- * Should close the stream once all data has been written to flush blocks in buffer. The close method won't close the inner
- * stream, you should close the inner stream manually if necessary.
+ * Should close the stream once all data has been written to flush blocks in buffer.
  */
 @NotThreadSafe
 public class BlockOutputStream extends FilterOutputStream {
