@@ -143,7 +143,7 @@ public class TempFilesTest {
             ByteStreams.readFully(inputStream, actual);
             assertArrayEquals(bytes, actual);
             //noinspection UnusedAssignment
-            inputStream = null; // It seems that explicit null assignment is important for this to be GCed.
+            inputStream = null; // To make the object eligible for GC
         }
         waitGC(() -> eventListener.didNotCloseInputStreamCount.get() > 0);
         tempFile.removeFile();
@@ -169,7 +169,7 @@ public class TempFilesTest {
             OutputStream outputStream = tempFile.bufferedOutputStream(); // Don't close
             outputStream.write(bytes);
             //noinspection UnusedAssignment
-            outputStream = null; // It seems that explicit null assignment is important for this to be GCed.
+            outputStream = null; // To make the object eligible for GC
         }
         waitGC(() -> eventListener.didNotCloseOutputStreamCount.get() > 0);
         assertEquals(1, eventListener.didNotCloseOutputStreamCount.get());
@@ -200,7 +200,7 @@ public class TempFilesTest {
                 assertArrayEquals(bytes, actual);
             }
             //noinspection UnusedAssignment
-            tempFile = null; // It seems that explicit null assignment is important for this to be GCed.
+            tempFile = null; // To make the object eligible for GC
         }
         waitGC(() -> eventListener.didNotRemoveTempFileCount.get() > 0);
         assertEquals(1, eventListener.didNotRemoveTempFileCount.get());
