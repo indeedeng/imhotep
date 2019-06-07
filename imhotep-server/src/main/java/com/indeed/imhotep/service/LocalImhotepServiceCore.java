@@ -469,10 +469,14 @@ public class LocalImhotepServiceCore
     public void close() {
         super.close();
         heartBeat.shutdown();
-        TaskScheduler.CPUScheduler.close();
-        TaskScheduler.RemoteFSIOScheduler.close();
-        connectionPoolStatsReporter.close();
-        memoryStatsReporter.close();
+        Closeables2.closeAll(
+                log,
+                TaskScheduler.CPUScheduler,
+                TaskScheduler.RemoteFSIOScheduler,
+                TaskScheduler.P2PFSIOScheduler,
+                connectionPoolStatsReporter,
+                memoryStatsReporter
+        );
     }
 
     private final AtomicInteger counter = new AtomicInteger(new Random().nextInt());
