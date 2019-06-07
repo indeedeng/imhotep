@@ -28,6 +28,7 @@ import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.client.Host;
 import com.indeed.imhotep.connection.ImhotepConnectionPoolStatsReporter;
 import com.indeed.imhotep.connection.ImhotepConnectionPoolWrapper;
+import com.indeed.imhotep.connection.ImhotepMemoryStatsReporter;
 import com.indeed.imhotep.fs.RemoteCachingPath;
 import com.indeed.imhotep.io.ImhotepProtobufShipping;
 import com.indeed.imhotep.local.ImhotepJavaLocalSession;
@@ -82,7 +83,7 @@ public class LocalImhotepServiceCore
     extends AbstractImhotepServiceCore {
     private static final Logger log = Logger.getLogger(LocalImhotepServiceCore.class);
 
-    private static final int STATS_REPORT_FREQUENCY_SECONDS = 10;
+    private static final int CONNECTION_POOL_STATS_REPORT_FREQUENCY_SECONDS = 10;
 
     private final LocalSessionManager sessionManager;
 
@@ -94,7 +95,8 @@ public class LocalImhotepServiceCore
     private final MemoryReserver memory;
     private final ConcurrentFlamdexReaderFactory flamderReaderFactory;
 
-    private ImhotepConnectionPoolStatsReporter statsReporter;
+    private final ImhotepConnectionPoolStatsReporter connectionPoolStatsReporter;
+    private final ImhotepMemoryStatsReporter memoryStatsReporter;
 
     /**
      * @param shardTempDir
@@ -164,8 +166,8 @@ public class LocalImhotepServiceCore
                     statsEmitter);
         }
 
-        this.statsReporter = new ImhotepConnectionPoolStatsReporter(ImhotepConnectionPoolWrapper.INSTANCE, statsEmitter);
-        statsReporter.start(STATS_REPORT_FREQUENCY_SECONDS);
+        this.connectionPoolStatsReporter = new ImhotepConnectionPoolStatsReporter(ImhotepConnectionPoolWrapper.INSTANCE, statsEmitter, CONNECTION_POOL_STATS_REPORT_FREQUENCY_SECONDS);
+        this.memoryStatsReporter = new ImhotepMemoryStatsReporter(statsEmitter, memory);
 
         sessionManager = new LocalSessionManager(statsEmitter, config.getMaxSessionsTotal(), config.getMaxSessionsPerUser());
 
@@ -454,8 +456,14 @@ public class LocalImhotepServiceCore
     public void close() {
         super.close();
         heartBeat.shutdown();
-        TaskScheduler.CPUScheduler.close();
-        TaskScheduler.RemoteFSIOScheduler.close();
+        Closeables2.closeAll(
+                log,
+                TaskScheduler.CPUScheduler,
+                TaskScheduler.RemoteFSIOScheduler,
+                TaskScheduler.P2PFSIOScheduler,
+                connectionPoolStatsReporter,
+                memoryStatsReporter
+        );
     }
 
     private final AtomicInteger counter = new AtomicInteger(new Random().nextInt());

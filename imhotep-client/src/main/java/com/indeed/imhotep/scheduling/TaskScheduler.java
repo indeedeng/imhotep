@@ -24,8 +24,6 @@ import org.apache.log4j.Logger;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import java.io.Closeable;
-import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -40,7 +38,7 @@ import java.util.stream.Collectors;
 /**
  * Decides which TaskQueue task should execute next
  */
-public class TaskScheduler {
+public class TaskScheduler implements SilentCloseable {
     private static final Logger LOGGER = Logger.getLogger(TaskScheduler.class);
 
     private static final long LONG_RUNNING_TASK_THRESHOLD_MILLIS = TimeUnit.MINUTES.toMillis(5);
@@ -327,6 +325,7 @@ public class TaskScheduler {
         return queue;
     }
 
+    @Override
     public void close() {
         if (datadogStatsReportingExecutor != null) {
             datadogStatsReportingExecutor.shutdown();
