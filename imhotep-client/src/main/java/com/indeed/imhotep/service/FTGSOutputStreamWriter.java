@@ -20,6 +20,7 @@ import com.indeed.imhotep.api.FTGAIterator;
 import com.indeed.imhotep.api.FTGIterator;
 import com.indeed.imhotep.api.FTGSIterator;
 
+import javax.annotation.WillNotClose;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -52,7 +53,7 @@ public final class FTGSOutputStreamWriter implements Closeable {
 
     private int previousGroupId = -1;
 
-    public FTGSOutputStreamWriter(final OutputStream out) {
+    public FTGSOutputStreamWriter(@WillNotClose final OutputStream out) {
         this.out = new OutputStreamWithPosition(out);
     }
 
