@@ -51,7 +51,7 @@ public class NonClosingOutputStream extends OutputStream {
 
     private void ensureOpen() throws IOException {
         if (closed) {
-            throw new IOException("Stream closed");
+            throw new IOException("The stream has been closed, no longer allowed to write to the underlying stream");
         }
     }
 }

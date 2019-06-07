@@ -203,7 +203,7 @@ public class ImhotepConnectionPool implements Closeable {
      * When it reaches to the end of {@code function}, the socket will be returned to the pool automatically.
      * If you really need to return, please take the {@code withConnection} method and close the connection when stream is closed.
      */
-    public <R, E1 extends Exception, E2 extends Exception> R withBufferedSocketStream2Throwings(
+    public <R, E1 extends Exception, E2 extends Exception> R withBufferedSocketStream(
             final Host host,
             final SocketStreamUser2Throwings<R, E1, E2> function) throws E1, E2, IOException {
         try (final ImhotepConnection connection = getConnection(host)) {
@@ -223,7 +223,7 @@ public class ImhotepConnectionPool implements Closeable {
      * When it reaches to the end of {@code function}, the socket will be returned to the pool automatically.
      * If you really need to return, please take the {@code withConnection} method and close the connection when stream is closed.
      */
-    public <R, E1 extends Exception, E2 extends Exception> R withBufferedSocketStream2Throwings(
+    public <R, E1 extends Exception, E2 extends Exception> R withBufferedSocketStream(
             final Host host,
             final int timeoutMillis,
             final SocketStreamUser2Throwings<R, E1, E2> function) throws E1, E2, IOException {

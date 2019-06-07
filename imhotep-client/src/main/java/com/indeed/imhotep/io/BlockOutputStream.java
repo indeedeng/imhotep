@@ -138,9 +138,8 @@ public class BlockOutputStream extends FilterOutputStream {
             writeBlockSize(0);
 
             out.flush();
-        } catch (final Throwable t) {
+        } finally {
             out.close();
-            throw t;
         }
     }
 }

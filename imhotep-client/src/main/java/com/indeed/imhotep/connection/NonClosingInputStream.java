@@ -72,7 +72,7 @@ public class NonClosingInputStream extends InputStream {
 
     private void ensureOpen() throws IOException {
         if (closed) {
-            throw new IOException("Stream closed");
+            throw new IOException("The stream has been closed, no longer allowed to read from the underlying stream");
         }
     }
 }
