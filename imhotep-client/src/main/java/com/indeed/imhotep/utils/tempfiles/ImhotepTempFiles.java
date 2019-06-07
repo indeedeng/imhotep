@@ -18,7 +18,7 @@ public class ImhotepTempFiles extends AbstractTempFiles<ImhotepTempFiles.Type> {
                     .build()
     );
 
-    public static void initialize(final AbstractTempFiles.Builder<Type, ImhotepTempFiles> imhotepTempFiles) {
+    public static void recreate(final AbstractTempFiles.Builder<Type, ImhotepTempFiles> imhotepTempFiles) {
         INSTANCE.set(imhotepTempFiles.build());
     }
 
@@ -44,6 +44,10 @@ public class ImhotepTempFiles extends AbstractTempFiles<ImhotepTempFiles.Type> {
 
     public static TempFile createFTGSSplitterTempFile() throws IOException {
         return getInstance().createTempFile(Type.FTGS_SPLITTER);
+    }
+
+    public static void tryCleanupTempFiles() {
+        getInstance().tryCleanupTempDirectory();
     }
 
     public static Builder<Type, ImhotepTempFiles> builder() {

@@ -169,7 +169,7 @@ public class LocalImhotepServiceCore
 
         sessionManager = new LocalSessionManager(statsEmitter, config.getMaxSessionsTotal(), config.getMaxSessionsPerUser());
 
-        ImhotepTempFiles.getInstance().tryCleanupTempDirectory();
+        ImhotepTempFiles.tryCleanupTempFiles();
         clearTempDir(shardTempDir);
 
 

@@ -310,7 +310,7 @@ public class InputStreamFTGSIteratorTest {
 
     @Test
     public void testFileInputStreamIterators() throws IOException {
-        final TempFile tmp = ImhotepTempFiles.getInstance().createFTGATempFile("dummy");
+        final TempFile tmp = ImhotepTempFiles.createFTGATempFile("dummy");
         final FTGSBinaryFormat.FieldStat[] stats;
         try {
             try (final FTGSOutputStreamWriter w = new FTGSOutputStreamWriter(tmp.outputStream())) {
