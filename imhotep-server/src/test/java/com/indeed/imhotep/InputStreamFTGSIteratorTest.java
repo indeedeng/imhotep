@@ -22,9 +22,8 @@ import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -313,7 +312,10 @@ public class InputStreamFTGSIteratorTest {
         final TempFile tmp = ImhotepTempFiles.createFTGATempFile("dummy");
         final FTGSBinaryFormat.FieldStat[] stats;
         try {
-            try (final FTGSOutputStreamWriter w = new FTGSOutputStreamWriter(tmp.outputStream())) {
+            try (
+                    final OutputStream os = tmp.outputStream();
+                    final FTGSOutputStreamWriter w = new FTGSOutputStreamWriter(os)
+            ) {
                 w.switchField("a", true);
                 w.switchIntTerm(1, 5);
                 w.switchGroup(1);

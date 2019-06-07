@@ -7,8 +7,8 @@ import com.indeed.imhotep.api.GroupStatsIterator;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.client.ImhotepClient;
-import com.indeed.imhotep.service.ShardMasterAndImhotepDaemonClusterRunner;
 import com.indeed.imhotep.service.ImhotepShardCreator;
+import com.indeed.imhotep.service.ShardMasterAndImhotepDaemonClusterRunner;
 import org.apache.commons.io.FileUtils;
 import org.joda.time.DateTime;
 import org.junit.After;
@@ -88,16 +88,17 @@ public class TestGetDistinct {
         final ImhotepClient client = clusterRunner.createClient();
         final ImhotepSession session = client.sessionBuilder(dataset, date, date.plusDays(duration)).build();
         session.metricRegroup(Collections.singletonList("shardId"), (long) 1, (long) (1 + duration), (long) 1, true);
-        final GroupStatsIterator result = session.getDistinct("if1", true);
-        assertTrue(result.hasNext());
-        assertEquals(0, result.nextLong());
-        for (int i = 0; i < duration; i++) {
+        try (final GroupStatsIterator result = session.getDistinct("if1", true)) {
             assertTrue(result.hasNext());
-            assertEquals(20, result.nextLong());
-        }
-        // There could be some zeroes in the end.
-        while (result.hasNext()) {
             assertEquals(0, result.nextLong());
+            for (int i = 0; i < duration; i++) {
+                assertTrue(result.hasNext());
+                assertEquals(20, result.nextLong());
+            }
+            // There could be some zeroes in the end.
+            while (result.hasNext()) {
+                assertEquals(0, result.nextLong());
+            }
         }
     }
 
