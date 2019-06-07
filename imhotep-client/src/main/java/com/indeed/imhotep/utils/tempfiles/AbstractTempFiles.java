@@ -4,6 +4,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Ticker;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.RemovalCause;
 import com.google.common.cache.RemovalListener;
 import com.google.common.collect.ImmutableList;
 import com.indeed.imhotep.utils.StackTraceUtils;
@@ -165,16 +166,11 @@ public abstract class AbstractTempFiles<E extends Enum<E> & TempFileType<E>> {
             if (eventListener != null) {
                 final RemovalListener<Path, TempFile> removalListener = notification -> {
                     @Nullable final TempFile tempFile = notification.getValue();
-                    switch (notification.getCause()) {
-                        case EXPIRED:
-                            if (tempFile != null) { // Null means it's already GCed.
-                                eventListener.expired(tempFile.getState());
-                            }
-                            break;
-                        case COLLECTED: // Should be handled by finalizer
-                        case EXPLICIT: // We don't use any of the following
-                        case REPLACED:
-                        case SIZE:
+                    // COLLECTED: Should be handled by finalizer. Other ones should not be used.
+                    if (notification.getCause() == RemovalCause.EXPIRED) {
+                        if (tempFile != null) { // Null means it's already GCed.
+                            eventListener.expired(tempFile.getState());
+                        }
                     }
                 };
                 // It just returns casted self, so ignore that.
