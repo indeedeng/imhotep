@@ -97,9 +97,9 @@ public class TestCommandDeserializeRemoteImhotepRequest implements CommandsTest 
 
     @Override
     @Test
-    public void testGetGroupStats() throws ImhotepOutOfMemoryException, ExecutionException, InterruptedException {
+    public void testGetGroupStats() throws ImhotepOutOfMemoryException, ExecutionException, InterruptedException, IOException {
         final List<String> stats = Lists.newArrayList("1");
-        imhotepRemoteSession.getGroupStatsIterator(TEST_INPUT_GROUPS_NAME, stats);
+        imhotepRemoteSession.getGroupStatsIterator(TEST_INPUT_GROUPS_NAME, stats).close();
         Assert.assertEquals(new GetGroupStats(TEST_INPUT_GROUPS_NAME, stats, SESSION_ID), holder.futureCommand.get());
     }
 

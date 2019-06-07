@@ -21,6 +21,7 @@ import com.indeed.imhotep.FTGSBinaryFormat.FieldStat;
 import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.protobuf.StatsSortOrder;
 import com.indeed.imhotep.service.FTGSOutputStreamWriter;
+import com.indeed.imhotep.utils.tempfiles.TempFile;
 import com.indeed.util.core.Pair;
 import org.apache.log4j.Logger;
 import org.junit.After;
@@ -31,7 +32,6 @@ import org.junit.rules.ExpectedException;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -56,12 +56,12 @@ public class FTGSIteratorUtilTest {
 
     @Rule
     public final ExpectedException expected = ExpectedException.none();
-    private Pair<File, FieldStat[]> fileAndStats;
+    private Pair<TempFile, FieldStat[]> fileAndStats;
 
     @After
-    public void tearDown() {
+    public void tearDown() throws IOException {
         if (fileAndStats != null) {
-            fileAndStats.getFirst().delete();
+            fileAndStats.getFirst().removeFile();
         }
     }
 
@@ -115,27 +115,28 @@ public class FTGSIteratorUtilTest {
             w.addStat(500);
         }
 
-        final FTGSIterator iter = FTGSIteratorUtil.persist(LOGGER, new InputStreamFTGSIterator(new ByteArrayInputStream(out.toByteArray()), numStats, numGroups));
+        try (final FTGSIterator iter = FTGSIteratorUtil.persist(LOGGER, new InputStreamFTGSIterator(new ByteArrayInputStream(out.toByteArray()), numStats, numGroups))) {
 
-        expectIntField(iter, "a");
+            expectIntField(iter, "a");
 
-        expectIntTerm(iter, 1, 5);
-        expectGroup(iter, 0, new long[]{1000, 20});
-        expectGroup(iter, 1, new long[]{100, 200});
+            expectIntTerm(iter, 1, 5);
+            expectGroup(iter, 0, new long[]{1000, 20});
+            expectGroup(iter, 1, new long[]{100, 200});
 
-        expectIntTerm(iter, 2, 10);
-        expectGroup(iter, 0, new long[]{10, 2000});
-        expectGroup(iter, 1, new long[]{200, -100});
+            expectIntTerm(iter, 2, 10);
+            expectGroup(iter, 0, new long[]{10, 2000});
+            expectGroup(iter, 1, new long[]{200, -100});
 
-        expectIntTerm(iter, 3, 15);
-        expectGroup(iter, 0, new long[]{100, 200});
-        expectGroup(iter, 1, new long[]{300, 400});
+            expectIntTerm(iter, 3, 15);
+            expectGroup(iter, 0, new long[]{100, 200});
+            expectGroup(iter, 1, new long[]{300, 400});
 
-        expectIntTerm(iter, 4, 20);
-        expectGroup(iter, 0, new long[]{10000, 20000});
-        expectGroup(iter, 1, new long[]{-300, 500});
+            expectIntTerm(iter, 4, 20);
+            expectGroup(iter, 0, new long[]{10000, 20000});
+            expectGroup(iter, 1, new long[]{-300, 500});
 
-        expectFieldEnd(iter);
+            expectFieldEnd(iter);
+        }
     }
 
     @Test
@@ -363,10 +364,8 @@ public class FTGSIteratorUtilTest {
         }
 
         fileAndStats = FTGSIteratorUtil.persistAsFile(LOGGER, "test", new InputStreamFTGSIterator(new ByteArrayInputStream(out.toByteArray()), numStats, numGroups));
-
-        {
-            final TopTermsFTGSIterator iter = FTGSIteratorUtil.getTopTermsFTGSIterator(
-                    InputStreamFTGSIterators.create(fileAndStats, numStats, numGroups), 2, 0, StatsSortOrder.ASCENDING);
+        try (final TopTermsFTGSIterator iter = FTGSIteratorUtil.getTopTermsFTGSIterator(
+                InputStreamFTGSIterators.create(fileAndStats, numStats, numGroups), 2, 0, StatsSortOrder.ASCENDING)) {
 
             expectIntField(iter, "a");
 
@@ -411,9 +410,8 @@ public class FTGSIteratorUtilTest {
             expectEnd(iter);
         }
 
-        {
-            final TopTermsFTGSIterator iter = FTGSIteratorUtil.getTopTermsFTGSIterator(
-                    InputStreamFTGSIterators.create(fileAndStats, numStats, numGroups), 2, 2, StatsSortOrder.DESCENDING);
+        try (final TopTermsFTGSIterator iter = FTGSIteratorUtil.getTopTermsFTGSIterator(
+                InputStreamFTGSIterators.create(fileAndStats, numStats, numGroups), 2, 2, StatsSortOrder.DESCENDING)) {
 
             expectIntField(iter, "a");
 
@@ -454,9 +452,9 @@ public class FTGSIteratorUtilTest {
             expectEnd(iter);
         }
 
-        {
-            final TopTermsFTGSIterator iter = FTGSIteratorUtil.getTopTermsFTGSIterator(
-                    InputStreamFTGSIterators.create(fileAndStats, numStats, numGroups), 2, 1, StatsSortOrder.ASCENDING);
+        try (final TopTermsFTGSIterator iter = FTGSIteratorUtil.getTopTermsFTGSIterator(
+                InputStreamFTGSIterators.create(fileAndStats, numStats, numGroups), 2, 1, StatsSortOrder.ASCENDING);) {
+
 
             expectIntField(iter, "a");
 
@@ -507,10 +505,8 @@ public class FTGSIteratorUtilTest {
             expectEnd(iter);
         }
 
-        {
-            final TopTermsFTGSIterator iter = FTGSIteratorUtil.getTopTermsFTGSIterator(
-                    InputStreamFTGSIterators.create(fileAndStats, numStats, numGroups), 2, 1, StatsSortOrder.DESCENDING);
-
+        try (final TopTermsFTGSIterator iter = FTGSIteratorUtil.getTopTermsFTGSIterator(
+                InputStreamFTGSIterators.create(fileAndStats, numStats, numGroups), 2, 1, StatsSortOrder.DESCENDING)) {
             expectIntField(iter, "a");
 
             expectIntTerm(iter, 1, 5);
@@ -560,9 +556,8 @@ public class FTGSIteratorUtilTest {
             expectEnd(iter);
         }
 
-        {
-            final TopTermsFTGSIterator iter = FTGSIteratorUtil.getTopTermsFTGSIterator(
-                    InputStreamFTGSIterators.create(fileAndStats, numStats, numGroups), 2, 2, StatsSortOrder.ASCENDING);
+        try (final TopTermsFTGSIterator iter = FTGSIteratorUtil.getTopTermsFTGSIterator(
+                InputStreamFTGSIterators.create(fileAndStats, numStats, numGroups), 2, 2, StatsSortOrder.ASCENDING);) {
 
             expectIntField(iter, "a");
 
@@ -603,10 +598,8 @@ public class FTGSIteratorUtilTest {
             expectEnd(iter);
         }
 
-        {
-            final TopTermsFTGSIterator iter = FTGSIteratorUtil.getTopTermsFTGSIterator(
-                    InputStreamFTGSIterators.create(fileAndStats, numStats, numGroups), 2, 2, StatsSortOrder.DESCENDING);
-
+        try (final TopTermsFTGSIterator iter = FTGSIteratorUtil.getTopTermsFTGSIterator(
+                InputStreamFTGSIterators.create(fileAndStats, numStats, numGroups), 2, 2, StatsSortOrder.DESCENDING);) {
 
             expectIntField(iter, "a");
 
@@ -732,8 +725,8 @@ public class FTGSIteratorUtilTest {
             w.addStat(-500);
         }
 
-        {
-            final InputStreamFTGSIterator iter = new InputStreamFTGSIterator(new ByteArrayInputStream(out.toByteArray()), numStats, numGroups);
+        try (final InputStreamFTGSIterator iter = new InputStreamFTGSIterator(new ByteArrayInputStream(out.toByteArray()), numStats, numGroups)) {
+
 
             expectIntField(iter, "a");
 
@@ -788,9 +781,9 @@ public class FTGSIteratorUtilTest {
 
         fileAndStats = FTGSIteratorUtil.persistAsFile(LOGGER, "test", new InputStreamFTGSIterator(new ByteArrayInputStream(out.toByteArray()), numStats, numGroups));
 
-        {
-            final TopTermsFTGSIterator iter = FTGSIteratorUtil.getTopTermsFTGSIterator(
-                    InputStreamFTGSIterators.create(fileAndStats, numStats, numGroups), 2, 0, StatsSortOrder.ASCENDING);
+        try (final TopTermsFTGSIterator iter = FTGSIteratorUtil.getTopTermsFTGSIterator(
+                InputStreamFTGSIterators.create(fileAndStats, numStats, numGroups), 2, 0, StatsSortOrder.ASCENDING)) {
+
 
             expectIntField(iter, "a");
 
@@ -825,9 +818,8 @@ public class FTGSIteratorUtilTest {
             expectEnd(iter);
         }
 
-        {
-            final TopTermsFTGSIterator iter = FTGSIteratorUtil.getTopTermsFTGSIterator(
-                    InputStreamFTGSIterators.create(fileAndStats, numStats, numGroups), 2, 0, StatsSortOrder.DESCENDING);
+        try (final TopTermsFTGSIterator iter = FTGSIteratorUtil.getTopTermsFTGSIterator(
+                InputStreamFTGSIterators.create(fileAndStats, numStats, numGroups), 2, 0, StatsSortOrder.DESCENDING)) {
 
             expectIntField(iter, "a");
 

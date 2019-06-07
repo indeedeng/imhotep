@@ -33,6 +33,9 @@ import com.indeed.imhotep.protobuf.StatsSortOrder;
 import com.indeed.imhotep.scheduling.SilentCloseable;
 import com.indeed.imhotep.service.FTGSOutputStreamWriter;
 import com.indeed.imhotep.utils.BoundedPriorityQueue;
+import com.indeed.imhotep.utils.tempfiles.ImhotepTempFiles;
+import com.indeed.imhotep.utils.tempfiles.TempFile;
+import com.indeed.imhotep.utils.tempfiles.TempFiles;
 import com.indeed.util.core.Pair;
 import com.indeed.util.core.Throwables2;
 import com.indeed.util.core.io.Closeables2;
@@ -44,15 +47,9 @@ import org.apache.log4j.Logger;
 import javax.annotation.WillClose;
 import javax.annotation.WillCloseWhenClosed;
 import javax.annotation.WillNotClose;
-import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -68,54 +65,54 @@ public class FTGSIteratorUtil {
     private FTGSIteratorUtil() {
     }
 
-    public static Pair<File, FieldStat[]> persistAsFile(
+    public static Pair<TempFile, FieldStat[]> persistAsFile(
             final Logger log,
             final String sessionId,
             @WillClose final FTGSIterator iterator
     ) throws IOException {
         try {
-            final File tmp = Files.createTempFile("ftgs", ".tmp").toFile();
+            final TempFile tempFile = ImhotepTempFiles.createFTGSTempFile(sessionId);
             final FieldStat[] stats;
             final long start = System.currentTimeMillis();
-            try (final OutputStream out = new BufferedOutputStream(new FileOutputStream(tmp))) {
+            try (final OutputStream out = tempFile.bufferedOutputStream()) {
                 stats = writeFtgsIteratorToStream(iterator, out);
                 if (log.isDebugEnabled()) {
                     log.debug("[" + sessionId + "] time to merge splits to file: " +
                             (System.currentTimeMillis() - start) +
-                            " ms, file length: " + tmp.length());
+                            " ms, file length: " + tempFile.getFileLength());
                 }
             } catch (final Throwable t) {
-                tmp.delete();
+                TempFiles.removeFileQuietly(tempFile);
                 throw Throwables2.propagate(t, IOException.class);
             }
-            return Pair.of(tmp, stats);
+            return Pair.of(tempFile, stats);
         } finally {
             Closeables2.closeQuietly(iterator, log);
         }
     }
 
     // TODO: A bit too much code duplication here.
-    public static Pair<File, FieldStat[]> persistAsFile(
+    public static Pair<TempFile, FieldStat[]> persistAsFile(
             final Logger log,
             final String sessionId,
             @WillClose final FTGAIterator iterator
     ) throws IOException {
         try {
-            final File tmp = Files.createTempFile("ftgs", ".tmp").toFile();
+            final TempFile tempFile = ImhotepTempFiles.createFTGATempFile(sessionId);
             final FieldStat[] stats;
             final long start = System.currentTimeMillis();
-            try (final OutputStream out = new BufferedOutputStream(new FileOutputStream(tmp))) {
+            try (final OutputStream out = tempFile.bufferedOutputStream()) {
                 stats = writeFtgaIteratorToStream(iterator, out);
                 if (log.isDebugEnabled()) {
                     log.debug("[" + sessionId + "] time to merge splits to file: " +
                             (System.currentTimeMillis() - start) +
-                            " ms, file length: " + tmp.length());
+                            " ms, file length: " + tempFile.getFileLength());
                 }
             } catch (final Throwable t) {
-                tmp.delete();
+                TempFiles.removeFileQuietly(tempFile);
                 throw Throwables2.propagate(t, IOException.class);
             }
-            return Pair.of(tmp, stats);
+            return Pair.of(tempFile, stats);
         } finally {
             Closeables2.closeQuietly(iterator, log);
         }
@@ -132,11 +129,11 @@ public class FTGSIteratorUtil {
     ) throws IOException {
         final int numStats = iterator.getNumStats();
         final int numGroups = iterator.getNumGroups();
-        final Pair<File, FieldStat[]> tmp = persistAsFile(log, sessionId, iterator);
+        final Pair<TempFile, FieldStat[]> tmp = persistAsFile(log, sessionId, iterator);
         try {
             return InputStreamFTGSIterators.create(tmp, numStats, numGroups);
         } finally {
-            tmp.getFirst().delete();
+            tmp.getFirst().removeFileStillReferenced();
         }
     }
 
@@ -147,12 +144,12 @@ public class FTGSIteratorUtil {
     ) throws IOException {
         final int numStats = iterator.getNumStats();
         final int numGroups = iterator.getNumGroups();
-        final Pair<File, FieldStat[]> tmp = persistAsFile(log, sessionId, iterator);
-        final File file = tmp.getFirst();
+        final Pair<TempFile, FieldStat[]> tmp = persistAsFile(log, sessionId, iterator);
+        final TempFile tempFile = tmp.getFirst();
         try {
-            return new InputStreamFTGAIterator(new BufferedInputStream(new FileInputStream(file)), tmp.getSecond(), numStats, numGroups);
+            return new InputStreamFTGAIterator(tempFile.bufferedInputStream(), tmp.getSecond(), numStats, numGroups);
         } finally {
-            file.delete();
+            tempFile.removeFileStillReferenced();
         }
     }
 

@@ -42,8 +42,10 @@ public class TestPeerToPeerCacheQuery {
 
     @Test
     public void testDistinct() throws IOException, TimeoutException, InterruptedException {
-        try (final ImhotepSession session = getSession()) {
-            final GroupStatsIterator result = session.getDistinct("if1", true);
+        try (
+                final ImhotepSession session = getSession();
+                final GroupStatsIterator result = session.getDistinct("if1", true);
+        ) {
             assertTrue(result.hasNext());
             assertEquals(result.nextLong(), 0);
             assertTrue(result.hasNext());
@@ -62,9 +64,12 @@ public class TestPeerToPeerCacheQuery {
 
     @Test
     public void testGetFTGSIterator() throws IOException, TimeoutException, InterruptedException, ImhotepOutOfMemoryException {
-        try (final ImhotepSession session = getSession()) {
-            final FTGSIterator intFtgsIterator = session.getFTGSIterator(new String[] {"if1"}, new String[]{}, 100,
-                    0, ImmutableList.of(ImmutableList.of("count()")), StatsSortOrder.ASCENDING);
+        try (
+                final ImhotepSession session = getSession();
+                final FTGSIterator intFtgsIterator = session.getFTGSIterator(new String[]{"if1"}, new String[]{}, 100,
+                        0, ImmutableList.of(ImmutableList.of("count()")), StatsSortOrder.ASCENDING)
+        ) {
+
             while (intFtgsIterator.nextField()) {
                 int expectedTerm = 0;
                 while (intFtgsIterator.nextTerm()) {
@@ -77,15 +82,16 @@ public class TestPeerToPeerCacheQuery {
                 }
             }
 
-            final FTGSIterator strFtgsIterator = session.getFTGSIterator(new String[] {}, new String[]{"sf1"}, 100, ImmutableList.of(ImmutableList.of("count()")));
-            while (strFtgsIterator.nextField()) {
-                int expectedTerm = 0;
-                while (strFtgsIterator.nextTerm()) {
-                    while (strFtgsIterator.nextGroup()) {
-                        assertEquals("str"+expectedTerm, strFtgsIterator.termStringVal());
-                        assertEquals(20, strFtgsIterator.termDocFreq());
+            try (final FTGSIterator strFtgsIterator = session.getFTGSIterator(new String[]{}, new String[]{"sf1"}, 100, ImmutableList.of(ImmutableList.of("count()")))) {
+                while (strFtgsIterator.nextField()) {
+                    int expectedTerm = 0;
+                    while (strFtgsIterator.nextTerm()) {
+                        while (strFtgsIterator.nextGroup()) {
+                            assertEquals("str" + expectedTerm, strFtgsIterator.termStringVal());
+                            assertEquals(20, strFtgsIterator.termDocFreq());
+                        }
+                        expectedTerm += 1;
                     }
-                    expectedTerm += 1;
                 }
             }
         }
