@@ -66,7 +66,7 @@ public final class FTGSSplitter implements Closeable {
             final TempFile tempFile = ImhotepTempFiles.createFTGSSplitterTempFile();
             final MultiFile multiFile;
             try {
-                multiFile = MultiFile.create(tempFile.getInternalFile(), numSplits, 256 * 1024, tempFileSizeBytesLeft);
+                multiFile = MultiFile.create(tempFile.unsafeGetFile(), numSplits, 256 * 1024, tempFileSizeBytesLeft);
                 fileHandle = tempFile.addReference();
             } finally {
                 tempFile.removeFileStillReferenced();

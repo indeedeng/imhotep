@@ -123,16 +123,22 @@ public class TempFile {
     }
 
     /**
-     * If you open a file handle, you should call {@link TempFile#addReference()} to let {@link TempFile} track the usage.
+     * If you open a file handle, you should call {@link TempFile#addReference()} to let {@link TempFile} track the usage,
+     * or otherwise this {@link TempFile} object won't detect the leakage of the file.
+     * Also, the file may be deleted by {@link TempFile#removeFile()}, {@link TempFile#removeFileStillReferenced()} or {@link TempFile#finalize()}
+     * so it's unsafe to store the returned path.
      */
-    public Path getInternalPath() {
+    public Path unsafeGetPath() {
         return path;
     }
 
     /**
-     * If you open a file handle, you should call {@link TempFile#addReference()} to let {@link TempFile} track the usage.
+     * If you open a file handle of the file, you should call {@link TempFile#addReference()} to let {@link TempFile} track the usage,
+     * or otherwise this {@link TempFile} object won't detect the leakage of the file.
+     * Also, the file may be deleted by {@link TempFile#removeFile()}, {@link TempFile#removeFileStillReferenced()} or {@link TempFile#finalize()}
+     * so it's unsafe to store the returned file, path of the returned file.
      */
-    public File getInternalFile() {
+    public File unsafeGetFile() {
         return path.toFile();
     }
 
