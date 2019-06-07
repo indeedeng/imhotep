@@ -517,11 +517,13 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
                     indexIterators.add(list[i]);
                 }
                 final MultiSessionMerger sessionMerger = closer.register(new MultiSessionMerger(indexIterators, null));
-                final FTGAIterator processed = closer.register(processor.apply(sessionMerger));
-                splitEntries[i] = closer.register(modifiers.wrap(processed));
+                splitEntries[i] = closer.register(processor.apply(sessionMerger));
             }
             final FTGAIterator[] persisted = new FTGAIterator[numSplits];
-            execute(persisted, splitEntries, true, this::persist);
+            execute(persisted, splitEntries, true, x -> {
+                final FTGAIterator wrapped = closer.register(modifiers.wrap(x));
+                return this.persist(wrapped);
+            });
             return persisted;
         } catch (ExecutionException e) {
             throw Throwables.propagate(e);
