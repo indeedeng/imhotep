@@ -43,7 +43,6 @@ import com.indeed.imhotep.scheduling.TaskScheduler;
 import com.indeed.imhotep.utils.tempfiles.ImhotepTempFiles;
 import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.core.reference.SharedReference;
-import com.indeed.util.core.shell.PosixFileOperations;
 import com.indeed.util.varexport.VarExporter;
 import org.apache.commons.io.IOUtils;
 import org.apache.log4j.Logger;
@@ -230,10 +229,6 @@ public class LocalImhotepServiceCore
                 final String baseName = p.getFileName().toString();
                 final boolean isDirectory = Files.isDirectory(p);
 
-                if (isDirectory && baseName.endsWith(".optimization_log")) {
-                    /* an optimized index */
-                    PosixFileOperations.rmrf(p);
-                }
                 if (!isDirectory && baseName.startsWith(".tmp")) {
                     /* an optimization log */
                     Files.delete(p);
