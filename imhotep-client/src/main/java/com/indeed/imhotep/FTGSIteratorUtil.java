@@ -35,6 +35,7 @@ import com.indeed.imhotep.service.FTGSOutputStreamWriter;
 import com.indeed.imhotep.utils.BoundedPriorityQueue;
 import com.indeed.imhotep.utils.tempfiles.ImhotepTempFiles;
 import com.indeed.imhotep.utils.tempfiles.TempFile;
+import com.indeed.imhotep.utils.tempfiles.TempFiles;
 import com.indeed.util.core.Pair;
 import com.indeed.util.core.Throwables2;
 import com.indeed.util.core.io.Closeables2;
@@ -46,11 +47,6 @@ import org.apache.log4j.Logger;
 import javax.annotation.WillClose;
 import javax.annotation.WillCloseWhenClosed;
 import javax.annotation.WillNotClose;
-import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -86,11 +82,7 @@ public class FTGSIteratorUtil {
                             " ms, file length: " + tempFile.getFileLength());
                 }
             } catch (final Throwable t) {
-                try {
-                    tempFile.removeFile();
-                } catch (final Exception e) {
-                    t.addSuppressed(e);
-                }
+                TempFiles.removeFileQuietly(tempFile);
                 throw Throwables2.propagate(t, IOException.class);
             }
             return Pair.of(tempFile, stats);
@@ -117,11 +109,7 @@ public class FTGSIteratorUtil {
                             " ms, file length: " + tempFile.getFileLength());
                 }
             } catch (final Throwable t) {
-                try {
-                    tempFile.removeFile();
-                } catch (final Exception e) {
-                    t.addSuppressed(e);
-                }
+                TempFiles.removeFileQuietly(tempFile);
                 throw Throwables2.propagate(t, IOException.class);
             }
             return Pair.of(tempFile, stats);
