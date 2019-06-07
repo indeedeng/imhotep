@@ -16,6 +16,9 @@ public class LoggingEventListener implements EventListener {
     }
 
     private void log(@Nullable final StackTraceElement[] stackTraceElements, final String format, final Object... args) {
+        if (!logger.isEnabledFor(level)) {
+            return;
+        }
         @Nullable final StackTraceElement[] currentStacktrace = StackTraceUtils.tryGetStackTrace();
         @Nullable final Throwable throwableOnCreation = (stackTraceElements == null) ? null : StackTraceUtils.createThrowableWithStacktrace("Dummy throwable that has stack trace on temp file creation", stackTraceElements);
         @Nullable final Throwable throwable;
@@ -24,12 +27,10 @@ public class LoggingEventListener implements EventListener {
         } else {
             throwable = null;
         }
-        if (logger.isEnabledFor(level)) {
-            if (throwable == null) {
-                logger.log(level, String.format(format, args));
-            } else {
-                logger.log(level, String.format(format, args), throwable);
-            }
+        if (throwable == null) {
+            logger.log(level, String.format(format, args));
+        } else {
+            logger.log(level, String.format(format, args), throwable);
         }
     }
 
