@@ -11,7 +11,7 @@ public interface EventListener {
     void didNotCloseOutputStream(final TempFileState tempFileState);
     void didNotRemoveTempFile(final TempFileState tempFileState);
     /**
-     * TempFile or it's i/o stream has been strongly referenced a long time.
+     * TempFile or it's i/o stream have lived a long time without get GCed. Potentially a strong reference leak, or it's just not GCed.
      */
     void expired(final TempFileState tempFileState);
 }

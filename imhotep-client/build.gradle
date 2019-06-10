@@ -28,6 +28,7 @@ dependencies {
         exclude group:'com.sun.jersey.contribs', module:'jersey-guice'
     }
     compile 'org.apache.commons:commons-pool2:2.6.1'
+    compile 'com.fasterxml.jackson.core:jackson-annotations:2.9.6'
     compileOnly 'org.projectlombok:lombok:1.18.4'
     annotationProcessor 'org.projectlombok:lombok:1.18.4'
     testCompile 'junit:junit:4.8.2'

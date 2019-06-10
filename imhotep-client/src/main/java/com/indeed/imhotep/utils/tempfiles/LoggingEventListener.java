@@ -15,7 +15,7 @@ public class LoggingEventListener implements EventListener {
         this.logger = logger;
     }
 
-    private void log(@Nullable final StackTraceElement[] stackTraceElements, final String format, final Object... args) {
+    private void log(@Nullable final StackTraceElement[] stackTraceElements, final String message, final TempFileState tempFileState) {
         if (!logger.isEnabledFor(level)) {
             return;
         }
@@ -28,39 +28,39 @@ public class LoggingEventListener implements EventListener {
             throwable = null;
         }
         if (throwable == null) {
-            logger.log(level, String.format(format, args));
+            logger.log(level, message + " State: " + tempFileState.toString());
         } else {
-            logger.log(level, String.format(format, args), throwable);
+            logger.log(level, message + " State: " + tempFileState.toString(), throwable);
         }
     }
 
     @Override
     public void removeTwice(final TempFileState tempFileState) {
-        log(tempFileState.getStackTraceElements(), "Try to remove temp file %s twice or more.", tempFileState.getPath());
+        log(tempFileState.getStackTraceElements(), "Try to remove a temp file twice or more.", tempFileState);
     }
 
     @Override
     public void removeReferencedFile(final TempFileState tempFileState) {
-        log(tempFileState.getStackTraceElements(), "Try to remove temp file %s which is still referenced.", tempFileState.getPath());
+        log(tempFileState.getStackTraceElements(), "Try to remove a temp file which is still referenced.", tempFileState);
     }
 
     @Override
     public void didNotCloseInputStream(final TempFileState tempFileState) {
-        log(tempFileState.getStackTraceElements(), "Input stream on %s is finalized without close.", tempFileState.getPath());
+        log(tempFileState.getStackTraceElements(), "An input stream on a temp file is finalized without close.", tempFileState);
     }
 
     @Override
     public void didNotCloseOutputStream(final TempFileState tempFileState) {
-        log(tempFileState.getStackTraceElements(), "Output stream on %s is finalized without close.", tempFileState.getPath());
+        log(tempFileState.getStackTraceElements(), "An output stream on a temp file is finalized without close.", tempFileState);
     }
 
     @Override
     public void didNotRemoveTempFile(final TempFileState tempFileState) {
-        log(tempFileState.getStackTraceElements(), "Temp file object for %s is finalized without removing the file.", tempFileState.getPath());
+        log(tempFileState.getStackTraceElements(), "A temp file object is finalized without removing the file.", tempFileState);
     }
 
     @Override
     public void expired(final TempFileState tempFileState) {
-        log(tempFileState.getStackTraceElements(), "Temp file object for %s is referenced for a long time.", tempFileState.getPath());
+        log(tempFileState.getStackTraceElements(), "A temp file object is referenced for a long time without GCed.", tempFileState);
     }
 }
