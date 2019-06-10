@@ -14,7 +14,14 @@ public class StatsEmitEventListener implements EventListener {
     }
 
     private ImmutableList<Pair<String, String>> getTags(final String eventType, final TempFileState tempFileState) {
-        return ImmutableList.of(Pair.of("event", eventType), Pair.of("filetype", tempFileState.getTempFileType().getIdentifier()));
+        final boolean isReferenced = tempFileState.getRefCount() > 0;
+        final boolean isRemoved = tempFileState.isRemoved();
+        return ImmutableList.of(
+                Pair.of("event", eventType),
+                Pair.of("filetype", tempFileState.getTempFileType().getIdentifier()),
+                Pair.of("removed", isRemoved ? "1" : "0"),
+                Pair.of("referenced", isReferenced ? "1" : "0")
+        );
     }
 
     @Override

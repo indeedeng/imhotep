@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @Value
+@ToString
 public class TempFileState {
     final TempFileType tempFileType;
     final Path path;
@@ -37,7 +38,7 @@ public class TempFileState {
 
     @JsonGetter
     @ToString.Include
-    String durationSinceCreation() {
+    String getDurationSinceCreation() {
         return Duration.of(System.currentTimeMillis() - creationTimestamp, ChronoUnit.MILLIS).toString();
     }
 }
