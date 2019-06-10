@@ -15,7 +15,6 @@
 package com.indeed.imhotep.fs;
 
 import com.google.common.base.Charsets;
-import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 import org.junit.Assert;
@@ -250,17 +249,17 @@ public class RemoteCachingFileSystemTest {
                 fs.getPath("/a"),
                 fs.getPath("/b")
                 ),
-                FluentIterable.from(Files.newDirectoryStream(fs.getPath("/"))).toSet());
+                NIOFileUtils.listDirectory(fs.getPath("/")));
 
         Assert.assertEquals(
-                Collections.singletonList(fs.getPath("/b", "c")),
-                FluentIterable.from(Files.newDirectoryStream(fs.getPath("/b"))).toList());
+                Collections.singleton(fs.getPath("/b", "c")),
+                NIOFileUtils.listDirectory(fs.getPath("/b")));
 
         Assert.assertEquals(Sets.newHashSet(
                 fs.getPath("/b", "c", "bc1"),
                 fs.getPath("/b", "c", "bc2"),
                 fs.getPath("/b", "c", "bc3")
-        ), FluentIterable.from(Files.newDirectoryStream(fs.getPath("/b", "c"))).toSet());
+        ), NIOFileUtils.listDirectory(fs.getPath("/b", "c")));
     }
 
     @Test(expected = NotDirectoryException.class)
@@ -274,7 +273,7 @@ public class RemoteCachingFileSystemTest {
         writeToFile(new File(aDir, "aa1"), "this is a test", "here is another test");
 
         Assert.assertEquals(Sets.newHashSet(
-        ), FluentIterable.from(Files.newDirectoryStream(fs.getPath("/a", "aa1"))).toSet());
+        ), NIOFileUtils.listDirectory(fs.getPath("/a", "aa1")));
     }
 
     @Test(expected = NoSuchFileException.class)
@@ -282,7 +281,7 @@ public class RemoteCachingFileSystemTest {
         final RemoteCachingFileSystem fs = testContext.getFs();
 
         Assert.assertEquals(Sets.newHashSet(
-        ), FluentIterable.from(Files.newDirectoryStream(fs.getPath("/a"))).toSet());
+        ), NIOFileUtils.listDirectory(fs.getPath("/a")));
     }
 
     @Test

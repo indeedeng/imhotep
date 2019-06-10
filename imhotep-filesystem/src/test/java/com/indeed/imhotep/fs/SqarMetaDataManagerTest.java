@@ -14,7 +14,6 @@
 
 package com.indeed.imhotep.fs;
 
-import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableSet;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -103,14 +102,14 @@ public class SqarMetaDataManagerTest {
         Assert.assertEquals(
                 ImmutableSet.of(
                         root.resolve("testData")
-                ), FluentIterable.from(Files.newDirectoryStream(root, DirectoryStreamFilters.ONLY_DIRS)).toSet()
+                ), NIOFileUtils.listDirectory(root, DirectoryStreamFilters.ONLY_DIRS)
         );
 
         final RemoteCachingPath indexDir = root.resolve("testData");
         Assert.assertEquals(
                 ImmutableSet.of(
                         indexDir.resolve("test-archive")
-                ), FluentIterable.from(Files.newDirectoryStream(indexDir)).toSet()
+                ), NIOFileUtils.listDirectory(indexDir)
         );
     }
 
@@ -131,13 +130,12 @@ public class SqarMetaDataManagerTest {
     private void testSqarListDirectoryWithDir(final RemoteCachingPath testArchive) throws IOException, URISyntaxException {
         {
             final RemoteCachingPath dirPath = testArchive.resolve("1");
-            Files.newDirectoryStream(dirPath);
             Assert.assertEquals(
                     ImmutableSet.of(
                             dirPath.resolve("1"),
                             dirPath.resolve("2"),
                             dirPath.resolve("1.file")
-                    ), FluentIterable.from(Files.newDirectoryStream(dirPath)).toSet()
+                    ), NIOFileUtils.listDirectory(dirPath)
             );
         }
 
@@ -147,7 +145,7 @@ public class SqarMetaDataManagerTest {
                     ImmutableSet.of(
                             dirPath.resolve("4"),
                             dirPath.resolve("123.file")
-                    ), FluentIterable.from(Files.newDirectoryStream(dirPath)).toSet()
+                    ), NIOFileUtils.listDirectory(dirPath)
             );
         }
 
@@ -158,7 +156,7 @@ public class SqarMetaDataManagerTest {
                             dirPath.resolve("1"),
                             dirPath.resolve("2"),
                             dirPath.resolve("1.file")
-                    ), FluentIterable.from(Files.newDirectoryStream(dirPath)).toSet()
+                    ), NIOFileUtils.listDirectory(dirPath)
             );
         }
 
@@ -170,7 +168,7 @@ public class SqarMetaDataManagerTest {
                             testArchive.resolve("3"),
                             testArchive.resolve("4"),
                             testArchive.resolve("5")
-                    ), FluentIterable.from(Files.newDirectoryStream(testArchive)).toSet()
+                    ), NIOFileUtils.listDirectory(testArchive)
             );
         }
     }
@@ -187,7 +185,7 @@ public class SqarMetaDataManagerTest {
 
         final RemoteCachingPath testArchive = root.resolve("testData/test-archive");
 
-        FluentIterable.from(Files.newDirectoryStream(testArchive.resolve("4").resolve("5").resolve("54.file"))).toSet();
+        NIOFileUtils.listDirectory(testArchive.resolve("4").resolve("5").resolve("54.file"));
     }
 
     @Test(expected = NotDirectoryException.class)
@@ -202,7 +200,7 @@ public class SqarMetaDataManagerTest {
 
         final RemoteCachingPath testArchive = root.resolve("testData/test-archive");
 
-        FluentIterable.from(Files.newDirectoryStream(testArchive.resolve("4").resolve("5").resolve("45.file"))).toSet();
+        NIOFileUtils.listDirectory(testArchive.resolve("4").resolve("5").resolve("45.file"));
     }
 
     @Test
@@ -242,7 +240,7 @@ public class SqarMetaDataManagerTest {
 
         final RemoteCachingPath testArchive = root.resolve("testData/test-archive");
 
-        Files.newInputStream(testArchive.resolve("1").resolve("2").resolve("3").resolve("4").resolve("5"));
+        try (final InputStream in = Files.newInputStream(testArchive.resolve("1").resolve("2").resolve("3").resolve("4").resolve("5"))) { }
     }
 
     @Test(expected = IOException.class)
@@ -257,7 +255,7 @@ public class SqarMetaDataManagerTest {
 
         final RemoteCachingPath testArchive = root.resolve("testData/test-archive");
 
-        Files.newInputStream(testArchive.resolve("abc.file"));
+        try (final InputStream in = Files.newInputStream(testArchive.resolve("abc.file"))) { }
     }
 
     private void testInputStream(final Path path, final int count) throws IOException {
@@ -269,13 +267,14 @@ public class SqarMetaDataManagerTest {
         final ByteArrayOutputStream actual = new ByteArrayOutputStream();
 
         final byte[] buffer = new byte[1024];
-        final InputStream is = Files.newInputStream(path);
 
-        try (DataInputStream reader = new DataInputStream(is)) {
-            int read = reader.read(buffer, 0, buffer.length);
-            while (read != -1) {
-                actual.write(buffer, 0, read);
-                read = reader.read(buffer, 0, buffer.length);
+        try (final InputStream is = Files.newInputStream(path)) {
+            try (DataInputStream reader = new DataInputStream(is)) {
+                int read = reader.read(buffer, 0, buffer.length);
+                while (read != -1) {
+                    actual.write(buffer, 0, read);
+                    read = reader.read(buffer, 0, buffer.length);
+                }
             }
         }
 

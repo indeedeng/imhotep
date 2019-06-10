@@ -15,7 +15,6 @@
 package com.indeed.imhotep.fs;
 
 import com.google.common.base.Charsets;
-import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Sets;
 import org.junit.Assert;
@@ -95,13 +94,13 @@ public class S3RemoteFileStoreTest {
                 fs.getPath("b", "c"),
                 fs.getPath("b", "cd"),
                 fs.getPath("b", "ce")
-        ), FluentIterable.from(Files.newDirectoryStream(fs.getPath("b"))).toSet());
+        ), NIOFileUtils.listDirectory(fs.getPath("b")));
 
         Assert.assertEquals(Sets.newHashSet(
                 fs.getPath("b", "c", "bc1"),
                 fs.getPath("b", "c", "bc2"),
                 fs.getPath("b", "c", "bc3")
-        ), FluentIterable.from(Files.newDirectoryStream(fs.getPath("b", "c"))).toSet());
+        ), NIOFileUtils.listDirectory(fs.getPath("b", "c")));
     }
 
     @Test(expected = NoSuchFileException.class)
@@ -129,7 +128,7 @@ public class S3RemoteFileStoreTest {
         writeToFile(Paths.get("a", "aa1"), "this is a test", "here is another test");
 
         Assert.assertEquals(Sets.newHashSet(
-        ), FluentIterable.from(Files.newDirectoryStream(fs.getPath("a", "aa1"))).toSet());
+        ), NIOFileUtils.listDirectory(fs.getPath("a", "aa1")));
     }
 
     @Test(expected = NoSuchFileException.class)
@@ -137,6 +136,6 @@ public class S3RemoteFileStoreTest {
         final RemoteCachingFileSystem fs = testContext.getFs();
 
         Assert.assertEquals(Sets.newHashSet(
-        ), FluentIterable.from(Files.newDirectoryStream(fs.getPath("a"))).toSet());
+        ), NIOFileUtils.listDirectory(fs.getPath("a")));
     }
 }

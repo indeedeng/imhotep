@@ -15,7 +15,6 @@
 package com.indeed.imhotep.fs;
 
 import com.google.common.base.Charsets;
-import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Sets;
 import org.junit.Assert;
@@ -94,10 +93,10 @@ public class HdfsRemoteFileStoreTest {
                 fs.getPath("/b", "c", "bc1"),
                 fs.getPath("/b", "c", "bc2"),
                 fs.getPath("/b", "c", "bc3")
-        ), FluentIterable.from(Files.newDirectoryStream(fs.getPath("/b", "c"))).toSet());
+        ), NIOFileUtils.listDirectory(fs.getPath("/b", "c")));
 
         Assert.assertEquals(Sets.newHashSet(
-        ), FluentIterable.from(Files.newDirectoryStream(fs.getPath("/d"))).toSet());
+        ), NIOFileUtils.listDirectory(fs.getPath("/d")));
     }
 
     @Test(expected = NotDirectoryException.class)
@@ -111,14 +110,13 @@ public class HdfsRemoteFileStoreTest {
         writeToFile(new File(aDir, "aa1"), "this is a test", "here is another test");
 
         Assert.assertEquals(Sets.newHashSet(
-        ), FluentIterable.from(Files.newDirectoryStream(fs.getPath("/a", "aa1"))).toSet());
+        ), NIOFileUtils.listDirectory(fs.getPath("/a", "aa1")));
     }
 
     @Test(expected = NoSuchFileException.class)
     public void testListDirOnMissingPath() throws IOException {
         final RemoteCachingFileSystem fs = testContext.getFs();
-
         Assert.assertEquals(Sets.newHashSet(
-        ), FluentIterable.from(Files.newDirectoryStream(fs.getPath("/a"))).toSet());
+        ), NIOFileUtils.listDirectory(fs.getPath("/a")));
     }
 }
