@@ -1,6 +1,6 @@
 package com.indeed.imhotep.fs;
 
-import com.google.common.collect.FluentIterable;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 
 import java.io.IOException;
@@ -47,13 +47,13 @@ class NIOFileUtils {
 
     static Set<Path> listDirectory(final Path dirPath) throws IOException {
         try (final DirectoryStream<Path> dirStream = Files.newDirectoryStream(dirPath)) {
-            return FluentIterable.from(dirStream).toSet();
+            return ImmutableSet.copyOf(dirStream);
         }
     }
 
     static Set<Path> listDirectory(final Path dirPath, final DirectoryStream.Filter<Path> filter) throws IOException {
         try (final DirectoryStream<Path> dirStream = Files.newDirectoryStream(dirPath, filter)) {
-            return FluentIterable.from(dirStream).toSet();
+            return ImmutableSet.copyOf(dirStream);
         }
     }
 }

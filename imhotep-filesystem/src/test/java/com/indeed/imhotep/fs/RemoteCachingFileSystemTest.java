@@ -252,7 +252,7 @@ public class RemoteCachingFileSystemTest {
                 NIOFileUtils.listDirectory(fs.getPath("/")));
 
         Assert.assertEquals(
-                Sets.newHashSet(Collections.singletonList(fs.getPath("/b", "c"))),
+                Collections.singleton(fs.getPath("/b", "c")),
                 NIOFileUtils.listDirectory(fs.getPath("/b")));
 
         Assert.assertEquals(Sets.newHashSet(
