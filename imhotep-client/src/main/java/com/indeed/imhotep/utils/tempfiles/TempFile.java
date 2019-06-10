@@ -27,6 +27,7 @@ public class TempFile {
     @Nullable
     private final StackTraceElement[] stackTraceElements;
     private final EventListener eventListener;
+    private final long creationTimeMillis;
 
     private final Object lock = new Object();
     private boolean removed = false;
@@ -37,10 +38,11 @@ public class TempFile {
         this.path = path;
         this.stackTraceElements = stackTraceElements;
         this.eventListener = eventListener;
+        this.creationTimeMillis = System.currentTimeMillis();
     }
 
     TempFileState getState() {
-        return new TempFileState(tempFileType, path, stackTraceElements);
+        return new TempFileState(tempFileType, path, creationTimeMillis, refCount, removed, stackTraceElements);
     }
 
     @Override
