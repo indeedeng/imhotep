@@ -1,11 +1,15 @@
 package com.indeed.imhotep.fs;
 
+import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Iterables;
 
 import java.io.IOException;
+import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.util.Set;
+import java.util.stream.Stream;
 
 /**
  * util methods with nio callings
@@ -22,18 +26,34 @@ class NIOFileUtils {
         if (!dirAttrs.isDirectory()) {
             throw new IllegalArgumentException(directory + " is not a directory");
         }
-        return Files.walk(directory).mapToLong(path -> {
-            try {
-                final BasicFileAttributes attributes = Files.readAttributes(path, BasicFileAttributes.class);
-                return attributes.isDirectory() ? 0 : attributes.size();
-            } catch (final IOException e) {
-                return 0;
-            }
-        }).sum();
+        try (final Stream<Path> fileStream = Files.walk(directory)) {
+            return fileStream.mapToLong(path -> {
+                try {
+                    final BasicFileAttributes attributes = Files.readAttributes(path, BasicFileAttributes.class);
+                    return attributes.isDirectory() ? 0 : attributes.size();
+                } catch (final IOException e) {
+                    return 0;
+                }
+            }).sum();
+        }
     }
 
     /** Throws NotDirectoryException if it's not a directory */
     static int fileCountOfDirectory(final Path directory) throws IOException {
-        return Iterables.size(Files.newDirectoryStream(directory));
+        try (final DirectoryStream<Path> dirStream = Files.newDirectoryStream(directory)) {
+            return Iterables.size(dirStream);
+        }
+    }
+
+    static Set<Path> listDirectory(final Path dirPath) throws IOException {
+        try (final DirectoryStream<Path> dirStream = Files.newDirectoryStream(dirPath)) {
+            return FluentIterable.from(dirStream).toSet();
+        }
+    }
+
+    static Set<Path> listDirectory(final Path dirPath, final DirectoryStream.Filter<Path> filter) throws IOException {
+        try (final DirectoryStream<Path> dirStream = Files.newDirectoryStream(dirPath, filter)) {
+            return FluentIterable.from(dirStream).toSet();
+        }
     }
 }

@@ -30,6 +30,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static com.indeed.imhotep.utils.ImhotepExceptionUtils.buildIOExceptionFromResponse;
 import static com.indeed.imhotep.utils.ImhotepExceptionUtils.buildImhotepKnownExceptionFromResponse;
@@ -89,18 +90,21 @@ public class TestShardFileRequests {
         final List<FileAttributesMessage> attrMessageListFromRequest = new ArrayList<>(listShardFileRecursively(remoteDirPath));
         Collections.sort(attrMessageListFromRequest, Comparator.comparing(FileAttributesMessage::getPath));
 
-        final List<FileAttributesMessage> localAttrMessageList = Files.walk(shardPath).filter(Files::isRegularFile).map(path -> {
-            try {
-                final BasicFileAttributes attrs = Files.readAttributes(path, BasicFileAttributes.class);
-                return FileAttributesMessage.newBuilder()
-                        .setPath(shardPath.relativize(path).toString())
-                        .setSize(attrs.isDirectory() ? -1 : attrs.size())
-                        .setIsDirectory(attrs.isDirectory())
-                        .build();
-            } catch (final IOException e) {
-                throw new RuntimeException(e);
-            }
-        }).sorted(Comparator.comparing(FileAttributesMessage::getPath)).collect(Collectors.toList());
+        final List<FileAttributesMessage> localAttrMessageList;
+        try (final Stream<Path> fileStream = Files.walk(shardPath)) {
+            localAttrMessageList = fileStream.filter(Files::isRegularFile).map(path -> {
+                try {
+                    final BasicFileAttributes attrs = Files.readAttributes(path, BasicFileAttributes.class);
+                    return FileAttributesMessage.newBuilder()
+                            .setPath(shardPath.relativize(path).toString())
+                            .setSize(attrs.isDirectory() ? -1 : attrs.size())
+                            .setIsDirectory(attrs.isDirectory())
+                            .build();
+                } catch (final IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }).sorted(Comparator.comparing(FileAttributesMessage::getPath)).collect(Collectors.toList());
+        }
 
         assertEquals(localAttrMessageList.size(), attrMessageListFromRequest.size());
         for (int i = 0; i < localAttrMessageList.size(); i++) {
