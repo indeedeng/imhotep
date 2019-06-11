@@ -61,8 +61,8 @@ public class TaskQueue implements Comparable<TaskQueue> {
         return queue.size();
     }
 
-    public void updateConsumptionCache() {
-        cachedConsumption = consumptionTracker.getConsumption();
+    public void updateConsumptionCache(final long nanoTime) {
+        cachedConsumption = consumptionTracker.getConsumption(nanoTime);
     }
 
     /** Used to prioritize queues with higher priority number or, if equal, with lower consumption in the TaskScheduler */

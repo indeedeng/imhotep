@@ -150,7 +150,8 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
         if(waitLock == null) {
             throw new IllegalStateException("Tried to schedule task that is not startable " + toString());
         }
-        final long waitTime = System.nanoTime() - lastWaitStartTime;
+        final long nanoTime = System.nanoTime();
+        final long waitTime = nanoTime - lastWaitStartTime;
         if (schedulerWaitTimeCallback != null) {
             schedulerWaitTimeCallback.call(schedulerType, waitTime);
         }
@@ -159,7 +160,7 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
         }
         waitLock.countDown();
         synchronized (executionTimeStatsLock) {
-            lastExecutionStartTime = System.nanoTime();
+            lastExecutionStartTime = nanoTime;
         }
     }
 

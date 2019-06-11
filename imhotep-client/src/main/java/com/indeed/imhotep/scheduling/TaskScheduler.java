@@ -26,7 +26,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
+import java.util.OptionalLong;
 import java.util.PriorityQueue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -104,7 +104,7 @@ public class TaskScheduler implements SilentCloseable {
             runningTasksCount = runningTasks.size();
             final long nowNanos = System.nanoTime();
 
-            final Optional<Long> minRunStartTimeNanos = runningTasks.stream().map(ImhotepTask::getLastExecutionStartTime).min(Long::compareTo);
+            final OptionalLong minRunStartTimeNanos = runningTasks.stream().mapToLong(ImhotepTask::getLastExecutionStartTime).min();
             long oldestRunStartTimeNanos = minRunStartTimeNanos.orElse(nowNanos);
             longestRunningTaskNanos = nowNanos - oldestRunStartTimeNanos;
 
@@ -125,7 +125,8 @@ public class TaskScheduler implements SilentCloseable {
     }
 
     private void cleanup() {
-        ownerToConsumptionTracker.entrySet().removeIf(entry -> !entry.getValue().isActive());
+        final long nanoTime = System.nanoTime();
+        ownerToConsumptionTracker.entrySet().removeIf(entry -> !entry.getValue().isActive(nanoTime));
         // TODO: check runningTasks for leaks once in a while
     }
 
@@ -259,8 +260,9 @@ public class TaskScheduler implements SilentCloseable {
         if(runningTasks.size() >= totalSlots) {
             return; // fully utilized
         }
+        final long nanoTime = System.nanoTime();
         for(TaskQueue taskQueue: queues.values()) {
-            taskQueue.updateConsumptionCache();
+            taskQueue.updateConsumptionCache(nanoTime);
         }
         // prioritizes queues using TaskQueue.compareTo()
         final PriorityQueue<TaskQueue> prioritizedQueues = Queues.newPriorityQueue(queues.values());

@@ -55,18 +55,19 @@ public class TaskSnapshot {
             final long totalExecutionTime,
             @Nullable final StackTraceElement[] stackTrace
     ) {
+        final long nanoTime = System.nanoTime();
         this.taskID = taskID;
         this.sessionID = (session == null) ? "null" : session.getSessionId();
         this.requestContext = requestContext;
-        this.timeSinceCreation = Duration.ZERO.plusNanos(System.nanoTime() - creationTime);
+        this.timeSinceCreation = Duration.ZERO.plusNanos(nanoTime - creationTime);
         this.userName = userName;
         this.clientName = clientName;
         this.dataset = dataset;
         this.shardName = shardName;
         this.priority = priority;
-        this.timeSinceLastExecutionStart = Duration.ZERO.plusNanos(System.nanoTime() - lastExecutionStartTime);
-        this.timeSinceLastWaitStart = Duration.ZERO.plusNanos(System.nanoTime() - lastWaitStartTime);
-        this.totalExecutionTimeMillis = TimeUnit.MILLISECONDS.convert((totalExecutionTime + System.nanoTime() - lastExecutionStartTime), TimeUnit.NANOSECONDS);
+        this.timeSinceLastExecutionStart = Duration.ZERO.plusNanos(nanoTime - lastExecutionStartTime);
+        this.timeSinceLastWaitStart = Duration.ZERO.plusNanos(nanoTime - lastWaitStartTime);
+        this.totalExecutionTimeMillis = TimeUnit.MILLISECONDS.convert((totalExecutionTime + nanoTime - lastExecutionStartTime), TimeUnit.NANOSECONDS);
         this.stackTrace = stackTrace;
 
         // innerSession access is dangerous
