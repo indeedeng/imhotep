@@ -66,6 +66,8 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
     @Nullable
     private SchedulerCallback schedulerWaitTimeCallback;
 
+    boolean cancelled;
+
     public static void setup(final String userName, final String clientName, final byte priority, final SlotTiming slotTiming) {
         final ImhotepTask task = new ImhotepTask(userName, clientName, priority, null, null, null, null,
                 (schedulerType, execTime) -> slotTiming.schedulerExecTimeCallback(schedulerType, execTime),

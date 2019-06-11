@@ -215,7 +215,6 @@ public class TaskScheduler implements SilentCloseable {
 
     /** returns true iff a new lock was created */
     boolean schedule(ImhotepTask task) {
-        final QueuedImhotepTask queuedTask = new QueuedImhotepTask(task);
         synchronized (this) {
             if (runningTasks.contains(task)) {
                 statsEmitter.count("scheduler." + schedulerType + ".schedule.already.running", 1);
@@ -223,7 +222,7 @@ public class TaskScheduler implements SilentCloseable {
             }
             task.preExecInitialize(this);
             final TaskQueue queue = getOrCreateQueueForTask(task);
-            queue.offer(queuedTask);
+            queue.offer(task);
             tryStartTasks();
         }
 
@@ -231,7 +230,7 @@ public class TaskScheduler implements SilentCloseable {
             // Blocks and waits if necessary
             task.blockAndWait();
         } catch (final Throwable t) {
-            cancelTask(queuedTask, t);
+            cancelTask(task, t);
             throw t;
         }
         return true;
@@ -269,16 +268,15 @@ public class TaskScheduler implements SilentCloseable {
         while(!prioritizedQueues.isEmpty()) {
             final TaskQueue taskQueue = prioritizedQueues.poll();
             while(true) {
-                final QueuedImhotepTask queuedTask = taskQueue.poll();
-                if(queuedTask == null) {
+                final ImhotepTask task = taskQueue.poll();
+                if(task == null) {
                     queues.remove(taskQueue.getOwnerAndPriority());
                     break;
                 }
 
-                if (queuedTask.cancelled) {
+                if (task.cancelled) {
                     continue;
                 }
-                final ImhotepTask task = queuedTask.imhotepTask;
                 try {
                     runningTasks.add(task);
                     task.markRunnable(schedulerType);
@@ -286,18 +284,17 @@ public class TaskScheduler implements SilentCloseable {
                         return;
                     }
                 } catch (final Throwable t) {
-                    cancelTask(queuedTask, t);
+                    cancelTask(task, t);
                 }
             }
         }
     }
 
-    private synchronized void cancelTask(@Nonnull final QueuedImhotepTask queuedTask, final Throwable t) {
-        final ImhotepTask task = queuedTask.imhotepTask;
+    private synchronized void cancelTask(@Nonnull final ImhotepTask task, final Throwable t) {
         if (runningTasks.contains(task)) {
             runningTasks.remove(task);
         } else {
-            queuedTask.cancelled = true;
+            task.cancelled = true;
         }
 
         // only log unknown errors to avoid verbose logging
