@@ -61,7 +61,7 @@ public class TestCommandYield {
 
     @Before
     public void setup() {
-        TaskScheduler.CPUScheduler = new TaskScheduler(1, TimeUnit.SECONDS.toNanos(60) , TimeUnit.SECONDS.toNanos(1), SchedulerType.CPU, MetricStatsEmitter.NULL_EMITTER);
+        TaskScheduler.CPUScheduler = new TaskScheduler(1, TimeUnit.SECONDS.toNanos(60) , TimeUnit.SECONDS.toNanos(1), 50, SchedulerType.CPU, MetricStatsEmitter.NULL_EMITTER);
     }
 
     @After
@@ -160,5 +160,62 @@ public class TestCommandYield {
         executeThreads(thread1, thread2);
 
         Assert.assertEquals(scheduleOrder, Arrays.asList(COMMANDID2, COMMANDID2, COMMANDID2, COMMANDID1, COMMANDID1, COMMANDID2));
+    }
+
+    private static void runFullUtilizationTest(final int slotsCount, final int taskCount, final int taskTimeMillis) {
+        // Goal of this test is to check that yield works and scheduler switches task in the middle of execution.
+        // Let's say we have 3 task 1000 milliseconds each and we want to execute them on 2 execution slots.
+        // Then without yielding total wallclock time will be 2000 millis (first 1000 millis 2 task are executed on 2 slots,
+        // then third task takes another 1000 millis on one slot)
+        // With yielding total wallclock time will be 1500 millis because the will be switching between tasks
+        // and 3000 millis of execution time are divided between 2 slots
+
+        Assert.assertTrue(slotsCount < taskCount);
+        final Thread[] threads = new Thread[taskCount];
+        for (int i = 0; i < taskCount; i++) {
+            final int index = i; // constant copy to pass in lambda
+            threads[i] = new Thread(() -> {
+                ImhotepTask.setup("user" + index, "client" + index, (byte)0, new SlotTiming());
+                try (final SilentCloseable slot = TaskScheduler.CPUScheduler.lockSlot()) {
+                    final int waitMillis = 10; // yielding every 10 millis
+                    final int iterCount = taskTimeMillis / waitMillis;
+                    for (int iter = 0; iter < iterCount; iter++) {
+                        Thread.sleep(waitMillis);
+                        TaskScheduler.CPUScheduler.yield();
+                    }
+                } catch (final InterruptedException e) {
+                    Throwables.propagate(e);
+                }
+            });
+            }
+        final TaskScheduler old = TaskScheduler.CPUScheduler;
+        TaskScheduler.CPUScheduler = new TaskScheduler(slotsCount, TimeUnit.SECONDS.toNanos(60) , TimeUnit.SECONDS.toNanos(1),
+                100 /*executionChunkMillis*/, SchedulerType.CPU, MetricStatsEmitter.NULL_EMITTER);
+
+        final long start = System.currentTimeMillis();
+        for (final Thread thread : threads) {
+            thread.start();
+        }
+        for (final Thread thread : threads) {
+            try {
+                thread.join();
+            } catch (final InterruptedException ignored) {
+            }
+        }
+        final long end = System.currentTimeMillis();
+
+        TaskScheduler.CPUScheduler = old;
+
+        // Check that all slots were busy all the time.
+        // Add extra 100 millis for scheduling + Thread.start + Thread.join overhead.
+        Assert.assertTrue( end - start < taskCount * taskTimeMillis / slotsCount + 100);
+    }
+
+    @Test
+    public void testYield() {
+        runFullUtilizationTest(2, 3, 1000);
+        runFullUtilizationTest(5, 7, 1500);
+        runFullUtilizationTest(10, 11, 1000);
+        runFullUtilizationTest(3, 5, 900);
     }
 }

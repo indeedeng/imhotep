@@ -67,6 +67,7 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
     private SchedulerCallback schedulerWaitTimeCallback;
 
     boolean cancelled;
+    private long executionDeadline = 0;
 
     public static void setup(final String userName, final String clientName, final byte priority, final SlotTiming slotTiming) {
         final ImhotepTask task = new ImhotepTask(userName, clientName, priority, null, null, null, null,
@@ -179,6 +180,7 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
                 if (session != null && session.isClosed()) {
                     throw new InvalidSessionException("Session with id " + session.getSessionId() + " was already closed");
                 }
+                executionDeadline = ownerScheduler.getCurrentTimeMillis() + ownerScheduler.getExecutionChunkMillis();
             } catch(InterruptedException ignored){ }
         }
     }
@@ -193,6 +195,7 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
             executionTime = System.nanoTime() - lastExecutionStartTime;
             totalExecutionTime += executionTime;
             lastExecutionStartTime = 0;
+            executionDeadline = 0;
         }
         if (schedulerExecTimeCallback != null) {
             schedulerExecTimeCallback.call(schedulerType, executionTime);
@@ -255,6 +258,10 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
 
     public long getTotalExecutionTime() {
         return totalExecutionTime;
+    }
+
+    public long getExecutionDeadline() {
+        return executionDeadline;
     }
 
     @Nullable

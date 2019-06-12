@@ -27,6 +27,7 @@ public final class LocalImhotepServiceConfig {
     private int heartBeatCheckFrequencySeconds = 60;
     private int cpuSlots = 0; // 0 = disabled
     private int cpuSchedulerHistoryLengthSeconds = 60;
+    private int cpuExecutionChunkMillis = 100;
     private int remoteFSIOSlots = 0;  // 0 = disabled
     private int remoteFSIOSchedulerHistoryLengthSeconds = 60;
     private int p2pFSIOSlots = 0; // 0 = disabled
@@ -83,6 +84,14 @@ public final class LocalImhotepServiceConfig {
 
     public void setCpuSchedulerHistoryLengthSeconds(int cpuSchedulerHistoryLengthSeconds) {
         this.cpuSchedulerHistoryLengthSeconds = cpuSchedulerHistoryLengthSeconds;
+    }
+
+    public int getCpuExecutionChunkMillis() {
+        return cpuExecutionChunkMillis;
+    }
+
+    public void setCpuExecutionChunkMillis(final int cpuExecutionMillis) {
+        this.cpuExecutionChunkMillis = cpuExecutionMillis;
     }
 
     public int getRemoteFSIOSchedulerHistoryLengthSeconds() {

@@ -45,6 +45,7 @@ public class TaskScheduler implements SilentCloseable {
     private static final int DATADOG_STATS_REPORTING_FREQUENCY_MILLIS = 100;
     private static final int CLEANUP_FREQUENCY_MILLIS = 1000;
     private static final long LONG_RUNNING_TASK_REPORT_FREQUENCY_MILLIS = TimeUnit.MINUTES.toMillis(1);
+    private static final int CURRENT_TIME_MILLIS_CACHE_FREQUENCY = 1;
 
     // queue of tasks waiting to run
     private final Map<OwnerAndPriority, TaskQueue> queues = Maps.newHashMap();
@@ -57,6 +58,9 @@ public class TaskScheduler implements SilentCloseable {
     private final SchedulerType schedulerType;
     private final MetricStatsEmitter statsEmitter;
 
+    private volatile long currentTimeMillis = System.currentTimeMillis();
+    private final int executionChunkMillis;
+
     public static TaskScheduler CPUScheduler = new NoopTaskScheduler();
     public static TaskScheduler RemoteFSIOScheduler = new NoopTaskScheduler();
     public static TaskScheduler P2PFSIOScheduler = new NoopTaskScheduler();
@@ -64,11 +68,19 @@ public class TaskScheduler implements SilentCloseable {
     private ScheduledExecutorService datadogStatsReportingExecutor = null;
     private ScheduledExecutorService cleanupExecutor = null;
     private ScheduledExecutorService longRunningTaskReportingExecutor = null;
+    private ScheduledExecutorService currentTimeMillisExecutor = null;
 
-    public TaskScheduler(int totalSlots, long historyLengthNanos, long batchNanos, SchedulerType schedulerType, MetricStatsEmitter statsEmitter) {
+    public TaskScheduler(
+            final int totalSlots,
+            final long historyLengthNanos,
+            final long batchNanos,
+            final int executionChunkMillis,
+            final SchedulerType schedulerType,
+            final MetricStatsEmitter statsEmitter) {
         this.totalSlots = totalSlots;
         this.historyLengthNanos = historyLengthNanos;
         this.batchNanos = batchNanos;
+        this.executionChunkMillis = executionChunkMillis;
         this.schedulerType = schedulerType;
         this.statsEmitter = statsEmitter;
 
@@ -84,6 +96,9 @@ public class TaskScheduler implements SilentCloseable {
 
         longRunningTaskReportingExecutor = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("schedulerLongRunningTaskReporter-" + schedulerType));
         longRunningTaskReportingExecutor.scheduleAtFixedRate(this::reportLongRunningTasks, LONG_RUNNING_TASK_REPORT_FREQUENCY_MILLIS, LONG_RUNNING_TASK_REPORT_FREQUENCY_MILLIS, TimeUnit.MILLISECONDS);
+
+        currentTimeMillisExecutor = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("currentTimeMillisCasher-" + schedulerType));
+        currentTimeMillisExecutor.scheduleAtFixedRate(this::cacheCurrentTimeMillis, 0, CURRENT_TIME_MILLIS_CACHE_FREQUENCY, TimeUnit.MILLISECONDS);
     }
 
     public int getTotalSlots() {
@@ -150,6 +165,18 @@ public class TaskScheduler implements SilentCloseable {
         }
     }
 
+    private void cacheCurrentTimeMillis() {
+        currentTimeMillis = System.currentTimeMillis();
+    }
+
+    public long getCurrentTimeMillis() {
+        return currentTimeMillis;
+    }
+
+    public int getExecutionChunkMillis() {
+        return executionChunkMillis;
+    }
+
     @Nullable
     public ImhotepTask getThreadLocalTaskForLocking() {
         final ImhotepTask task = ImhotepTask.THREAD_LOCAL_TASK.get();
@@ -204,6 +231,10 @@ public class TaskScheduler implements SilentCloseable {
     public void yield() {
         final ImhotepTask task = getThreadLocalTaskForLocking();
         if (task == null) {
+            return;
+        }
+
+        if (task.getExecutionDeadline() > currentTimeMillis) {
             return;
         }
 
@@ -334,6 +365,9 @@ public class TaskScheduler implements SilentCloseable {
         }
         if (longRunningTaskReportingExecutor != null) {
             longRunningTaskReportingExecutor.shutdown();
+        }
+        if (currentTimeMillisExecutor != null) {
+            currentTimeMillisExecutor.shutdown();
         }
     }
 

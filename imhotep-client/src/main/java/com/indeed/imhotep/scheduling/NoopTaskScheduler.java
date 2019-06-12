@@ -9,7 +9,7 @@ import javax.annotation.Nonnull;
  */
 class NoopTaskScheduler extends TaskScheduler {
     NoopTaskScheduler() {
-        super(0, 0, 0, null, MetricStatsEmitter.NULL_EMITTER);
+        super(0, 0, 0, 0, null, MetricStatsEmitter.NULL_EMITTER);
     }
 
     @Nonnull
