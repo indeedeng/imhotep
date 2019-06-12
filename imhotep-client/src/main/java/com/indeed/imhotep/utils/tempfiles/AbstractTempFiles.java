@@ -12,6 +12,7 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.experimental.Accessors;
+import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 
@@ -31,6 +32,7 @@ import java.util.stream.Stream;
 
 public abstract class AbstractTempFiles<E extends Enum<E> & TempFileType<E>> {
     private static final Logger LOGGER = Logger.getLogger(AbstractTempFiles.class);
+    private static final int MAX_EXTRA_INFO_LEN = 36; // same as UUID length including dashes.
 
     private final Path root;
     private final E[] namings;
@@ -54,7 +56,7 @@ public abstract class AbstractTempFiles<E extends Enum<E> & TempFileType<E>> {
         if (extraInfo == null) {
             prefixString = type.getIdentifier() + ".";
         } else {
-            prefixString = type.getIdentifier() + "." + extraInfo + ".";
+            prefixString = type.getIdentifier() + "." + StringUtils.left(extraInfo, MAX_EXTRA_INFO_LEN) + ".";
         }
         final Path path = Files.createTempFile(root, prefixString, ".tmp");
         @Nullable final StackTraceElement[] stackTraceElements;

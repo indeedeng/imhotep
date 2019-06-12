@@ -2,6 +2,7 @@ package com.indeed.imhotep.utils.tempfiles;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.ByteStreams;
+import org.apache.commons.lang.StringUtils;
 import org.junit.After;
 import org.junit.Rule;
 import org.junit.Test;
@@ -312,6 +313,14 @@ public class TempFilesTest {
             assertEquals(temporaryFolder.getRoot().getPath(), tempFile.unsafeGetFile().getParent());
             final String name = tempFile.unsafeGetFile().getName();
             assertThat(name, matchesRegex("b\\.extra\\.[^.]*\\.tmp"));
+            tempFile.removeFile();
+        }
+        {
+            final String veryLong = StringUtils.repeat("0123456789", 10);
+            final TempFile tempFile = tempFilesForTest.createTempFile(TempFilesForTest.Type.B, veryLong);
+            assertEquals(temporaryFolder.getRoot().getPath(), tempFile.unsafeGetFile().getParent());
+            final String name = tempFile.unsafeGetFile().getName();
+            assertThat(name, matchesRegex("b\\." + veryLong.substring(0, 36) + "\\.[^.]*\\.tmp"));
             tempFile.removeFile();
         }
     }
