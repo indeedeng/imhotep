@@ -97,7 +97,7 @@ public class TaskScheduler implements SilentCloseable {
         longRunningTaskReportingExecutor = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("schedulerLongRunningTaskReporter-" + schedulerType));
         longRunningTaskReportingExecutor.scheduleAtFixedRate(this::reportLongRunningTasks, LONG_RUNNING_TASK_REPORT_FREQUENCY_MILLIS, LONG_RUNNING_TASK_REPORT_FREQUENCY_MILLIS, TimeUnit.MILLISECONDS);
 
-        currentTimeMillisExecutor = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("currentTimeMillisCasher-" + schedulerType));
+        currentTimeMillisExecutor = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("currentTimeUpdater-" + schedulerType));
         currentTimeMillisExecutor.scheduleAtFixedRate(this::cacheCurrentTimeMillis, 0, CURRENT_TIME_MILLIS_CACHE_FREQUENCY, TimeUnit.MILLISECONDS);
     }
 
