@@ -181,7 +181,7 @@ public class TestCommandYield {
                     final int iterCount = taskTimeMillis / waitMillis;
                     for (int iter = 0; iter < iterCount; iter++) {
                         Thread.sleep(waitMillis);
-                        TaskScheduler.CPUScheduler.yield();
+                        TaskScheduler.CPUScheduler.yieldIfNecessary();
                     }
                 } catch (final InterruptedException e) {
                     Throwables.propagate(e);

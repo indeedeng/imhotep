@@ -17,6 +17,7 @@ import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.flamdex.api.IntTermDocIterator;
 import com.indeed.flamdex.api.StringTermDocIterator;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
+import com.indeed.imhotep.scheduling.TaskScheduler;
 import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.core.reference.SharedReference;
 
@@ -146,6 +147,7 @@ class FlamdexFTGSIterator extends AbstractFlamdexFTGSIterator {
     }
 
     protected int fillDocIdBuffer(final int[] docIdBuf) {
+        TaskScheduler.CPUScheduler.yieldIfNecessary();
         return (currentFieldIsIntType?intTermDocIterator:stringTermDocIterator).fillDocIdBuffer(docIdBuf);
     }
 }

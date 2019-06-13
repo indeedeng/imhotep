@@ -228,8 +228,12 @@ public class TaskScheduler implements SilentCloseable {
 
     /** Stop the execution of the task if running, and schedule the next task.
      * The task will also be considered while scheduling the next task.*/
-    public void yield() {
+    public void yieldIfNecessary() {
         final ImhotepTask task = getThreadLocalTaskForLocking();
+        yieldIfNecessary(task);
+    }
+
+    public void yieldIfNecessary(final ImhotepTask task) {
         if (task == null) {
             return;
         }
