@@ -559,7 +559,7 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
         final Tracer tracer = GlobalTracer.get();
         final RequestContext requestContext = RequestContext.THREAD_REQUEST_CONTEXT.get();
         final List<Future<T>> futures = new ArrayList<>(things.length);
-        final StrictCloser closerOnFailure = new StrictCloser();
+        final StrictCloser closeOnFailureCloser = new StrictCloser();
         try (final ActiveSpan activeSpan = tracer.buildSpan("execute").withTag("sessionid", getSessionId()).startActive()) {
             try {
                 for (final E thing : things) {
@@ -579,7 +579,7 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
                             }
                             if (cleanupFunction != null) {
                                 final AtomicBoolean cleanedUp = new AtomicBoolean(false);
-                                closerOnFailure.registerOrClose(() -> {
+                                closeOnFailureCloser.registerOrClose(() -> {
                                     if (!cleanedUp.getAndSet(true)) {
                                         try {
                                             cleanupFunction.applyVoid(returnValue);
@@ -596,7 +596,7 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
                     }));
                 }
             } catch (final RejectedExecutionException e) {
-                Closeables2.closeQuietly(closerOnFailure, log);
+                Closeables2.closeQuietly(closeOnFailureCloser, log);
                 safeClose();
                 throw new QueryCancelledException("The query was cancelled during execution", e);
             }
@@ -612,7 +612,7 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
             }
             if (t != null) {
                 Arrays.fill(ret, null);
-                Closeables2.closeQuietly(closerOnFailure, log);
+                Closeables2.closeQuietly(closeOnFailureCloser, log);
                 safeClose();
                 Throwables.propagateIfInstanceOf(t.getCause(), ImhotepKnownException.class);
                 Throwables.propagateIfInstanceOf(t, ExecutionException.class);
