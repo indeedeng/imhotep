@@ -149,21 +149,27 @@ public class LocalImhotepServiceCore
         if(config.getCpuSlots() > 0) {
             TaskScheduler.CPUScheduler = new TaskScheduler(config.getCpuSlots(),
                     TimeUnit.SECONDS.toNanos(config.getCpuSchedulerHistoryLengthSeconds()),
-                    TimeUnit.SECONDS.toNanos(1), SchedulerType.CPU,
+                    TimeUnit.SECONDS.toNanos(1),
+                    config.getCpuExecutionChunkMillis(),
+                    SchedulerType.CPU,
                     statsEmitter);
         }
 
         if(config.getRemoteFSIOSlots() > 0) {
             TaskScheduler.RemoteFSIOScheduler = new TaskScheduler(config.getRemoteFSIOSlots(),
                     TimeUnit.SECONDS.toNanos(config.getRemoteFSIOSchedulerHistoryLengthSeconds()),
-                    TimeUnit.SECONDS.toNanos(1), SchedulerType.REMOTE_FS_IO,
+                    TimeUnit.SECONDS.toNanos(1),
+                    0,
+                    SchedulerType.REMOTE_FS_IO,
                     statsEmitter);
         }
 
         if (config.getP2pFSIOSlots() > 0) {
             TaskScheduler.P2PFSIOScheduler = new TaskScheduler(config.getP2pFSIOSlots(),
                     TimeUnit.SECONDS.toNanos(config.getP2PFSIOSchedulerHistoryLengthSeconds()),
-                    TimeUnit.SECONDS.toNanos(1), SchedulerType.P2P_FS_IO,
+                    TimeUnit.SECONDS.toNanos(1),
+                    0,
+                    SchedulerType.P2P_FS_IO,
                     statsEmitter);
         }
 

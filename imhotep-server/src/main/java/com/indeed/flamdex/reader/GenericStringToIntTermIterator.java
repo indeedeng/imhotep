@@ -19,6 +19,7 @@ import com.indeed.flamdex.api.IntTermIterator;
 import com.indeed.flamdex.api.StringTermIterator;
 import com.indeed.flamdex.api.TermIterator;
 import com.indeed.imhotep.exceptions.NonNumericFieldException;
+import com.indeed.imhotep.scheduling.TaskScheduler;
 
 import javax.annotation.Nonnull;
 import java.util.ArrayList;
@@ -249,6 +250,7 @@ public class GenericStringToIntTermIterator<I extends StringTermIterator> implem
 
     @Override
     public boolean next() {
+        TaskScheduler.CPUScheduler.yieldIfNecessary();
         if (prefixQueue == null) {
             initialize(firstTerm);
         } else if (!prefixQueue.isEmpty()) {

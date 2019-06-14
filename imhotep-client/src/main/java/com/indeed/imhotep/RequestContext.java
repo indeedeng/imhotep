@@ -12,24 +12,24 @@ import java.util.Map;
 public class RequestContext {
     public static final ThreadLocal<RequestContext> THREAD_REQUEST_CONTEXT = new ThreadLocal<>();
 
-    private final ImhotepRequest request;
+    @Nullable
+    private final String sessionId;
+    private final ImhotepRequest.RequestType requestType;
 
     private final SlotTiming totalRpcTime = new SlotTiming();
 
     public RequestContext(final ImhotepRequest request) {
-        this.request = request;
+        this.sessionId = request.hasSessionId() ? request.getSessionId() : null;
+        this.requestType = request.getRequestType();
     }
 
     public ImhotepRequest.RequestType getRequestType() {
-        return request.getRequestType();
+        return requestType;
     }
 
     @Nullable
     public String getSessionId() {
-        if (request.hasSessionId()) {
-            return request.getSessionId();
-        }
-        return null;
+        return sessionId;
     }
 
     public SlotTiming getTotalRpcTime() {

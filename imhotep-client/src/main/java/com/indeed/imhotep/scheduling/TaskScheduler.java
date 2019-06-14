@@ -26,7 +26,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
+import java.util.OptionalLong;
 import java.util.PriorityQueue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -45,6 +45,7 @@ public class TaskScheduler implements SilentCloseable {
     private static final int DATADOG_STATS_REPORTING_FREQUENCY_MILLIS = 100;
     private static final int CLEANUP_FREQUENCY_MILLIS = 1000;
     private static final long LONG_RUNNING_TASK_REPORT_FREQUENCY_MILLIS = TimeUnit.MINUTES.toMillis(1);
+    private static final int CURRENT_TIME_MILLIS_CACHE_FREQUENCY = 1;
 
     // queue of tasks waiting to run
     private final Map<OwnerAndPriority, TaskQueue> queues = Maps.newHashMap();
@@ -57,6 +58,9 @@ public class TaskScheduler implements SilentCloseable {
     private final SchedulerType schedulerType;
     private final MetricStatsEmitter statsEmitter;
 
+    private volatile long currentTimeMillis = System.currentTimeMillis();
+    private final int executionChunkMillis;
+
     public static TaskScheduler CPUScheduler = new NoopTaskScheduler();
     public static TaskScheduler RemoteFSIOScheduler = new NoopTaskScheduler();
     public static TaskScheduler P2PFSIOScheduler = new NoopTaskScheduler();
@@ -64,11 +68,19 @@ public class TaskScheduler implements SilentCloseable {
     private ScheduledExecutorService datadogStatsReportingExecutor = null;
     private ScheduledExecutorService cleanupExecutor = null;
     private ScheduledExecutorService longRunningTaskReportingExecutor = null;
+    private ScheduledExecutorService currentTimeMillisExecutor = null;
 
-    public TaskScheduler(int totalSlots, long historyLengthNanos, long batchNanos, SchedulerType schedulerType, MetricStatsEmitter statsEmitter) {
+    public TaskScheduler(
+            final int totalSlots,
+            final long historyLengthNanos,
+            final long batchNanos,
+            final int executionChunkMillis,
+            final SchedulerType schedulerType,
+            final MetricStatsEmitter statsEmitter) {
         this.totalSlots = totalSlots;
         this.historyLengthNanos = historyLengthNanos;
         this.batchNanos = batchNanos;
+        this.executionChunkMillis = executionChunkMillis;
         this.schedulerType = schedulerType;
         this.statsEmitter = statsEmitter;
 
@@ -84,6 +96,9 @@ public class TaskScheduler implements SilentCloseable {
 
         longRunningTaskReportingExecutor = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("schedulerLongRunningTaskReporter-" + schedulerType));
         longRunningTaskReportingExecutor.scheduleAtFixedRate(this::reportLongRunningTasks, LONG_RUNNING_TASK_REPORT_FREQUENCY_MILLIS, LONG_RUNNING_TASK_REPORT_FREQUENCY_MILLIS, TimeUnit.MILLISECONDS);
+
+        currentTimeMillisExecutor = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("currentTimeUpdater-" + schedulerType));
+        currentTimeMillisExecutor.scheduleAtFixedRate(this::cacheCurrentTimeMillis, 0, CURRENT_TIME_MILLIS_CACHE_FREQUENCY, TimeUnit.MILLISECONDS);
     }
 
     public int getTotalSlots() {
@@ -104,7 +119,7 @@ public class TaskScheduler implements SilentCloseable {
             runningTasksCount = runningTasks.size();
             final long nowNanos = System.nanoTime();
 
-            final Optional<Long> minRunStartTimeNanos = runningTasks.stream().map(ImhotepTask::getLastExecutionStartTime).min(Long::compareTo);
+            final OptionalLong minRunStartTimeNanos = runningTasks.stream().mapToLong(ImhotepTask::getLastExecutionStartTime).min();
             long oldestRunStartTimeNanos = minRunStartTimeNanos.orElse(nowNanos);
             longestRunningTaskNanos = nowNanos - oldestRunStartTimeNanos;
 
@@ -125,7 +140,8 @@ public class TaskScheduler implements SilentCloseable {
     }
 
     private void cleanup() {
-        ownerToConsumptionTracker.entrySet().removeIf(entry -> !entry.getValue().isActive());
+        final long nanoTime = System.nanoTime();
+        ownerToConsumptionTracker.entrySet().removeIf(entry -> !entry.getValue().isActive(nanoTime));
         // TODO: check runningTasks for leaks once in a while
     }
 
@@ -147,6 +163,18 @@ public class TaskScheduler implements SilentCloseable {
                 );
             }
         }
+    }
+
+    private void cacheCurrentTimeMillis() {
+        currentTimeMillis = System.currentTimeMillis();
+    }
+
+    public long getCurrentTimeMillis() {
+        return currentTimeMillis;
+    }
+
+    public int getExecutionChunkMillis() {
+        return executionChunkMillis;
     }
 
     @Nullable
@@ -200,9 +228,17 @@ public class TaskScheduler implements SilentCloseable {
 
     /** Stop the execution of the task if running, and schedule the next task.
      * The task will also be considered while scheduling the next task.*/
-    public void yield() {
+    public void yieldIfNecessary() {
         final ImhotepTask task = getThreadLocalTaskForLocking();
+        yieldIfNecessary(task);
+    }
+
+    public void yieldIfNecessary(final ImhotepTask task) {
         if (task == null) {
+            return;
+        }
+
+        if (task.getNextYieldTime() > currentTimeMillis) {
             return;
         }
 
@@ -214,7 +250,6 @@ public class TaskScheduler implements SilentCloseable {
 
     /** returns true iff a new lock was created */
     boolean schedule(ImhotepTask task) {
-        final QueuedImhotepTask queuedTask = new QueuedImhotepTask(task);
         synchronized (this) {
             if (runningTasks.contains(task)) {
                 statsEmitter.count("scheduler." + schedulerType + ".schedule.already.running", 1);
@@ -222,7 +257,7 @@ public class TaskScheduler implements SilentCloseable {
             }
             task.preExecInitialize(this);
             final TaskQueue queue = getOrCreateQueueForTask(task);
-            queue.offer(queuedTask);
+            queue.offer(task);
             tryStartTasks();
         }
 
@@ -230,7 +265,7 @@ public class TaskScheduler implements SilentCloseable {
             // Blocks and waits if necessary
             task.blockAndWait();
         } catch (final Throwable t) {
-            cancelTask(queuedTask, t);
+            cancelTask(task, t);
             throw t;
         }
         return true;
@@ -259,24 +294,24 @@ public class TaskScheduler implements SilentCloseable {
         if(runningTasks.size() >= totalSlots) {
             return; // fully utilized
         }
+        final long nanoTime = System.nanoTime();
         for(TaskQueue taskQueue: queues.values()) {
-            taskQueue.updateConsumptionCache();
+            taskQueue.updateConsumptionCache(nanoTime);
         }
         // prioritizes queues using TaskQueue.compareTo()
         final PriorityQueue<TaskQueue> prioritizedQueues = Queues.newPriorityQueue(queues.values());
         while(!prioritizedQueues.isEmpty()) {
             final TaskQueue taskQueue = prioritizedQueues.poll();
             while(true) {
-                final QueuedImhotepTask queuedTask = taskQueue.poll();
-                if(queuedTask == null) {
+                final ImhotepTask task = taskQueue.poll();
+                if(task == null) {
                     queues.remove(taskQueue.getOwnerAndPriority());
                     break;
                 }
 
-                if (queuedTask.cancelled) {
+                if (task.cancelled) {
                     continue;
                 }
-                final ImhotepTask task = queuedTask.imhotepTask;
                 try {
                     runningTasks.add(task);
                     task.markRunnable(schedulerType);
@@ -284,18 +319,17 @@ public class TaskScheduler implements SilentCloseable {
                         return;
                     }
                 } catch (final Throwable t) {
-                    cancelTask(queuedTask, t);
+                    cancelTask(task, t);
                 }
             }
         }
     }
 
-    private synchronized void cancelTask(@Nonnull final QueuedImhotepTask queuedTask, final Throwable t) {
-        final ImhotepTask task = queuedTask.imhotepTask;
+    private synchronized void cancelTask(@Nonnull final ImhotepTask task, final Throwable t) {
         if (runningTasks.contains(task)) {
             runningTasks.remove(task);
         } else {
-            queuedTask.cancelled = true;
+            task.cancelled = true;
         }
 
         // only log unknown errors to avoid verbose logging
@@ -335,6 +369,9 @@ public class TaskScheduler implements SilentCloseable {
         }
         if (longRunningTaskReportingExecutor != null) {
             longRunningTaskReportingExecutor.shutdown();
+        }
+        if (currentTimeMillisExecutor != null) {
+            currentTimeMillisExecutor.shutdown();
         }
     }
 

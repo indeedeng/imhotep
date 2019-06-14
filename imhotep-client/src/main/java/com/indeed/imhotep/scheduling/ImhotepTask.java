@@ -66,6 +66,9 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
     @Nullable
     private SchedulerCallback schedulerWaitTimeCallback;
 
+    boolean cancelled;
+    private long nextYieldTime = 0;
+
     public static void setup(final String userName, final String clientName, final byte priority, final SlotTiming slotTiming) {
         final ImhotepTask task = new ImhotepTask(userName, clientName, priority, null, null, null, null,
                 (schedulerType, execTime) -> slotTiming.schedulerExecTimeCallback(schedulerType, execTime),
@@ -150,7 +153,8 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
         if(waitLock == null) {
             throw new IllegalStateException("Tried to schedule task that is not startable " + toString());
         }
-        final long waitTime = System.nanoTime() - lastWaitStartTime;
+        final long nanoTime = System.nanoTime();
+        final long waitTime = nanoTime - lastWaitStartTime;
         if (schedulerWaitTimeCallback != null) {
             schedulerWaitTimeCallback.call(schedulerType, waitTime);
         }
@@ -159,7 +163,7 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
         }
         waitLock.countDown();
         synchronized (executionTimeStatsLock) {
-            lastExecutionStartTime = System.nanoTime();
+            lastExecutionStartTime = nanoTime;
         }
     }
 
@@ -176,6 +180,7 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
                 if (session != null && session.isClosed()) {
                     throw new InvalidSessionException("Session with id " + session.getSessionId() + " was already closed");
                 }
+                nextYieldTime = ownerScheduler.getCurrentTimeMillis() + ownerScheduler.getExecutionChunkMillis();
             } catch(InterruptedException ignored){ }
         }
     }
@@ -190,6 +195,7 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
             executionTime = System.nanoTime() - lastExecutionStartTime;
             totalExecutionTime += executionTime;
             lastExecutionStartTime = 0;
+            nextYieldTime = 0;
         }
         if (schedulerExecTimeCallback != null) {
             schedulerExecTimeCallback.call(schedulerType, executionTime);
@@ -252,6 +258,10 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
 
     public long getTotalExecutionTime() {
         return totalExecutionTime;
+    }
+
+    public long getNextYieldTime() {
+        return nextYieldTime;
     }
 
     @Nullable
@@ -321,8 +331,11 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
         void call(SchedulerType schedulerType, long time);
     }
 
+    // pretend that task has started some time before the actual start.
+    // used in tests to emulate actual work and not do Thread.sleep()
     @VisibleForTesting
-    public void overritdeTaskStartTime(long lastStartTime) {
-        this.lastExecutionStartTime = lastStartTime;
+    public void changeTaskStartTime(final long decreaseStartTimeMillis) {
+        this.lastExecutionStartTime -= TimeUnit.MILLISECONDS.toNanos(decreaseStartTimeMillis);
+        this.nextYieldTime -= decreaseStartTimeMillis;
     }
 }
