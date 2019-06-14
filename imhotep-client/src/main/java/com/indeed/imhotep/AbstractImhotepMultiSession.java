@@ -349,8 +349,7 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
     @Override
     public int getNumStats() {
         // We don't lock cpu for this operation since it's trivial getter
-        executor().lockCPU(false)
-                .executeRuntimeException(integerBuf, ImhotepSession::getNumStats);
+        executor().lockCPU(false).executeRuntimeException(integerBuf, ImhotepSession::getNumStats);
         numStats = validateNumStats(integerBuf);
         return numStats;
     }
