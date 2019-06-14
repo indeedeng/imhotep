@@ -45,6 +45,10 @@ public class ImhotepConnection implements Closeable {
         return socket;
     }
 
+    /**
+     * This close method don't throw.
+     * This fact is used in {@link ImhotepConnectionPool#withConnection} family.
+     */
     @Override
     public void close() {
         if (closedOrInvalidated.getAndSet(true)) {

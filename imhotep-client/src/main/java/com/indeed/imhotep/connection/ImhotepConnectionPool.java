@@ -114,6 +114,7 @@ public class ImhotepConnectionPool implements Closeable {
     public <R, E extends Exception> R withConnection(
             final Host host,
             final ThrowingFunction<ImhotepConnection, R, E> function) throws E, IOException {
+        // Note: ImhotepConnection::close don't throw, so the returned value won't be leaked even if R implements closeable.
         try (final ImhotepConnection connection = getConnection(host)) {
             try {
                 return function.apply(connection);
@@ -131,6 +132,7 @@ public class ImhotepConnectionPool implements Closeable {
             final Host host,
             final int timeoutMillis,
             final ThrowingFunction<ImhotepConnection, R, E> function) throws E, IOException {
+        // Note: ImhotepConnection::close don't throw, so the returned value won't be leaked even if R implements closeable.
         try (final ImhotepConnection connection = getConnection(host, timeoutMillis)) {
             try {
                 return function.apply(connection);
@@ -152,6 +154,7 @@ public class ImhotepConnectionPool implements Closeable {
     public <R, E1 extends Exception, E2 extends Exception> R withConnectionBinaryException(
             final Host host,
             final BinaryThrowingFunction<ImhotepConnection, R, E1, E2> function) throws E1, E2, IOException {
+        // Note: ImhotepConnection::close don't throw, so the returned value won't be leaked even if R implements closeable.
         try (final ImhotepConnection connection = getConnection(host)) {
             try {
                 return function.apply(connection);
@@ -170,6 +173,7 @@ public class ImhotepConnectionPool implements Closeable {
             final Host host,
             final int timeoutMillis,
             final BinaryThrowingFunction<ImhotepConnection, R, E1, E2> function) throws E1, E2, IOException {
+        // Note: ImhotepConnection::close don't throw, so the returned value won't be leaked even if R implements closeable.
         try (final ImhotepConnection connection = getConnection(host, timeoutMillis)) {
             try {
                 return function.apply(connection);
