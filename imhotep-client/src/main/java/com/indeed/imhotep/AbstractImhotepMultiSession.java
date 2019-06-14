@@ -675,11 +675,11 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
                 final Throwable cause = e.getCause();
                 if (closed && (cause instanceof ClosedByInterruptException)) {
                     throw newQueryCancelledException(cause);
-                } else if (cause instanceof ImhotepOutOfMemoryException) {
-                    throw newImhotepOutOfMemoryException(cause);
-                } else {
-                    throw newRuntimeException(cause);
                 }
+                if (cause instanceof ImhotepOutOfMemoryException) {
+                    throw newImhotepOutOfMemoryException(cause);
+                }
+                throw newRuntimeException(cause);
             }
         }
 
