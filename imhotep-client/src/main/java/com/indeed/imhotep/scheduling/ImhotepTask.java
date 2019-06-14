@@ -331,8 +331,11 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
         void call(SchedulerType schedulerType, long time);
     }
 
+    // pretend that task has started some time before the actual start.
+    // used in tests to emulate actual work and not do Thread.sleep()
     @VisibleForTesting
-    public void overritdeTaskStartTime(long lastStartTime) {
-        this.lastExecutionStartTime = lastStartTime;
+    public void changeTaskStartTime(final long decreaseStartTimeMillis) {
+        this.lastExecutionStartTime -= decreaseStartTimeMillis * 1_000_000;
+        this.executionDeadline -= decreaseStartTimeMillis;
     }
 }
