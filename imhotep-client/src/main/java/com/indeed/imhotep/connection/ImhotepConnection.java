@@ -36,7 +36,7 @@ public class ImhotepConnection implements Closeable {
 
         try {
             sourcePool.invalidateObject(host, socket);
-        } catch (final Exception e) {
+        } catch (final Throwable e) {
             logger.warn("Errors happened when setting socket as invalid, socket is " + socket, e);
         }
     }
@@ -57,7 +57,7 @@ public class ImhotepConnection implements Closeable {
 
         try {
             sourcePool.returnObject(host, socket);
-        } catch (final Exception e) {
+        } catch (final Throwable e) {
             logger.warn("Errors happened when returning socket, socket = " + socket, e);
         }
     }
