@@ -652,6 +652,7 @@ public class ImhotepRemoteSession
                 result = sendRequestAndSaveResponseWithSocket(request, tempFileType, socket, false);
                 return result;
             } catch (final Throwable e) {
+                // In case socket.close() threw an exception
                 if (result != null) {
                     Closeables2.closeQuietly(result.getSecond(), log);
                 }
