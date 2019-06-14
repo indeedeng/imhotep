@@ -41,7 +41,7 @@ import java.util.stream.Collectors;
 public class TaskScheduler implements SilentCloseable {
     private static final Logger LOGGER = Logger.getLogger(TaskScheduler.class);
 
-    private static final long LONG_RUNNING_TASK_THRESHOLD_MILLIS = TimeUnit.MINUTES.toMillis(5);
+    private static final long LONG_RUNNING_TASK_THRESHOLD_MILLIS = TimeUnit.MINUTES.toMillis(1);
     private static final int DATADOG_STATS_REPORTING_FREQUENCY_MILLIS = 100;
     private static final int CLEANUP_FREQUENCY_MILLIS = 1000;
     private static final long LONG_RUNNING_TASK_REPORT_FREQUENCY_MILLIS = TimeUnit.MINUTES.toMillis(1);
