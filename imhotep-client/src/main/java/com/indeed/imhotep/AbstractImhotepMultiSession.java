@@ -607,12 +607,15 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
                     final Future<T> future = futures.get(i);
                     ret[i] = future.get();
                 } catch (final Throwable t2) {
-                    t = t2;
+                    if (t == null) {
+                        // Close this as early as possible, to make further cleanup in the worker threads.
+                        Closeables2.closeQuietly(closeOnFailureCloser, log);
+                        t = t2;
+                    }
                 }
             }
             if (t != null) {
                 Arrays.fill(ret, null);
-                Closeables2.closeQuietly(closeOnFailureCloser, log);
                 safeClose();
                 Throwables.propagateIfInstanceOf(t.getCause(), ImhotepKnownException.class);
                 Throwables.propagateIfInstanceOf(t, ExecutionException.class);
