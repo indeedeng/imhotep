@@ -67,7 +67,7 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
     private SchedulerCallback schedulerWaitTimeCallback;
 
     boolean cancelled;
-    private long executionDeadline = 0;
+    private long nextYieldTime = 0;
 
     public static void setup(final String userName, final String clientName, final byte priority, final SlotTiming slotTiming) {
         final ImhotepTask task = new ImhotepTask(userName, clientName, priority, null, null, null, null,
@@ -180,7 +180,7 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
                 if (session != null && session.isClosed()) {
                     throw new InvalidSessionException("Session with id " + session.getSessionId() + " was already closed");
                 }
-                executionDeadline = ownerScheduler.getCurrentTimeMillis() + ownerScheduler.getExecutionChunkMillis();
+                nextYieldTime = ownerScheduler.getCurrentTimeMillis() + ownerScheduler.getExecutionChunkMillis();
             } catch(InterruptedException ignored){ }
         }
     }
@@ -195,7 +195,7 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
             executionTime = System.nanoTime() - lastExecutionStartTime;
             totalExecutionTime += executionTime;
             lastExecutionStartTime = 0;
-            executionDeadline = 0;
+            nextYieldTime = 0;
         }
         if (schedulerExecTimeCallback != null) {
             schedulerExecTimeCallback.call(schedulerType, executionTime);
@@ -260,8 +260,8 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
         return totalExecutionTime;
     }
 
-    public long getExecutionDeadline() {
-        return executionDeadline;
+    public long getNextYieldTime() {
+        return nextYieldTime;
     }
 
     @Nullable
@@ -335,7 +335,7 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
     // used in tests to emulate actual work and not do Thread.sleep()
     @VisibleForTesting
     public void changeTaskStartTime(final long decreaseStartTimeMillis) {
-        this.lastExecutionStartTime -= decreaseStartTimeMillis * 1_000_000;
-        this.executionDeadline -= decreaseStartTimeMillis;
+        this.lastExecutionStartTime -= TimeUnit.MILLISECONDS.toNanos(decreaseStartTimeMillis);
+        this.nextYieldTime -= decreaseStartTimeMillis;
     }
 }

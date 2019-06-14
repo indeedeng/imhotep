@@ -238,7 +238,7 @@ public class TaskScheduler implements SilentCloseable {
             return;
         }
 
-        if (task.getExecutionDeadline() > currentTimeMillis) {
+        if (task.getNextYieldTime() > currentTimeMillis) {
             return;
         }
 
