@@ -647,11 +647,16 @@ public class ImhotepRemoteSession
                 }
             });
         } else {
-            final Socket socket = newSocket(host, port, socketTimeout);
-            try {
-                return sendRequestAndSaveResponseWithSocket(request, tempFileType, socket, false);
-            } finally {
-                socket.close();
+            Pair<ImhotepResponse, InputStream> result = null;
+            try (final Socket socket = newSocket(host, port, socketTimeout)) {
+                result = sendRequestAndSaveResponseWithSocket(request, tempFileType, socket, false);
+                return result;
+            } catch (final Throwable e) {
+                // In case socket.close() threw an exception
+                if (result != null) {
+                    Closeables2.closeQuietly(result.getSecond(), log);
+                }
+                throw e;
             }
         }
     }
