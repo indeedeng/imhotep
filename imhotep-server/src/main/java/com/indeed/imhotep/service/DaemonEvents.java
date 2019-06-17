@@ -38,7 +38,6 @@ class DaemonEvents {
                                   final long elapsedTmMillis,
                                   @Nullable final RequestContext requestContext) {
             super(name);
-            final String sessionId = protoRequest.getSessionId();
             final Map<String, Object> properties = getProperties();
             properties.put(Keys.BEGIN_TIME_MILLIS,   beginTmMillis);
             properties.put(Keys.ELAPSED_TIME_MILLIS, elapsedTmMillis);
@@ -54,6 +53,7 @@ class DaemonEvents {
                 requestContext.addTimingProperties(properties);
             }
             properties.put(Keys.USERNAME,            protoRequest.getUsername());
+            properties.put(Keys.CLIENT_NAME,         protoRequest.getClientName());
         }
 
         public HandleRequestEvent(final ImhotepRequest protoRequest,
@@ -85,7 +85,6 @@ class DaemonEvents {
                   beginTmMillis, elapsedTmMillis, requestContext);
 
             getProperties().put(Keys.DATASET,            protoRequest.getDataset());
-            getProperties().put(Keys.USERNAME,           protoRequest.getUsername());
         }
     }
 }
