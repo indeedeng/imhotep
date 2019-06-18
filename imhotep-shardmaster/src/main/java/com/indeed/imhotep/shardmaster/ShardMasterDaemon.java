@@ -274,7 +274,7 @@ public class ShardMasterDaemon {
         @Nullable
         private ShardMaster dynamicShardMaster = null;
         @Nullable
-        private String datasetHostLimitMap;
+        private Map<String, Integer> datasetHostLimitMap;
 
         /*
          * Local mode does:
@@ -399,16 +399,13 @@ public class ShardMasterDaemon {
             return this;
         }
 
-        public Config setDatasetHostLimitMap(final String datasetHostLimitMap) {
+        public Config setDatasetHostLimitMap(final Map<String, Integer> datasetHostLimitMap) {
             this.datasetHostLimitMap = datasetHostLimitMap;
             return this;
         }
 
         public Map<String, Integer> getDatasetHostLimitMap() {
-            if (StringUtils.isBlank(datasetHostLimitMap)) {
-                return Collections.emptyMap();
-            }
-            return parseDatasetHostLimitMap(datasetHostLimitMap);
+            return datasetHostLimitMap;
         }
 
         boolean hasStaticHostsList() {
