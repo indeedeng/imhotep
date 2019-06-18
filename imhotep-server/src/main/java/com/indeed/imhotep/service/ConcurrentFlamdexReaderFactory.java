@@ -17,10 +17,12 @@ package com.indeed.imhotep.service;
 import com.google.common.base.Throwables;
 import com.indeed.imhotep.MemoryReservationContext;
 import com.indeed.imhotep.MemoryReserver;
+import com.indeed.imhotep.SlotTiming;
 import com.indeed.imhotep.scheduling.ImhotepTask;
 import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.core.reference.SharedReference;
 import com.indeed.util.core.threads.NamedThreadFactory;
+import lombok.Data;
 import org.apache.log4j.Logger;
 
 import java.io.IOException;
@@ -104,7 +106,7 @@ public class ConcurrentFlamdexReaderFactory {
         }
     }
 
-    private final class CreateReaderTask implements Callable<Void> {
+    private final class CreateReaderTask implements Callable<SlotTiming> {
         final Map<Path, SharedReference<CachedFlamdexReader>> result;
         final CreateRequest createRequest;
 
@@ -119,10 +121,11 @@ public class ConcurrentFlamdexReaderFactory {
                             "shardHostInfo=" + createRequest.shardHostInfo.toString()));
         }
 
-        public Void call() {
+        public SlotTiming call() {
+            final SlotTiming slotTiming = new SlotTiming();
             final SharedReference<CachedFlamdexReader> reader;
             ImhotepTask.setup(createRequest.userName, createRequest.clientName, createRequest.priority, createRequest.dataset,
-                    createRequest.shardHostInfo.getShardName(), createRequest.numDocs);
+                    createRequest.shardHostInfo.getShardName(), createRequest.numDocs, slotTiming);
             final Path shardPath = locateShard(createRequest);
             try {
             // TODO: enable locking
@@ -135,7 +138,7 @@ public class ConcurrentFlamdexReaderFactory {
                 ImhotepTask.clear();
             }
             result.put(shardPath, reader);
-            return null;
+            return slotTiming;
         }
 
         private SharedReference<CachedFlamdexReader> createFlamdexReader(final Path path, final int numDocs) throws IOException {
@@ -148,10 +151,11 @@ public class ConcurrentFlamdexReaderFactory {
     }
 
     /** For each requested shard, return a path and a CachedFlamdexReader shared reference. */
-    public Map<Path, SharedReference<CachedFlamdexReader>> constructFlamdexReaders(final Collection<CreateRequest> createRequests)
+    public ConstructFlamdexReadersResult constructFlamdexReaders(final Collection<CreateRequest> createRequests)
             throws IOException {
 
         final ConcurrentHashMap<Path, SharedReference<CachedFlamdexReader>> result = new ConcurrentHashMap<>();
+        final SlotTiming slotTiming = new SlotTiming();
         final List<CreateReaderTask> createReaderTasks = createRequests.stream().map(
                 request -> new CreateReaderTask(request, result)
         ).collect(Collectors.toList());
@@ -160,16 +164,23 @@ public class ConcurrentFlamdexReaderFactory {
            involve opening and reading metadata.txt files within shards. Do this
            in parallel, per IMTEPD-188. */
         try {
-            final List<Future<Void>> outcomes =
+            final List<Future<SlotTiming>> outcomes =
                     threadPool.invokeAll(createReaderTasks, 15, TimeUnit.MINUTES);
-            for (final Future<Void> outcome: outcomes) {
-                outcome.get();
+            for (final Future<SlotTiming> outcome: outcomes) {
+                slotTiming.addFromSlotTiming(outcome.get());
             }
         }
         catch (final Throwable ex) {
             Closeables2.closeAll(log, result.values());
             throw new IOException("unable to create all requested FlamdexReaders", ex);
         }
-        return result;
+
+        return new ConstructFlamdexReadersResult(result, slotTiming);
+    }
+
+    @Data
+    static class ConstructFlamdexReadersResult {
+        final Map<Path, SharedReference<CachedFlamdexReader>> flamdexes;
+        final SlotTiming slotTiming;
     }
 }

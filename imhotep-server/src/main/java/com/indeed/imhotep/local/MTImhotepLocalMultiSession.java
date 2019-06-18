@@ -27,6 +27,7 @@ import com.indeed.imhotep.GroupStatsIteratorCombiner;
 import com.indeed.imhotep.ImhotepRemoteSession;
 import com.indeed.imhotep.MemoryReservationContext;
 import com.indeed.imhotep.MultiSessionMerger;
+import com.indeed.imhotep.SlotTiming;
 import com.indeed.imhotep.SortedFTGSInterleaver;
 import com.indeed.imhotep.TermLimitedFTGSIterator;
 import com.indeed.imhotep.UnsortedFTGSIterator;
@@ -91,9 +92,10 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
                                       final String userName,
                                       final String clientName,
                                       final byte priority,
+                                      final SlotTiming slotTiming,
                                       final boolean useFtgsPooledConnection)
     {
-        super(sessionId, sessions, tempFileSizeBytesLeft, userName, clientName, priority);
+        super(sessionId, sessions, tempFileSizeBytesLeft, userName, clientName, priority, slotTiming);
         this.memory = memory;
         this.useFtgsPooledConnection = useFtgsPooledConnection;
         this.closed.set(false);

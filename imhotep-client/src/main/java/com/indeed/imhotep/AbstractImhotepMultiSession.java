@@ -147,13 +147,23 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
 
     protected int numStats = 0;
 
-    @SuppressWarnings({"unchecked"})
     protected AbstractImhotepMultiSession(final String sessionId,
                                           final T[] sessions,
                                           final AtomicLong tempFileSizeBytesLeft,
                                           @Nonnull final String userName,
                                           @Nonnull final String clientName,
                                           final byte priority) {
+        this(sessionId, sessions, tempFileSizeBytesLeft, userName, clientName, priority, new SlotTiming());
+    }
+
+    @SuppressWarnings({"unchecked"})
+    protected AbstractImhotepMultiSession(final String sessionId,
+                                          final T[] sessions,
+                                          final AtomicLong tempFileSizeBytesLeft,
+                                          @Nonnull final String userName,
+                                          @Nonnull final String clientName,
+                                          final byte priority,
+                                          @Nullable final SlotTiming slotTiming) {
         super(sessionId);
         this.tempFileSizeBytesLeft = tempFileSizeBytesLeft;
         this.savedTempFileSizeValue = (tempFileSizeBytesLeft == null) ? 0 : tempFileSizeBytesLeft.get();
@@ -162,6 +172,7 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
         this.userName = userName;
         this.clientName = clientName;
         this.priority = priority;
+        this.slotTiming.addFromSlotTiming(slotTiming);
         if (sessions == null || sessions.length == 0) {
             throw newIllegalArgumentException("at least one session is required");
         }
