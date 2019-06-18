@@ -25,6 +25,7 @@ import org.apache.log4j.Logger;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.OptionalLong;
@@ -89,16 +90,16 @@ public class TaskScheduler implements SilentCloseable {
 
     protected void initializeSchedulers(final SchedulerType schedulerType) {
         datadogStatsReportingExecutor = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("schedulerDatadogStatsReporter-" + schedulerType));
-        datadogStatsReportingExecutor.scheduleAtFixedRate(this::reportDatadogStats, DATADOG_STATS_REPORTING_FREQUENCY_MILLIS, DATADOG_STATS_REPORTING_FREQUENCY_MILLIS, TimeUnit.MILLISECONDS);
+        datadogStatsReportingExecutor.scheduleWithFixedDelay(this::reportDatadogStats, DATADOG_STATS_REPORTING_FREQUENCY_MILLIS, DATADOG_STATS_REPORTING_FREQUENCY_MILLIS, TimeUnit.MILLISECONDS);
 
         cleanupExecutor = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("schedulerCleanup-" + schedulerType));
-        cleanupExecutor.scheduleAtFixedRate(this::cleanup, CLEANUP_FREQUENCY_MILLIS, CLEANUP_FREQUENCY_MILLIS, TimeUnit.MILLISECONDS);
+        cleanupExecutor.scheduleWithFixedDelay(this::cleanup, CLEANUP_FREQUENCY_MILLIS, CLEANUP_FREQUENCY_MILLIS, TimeUnit.MILLISECONDS);
 
         longRunningTaskReportingExecutor = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("schedulerLongRunningTaskReporter-" + schedulerType));
-        longRunningTaskReportingExecutor.scheduleAtFixedRate(this::reportLongRunningTasks, LONG_RUNNING_TASK_REPORT_FREQUENCY_MILLIS, LONG_RUNNING_TASK_REPORT_FREQUENCY_MILLIS, TimeUnit.MILLISECONDS);
+        longRunningTaskReportingExecutor.scheduleWithFixedDelay(this::reportLongRunningTasks, LONG_RUNNING_TASK_REPORT_FREQUENCY_MILLIS, LONG_RUNNING_TASK_REPORT_FREQUENCY_MILLIS, TimeUnit.MILLISECONDS);
 
         currentTimeMillisExecutor = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("currentTimeUpdater-" + schedulerType));
-        currentTimeMillisExecutor.scheduleAtFixedRate(this::cacheCurrentTimeMillis, 0, CURRENT_TIME_MILLIS_CACHE_FREQUENCY, TimeUnit.MILLISECONDS);
+        currentTimeMillisExecutor.scheduleWithFixedDelay(this::cacheCurrentTimeMillis, 0, CURRENT_TIME_MILLIS_CACHE_FREQUENCY, TimeUnit.MILLISECONDS);
     }
 
     public int getTotalSlots() {
@@ -145,23 +146,31 @@ public class TaskScheduler implements SilentCloseable {
         // TODO: check runningTasks for leaks once in a while
     }
 
-    private synchronized void reportLongRunningTasks() {
-        for (final ImhotepTask runningTask : runningTasks) {
-            final long currentExecutionTime = TimeUnit.NANOSECONDS.toMillis(runningTask.getCurrentExecutionTime().orElse(0));
-            if (currentExecutionTime >= LONG_RUNNING_TASK_THRESHOLD_MILLIS) {
-                final StackTraceElement[] stackTraceElements;
-                try {
-                    stackTraceElements = runningTask.getStackTrace();
-                } catch (final Throwable e) {
-                    LOGGER.error("Failed to take the stack trace of " + runningTask);
-                    continue;
+    private void reportLongRunningTasks() {
+        // Thread.getStackTrace() could be expensive, so we collect long running tasks first and then ouput stack traces.
+        final List<ImhotepTask> longRunningTasks = new ArrayList<>(totalSlots);
+        synchronized (this) {
+            for (final ImhotepTask runningTask : runningTasks) {
+                final long currentExecutionTime = TimeUnit.NANOSECONDS.toMillis(runningTask.getCurrentExecutionTime().orElse(0));
+                if (currentExecutionTime >= LONG_RUNNING_TASK_THRESHOLD_MILLIS) {
+                    longRunningTasks.add(runningTask);
                 }
-
-                LOGGER.info(
-                        "Imhotep task " + runningTask + " for scheduler " + schedulerType + " running a long time. stack trace:\n  "
-                                + Joiner.on("\n  ").join(stackTraceElements)
-                );
             }
+        }
+
+        for (final ImhotepTask longRunningTask : longRunningTasks) {
+            final StackTraceElement[] stackTraceElements;
+            try {
+                stackTraceElements = longRunningTask.getStackTrace();
+            } catch (final Throwable e) {
+                LOGGER.error("Failed to take the stack trace of " + longRunningTask);
+                continue;
+            }
+
+            LOGGER.info(
+                    "Imhotep task " + longRunningTask + " for scheduler " + schedulerType + " running a long time. stack trace:\n  "
+                            + Joiner.on("\n  ").join(stackTraceElements)
+            );
         }
     }
 
