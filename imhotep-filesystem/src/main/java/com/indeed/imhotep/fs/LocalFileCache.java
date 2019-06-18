@@ -38,6 +38,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -193,19 +194,6 @@ class LocalFileCache {
             statsEmitter.gauge(statsTypePrefix + ".sum.size.minute", sumCacheFilesStats.minuteSum);
             statsEmitter.gauge(statsTypePrefix + ".sum.size.hour", sumCacheFilesStats.hourSum);
             statsEmitter.gauge(statsTypePrefix + ".sum.size.day", sumCacheFilesStats.daySum);
-        }
-    }
-
-
-
-    private void evictCacheFile(final FileCacheEntry entry) {
-        // we only need to delete the cache if the entry was pushed out
-        final Path cachePath = entry.cachePath;
-        try {
-            Files.delete(cachePath);
-            diskSpaceUsage.addAndGet(-entry.fileSize);
-        } catch (final IOException e) {
-            LOGGER.error("Failed to delete evicted local cache " + cachePath, e);
         }
     }
 
@@ -431,12 +419,26 @@ class LocalFileCache {
         private final LinkedHashMap<RemoteCachingPath, FileCacheEntry> updateOrderMap = new LinkedHashMap<>();
 
         @Override
-        public synchronized void cleanUp() {
-            while ((diskSpaceUsage.get() > diskSpaceCapacity) && !updateOrderMap.isEmpty()) {
-                final Iterator<FileCacheEntry> iterator = updateOrderMap.values().iterator();
-                final FileCacheEntry entry = iterator.next();
-                evictCacheFile(entry);
-                iterator.remove();
+        public void cleanUp() {
+            final List<Path> filesToDelete = new ArrayList<>();
+            synchronized (this) {
+                while ((diskSpaceUsage.get() > diskSpaceCapacity) && !updateOrderMap.isEmpty()) {
+                    final Iterator<FileCacheEntry> iterator = updateOrderMap.values().iterator();
+                    final FileCacheEntry entry = iterator.next();
+                    // we only need to delete the cache if the entry was pushed out
+                    filesToDelete.add(entry.cachePath);
+                    diskSpaceUsage.addAndGet(-entry.fileSize);
+                    iterator.remove();
+                }
+            }
+
+            // do the actual deletes after releasing the lock to avoid blocking all CPU operations while waiting for IO
+            for(final Path fileToDelete : filesToDelete) {
+                try {
+                    Files.delete(fileToDelete);
+                } catch (final IOException e) {
+                    LOGGER.error("Failed to delete evicted local cache file " + fileToDelete, e);
+                }
             }
         }
 
