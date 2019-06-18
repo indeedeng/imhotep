@@ -17,6 +17,7 @@ package com.indeed.imhotep.scheduling;
 import com.google.common.base.Joiner;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Queues;
+import com.google.common.collect.Sets;
 import com.indeed.imhotep.exceptions.ImhotepKnownException;
 import com.indeed.imhotep.service.MetricStatsEmitter;
 import com.indeed.util.core.threads.NamedThreadFactory;
@@ -29,7 +30,6 @@ import java.util.Map;
 import java.util.OptionalLong;
 import java.util.PriorityQueue;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -51,7 +51,7 @@ public class TaskScheduler implements SilentCloseable {
     private final Map<OwnerAndPriority, TaskQueue> queues = Maps.newHashMap();
     // history of consumption of all tasks that ran recently
     private final Map<OwnerAndPriority, ConsumptionTracker> ownerToConsumptionTracker = Maps.newHashMap();
-    private final Set<ImhotepTask> runningTasks = ConcurrentHashMap.newKeySet();
+    private final Set<ImhotepTask> runningTasks = Sets.newHashSet();
     private final int totalSlots;
     private final long historyLengthNanos;
     private final long batchNanos;
@@ -139,20 +139,20 @@ public class TaskScheduler implements SilentCloseable {
         statsEmitter.histogram("scheduler." + schedulerType + ".running.tasks", runningTasksCount);
     }
 
-    private void cleanup() {
+    private synchronized void cleanup() {
         final long nanoTime = System.nanoTime();
         ownerToConsumptionTracker.entrySet().removeIf(entry -> !entry.getValue().isActive(nanoTime));
         // TODO: check runningTasks for leaks once in a while
     }
 
-    private void reportLongRunningTasks() {
+    private synchronized void reportLongRunningTasks() {
         for (final ImhotepTask runningTask : runningTasks) {
             final long currentExecutionTime = TimeUnit.NANOSECONDS.toMillis(runningTask.getCurrentExecutionTime().orElse(0));
             if (currentExecutionTime >= LONG_RUNNING_TASK_THRESHOLD_MILLIS) {
                 final StackTraceElement[] stackTraceElements;
                 try {
                     stackTraceElements = runningTask.getStackTrace();
-                } catch (final Exception e) {
+                } catch (final Throwable e) {
                     LOGGER.error("Failed to take the stack trace of " + runningTask);
                     continue;
                 }
