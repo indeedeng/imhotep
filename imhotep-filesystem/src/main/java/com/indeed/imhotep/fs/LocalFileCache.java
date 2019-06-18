@@ -197,12 +197,6 @@ class LocalFileCache {
         }
     }
 
-
-
-    private void markCacheFileAsEvicted(final FileCacheEntry entry) {
-        diskSpaceUsage.addAndGet(-entry.fileSize);
-    }
-
     private void initialize(final RemoteCachingFileSystem fs) throws IOException {
         Files.createDirectories(cacheRootDir);
         synchronized (lock) {
@@ -433,7 +427,7 @@ class LocalFileCache {
                     final FileCacheEntry entry = iterator.next();
                     // we only need to delete the cache if the entry was pushed out
                     filesToDelete.add(entry.cachePath);
-                    markCacheFileAsEvicted(entry);
+                    diskSpaceUsage.addAndGet(-entry.fileSize);
                     iterator.remove();
                 }
             }
