@@ -82,10 +82,10 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
             final String userName,
             final String clientName,
             final byte priority,
-            final String dataset,
-            final String shardName,
+            @Nullable final String dataset,
+            @Nullable final String shardName,
             @Nullable final Integer numDocs,
-            final SlotTiming slotTiming
+            @Nonnull final SlotTiming slotTiming
     ) {
         final ImhotepTask task = new ImhotepTask(userName, clientName, priority, null, dataset, shardName, numDocs,
                 (schedulerType, execTime) -> slotTiming.schedulerExecTimeCallback(schedulerType, execTime),
