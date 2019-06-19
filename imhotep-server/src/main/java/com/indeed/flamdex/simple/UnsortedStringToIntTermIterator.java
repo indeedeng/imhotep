@@ -58,6 +58,44 @@ public class UnsortedStringToIntTermIterator<T extends StringTermIterator> imple
                 // This method call could be long if we try to convert field with lot of string terms.
                 // So yielding in case of failure.
                 TaskScheduler.CPUScheduler.yieldIfNecessary();
+
+                // So if we fail to parse, then move to next possible variant
+
+                // allowed chars in string representation of a number are:
+                // '+' - ASCII code 43
+                // '-' - ASCII code 45
+                // '0' - '9' - ASCII codes 48-57
+
+                if (stringTermIterator.term().isEmpty()) {
+                    // it was just empty string. let's see what's next.
+                    continue;
+                }
+
+                final char firstChar = stringTermIterator.term().charAt(0);
+                if (firstChar < '+') {
+                    // Skipping all terms until first lexicographically valid string.
+                    stringTermIterator.reset("+0");
+                    continue;
+                }
+
+                if (firstChar > '+' && firstChar < '-') { // one symbol actually ',' - code 44
+                    stringTermIterator.reset("-0");
+                    continue;
+                }
+
+                if (firstChar > '-' && firstChar < '0') {
+                    stringTermIterator.reset("0");
+                    continue;
+                }
+
+                if (firstChar > '9') {
+                    // There will be no numbers in this string iterator, finish iteration.
+                    return false;
+                }
+
+                // If we get here, then term has a prefix that is valid prefix for a number.
+                // Theoretically, it's possible to find bad character in a term and do clever reset() to next valid
+                // prefix, but it's probably not worth it.
             }
         }
         return false;
