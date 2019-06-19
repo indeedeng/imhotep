@@ -16,6 +16,7 @@ package com.indeed.flamdex.simple;
 
 import com.indeed.flamdex.api.IntTermIterator;
 import com.indeed.flamdex.api.StringTermIterator;
+import com.indeed.imhotep.scheduling.TaskScheduler;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -54,6 +55,9 @@ public class UnsortedStringToIntTermIterator<T extends StringTermIterator> imple
                 currentTerm = Long.parseLong(stringTermIterator.term());
                 return true;
             } catch (final NumberFormatException ignored) {
+                // This method call could be long if we try to convert field with lot of string terms.
+                // So yielding in case of failure.
+                TaskScheduler.CPUScheduler.yieldIfNecessary();
             }
         }
         return false;
