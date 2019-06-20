@@ -16,8 +16,8 @@ public class SlotTiming {
     private final AtomicLong cpuWaitNs = new AtomicLong(0);
     private final AtomicLong ioTimeNs = new AtomicLong(0);
     private final AtomicLong ioWaitNs = new AtomicLong(0);
-    private final AtomicLong p2pIOTimeNs = new AtomicLong(0);
-    private final AtomicLong p2pIOWaitNs = new AtomicLong(0);
+    private final AtomicLong p2pIoTimeNs = new AtomicLong(0);
+    private final AtomicLong p2pIoWaitNs = new AtomicLong(0);
 
     public void schedulerExecTimeCallback(SchedulerType schedulerType, long execTime) {
         switch(schedulerType) {
@@ -28,7 +28,7 @@ public class SlotTiming {
                 ioTimeNs.addAndGet(execTime);
                 break;
             case P2P_FS_IO:
-                p2pIOTimeNs.addAndGet(execTime);
+                p2pIoTimeNs.addAndGet(execTime);
                 break;
         }
     }
@@ -42,7 +42,7 @@ public class SlotTiming {
                 ioWaitNs.addAndGet(waitTime);
                 break;
             case P2P_FS_IO:
-                p2pIOWaitNs.addAndGet(waitTime);
+                p2pIoWaitNs.addAndGet(waitTime);
                 break;
         }
     }
@@ -52,8 +52,8 @@ public class SlotTiming {
         performanceStats.setCpuSlotsWaitTimeMs(TimeUnit.NANOSECONDS.toMillis(cpuWaitNs.get()));
         performanceStats.setIoSlotsExecTimeMs(TimeUnit.NANOSECONDS.toMillis(ioTimeNs.get()));
         performanceStats.setIoSlotsWaitTimeMs(TimeUnit.NANOSECONDS.toMillis(ioWaitNs.get()));
-        performanceStats.setP2pIOSlotsExecTimeMs(TimeUnit.NANOSECONDS.toMillis(p2pIOTimeNs.get()));
-        performanceStats.setP2pIOSlotsWaitTimeMs(TimeUnit.NANOSECONDS.toMillis(p2pIOWaitNs.get()));
+        performanceStats.setP2pIOSlotsExecTimeMs(TimeUnit.NANOSECONDS.toMillis(p2pIoTimeNs.get()));
+        performanceStats.setP2pIOSlotsWaitTimeMs(TimeUnit.NANOSECONDS.toMillis(p2pIoWaitNs.get()));
     }
 
     public void addFromSlotTimingMessage(final SlotTimingMessage slotTimingMessage) {
@@ -61,6 +61,15 @@ public class SlotTiming {
         cpuWaitNs.addAndGet(slotTimingMessage.getCpuSlotsWaitTimeNs());
         ioTimeNs.addAndGet(slotTimingMessage.getIoSlotsExecTimeNs());
         ioWaitNs.addAndGet(slotTimingMessage.getIoSlotsWaitTimeNs());
+    }
+
+    public void addFromSlotTiming(final SlotTiming slotTiming) {
+        cpuTimeNs.addAndGet(slotTiming.getCpuTimeNs());
+        cpuWaitNs.addAndGet(slotTiming.getCpuWaitNs());
+        ioTimeNs.addAndGet(slotTiming.getIoTimeNs());
+        ioWaitNs.addAndGet(slotTiming.getIoWaitNs());
+        p2pIoTimeNs.addAndGet(slotTiming.getP2pIoTimeNs());
+        p2pIoWaitNs.addAndGet(slotTiming.getP2pIoWaitNs());
     }
 
     public SlotTimingMessage writeToSlotTimingMessage() {
@@ -77,8 +86,8 @@ public class SlotTiming {
         properties.put(Instrumentation.Keys.CPU_SLOTS_WAIT_TIME_MILLIS, TimeUnit.NANOSECONDS.toMillis(cpuWaitNs.get()));
         properties.put(Instrumentation.Keys.IO_SLOTS_EXEC_TIME_MILLIS, TimeUnit.NANOSECONDS.toMillis(ioTimeNs.get()));
         properties.put(Instrumentation.Keys.IO_SLOTS_WAIT_TIME_MILLIS, TimeUnit.NANOSECONDS.toMillis(ioWaitNs.get()));
-        properties.put(Instrumentation.Keys.P2P_IO_SLOTS_EXEC_TIME_MILLIS, TimeUnit.NANOSECONDS.toMillis(p2pIOTimeNs.get()));
-        properties.put(Instrumentation.Keys.P2P_IO_SLOTS_WAIT_TIME_MILLIS, TimeUnit.NANOSECONDS.toMillis(p2pIOWaitNs.get()));
+        properties.put(Instrumentation.Keys.P2P_IO_SLOTS_EXEC_TIME_MILLIS, TimeUnit.NANOSECONDS.toMillis(p2pIoTimeNs.get()));
+        properties.put(Instrumentation.Keys.P2P_IO_SLOTS_WAIT_TIME_MILLIS, TimeUnit.NANOSECONDS.toMillis(p2pIoWaitNs.get()));
     }
 
     public void reset() {
@@ -86,8 +95,8 @@ public class SlotTiming {
         cpuWaitNs.set(0);
         ioTimeNs.set(0);
         ioWaitNs.set(0);
-        p2pIOTimeNs.set(0);
-        p2pIOWaitNs.set(0);
+        p2pIoTimeNs.set(0);
+        p2pIoWaitNs.set(0);
     }
 
     public long getCpuTimeNs() {
@@ -104,5 +113,13 @@ public class SlotTiming {
 
     public long getIoWaitNs() {
         return ioWaitNs.get();
+    }
+
+    public long getP2pIoTimeNs() {
+        return p2pIoTimeNs.get();
+    }
+
+    public long getP2pIoWaitNs() {
+        return p2pIoWaitNs.get();
     }
 }

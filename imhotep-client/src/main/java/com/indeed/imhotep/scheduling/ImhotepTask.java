@@ -70,10 +70,7 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
     private long nextYieldTime = 0;
 
     public static void setup(final String userName, final String clientName, final byte priority, final SlotTiming slotTiming) {
-        final ImhotepTask task = new ImhotepTask(userName, clientName, priority, null, null, null, null,
-                (schedulerType, execTime) -> slotTiming.schedulerExecTimeCallback(schedulerType, execTime),
-                (schedulerType, waitTime) -> slotTiming.schedulerWaitTimeCallback(schedulerType, waitTime));
-        ImhotepTask.THREAD_LOCAL_TASK.set(task);
+        setup(userName, clientName, priority, null, null, null, slotTiming);
     }
 
     public static void setup(AbstractImhotepMultiSession session) {
@@ -85,11 +82,14 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
             final String userName,
             final String clientName,
             final byte priority,
-            final String dataset,
-            final String shardName,
-            final int numDocs
+            @Nullable final String dataset,
+            @Nullable final String shardName,
+            @Nullable final Integer numDocs,
+            @Nonnull final SlotTiming slotTiming
     ) {
-        final ImhotepTask task = new ImhotepTask(userName, clientName, priority, null, dataset, shardName, numDocs, null, null);
+        final ImhotepTask task = new ImhotepTask(userName, clientName, priority, null, dataset, shardName, numDocs,
+                (schedulerType, execTime) -> slotTiming.schedulerExecTimeCallback(schedulerType, execTime),
+                (schedulerType, waitTime) -> slotTiming.schedulerWaitTimeCallback(schedulerType, waitTime));
         ImhotepTask.THREAD_LOCAL_TASK.set(task);
     }
 
