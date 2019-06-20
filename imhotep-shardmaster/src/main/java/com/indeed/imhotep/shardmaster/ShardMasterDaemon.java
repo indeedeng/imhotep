@@ -403,6 +403,9 @@ public class ShardMasterDaemon {
         }
 
         public Map<String, Integer> getDatasetHostLimitMap() {
+            if (datasetHostLimitMap == null) {
+                return Collections.emptyMap();
+            }
             return datasetHostLimitMap;
         }
 
