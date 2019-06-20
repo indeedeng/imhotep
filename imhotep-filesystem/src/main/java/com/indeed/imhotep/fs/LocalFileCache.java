@@ -458,18 +458,22 @@ class LocalFileCache {
 
         private void unusedFilesDeleter() {
             while (true) {
-                final Path fileToDelete = unusedFilesDeletionQueue.poll();
-                if (fileToDelete == stopDeletionThreadDummyPath) {
-                    LOGGER.debug("Shutting down the LocalFileCache unusedFilesDeleter");
-                    return;
-                }
-                if (fileToDelete == null) {
-                    continue;   // should never happen
-                }
                 try {
-                    Files.delete(fileToDelete);
-                } catch (final IOException e) {
-                    LOGGER.error("Failed to delete evicted local cache file " + fileToDelete, e);
+                    final Path fileToDelete = unusedFilesDeletionQueue.poll();
+                    if (fileToDelete == stopDeletionThreadDummyPath) {
+                        LOGGER.debug("Shutting down the LocalFileCache unusedFilesDeleter");
+                        return;
+                    }
+                    if (fileToDelete == null) {
+                        continue;   // should never happen
+                    }
+                    try {
+                        Files.delete(fileToDelete);
+                    } catch (final IOException e) {
+                        LOGGER.error("Failed to delete evicted local cache file " + fileToDelete, e);
+                    }
+                } catch (Throwable t) {
+                    LOGGER.error("Caught unexpected Throwable in the unusedFilesDeleter thread", t);
                 }
             }
         }
