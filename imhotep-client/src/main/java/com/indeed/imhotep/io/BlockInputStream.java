@@ -2,6 +2,7 @@ package com.indeed.imhotep.io;
 
 import com.google.common.base.Preconditions;
 import com.google.common.io.ByteStreams;
+import com.google.common.primitives.Ints;
 
 import javax.annotation.Nonnull;
 import javax.annotation.WillNotClose;
@@ -172,7 +173,7 @@ public class BlockInputStream extends FilterInputStream {
 
         // read the block size
         ByteStreams.readFully(in, blockSizeBytes);
-        count = Bytes.bytesToInt(blockSizeBytes);
+        count = Ints.fromByteArray(blockSizeBytes);
 
         if (count < 0) {
             throw new IOException("Invalid block stream, blockSize smaller than 0");
