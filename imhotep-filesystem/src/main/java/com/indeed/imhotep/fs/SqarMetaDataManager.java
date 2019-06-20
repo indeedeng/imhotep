@@ -125,14 +125,9 @@ class SqarMetaDataManager {
         final RemoteFileMetadata fileMetadata = sqarMetaDataDao.getFileMetadata(shardPath, fileName);
         if (fileMetadata == null) {
             if (!sqarMetaDataDao.hasShard(shardPath)) {
-                final List<RemoteFileMetadata> fileList;
-                try (final Closeable ignored = TaskScheduler.CPUScheduler.temporaryUnlock()) {
-                    try (final Closeable ignored2 = TaskScheduler.RemoteFSIOScheduler.lockSlot()) {
-                        fileList = loadFileList(fs, shardPath);
-                        if (fileList == null) {
-                            return null;
-                        }
-                    }
+                final List<RemoteFileMetadata> fileList = loadFileList(fs, shardPath);
+                if (fileList == null) {
+                    return null;
                 }
                 cacheMetadata(shardPath, fileList);
                 return sqarMetaDataDao.getFileMetadata(shardPath, fileName);
@@ -142,14 +137,21 @@ class SqarMetaDataManager {
     }
 
     private List<RemoteFileMetadata> loadFileList(final RemoteFileStore remoteFileStore, final RemoteCachingPath shardPath) throws IOException {
-        if (shardPath instanceof PeerToPeerCachePath) {
-            return ((PeerToPeerCacheFileStore) remoteFileStore).listShardDirFilesRecursively(shardPath);
-        } else {
-            try (InputStream metadataInputStream = remoteFileStore.newInputStream(SqarMetaDataUtil.getMetadataPath(shardPath), 0, -1)) {
-                return readMetadata(metadataInputStream);
-            } catch (final NoSuchFileException | FileNotFoundException e) {
-                // when the metadata file doesn't exist, there is nothing to return
-                return null;
+        try (final Closeable ignored = TaskScheduler.CPUScheduler.temporaryUnlock()) {
+            if (shardPath instanceof PeerToPeerCachePath) {
+                try (final Closeable ignored2 = TaskScheduler.P2PFSIOScheduler.lockSlot()) {
+                    return ((PeerToPeerCacheFileStore) remoteFileStore).listShardDirFilesRecursively(shardPath);
+                }
+            }
+            else {
+                try (final Closeable ignored2 = TaskScheduler.RemoteFSIOScheduler.lockSlot()) {
+                    try (InputStream metadataInputStream = remoteFileStore.newInputStream(SqarMetaDataUtil.getMetadataPath(shardPath), 0, -1)) {
+                        return readMetadata(metadataInputStream);
+                    } catch (final NoSuchFileException | FileNotFoundException e) {
+                        // when the metadata file doesn't exist, there is nothing to return
+                        return null;
+                    }
+                }
             }
         }
     }
