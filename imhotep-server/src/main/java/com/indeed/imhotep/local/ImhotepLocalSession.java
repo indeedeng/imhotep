@@ -812,6 +812,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                 break;
             }
         }
+        TaskScheduler.CPUScheduler.yieldIfNecessary();
     }
 
     private void remapDocs(final GroupLookup docIdToGroup,
@@ -1405,6 +1406,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                 }
 
                 docIdToGroup.batchSet(docIdBuf, docGroupBuffer, numNonZero);
+                TaskScheduler.CPUScheduler.yieldIfNecessary();
             }
 
             memoryPool.returnIntBuffer(docIdBuf);
@@ -1787,6 +1789,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     }
 
     public int pushStat(String statName, final MetricStack stack) throws ImhotepOutOfMemoryException {
+        TaskScheduler.CPUScheduler.yieldIfNecessary();
         if (statName.startsWith("hasstr ")) {
             final String s = statName.substring("hasstr ".length()).trim();
             final String[] split = s.split(":", 2);
