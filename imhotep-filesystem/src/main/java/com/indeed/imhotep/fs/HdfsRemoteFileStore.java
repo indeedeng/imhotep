@@ -18,6 +18,7 @@ import com.indeed.imhotep.hadoopcommon.HDFSUtils;
 import com.indeed.imhotep.hadoopcommon.KerberosUtils;
 import com.indeed.imhotep.service.MetricStatsEmitter;
 import com.indeed.util.core.io.Closeables2;
+import com.indeed.util.io.SafeFiles;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileStatus;
@@ -116,6 +117,9 @@ class HdfsRemoteFileStore extends RemoteFileStore {
         // below 2 lines replicate fs.copyToLocalFile(hdfsPath, new Path(destPath.toUri())) while giving us access to file size
         final FileStatus fileStatus = fs.getFileStatus(hdfsPath);
         FileUtil.copy(fs, fileStatus, FileSystem.getLocal(fs.getConf()), new Path(destPath.toUri()), false, true, fs.getConf());
+        // fsync so that we're not building up large debts of dirty page cache that needs to be flushed while not holding
+        // a slot anymore
+        SafeFiles.fsync(destPath);
         final long fileSize = fileStatus.getLen();
         reportFileDownload(statsEmitter, fileSize);
     }

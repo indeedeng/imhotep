@@ -36,6 +36,7 @@ import java.nio.file.DirectoryStream;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Iterator;
@@ -43,6 +44,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -122,11 +124,14 @@ class LocalFileCache {
                         final Path tempPath = cacheParentPath.resolve(UUID.randomUUID().toString());
                         cacheFileLoader.load(path, tempPath);
 
+                        // renameTo succeeds even if file already exists on XFS so do an explicit existence check
+
                         // only sane way that I can come up with to do replace existing atomically
-                        if (!tempPath.toFile().renameTo(cachePath.toFile())) {
+                        if (Files.exists(cachePath) || !tempPath.toFile().renameTo(cachePath.toFile())) {
                             //noinspection ResultOfMethodCallIgnored
                             tempPath.toFile().delete();
-                            throw new IOException("Failed to place cache file under " + cachePath);
+                            throw new IOException("Newly cached file already exists on disk, probably waiting for deletion. " +
+                                    "You can retry the query. File path: " + cachePath);
                         }
 
 
@@ -193,19 +198,6 @@ class LocalFileCache {
             statsEmitter.gauge(statsTypePrefix + ".sum.size.minute", sumCacheFilesStats.minuteSum);
             statsEmitter.gauge(statsTypePrefix + ".sum.size.hour", sumCacheFilesStats.hourSum);
             statsEmitter.gauge(statsTypePrefix + ".sum.size.day", sumCacheFilesStats.daySum);
-        }
-    }
-
-
-
-    private void evictCacheFile(final FileCacheEntry entry) {
-        // we only need to delete the cache if the entry was pushed out
-        final Path cachePath = entry.cachePath;
-        try {
-            Files.delete(cachePath);
-            diskSpaceUsage.addAndGet(-entry.fileSize);
-        } catch (final IOException e) {
-            LOGGER.error("Failed to delete evicted local cache " + cachePath, e);
         }
     }
 
@@ -302,6 +294,16 @@ class LocalFileCache {
      */
     long getCacheUsage() {
         return diskSpaceUsage.get();
+    }
+
+    @VisibleForTesting
+    void waitForCacheDeletions() {
+        while (!unusedFilesCache.unusedFilesDeletionQueue.isEmpty()) {
+            try {
+                Thread.sleep(1);
+            } catch (InterruptedException e) {
+            }
+        }
     }
 
     private void incFileUsageRef(final RemoteCachingPath path) {
@@ -427,18 +429,52 @@ class LocalFileCache {
         void load(final RemoteCachingPath src, final Path dest) throws IOException;
     }
 
-    private class UnusedFileCache extends AbstractCache<RemoteCachingPath, FileCacheEntry> {
+    private class UnusedFileCache extends AbstractCache<RemoteCachingPath, FileCacheEntry> implements Closeable {
         private final LinkedHashMap<RemoteCachingPath, FileCacheEntry> updateOrderMap = new LinkedHashMap<>();
+        private final ConcurrentLinkedQueue<Path> unusedFilesDeletionQueue = new ConcurrentLinkedQueue<>();
+        private final Path stopDeletionThreadDummyPath = Paths.get("/tmp/nonexistentfileforshutdown");
+
+        UnusedFileCache() {
+            final Thread unusedFilesDeletionThread = new Thread(this::unusedFilesDeleter, "LocalFileCacheUnusedFilesDeleter");
+            unusedFilesDeletionThread.setDaemon(true);
+            unusedFilesDeletionThread.start();
+        }
 
         @Override
-        public synchronized void cleanUp() {
-            while ((diskSpaceUsage.get() > diskSpaceCapacity) && !updateOrderMap.isEmpty()) {
-                final Iterator<FileCacheEntry> iterator = updateOrderMap.values().iterator();
-                final FileCacheEntry entry = iterator.next();
-                evictCacheFile(entry);
-                iterator.remove();
+        public void cleanUp() {
+            synchronized (this) {
+                while ((diskSpaceUsage.get() > diskSpaceCapacity) && !updateOrderMap.isEmpty()) {
+                    final Iterator<FileCacheEntry> iterator = updateOrderMap.values().iterator();
+                    final FileCacheEntry entry = iterator.next();
+                    // we only need to delete the cache if the entry was pushed out
+                    unusedFilesDeletionQueue.offer(entry.cachePath);
+                    diskSpaceUsage.addAndGet(-entry.fileSize);
+                    iterator.remove();
+                }
+            }
+            // Actual deletes will be done in the unusedFilesDeleter thread below
+            // to avoid blocking CPU operations while waiting for IO
+        }
+
+        private void unusedFilesDeleter() {
+            while (true) {
+                final Path fileToDelete = unusedFilesDeletionQueue.poll();
+                if (fileToDelete == stopDeletionThreadDummyPath) {
+                    LOGGER.debug("Shutting down the LocalFileCache unusedFilesDeleter");
+                    return;
+                }
+                if (fileToDelete == null) {
+                    continue;   // should never happen
+                }
+                try {
+                    Files.delete(fileToDelete);
+                } catch (final IOException e) {
+                    LOGGER.error("Failed to delete evicted local cache file " + fileToDelete, e);
+                }
             }
         }
+
+
 
         @Override
         public synchronized void put(@Nonnull final RemoteCachingPath key, @Nonnull final FileCacheEntry value) {
@@ -493,5 +529,9 @@ class LocalFileCache {
             return sumCacheFileStats;
         }
 
+        @Override
+        public void close() throws IOException {
+            unusedFilesDeletionQueue.add(stopDeletionThreadDummyPath);
+        }
     }
 }

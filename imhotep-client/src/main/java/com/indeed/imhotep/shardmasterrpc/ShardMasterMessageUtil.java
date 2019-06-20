@@ -18,7 +18,6 @@ import com.google.common.io.ByteStreams;
 import com.google.common.primitives.Ints;
 import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.Message;
-import com.indeed.imhotep.io.Bytes;
 import com.indeed.imhotep.protobuf.ShardMasterRequest;
 import com.indeed.imhotep.protobuf.ShardMasterResponse;
 
@@ -58,7 +57,7 @@ class ShardMasterMessageUtil {
     private static InputStream readPayloadStream(final InputStream is) throws IOException {
         final byte[] payloadLengthBytes = new byte[4];
         ByteStreams.readFully(is, payloadLengthBytes);
-        final int payloadLength = Bytes.bytesToInt(payloadLengthBytes);
+        final int payloadLength = Ints.fromByteArray(payloadLengthBytes);
         return ByteStreams.limit(is, payloadLength);
     }
 }

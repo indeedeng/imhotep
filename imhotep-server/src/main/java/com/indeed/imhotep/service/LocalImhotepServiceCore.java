@@ -380,8 +380,8 @@ public class LocalImhotepServiceCore
             // Construct flamdex readers
             final List<ConcurrentFlamdexReaderFactory.CreateRequest> readerRequests =
                     shardRequestListToFlamdexReaderRequests(dataset, shardRequestList, username, clientName, priority);
-            final Map<Path, SharedReference<CachedFlamdexReader>> flamdexes = flamderReaderFactory.constructFlamdexReaders(readerRequests);
-
+            final ConcurrentFlamdexReaderFactory.ConstructFlamdexReadersResult constructReadersResult = flamderReaderFactory.constructFlamdexReaders(readerRequests);
+            final Map<Path, SharedReference<CachedFlamdexReader>> flamdexes = constructReadersResult.flamdexes;
             // Construct local sessions using the above readers
             final SessionObserver observer = new SessionObserver(dataset, sessionId, username, clientName, ipAddress);
             int sessionIndex = 0;
@@ -410,6 +410,7 @@ public class LocalImhotepServiceCore
                     username,
                     clientName,
                     priority,
+                    constructReadersResult.slotTiming,
                     useFtgsPooledConnection);
 
             // create flamdex reference copies for the session manager

@@ -17,6 +17,7 @@ package com.indeed.imhotep.scheduling;
 import com.google.common.base.Joiner;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Queues;
+import com.google.common.collect.Sets;
 import com.indeed.imhotep.exceptions.ImhotepKnownException;
 import com.indeed.imhotep.service.MetricStatsEmitter;
 import com.indeed.util.core.threads.NamedThreadFactory;
@@ -24,12 +25,12 @@ import org.apache.log4j.Logger;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.OptionalLong;
 import java.util.PriorityQueue;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -41,17 +42,17 @@ import java.util.stream.Collectors;
 public class TaskScheduler implements SilentCloseable {
     private static final Logger LOGGER = Logger.getLogger(TaskScheduler.class);
 
-    private static final long LONG_RUNNING_TASK_THRESHOLD_MILLIS = TimeUnit.MINUTES.toMillis(1);
+    private static final long LONG_RUNNING_TASK_THRESHOLD_MILLIS = TimeUnit.SECONDS.toMillis(20);
     private static final int DATADOG_STATS_REPORTING_FREQUENCY_MILLIS = 100;
     private static final int CLEANUP_FREQUENCY_MILLIS = 1000;
-    private static final long LONG_RUNNING_TASK_REPORT_FREQUENCY_MILLIS = TimeUnit.MINUTES.toMillis(1);
+    private static final long LONG_RUNNING_TASK_REPORT_FREQUENCY_MILLIS = TimeUnit.SECONDS.toMillis(15);
     private static final int CURRENT_TIME_MILLIS_CACHE_FREQUENCY = 1;
 
     // queue of tasks waiting to run
     private final Map<OwnerAndPriority, TaskQueue> queues = Maps.newHashMap();
     // history of consumption of all tasks that ran recently
     private final Map<OwnerAndPriority, ConsumptionTracker> ownerToConsumptionTracker = Maps.newHashMap();
-    private final Set<ImhotepTask> runningTasks = ConcurrentHashMap.newKeySet();
+    private final Set<ImhotepTask> runningTasks = Sets.newHashSet();
     private final int totalSlots;
     private final long historyLengthNanos;
     private final long batchNanos;
@@ -89,16 +90,16 @@ public class TaskScheduler implements SilentCloseable {
 
     protected void initializeSchedulers(final SchedulerType schedulerType) {
         datadogStatsReportingExecutor = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("schedulerDatadogStatsReporter-" + schedulerType));
-        datadogStatsReportingExecutor.scheduleAtFixedRate(this::reportDatadogStats, DATADOG_STATS_REPORTING_FREQUENCY_MILLIS, DATADOG_STATS_REPORTING_FREQUENCY_MILLIS, TimeUnit.MILLISECONDS);
+        datadogStatsReportingExecutor.scheduleWithFixedDelay(this::reportDatadogStats, DATADOG_STATS_REPORTING_FREQUENCY_MILLIS, DATADOG_STATS_REPORTING_FREQUENCY_MILLIS, TimeUnit.MILLISECONDS);
 
         cleanupExecutor = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("schedulerCleanup-" + schedulerType));
-        cleanupExecutor.scheduleAtFixedRate(this::cleanup, CLEANUP_FREQUENCY_MILLIS, CLEANUP_FREQUENCY_MILLIS, TimeUnit.MILLISECONDS);
+        cleanupExecutor.scheduleWithFixedDelay(this::cleanup, CLEANUP_FREQUENCY_MILLIS, CLEANUP_FREQUENCY_MILLIS, TimeUnit.MILLISECONDS);
 
         longRunningTaskReportingExecutor = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("schedulerLongRunningTaskReporter-" + schedulerType));
-        longRunningTaskReportingExecutor.scheduleAtFixedRate(this::reportLongRunningTasks, LONG_RUNNING_TASK_REPORT_FREQUENCY_MILLIS, LONG_RUNNING_TASK_REPORT_FREQUENCY_MILLIS, TimeUnit.MILLISECONDS);
+        longRunningTaskReportingExecutor.scheduleWithFixedDelay(this::reportLongRunningTasks, LONG_RUNNING_TASK_REPORT_FREQUENCY_MILLIS, LONG_RUNNING_TASK_REPORT_FREQUENCY_MILLIS, TimeUnit.MILLISECONDS);
 
         currentTimeMillisExecutor = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("currentTimeUpdater-" + schedulerType));
-        currentTimeMillisExecutor.scheduleAtFixedRate(this::cacheCurrentTimeMillis, 0, CURRENT_TIME_MILLIS_CACHE_FREQUENCY, TimeUnit.MILLISECONDS);
+        currentTimeMillisExecutor.scheduleWithFixedDelay(this::cacheCurrentTimeMillis, 0, CURRENT_TIME_MILLIS_CACHE_FREQUENCY, TimeUnit.MILLISECONDS);
     }
 
     public int getTotalSlots() {
@@ -139,29 +140,37 @@ public class TaskScheduler implements SilentCloseable {
         statsEmitter.histogram("scheduler." + schedulerType + ".running.tasks", runningTasksCount);
     }
 
-    private void cleanup() {
+    private synchronized void cleanup() {
         final long nanoTime = System.nanoTime();
         ownerToConsumptionTracker.entrySet().removeIf(entry -> !entry.getValue().isActive(nanoTime));
         // TODO: check runningTasks for leaks once in a while
     }
 
     private void reportLongRunningTasks() {
-        for (final ImhotepTask runningTask : runningTasks) {
-            final long currentExecutionTime = TimeUnit.NANOSECONDS.toMillis(runningTask.getCurrentExecutionTime().orElse(0));
-            if (currentExecutionTime >= LONG_RUNNING_TASK_THRESHOLD_MILLIS) {
-                final StackTraceElement[] stackTraceElements;
-                try {
-                    stackTraceElements = runningTask.getStackTrace();
-                } catch (final Exception e) {
-                    LOGGER.error("Failed to take the stack trace of " + runningTask);
-                    continue;
+        // Thread.getStackTrace() could be expensive, so we collect long running tasks first and then ouput stack traces.
+        final List<ImhotepTask> longRunningTasks = new ArrayList<>(totalSlots);
+        synchronized (this) {
+            for (final ImhotepTask runningTask : runningTasks) {
+                final long currentExecutionTime = TimeUnit.NANOSECONDS.toMillis(runningTask.getCurrentExecutionTime().orElse(0));
+                if (currentExecutionTime >= LONG_RUNNING_TASK_THRESHOLD_MILLIS) {
+                    longRunningTasks.add(runningTask);
                 }
-
-                LOGGER.info(
-                        "Imhotep task " + runningTask + " for scheduler " + schedulerType + " running a long time. stack trace:\n  "
-                                + Joiner.on("\n  ").join(stackTraceElements)
-                );
             }
+        }
+
+        for (final ImhotepTask longRunningTask : longRunningTasks) {
+            final StackTraceElement[] stackTraceElements;
+            try {
+                stackTraceElements = longRunningTask.getStackTrace();
+            } catch (final Throwable e) {
+                LOGGER.error("Failed to take the stack trace of " + longRunningTask);
+                continue;
+            }
+
+            LOGGER.info(
+                    "Imhotep task " + longRunningTask + " for scheduler " + schedulerType + " running a long time. stack trace:\n  "
+                            + Joiner.on("\n  ").join(stackTraceElements)
+            );
         }
     }
 
