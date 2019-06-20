@@ -15,6 +15,8 @@
 
 import com.google.common.base.Charsets;
 import com.google.common.io.ByteStreams;
+import com.google.common.primitives.Ints;
+import com.google.common.primitives.Longs;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
@@ -39,22 +41,22 @@ public final class Streams {
     public static int readInt(final InputStream is) throws IOException {
         final byte[] buf = new byte[4];
         ByteStreams.readFully(is, buf);
-        return Bytes.bytesToInt(buf);
+        return Ints.fromByteArray(buf);
     }
 
     public static void writeInt(final OutputStream os, final int x) throws IOException {
-        final byte[] bytes = Bytes.intToBytes(x);
+        final byte[] bytes = Ints.toByteArray(x);
         os.write(bytes);
     }
 
     public static long readLong(final InputStream is) throws IOException {
         final byte[] buf = new byte[8];
         ByteStreams.readFully(is, buf);
-        return Bytes.bytesToLong(buf);
+        return Longs.fromByteArray(buf);
     }
 
     public static void writeLong(final OutputStream os, final long x) throws IOException {
-        final byte[] bytes = Bytes.longToBytes(x);
+        final byte[] bytes = Longs.toByteArray(x);
         os.write(bytes);
     }
 
