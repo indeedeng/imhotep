@@ -459,7 +459,7 @@ class LocalFileCache {
         private void unusedFilesDeleter() {
             while (true) {
                 try {
-                    final Path fileToDelete = unusedFilesDeletionQueue.poll();
+                    final Path fileToDelete = unusedFilesDeletionQueue.take();
                     if (fileToDelete == stopDeletionThreadDummyPath) {
                         LOGGER.debug("Shutting down the LocalFileCache unusedFilesDeleter");
                         return;
