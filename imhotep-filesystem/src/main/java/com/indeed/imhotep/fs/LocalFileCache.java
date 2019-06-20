@@ -44,9 +44,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
@@ -431,7 +431,7 @@ class LocalFileCache {
 
     private class UnusedFileCache extends AbstractCache<RemoteCachingPath, FileCacheEntry> implements Closeable {
         private final LinkedHashMap<RemoteCachingPath, FileCacheEntry> updateOrderMap = new LinkedHashMap<>();
-        private final ConcurrentLinkedQueue<Path> unusedFilesDeletionQueue = new ConcurrentLinkedQueue<>();
+        private final LinkedBlockingQueue<Path> unusedFilesDeletionQueue = new LinkedBlockingQueue<>();
         private final Path stopDeletionThreadDummyPath = Paths.get("/tmp/nonexistentfileforshutdown");
 
         UnusedFileCache() {
