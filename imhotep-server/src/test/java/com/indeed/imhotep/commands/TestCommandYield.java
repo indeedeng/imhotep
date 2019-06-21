@@ -203,7 +203,7 @@ public class TestCommandYield {
 
         // Check that all slots were busy all the time.
         // Add extra 100 millis for scheduling + Thread.start + Thread.join overhead.
-        Assert.assertTrue( end - start < taskCount * taskTimeMillis / slotsCount + 100);
+        Assert.assertTrue( end - start < taskCount * taskTimeMillis / slotsCount + 500);
     }
 
     @Test
