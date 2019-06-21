@@ -18,22 +18,19 @@ import java.net.SocketAddress;
 public class ImhotepConnectionKeyedPooledObjectFactory implements KeyedPooledObjectFactory<Host, Socket> {
     private static final Logger logger = Logger.getLogger(ImhotepConnectionKeyedPooledObjectFactory.class);
 
-    private final int socketReadTimeoutMills;
+    private final ImhotepConnectionPoolConfig poolConfig;
 
-    private final int socketConnectingTimeoutMillis;
-
-    public ImhotepConnectionKeyedPooledObjectFactory(final int socketReadTimeoutMills, final int socketConnectingTimeoutMillis) {
-        this.socketReadTimeoutMills = socketReadTimeoutMills;
-        this.socketConnectingTimeoutMillis = socketConnectingTimeoutMillis;
+    public ImhotepConnectionKeyedPooledObjectFactory(final ImhotepConnectionPoolConfig poolConfig) {
+        this.poolConfig = poolConfig;
     }
 
     @Override
     public PooledObject<Socket> makeObject(final Host host) throws IOException {
         final Socket socket = new Socket();
         final SocketAddress endpoint = new InetSocketAddress(host.getHostname(), host.getPort());
-        socket.connect(endpoint, socketConnectingTimeoutMillis);
+        socket.connect(endpoint, poolConfig.getSocketConnectingTimeoutMills());
 
-        socket.setSoTimeout(socketReadTimeoutMills);
+        socket.setSoTimeout(poolConfig.getSocketReadTimeoutMills());
         socket.setReceiveBufferSize(65536);
         socket.setTcpNoDelay(true);
         socket.setKeepAlive(true);
@@ -48,7 +45,7 @@ public class ImhotepConnectionKeyedPooledObjectFactory implements KeyedPooledObj
 
     @Override
     public boolean validateObject(final Host host, final PooledObject<Socket> pooledObject) {
-        if (pooledObject.getIdleTimeMillis() >= socketReadTimeoutMills) {
+        if (pooledObject.getIdleTimeMillis() >= poolConfig.getSocketMaxIdleTimeMills()) {
             return false;
         }
 

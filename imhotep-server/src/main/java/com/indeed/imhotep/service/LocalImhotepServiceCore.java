@@ -84,8 +84,6 @@ public class LocalImhotepServiceCore
     extends AbstractImhotepServiceCore {
     private static final Logger log = Logger.getLogger(LocalImhotepServiceCore.class);
 
-    private static final int CONNECTION_POOL_STATS_REPORT_FREQUENCY_SECONDS = 10;
-
     private final LocalSessionManager sessionManager;
 
     private final ScheduledExecutorService heartBeat;
@@ -173,7 +171,7 @@ public class LocalImhotepServiceCore
                     statsEmitter);
         }
 
-        this.connectionPoolStatsReporter = new ImhotepConnectionPoolStatsReporter(ImhotepConnectionPoolWrapper.INSTANCE, statsEmitter, CONNECTION_POOL_STATS_REPORT_FREQUENCY_SECONDS);
+        this.connectionPoolStatsReporter = new ImhotepConnectionPoolStatsReporter(ImhotepConnectionPoolWrapper.INSTANCE, statsEmitter, 1);
         this.memoryStatsReporter = new ImhotepMemoryStatsReporter(statsEmitter, memory);
 
         sessionManager = new LocalSessionManager(statsEmitter, config.getMaxSessionsTotal(), config.getMaxSessionsPerUser());
