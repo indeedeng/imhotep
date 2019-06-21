@@ -40,9 +40,7 @@ public class ImhotepConnectionPool implements Closeable {
     private final AtomicLong invalidatedConnectionCount;
 
     ImhotepConnectionPool(final ImhotepConnectionPoolConfig config) {
-        final ImhotepConnectionKeyedPooledObjectFactory factory = new ImhotepConnectionKeyedPooledObjectFactory(
-                config.getSocketReadTimeoutMills(),
-                config.getSocketConnectingTimeoutMills());
+        final ImhotepConnectionKeyedPooledObjectFactory factory = new ImhotepConnectionKeyedPooledObjectFactory(config);
 
         final GenericKeyedObjectPoolConfig<Socket> sourcePoolConfig = new GenericKeyedObjectPoolConfig<>();
         sourcePoolConfig.setMaxIdlePerKey(config.getMaxIdleSocketPerHost());
