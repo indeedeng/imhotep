@@ -642,7 +642,13 @@ public class ImhotepRemoteSession
         if (useFtgsPooledConnection) {
             return CONNECTION_POOL.withBufferedSocketStream(hostAndPort,
                     (ImhotepConnectionPool.SocketStreamUser2Throwings<Pair<ImhotepResponse, InputStream>, IOException, ImhotepOutOfMemoryException>)
-                            (is, os) -> sendRequestAndSaveResponseWithSocket(request, tempFilePrefix, is, os, true));
+                            (wrappedSocketIs, wrappedSocketOs) -> {
+                                try (final InputStream is = wrappedSocketIs) {
+                                    try (final OutputStream os = wrappedSocketOs) {
+                                        return sendRequestAndSaveResponseWithSocket(request, tempFilePrefix, is, os, true);
+                                    }
+                                }
+                            });
         } else {
             final Socket socket = newSocket(host, port, socketTimeout);
             try {

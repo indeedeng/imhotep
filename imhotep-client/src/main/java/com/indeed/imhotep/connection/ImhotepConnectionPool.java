@@ -11,6 +11,8 @@ import org.apache.commons.pool2.impl.GenericKeyedObjectPoolConfig;
 import org.apache.commons.pool2.impl.GenericKeyedObjectPoolMXBean;
 import org.apache.log4j.Logger;
 
+import javax.annotation.WillClose;
+import javax.annotation.WillNotClose;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.Closeable;
@@ -116,7 +118,7 @@ public class ImhotepConnectionPool implements Closeable {
         connection.markAsInvalid();
     }
 
-    private Pair<InputStream, OutputStream> getBufferedSocketStream(final ImhotepConnection connection) throws IOException {
+    private Pair<NonClosingInputStream, NonClosingOutputStream> getBufferedSocketStream(final ImhotepConnection connection) throws IOException {
         final Socket socket = connection.getSocket();
         return Pair.of(
                 new NonClosingInputStream(new BufferedInputStream(socket.getInputStream())),
@@ -166,9 +168,11 @@ public class ImhotepConnectionPool implements Closeable {
             final Host host,
             final SocketStreamUser<R, E> function) throws E, IOException {
         try (final ImhotepConnection connection = getConnection(host)) {
-            final Pair<InputStream, OutputStream> socketStream = getBufferedSocketStream(connection);
+            final Pair<NonClosingInputStream, NonClosingOutputStream> socketStream = getBufferedSocketStream(connection);
             try {
-                return function.apply(socketStream.getFirst(), socketStream.getSecond());
+                final R r = function.apply(socketStream.getFirst(), socketStream.getSecond());
+                ensureStreamClosed(socketStream);
+                return r;
             } catch (final Throwable t) {
                 invalidateConnection(connection);
                 throw t;
@@ -187,9 +191,11 @@ public class ImhotepConnectionPool implements Closeable {
             final int timeoutMillis,
             final SocketStreamUser<R, E> function) throws E, IOException {
         try (final ImhotepConnection connection = getConnection(host, timeoutMillis)) {
-            final Pair<InputStream, OutputStream> socketStream = getBufferedSocketStream(connection);
+            final Pair<NonClosingInputStream, NonClosingOutputStream> socketStream = getBufferedSocketStream(connection);
             try {
-                return function.apply(socketStream.getFirst(), socketStream.getSecond());
+                final R r = function.apply(socketStream.getFirst(), socketStream.getSecond());
+                ensureStreamClosed(socketStream);
+                return r;
             } catch (final Throwable t) {
                 invalidateConnection(connection);
                 throw t;
@@ -207,9 +213,11 @@ public class ImhotepConnectionPool implements Closeable {
             final Host host,
             final SocketStreamUser2Throwings<R, E1, E2> function) throws E1, E2, IOException {
         try (final ImhotepConnection connection = getConnection(host)) {
-            final Pair<InputStream, OutputStream> socketStream = getBufferedSocketStream(connection);
+            final Pair<NonClosingInputStream, NonClosingOutputStream> socketStream = getBufferedSocketStream(connection);
             try {
-                return function.apply(socketStream.getFirst(), socketStream.getSecond());
+                final R r = function.apply(socketStream.getFirst(), socketStream.getSecond());
+                ensureStreamClosed(socketStream);
+                return r;
             } catch (final Throwable t) {
                 invalidateConnection(connection);
                 throw t;
@@ -228,9 +236,11 @@ public class ImhotepConnectionPool implements Closeable {
             final int timeoutMillis,
             final SocketStreamUser2Throwings<R, E1, E2> function) throws E1, E2, IOException {
         try (final ImhotepConnection connection = getConnection(host, timeoutMillis)) {
-            final Pair<InputStream, OutputStream> socketStream = getBufferedSocketStream(connection);
+            final Pair<NonClosingInputStream, NonClosingOutputStream> socketStream = getBufferedSocketStream(connection);
             try {
-                return function.apply(socketStream.getFirst(), socketStream.getSecond());
+                final R r = function.apply(socketStream.getFirst(), socketStream.getSecond());
+                ensureStreamClosed(socketStream);
+                return r;
             } catch (final Throwable t) {
                 invalidateConnection(connection);
                 throw t;
@@ -238,16 +248,22 @@ public class ImhotepConnectionPool implements Closeable {
         }
     }
 
+    private void ensureStreamClosed(final Pair<NonClosingInputStream, NonClosingOutputStream> socketStream) throws IOException {
+        if (!socketStream.getFirst().isClosed() || !socketStream.getSecond().isClosed()) {
+            throw new IOException("The stream from connection pool should be closed");
+        }
+    }
+
     interface ConnectionUser<R, E extends Exception> {
-        R apply(ImhotepConnection connection) throws E;
+        R apply(@WillNotClose ImhotepConnection connection) throws E;
     }
 
     public interface SocketStreamUser<R, E extends Exception> {
-        R apply(InputStream in, OutputStream out) throws E;
+        R apply(@WillClose InputStream in, @WillClose OutputStream out) throws E;
     }
 
     public interface SocketStreamUser2Throwings<R, E1 extends Exception, E2 extends Exception> {
-        R apply(InputStream in, OutputStream out) throws E1, E2;
+        R apply(@WillClose InputStream in, @WillClose OutputStream out) throws E1, E2;
     }
 
     @Override

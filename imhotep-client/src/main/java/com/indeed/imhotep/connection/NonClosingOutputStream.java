@@ -40,6 +40,10 @@ public class NonClosingOutputStream extends OutputStream {
         out.flush();
     }
 
+    public boolean isClosed() {
+        return closed;
+    }
+
     @Override
     public void close() throws IOException {
         if (closed) {

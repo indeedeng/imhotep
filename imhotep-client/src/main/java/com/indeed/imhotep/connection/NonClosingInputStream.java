@@ -65,6 +65,10 @@ public class NonClosingInputStream extends InputStream {
         return in.markSupported();
     }
 
+    public boolean isClosed() {
+        return closed;
+    }
+
     @Override
     public void close() throws IOException {
         closed = true;
