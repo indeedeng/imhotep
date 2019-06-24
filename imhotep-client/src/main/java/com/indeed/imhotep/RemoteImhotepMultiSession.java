@@ -462,21 +462,18 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
             remoteSessions.get(0)
                     .executor()
                     .lockCPU(false)
-                    .execute(subIterators, indexedServers, pair -> {
+                    .executeMemoryException(subIterators, indexedServers, pair -> {
                         final int index = pair.getFirst();
                         final HostAndPort hostAndPort = pair.getSecond();
                         // Definitely don't close this session
-                        //noinspection resource
+                        //noinspection IOResourceOpenedButNotSafelyClosed
                         final ImhotepRemoteSession remoteSession = new ImhotepRemoteSession(hostAndPort.getHost(), hostAndPort.getPort(), concatenatedSessionIds, tempFileSizeBytesLeft, ImhotepRemoteSession.DEFAULT_SOCKET_TIMEOUT);
                         final MultiFTGSRequest proto = MultiFTGSRequest.newBuilder(baseRequest).setSplitIndex(index).build();
                         return remoteSession.multiFTGS(proto);
                     });
-        } catch (Throwable t) {
+        } catch (final Throwable t) {
             Closeables2.closeQuietly(closer, log);
-            if (t instanceof ExecutionException) {
-                Throwables.propagateIfInstanceOf(t.getCause(), ImhotepOutOfMemoryException.class);
-            }
-            throw Throwables.propagate(t);
+            throw t;
         }
 
         final FTGSModifiers modifiers = new FTGSModifiers(termLimit, sortStat, sorted, statsSortOrder);
@@ -528,15 +525,15 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
         // or passing in an executor.
         remoteSessions.get(0)
                 .executor()
-                .lockCPU(false)
+                .lockCPU(false) // Just send request and receive response.
                 .executeMemoryException(intBuffer, servers, hostAndPort -> {
                     // Definitely don't close this session
-                    //noinspection resource
+                    //noinspection IOResourceOpenedButNotSafelyClosed
                     final ImhotepRemoteSession remoteSession = new ImhotepRemoteSession(hostAndPort.getHost(), hostAndPort.getPort(), concatenatedSessionIds, tempFileSizeBytesLeft, ImhotepRemoteSession.DEFAULT_SOCKET_TIMEOUT);
                     final FieldAggregateBucketRegroupRequest request = FieldAggregateBucketRegroupRequest.newBuilder(requestBase)
                             .addAllSessionId(sessionIdsPerHost.get(hostAndPort))
                             .build();
-                    return remoteSession.fieldAggregateBucketRegroup(request);\
+                    return remoteSession.fieldAggregateBucketRegroup(request);
                 });
         return Collections.max(Arrays.asList(intBuffer));
     }
