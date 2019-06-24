@@ -26,7 +26,7 @@ public class QueryRegroup extends AbstractImhotepCommand<Integer> {
     final QueryRemapRule rule;
 
     public QueryRegroup(final RegroupParams regroupParams, final QueryRemapRule rule, final String sessionId) {
-        super(sessionId, Integer.class);
+        super(sessionId, Integer.class, regroupParams);
         this.regroupParams = regroupParams;
         this.rule = rule;
     }

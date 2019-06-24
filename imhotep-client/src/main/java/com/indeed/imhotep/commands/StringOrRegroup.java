@@ -21,7 +21,7 @@ public class StringOrRegroup extends VoidAbstractImhotepCommand {
     private final int positiveGroup;
 
     public StringOrRegroup(final RegroupParams regroupParams, final String field, final List<String> terms, final int targetGroup, final int negativeGroup, final int positiveGroup, final String sessionId) {
-        super(sessionId);
+        super(sessionId, regroupParams);
         this.regroupParams = regroupParams;
         this.field = field;
         this.terms = terms;

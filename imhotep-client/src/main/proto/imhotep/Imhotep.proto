@@ -342,6 +342,8 @@ message ImhotepRequest {
 
   // for ftgs pooled socket optimization
   optional bool useFtgsPooledConnection = 81 [default = false];
+
+  optional bool executeBatchInParallel = 82 [default = false];
 }
 
 message DocStat {

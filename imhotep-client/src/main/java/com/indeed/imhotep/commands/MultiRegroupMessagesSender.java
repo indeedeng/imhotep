@@ -32,7 +32,7 @@ public class MultiRegroupMessagesSender extends AbstractImhotepCommand<Integer> 
     private final boolean errorOnCollision;
 
     private MultiRegroupMessagesSender(final RegroupParams regroupParams, final GroupMultiRemapRuleSender groupMultiRemapRuleSender, final boolean errorOnCollision, final String sessionId) {
-        super(sessionId, Integer.class);
+        super(sessionId, Integer.class, regroupParams);
         this.regroupParams = regroupParams;
         this.groupMultiRemapRuleSender = groupMultiRemapRuleSender;
         this.errorOnCollision = errorOnCollision;

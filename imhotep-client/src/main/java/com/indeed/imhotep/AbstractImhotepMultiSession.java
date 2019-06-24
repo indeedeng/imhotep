@@ -15,6 +15,8 @@ package com.indeed.imhotep;
 
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
+import com.google.common.util.concurrent.ListeningExecutorService;
+import com.google.common.util.concurrent.MoreExecutors;
 import com.indeed.flamdex.query.Query;
 import com.indeed.flamdex.query.Term;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
@@ -144,6 +146,7 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
     protected final ExecutorService executor;
     protected final ExecutorService getSplitBufferThreads;
     protected final ExecutorService mergeSplitBufferThreads;
+    protected final ListeningExecutorService commandThreads;
 
     protected int numStats = 0;
 
@@ -190,6 +193,7 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
         final SessionThreadFactory localThreadFactory = new SessionThreadFactory(threadNamePrefix + "-localThreads");
         final SessionThreadFactory splitThreadFactory = new SessionThreadFactory(threadNamePrefix + "-splitThreads");
         final SessionThreadFactory mergeThreadFactory = new SessionThreadFactory(threadNamePrefix + "-mergeThreads");
+        final SessionThreadFactory commandThreadFactory = new SessionThreadFactory(threadNamePrefix + "-commandThreads");
 
         threadFactories =
                 new ArrayList<>(Arrays.asList(localThreadFactory,
@@ -199,6 +203,7 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
         executor = Executors.newCachedThreadPool(localThreadFactory);
         getSplitBufferThreads = Executors.newCachedThreadPool(splitThreadFactory);
         mergeSplitBufferThreads = Executors.newCachedThreadPool(mergeThreadFactory);
+        commandThreads = MoreExecutors.listeningDecorator(Executors.newCachedThreadPool(commandThreadFactory));
 
         totalDocFreqBuf = new Long[sessions.length];
         integerBuf = new Integer[sessions.length];
@@ -551,6 +556,7 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
         }
         getSplitBufferThreads.shutdown();
         mergeSplitBufferThreads.shutdown();
+        commandThreads.shutdown();
     }
 
     protected void postClose() {

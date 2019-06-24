@@ -7,13 +7,16 @@ import com.indeed.imhotep.protobuf.ImhotepRequest;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
 
+import java.util.Arrays;
+import java.util.List;
+
 @EqualsAndHashCode(callSuper = true)
 @ToString
 public class ResetGroups extends VoidAbstractImhotepCommand {
     private final String groupsName;
 
     public ResetGroups(final String groupsName, final String sessionId) {
-        super(sessionId);
+        super(sessionId, null);
         this.groupsName = groupsName;
     }
 
@@ -30,5 +33,15 @@ public class ResetGroups extends VoidAbstractImhotepCommand {
                 .setSessionId(sessionId)
                 .build();
         return RequestTools.ImhotepRequestSender.Cached.create(request);
+    }
+
+    @Override
+    public List<String> getInputGroups() {
+        return Arrays.asList(groupsName);
+    }
+
+    @Override
+    public List<String> getOutputGroup() {
+        return Arrays.asList(groupsName);
     }
 }

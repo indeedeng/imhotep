@@ -18,6 +18,8 @@ import lombok.ToString;
 import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
+import java.util.Arrays;
 import java.util.List;
 
 @EqualsAndHashCode(callSuper = true)
@@ -28,7 +30,7 @@ public class GetGroupStats extends AbstractImhotepCommand<GroupStatsIterator> {
     private final List<String> stats;
 
     public GetGroupStats(final String groupsName, final List<String> stats, final String sessionId) {
-        super(sessionId, GroupStatsIterator.class);
+        super(sessionId, GroupStatsIterator.class, null);
         this.groupsName = groupsName;
         this.stats = stats;
     }
@@ -65,4 +67,13 @@ public class GetGroupStats extends AbstractImhotepCommand<GroupStatsIterator> {
         return groupStatsIterator;
     }
 
+    @Override
+    public List<String> getInputGroups() {
+        return Arrays.asList(groupsName);
+    }
+
+    @Override
+    public List<String> getOutputGroup() {
+        return Arrays.asList();
+    }
 }

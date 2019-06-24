@@ -317,7 +317,8 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                                 request.getSessionId(),
                                 tempFileSizeBytesLeft,
                                 request.getSessionTimeout(),
-                                request.getUseFtgsPooledConnection()
+                                request.getUseFtgsPooledConnection(),
+                                request.getExecuteBatchInParallel()
                         );
                 NDC.push(sessionId);
                 builder.setSessionId(sessionId);
