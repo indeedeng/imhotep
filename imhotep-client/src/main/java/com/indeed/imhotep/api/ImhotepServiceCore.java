@@ -19,6 +19,7 @@ import com.indeed.imhotep.QueryRemapRule;
 import com.indeed.imhotep.RegroupCondition;
 import com.indeed.imhotep.SlotTiming;
 import com.indeed.imhotep.TermCount;
+import com.indeed.imhotep.protobuf.FieldAggregateBucketRegroupRequest;
 import com.indeed.imhotep.protobuf.HostAndPort;
 import com.indeed.imhotep.protobuf.ImhotepResponse;
 import com.indeed.imhotep.protobuf.MultiFTGSRequest;
@@ -68,6 +69,7 @@ public interface ImhotepServiceCore {
     GroupStatsIterator handleGetDistinct(String sessionId, String groupsName, String field, boolean isIntField);
     GroupStatsIterator handleMergeDistinctSplit(String groupsName, String sessionId, String field, boolean isIntField, HostAndPort[] nodes, int splitIndex);
     GroupStatsIterator handleMergeMultiDistinctSplit(final MultiFTGSRequest request, final String validLocalSessionId, final HostAndPort[] nodes) throws ImhotepOutOfMemoryException;
+    int handleFieldAggregateBucketRegroup(final FieldAggregateBucketRegroupRequest request, final List<String> sessionIds, final HostAndPort[] nodes) throws ImhotepOutOfMemoryException;
     List<String> getShardsForSession(String sessionId);
     boolean sessionIsValid(String sessionId);
     void handleCloseSession(String sessionId);

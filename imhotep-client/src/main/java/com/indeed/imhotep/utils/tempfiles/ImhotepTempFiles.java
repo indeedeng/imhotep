@@ -7,6 +7,7 @@ import org.apache.log4j.Logger;
 
 import java.io.IOException;
 import java.nio.file.Paths;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class ImhotepTempFiles extends AbstractTempFiles<ImhotepTempFiles.Type> {
@@ -46,6 +47,14 @@ public class ImhotepTempFiles extends AbstractTempFiles<ImhotepTempFiles.Type> {
         return getInstance().createTempFile(Type.FTGS_SPLITTER);
     }
 
+    public static TempFile createFTGAReplicaTempFile(final String sessionId) throws IOException {
+        return getInstance().createTempFile(Type.FTGA_REPLICA, sessionId);
+    }
+
+    public static TempFile createAggregateBucketTempFile(final List<String> sessionIds) throws IOException {
+        return getInstance().createTempFile(Type.AGGREGATE_BUCKET, String.join(".", sessionIds));
+    }
+
     public static void tryCleanupTempFiles() {
         getInstance().tryCleanupTempDirectory();
     }
@@ -63,6 +72,8 @@ public class ImhotepTempFiles extends AbstractTempFiles<ImhotepTempFiles.Type> {
         BATCH_GROUP_STATS_ITERATOR("batchGroupStatsIterator"),
         MULTI_FTGS("multiftgs"),
         GROUP_STATS_ITERATOR("groupStatsIterator"),
+        FTGA_REPLICA("ftgaReplica"),
+        AGGREGATE_BUCKET("aggregateBucket"),
         ;
         private final String identifier;
     }

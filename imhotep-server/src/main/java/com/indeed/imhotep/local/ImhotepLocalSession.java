@@ -69,6 +69,7 @@ import com.indeed.imhotep.exceptions.MultiValuedFieldStringLenException;
 import com.indeed.imhotep.exceptions.MultiValuedFieldUidTimestampException;
 import com.indeed.imhotep.group.IterativeHasher;
 import com.indeed.imhotep.group.IterativeHasherUtils;
+import com.indeed.imhotep.io.Bytes;
 import com.indeed.imhotep.marshal.ImhotepDaemonMarshaller;
 import com.indeed.imhotep.matcher.StringTermMatcher;
 import com.indeed.imhotep.matcher.StringTermMatchers;
@@ -1556,6 +1557,107 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             docIdToGroup.set(docId, newGroup);
         }
 
+        return namedGroupLookups.finalizeRegroup(regroupParams);
+    }
+
+    /**
+     * Expects ftgs and term iterator where they're in a valid state with term matched.
+     */
+    private void internalAggregateRegroup(
+            final GroupLookup inputGroups, final GroupLookup outputGroups, final FTGSIterator ftgsIterator, final TermIterator termIter, final DocIdStream docIdStream, final FastBitSet moved,
+            final long[] statsBuf, final int[] docIdBuf, final int[] docIdGroupBuf, final int[] docIdNewGroupBuf, final int[] mapTo
+    ) {
+        while (ftgsIterator.nextGroup()) {
+            ftgsIterator.groupStats(statsBuf);
+            mapTo[ftgsIterator.group()] = Ints.checkedCast(statsBuf[0]);
+        }
+        docIdStream.reset(termIter);
+        while (true) {
+            final int n = docIdStream.fillDocIdBuffer(docIdBuf);
+            inputGroups.fillDocGrpBuffer(docIdBuf, docIdGroupBuf, n);
+            for (int i = 0; i < n; ++i) {
+                if (moved.get(docIdBuf[i])) {
+                    throw new MultiValuedFieldStringLenException(createMessageWithSessionId("Aggregate bucket is not supported for multi-valued fields"));
+                }
+                moved.set(docIdBuf[i]);
+                docIdNewGroupBuf[i] = mapTo[docIdGroupBuf[i]];
+            }
+            outputGroups.batchSet(docIdBuf, docIdNewGroupBuf, n);
+            if (n < docIdBuf.length) {
+                break;
+            }
+        }
+    }
+
+    public synchronized int aggregateBucketRegroupInt(final RegroupParams regroupParams, final String field, final int maxOutputGroup, final FTGSIterator ftgsIterator) throws ImhotepOutOfMemoryException {
+        Preconditions.checkArgument(ftgsIterator.getNumStats() == 1);
+        final long[] statsBuf = new long[1];
+        if (namedGroupLookups.handleFiltered(regroupParams)) {
+            return 1;
+        }
+
+        final GroupLookup inputGroups = namedGroupLookups.get(regroupParams.getInputGroups());
+        final GroupLookup outputGroups = namedGroupLookups.ensureWriteable(regroupParams, maxOutputGroup);
+        final FastBitSet moved = new FastBitSet(numDocs);
+
+        final int[] docIdBuf = memoryPool.getIntBuffer(BUFFER_SIZE, true);
+        final int[] docIdGroupBuf = memoryPool.getIntBuffer(BUFFER_SIZE, true);
+        final int[] docIdNewGroupBuf = memoryPool.getIntBuffer(BUFFER_SIZE, true);
+        final int[] mapTo = memoryPool.getIntBuffer(inputGroups.getNumGroups(), true);
+        mapTo[0] = 0;
+        try (
+                final IntTermIterator termIter = flamdexReader.getUnsortedIntTermIterator(field);
+                final DocIdStream docIdStream = flamdexReader.getDocIdStream()
+        ) {
+            Preconditions.checkArgument(ftgsIterator.nextField());
+            while (ftgsIterator.nextTerm()) {
+                final long term = ftgsIterator.termIntVal();
+                termIter.reset(term);
+                if (!termIter.next() || (termIter.term() != term)) {
+                    continue;
+                }
+                internalAggregateRegroup(inputGroups, outputGroups, ftgsIterator, termIter, docIdStream, moved, statsBuf, docIdBuf, docIdGroupBuf, docIdNewGroupBuf, mapTo);
+            }
+            Preconditions.checkArgument(!ftgsIterator.nextField());
+        } finally {
+            memoryPool.returnIntBuffers(mapTo, docIdBuf, docIdGroupBuf, docIdNewGroupBuf);
+        }
+        return namedGroupLookups.finalizeRegroup(regroupParams);
+    }
+
+    public synchronized int aggregateBucketRegroupString(final RegroupParams regroupParams, final String field, final int maxOutputGroup, final FTGSIterator ftgsIterator) throws ImhotepOutOfMemoryException {
+        Preconditions.checkArgument(ftgsIterator.getNumStats() == 1);
+        final long[] statsBuf = new long[1];
+        if (namedGroupLookups.handleFiltered(regroupParams)) {
+            return 1;
+        }
+
+        final GroupLookup inputGroups = namedGroupLookups.get(regroupParams.getInputGroups());
+        final GroupLookup outputGroups = namedGroupLookups.ensureWriteable(regroupParams, maxOutputGroup);
+        final FastBitSet moved = new FastBitSet(numDocs);
+
+        final int[] docIdBuf = memoryPool.getIntBuffer(BUFFER_SIZE, true);
+        final int[] docIdGroupBuf = memoryPool.getIntBuffer(BUFFER_SIZE, true);
+        final int[] docIdNewGroupBuf = memoryPool.getIntBuffer(BUFFER_SIZE, true);
+        final int[] mapTo = memoryPool.getIntBuffer(inputGroups.getNumGroups(), true);
+        mapTo[0] = 0;
+        try (
+                final StringTermIterator termIter = flamdexReader.getStringTermIterator(field);
+                final DocIdStream docIdStream = flamdexReader.getDocIdStream()
+        ) {
+            Preconditions.checkArgument(ftgsIterator.nextField());
+            while (ftgsIterator.nextTerm()) {
+                final String term = ftgsIterator.termStringVal();
+                termIter.reset(term);
+                if (!termIter.next() || (ftgsIterator.termStringLength() != termIter.termStringLength()) || !Bytes.equals(ftgsIterator.termStringBytes(), termIter.termStringBytes(), ftgsIterator.termStringLength())) {
+                    continue;
+                }
+                internalAggregateRegroup(inputGroups, outputGroups, ftgsIterator, termIter, docIdStream, moved, statsBuf, docIdBuf, docIdGroupBuf, docIdNewGroupBuf, mapTo);
+            }
+            Preconditions.checkArgument(!ftgsIterator.nextField());
+        } finally {
+            memoryPool.returnIntBuffers(mapTo, docIdBuf, docIdGroupBuf, docIdNewGroupBuf);
+        }
         return namedGroupLookups.finalizeRegroup(regroupParams);
     }
 

@@ -30,4 +30,13 @@ public final class Bytes {
         b[2] = (byte)((x>>>8));
         b[3] = (byte)(x);
     }
+
+    public static boolean equals(final byte[] a, final byte[] b, final int length) {
+        for (int i = 0; i < length; ++i) {
+            if (a[i] != b[i]) {
+                return false;
+            }
+        }
+        return true;
+    }
 }

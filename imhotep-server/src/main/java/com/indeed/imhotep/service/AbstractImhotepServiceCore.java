@@ -13,19 +13,24 @@
  */
  package com.indeed.imhotep.service;
 
+import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.protobuf.ByteString;
 import com.indeed.flamdex.query.Query;
 import com.indeed.imhotep.AbstractImhotepMultiSession;
+import com.indeed.imhotep.FTGSBinaryFormat;
 import com.indeed.imhotep.FTGSIteratorUtil;
 import com.indeed.imhotep.GroupMultiRemapRule;
+import com.indeed.imhotep.ImhotepRemoteSession;
 import com.indeed.imhotep.ImhotepStatusDump;
+import com.indeed.imhotep.InputStreamFTGSIterator;
 import com.indeed.imhotep.Instrumentation;
 import com.indeed.imhotep.Instrumentation.Keys;
 import com.indeed.imhotep.QueryRemapRule;
 import com.indeed.imhotep.RegroupCondition;
+import com.indeed.imhotep.RemoteImhotepMultiSession;
 import com.indeed.imhotep.SortedFTGAInterleaver;
 import com.indeed.imhotep.StrictCloser;
 import com.indeed.imhotep.TermCount;
@@ -39,15 +44,18 @@ import com.indeed.imhotep.api.ImhotepCommand;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepServiceCore;
 import com.indeed.imhotep.api.PerformanceStats;
-import com.indeed.imhotep.io.BlockOutputStream;
 import com.indeed.imhotep.api.RegroupParams;
+import com.indeed.imhotep.io.BlockOutputStream;
 import com.indeed.imhotep.io.ImhotepProtobufShipping;
+import com.indeed.imhotep.local.AggregateBucketFTGSIterator;
 import com.indeed.imhotep.local.MTImhotepLocalMultiSession;
 import com.indeed.imhotep.metrics.aggregate.AggregateStatStack;
 import com.indeed.imhotep.metrics.aggregate.ParseAggregate;
 import com.indeed.imhotep.metrics.aggregate.ParseAggregate.SessionStatsInfo;
 import com.indeed.imhotep.multisession.MultiSessionWrapper;
 import com.indeed.imhotep.protobuf.AggregateStat;
+import com.indeed.imhotep.protobuf.DocStat;
+import com.indeed.imhotep.protobuf.FieldAggregateBucketRegroupRequest;
 import com.indeed.imhotep.protobuf.HostAndPort;
 import com.indeed.imhotep.protobuf.ImhotepResponse;
 import com.indeed.imhotep.protobuf.MultiFTGSRequest;
@@ -56,15 +64,22 @@ import com.indeed.imhotep.protobuf.ShardBasicInfoMessage;
 import com.indeed.imhotep.protobuf.StatsSortOrder;
 import com.indeed.imhotep.scheduling.ImhotepTask;
 import com.indeed.imhotep.scheduling.SilentCloseable;
+import com.indeed.imhotep.utils.tempfiles.ImhotepTempFiles;
+import com.indeed.imhotep.utils.tempfiles.TempFile;
+import com.indeed.imhotep.utils.tempfiles.TempFiles;
 import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.core.reference.SharedReference;
 import org.apache.log4j.Logger;
 
 import javax.annotation.Nullable;
 import javax.annotation.WillClose;
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.net.InetSocketAddress;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -79,6 +94,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 /**
@@ -436,16 +452,20 @@ public abstract class AbstractImhotepServiceCore
             final boolean useUpstreamTermLimit = (filters.size() == 0) && (request.getSortStat() == -1);
             final long upstreamTermLimit = useUpstreamTermLimit ? request.getTermLimit() : 0L;
             final List<FTGSIterator[]> sessionSplitIterators = getMultiSessionSplitIterators(closer, validLocalSessionId, nodes, sessionInfoList, isIntField, splitIndex, upstreamTermLimit);
-            final FTGAIterator[] streams = doWithSession(validLocalSessionId, (Function<MTImhotepLocalMultiSession, FTGAIterator[]>) session -> {
-                return session.zipElementWise(modifiers, sessionSplitIterators, x -> new MultiSessionWrapper(x, filters.toList(), selects.toList()));
+
+            final FTGAIterator ftgaIterator = doWithSession(validLocalSessionId, (IOOrOutOfMemoryFunction<MTImhotepLocalMultiSession, FTGAIterator>) session -> {
+                return session.getFTGSIteratorReplica(request.getReplicaId(), request.getNumReplica(), () -> {
+                    final FTGAIterator[] streams = session.zipElementWise(modifiers, sessionSplitIterators, x -> new MultiSessionWrapper(x, filters.toList(), selects.toList()));
+                    closer.registerOrClose(Closeables2.forArray(log, streams));
+
+                    // If using term limits, then picking the lowest terms from amongst all inputs is required for ensuring that
+                    // we have the full data for the terms that are chosen.
+                    final FTGAIterator interleaver = closer.registerOrClose((sorted || useUpstreamTermLimit) ? new SortedFTGAInterleaver(streams) : new UnsortedFTGAIterator(streams));
+                    return closer.registerOrClose(modifiers.wrap(interleaver));
+                });
             });
-            closer.registerOrClose(Closeables2.forArray(log, streams));
 
-            // If using term limits, then picking the lowest terms from amongst all inputs is required for ensuring that
-            // we have the full data for the terms that are chosen.
-            final FTGAIterator interleaver = closer.registerOrClose((sorted || useUpstreamTermLimit) ? new SortedFTGAInterleaver(streams) : new UnsortedFTGAIterator(streams));
-
-            sendFTGAIterator(closer.registerOrClose(modifiers.wrap(interleaver)), os);
+            sendFTGAIterator(ftgaIterator, os);
         } finally {
             Closeables2.closeQuietly(closer, log);
         }
@@ -503,6 +523,108 @@ public abstract class AbstractImhotepServiceCore
     }
 
     @Override
+    public int handleFieldAggregateBucketRegroup(final FieldAggregateBucketRegroupRequest request, final List<String> sessionIds, final HostAndPort[] nodes) throws ImhotepOutOfMemoryException {
+        Preconditions.checkArgument(!sessionIds.isEmpty());
+
+        final List<FieldAggregateBucketRegroupRequest.FieldAggregateBucketRegroupSession> sessionInfoList = request.getSessionInfoList();
+
+        final Map<String, FieldAggregateBucketRegroupRequest.FieldAggregateBucketRegroupSession> sessionInfoMap = new HashMap<>();
+        final List<RemoteImhotepMultiSession.SessionField> sessionFields = new ArrayList<>();
+        for (final FieldAggregateBucketRegroupRequest.FieldAggregateBucketRegroupSession sessionInfo : sessionInfoList) {
+            sessionInfoMap.put(sessionInfo.getSessionId(), sessionInfo);
+            final String sessionIdLocallyAvailable;
+            if (getSessionManager().sessionIsValid(sessionInfo.getSessionId())) {
+                sessionIdLocallyAvailable = sessionInfo.getSessionId();
+            } else {
+                sessionIdLocallyAvailable = sessionIds.get(0);
+            }
+
+            final String username;
+            final String clientName;
+            final byte priority;
+            final AtomicLong tempFileSizeBytesLeft;
+            try (final SharedReference<MTImhotepLocalMultiSession> ref = getSessionManager().getSession(sessionIdLocallyAvailable)) {
+                tempFileSizeBytesLeft = ref.get().getTempFileSizeBytesLeft();
+                username = ref.get().getUserName();
+                clientName = ref.get().getClientName();
+                priority = ref.get().getPriority();
+            } catch (final IOException e) {
+                throw new RuntimeException(e);
+            }
+
+            final List<ImhotepRemoteSession> remoteSessions = new ArrayList<>();
+            final List<InetSocketAddress> addresses = new ArrayList<>();
+            for (final HostAndPort hostAndPort : sessionInfo.getNodesList()) {
+                // Definitely don't close this session
+                final ImhotepRemoteSession remoteSession = new ImhotepRemoteSession(hostAndPort.getHost(), hostAndPort.getPort(), sessionInfo.getSessionId(), tempFileSizeBytesLeft);
+                remoteSessions.add(remoteSession);
+                addresses.add(new InetSocketAddress(hostAndPort.getHost(), hostAndPort.getPort()));
+            }
+            // Don't close this as well.
+            //noinspection IOResourceOpenedButNotSafelyClosed
+            final RemoteImhotepMultiSession remoteMultiSession = new RemoteImhotepMultiSession(
+                    remoteSessions.toArray(new ImhotepRemoteSession[0]),
+                    sessionInfo.getSessionId(),
+                    addresses.toArray(new InetSocketAddress[0]),
+                    request.getLocalTempFileSizeLimit(),
+                    tempFileSizeBytesLeft,
+                    username,
+                    clientName,
+                    priority
+            );
+            sessionFields.add(new RemoteImhotepMultiSession.SessionField(remoteMultiSession, sessionInfo.getField(), sessionInfo.getStatsList().stream().map(DocStat::getStatList).collect(Collectors.toList())));
+        }
+
+        TempFile tempFile = null;
+        try {
+            final FTGSBinaryFormat.FieldStat[] fieldStats;
+            final int numGroups;
+            final int numStats;
+            final int resultNumGroups;
+            try (
+                    final FTGAIterator ftga = RemoteImhotepMultiSession.multiFtgs(sessionFields, request.getMetricList(), Collections.emptyList(), request.getIsIntField(), 0, 0, true, StatsSortOrder.UNDEFINED, nodes.length);
+                    final AggregateBucketFTGSIterator ftgs = new AggregateBucketFTGSIterator(ftga, request.getMin(), request.getMax(), request.getInterval(), request.getExcludeGutters(), request.getWithDefault())
+            ) {
+                numGroups = ftgs.getNumGroups();
+                numStats = ftgs.getNumStats();
+                tempFile = ImhotepTempFiles.createAggregateBucketTempFile(sessionIds);
+                try (final BufferedOutputStream out = tempFile.bufferedOutputStream()) {
+                    fieldStats = FTGSIteratorUtil.writeFtgsIteratorToStream(ftgs, out);
+                }
+                resultNumGroups = ftgs.getResultNumGroups();
+            } catch (final IOException e) {
+                throw new RuntimeException(e);
+            }
+
+            final TempFile tempFileFinal = tempFile;
+            return doWithSession(sessionIds.get(0), (ThrowingFunction<MTImhotepLocalMultiSession, Integer, ImhotepOutOfMemoryException>) whateverSession -> {
+                final Integer[] intBuf = new Integer[sessionIds.size()];
+                whateverSession
+                        .executor()
+                        .executeMemoryException(intBuf, sessionIds.toArray(new String[0]), sessionId -> {
+                            final FieldAggregateBucketRegroupRequest.FieldAggregateBucketRegroupSession sessionInfo = sessionInfoMap.get(sessionId);
+                            final RegroupParams regroupParams = new RegroupParams(sessionInfo.getInputGroup(), sessionInfo.getOutputGroup());
+                            final Supplier<FTGSIterator> supplier = () -> {
+                                try {
+                                    final BufferedInputStream bufferedInputStream = tempFileFinal.bufferedInputStream();
+                                    return new InputStreamFTGSIterator(bufferedInputStream, fieldStats, numStats, numGroups);
+                                } catch (final IOException e) {
+                                    throw new RuntimeException(e);
+                                }
+                            };
+                            return doWithSessionAlreadyHasTask(sessionId, session ->
+                                    session.aggregateBucketRegroup(regroupParams, supplier, sessionInfo.getField(), request.getIsIntField(), resultNumGroups)
+                            );
+                        });
+                return Collections.max(Arrays.asList(intBuf));
+            });
+        } finally {
+            TempFiles.removeFileQuietly(tempFile);
+        }
+
+    }
+
+    @Override
     public abstract ImhotepStatusDump handleGetStatusDump(final boolean includeShardList);
 
     private static interface ThrowingFunction<A, B, T extends Throwable> {
@@ -513,6 +635,17 @@ public abstract class AbstractImhotepServiceCore
         B apply(A a) throws IOException, ImhotepOutOfMemoryException;
     }
 
+    private <Z, T extends Throwable> Z doWithSessionAlreadyHasTask(
+            final String sessionId,
+            final ThrowingFunction<MTImhotepLocalMultiSession, Z, T> f) throws T {
+        final SharedReference<MTImhotepLocalMultiSession> sessionRef = getSessionManager().getSession(sessionId);
+        try {
+            final MTImhotepLocalMultiSession session = sessionRef.get();
+            return f.apply(session);
+        } finally {
+            Closeables2.closeQuietly(sessionRef, log);
+        }
+    }
     private <Z, T extends Throwable> Z doWithSession(
             final String sessionId,
             final ThrowingFunction<MTImhotepLocalMultiSession, Z, T> f) throws T {

@@ -34,6 +34,24 @@ public class BuffersPool {
         intBuffers.add(buffer);
     }
 
+    public synchronized void returnIntBuffers(final int[]... buffers) {
+        RuntimeException throwable = null;
+        for (final int[] buffer : buffers) {
+            try {
+                returnIntBuffer(buffer);
+            } catch (final RuntimeException e) {
+                if (throwable == null) {
+                    throwable = e;
+                } else {
+                    throwable.addSuppressed(e);
+                }
+            }
+        }
+        if (throwable != null) {
+            throw throwable;
+        }
+    }
+
     public synchronized long[] getLongBuffer(final int size, final boolean precise) {
         for (int i = 0; i < longBuffers.size(); i++) {
             final long[] array = longBuffers.get(i);
