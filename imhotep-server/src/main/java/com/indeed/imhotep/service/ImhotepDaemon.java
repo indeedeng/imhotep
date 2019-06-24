@@ -78,6 +78,7 @@ import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
+import java.net.SocketTimeoutException;
 import java.net.URISyntaxException;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -1224,12 +1225,15 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                     log.warn("ImhotepOutOfMemoryException while servicing request", e);
                     sendResponse(ImhotepResponse.newBuilder().setResponseCode(oom).build(), os);
                 } catch (final IOException e) {
-                    try {
-                        sendResponse(newErrorResponse(e), os);
-                    } catch (final Exception e2) {
-                        log.error("Exception during sending back the error", e2);
+                    // IMTEPD-571: Ignore the socket timeout exception, which would be caused frequently by the connection pool
+                    if (!(e instanceof SocketTimeoutException)) {
+                        try {
+                            sendResponse(newErrorResponse(e), os);
+                        } catch (final Exception e2) {
+                            log.error("Exception during sending back the error", e2);
+                        }
+                        throw e;
                     }
-                    throw e;
                 } catch (final RuntimeException e) {
                     expireSession(request, e);
                     try {

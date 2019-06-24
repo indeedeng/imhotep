@@ -43,8 +43,12 @@ public class ImhotepConnectionPool implements Closeable {
         final ImhotepConnectionKeyedPooledObjectFactory factory = new ImhotepConnectionKeyedPooledObjectFactory(config);
 
         final GenericKeyedObjectPoolConfig<Socket> sourcePoolConfig = new GenericKeyedObjectPoolConfig<>();
+        // unlimited sockets for every host
+        sourcePoolConfig.setMaxTotalPerKey(-1);
+        sourcePoolConfig.setMaxTotal(-1);
         sourcePoolConfig.setMaxIdlePerKey(config.getMaxIdleSocketPerHost());
-        sourcePoolConfig.setLifo(true);
+        sourcePoolConfig.setBlockWhenExhausted(false);
+        sourcePoolConfig.setLifo(false);
         sourcePoolConfig.setTestOnBorrow(true);
 
         sourcePool = new GenericKeyedObjectPool<>(factory, sourcePoolConfig);
@@ -157,7 +161,7 @@ public class ImhotepConnectionPool implements Closeable {
             try {
                 return function.apply(connection);
             } catch (final Throwable t) {
-                connection.markAsInvalid();
+                invalidateConnection(connection);
                 throw t;
             }
         }
@@ -176,7 +180,7 @@ public class ImhotepConnectionPool implements Closeable {
             try {
                 return function.apply(connection);
             } catch (final Throwable t) {
-                connection.markAsInvalid();
+                invalidateConnection(connection);
                 throw t;
             }
         }
