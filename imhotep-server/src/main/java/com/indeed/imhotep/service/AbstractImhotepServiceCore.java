@@ -582,7 +582,18 @@ public abstract class AbstractImhotepServiceCore
             final int numStats;
             final int resultNumGroups;
             try (
-                    final FTGAIterator ftga = RemoteImhotepMultiSession.multiFtgs(sessionFields, request.getMetricList(), Collections.emptyList(), request.getIsIntField(), 0, 0, true, StatsSortOrder.UNDEFINED, nodes.length);
+                    final FTGAIterator ftga = RemoteImhotepMultiSession.multiFtgs(
+                            sessionFields,
+                            request.getMetricList(),
+                            Collections.emptyList(),
+                            request.getIsIntField(),
+                            0,
+                            0,
+                            true,
+                            StatsSortOrder.UNDEFINED,
+                            request.getMyIndex(),
+                            nodes.length
+                    );
                     final AggregateBucketFTGSIterator ftgs = new AggregateBucketFTGSIterator(ftga, request.getMin(), request.getMax(), request.getInterval(), request.getExcludeGutters(), request.getWithDefault())
             ) {
                 numGroups = ftgs.getNumGroups();

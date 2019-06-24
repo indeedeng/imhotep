@@ -416,6 +416,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
                 sortStat,
                 sorted,
                 statsSortOrder,
+                0,
                 1
         );
     }
@@ -429,6 +430,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
             final int sortStat,
             final boolean sorted,
             final StatsSortOrder statsSortOrder,
+            final int replicaId,
             final int numReplica
     ) throws ImhotepOutOfMemoryException {
         final MultiFTGSRequest.Builder builder = MultiFTGSRequest.newBuilder();
@@ -442,6 +444,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
                 .setSortStat(sortStat)
                 .setSortedFTGS(sorted)
                 .setStatsSortOrder(statsSortOrder)
+                .setReplicaId(replicaId)
                 .setNumReplica(numReplica);
 
         final Pair<Integer, HostAndPort>[] indexedServers = indexedServers(builder.getNodesList());
@@ -513,8 +516,8 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
                 .setExcludeGutters(excludeGutters)
                 .setWithDefault(withDefault);
 
-        final HostAndPort[] servers = builder.getNodesList().toArray(new HostAndPort[0]);
-        final Integer[] intBuffer = new Integer[servers.length];
+        final Pair<Integer, HostAndPort>[] indexedServers = indexedServers(builder.getNodesList());
+        final Integer[] intBuffer = new Integer[indexedServers.length];
 
         final FieldAggregateBucketRegroupRequest requestBase = builder.build();
         final AtomicLong tempFileSizeBytesLeft = getTempFileSizeBytesLeft(sessionsWithFields);
@@ -526,12 +529,13 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
         remoteSessions.get(0)
                 .executor()
                 .lockCPU(false) // Just send request and receive response.
-                .executeMemoryException(intBuffer, servers, hostAndPort -> {
+                .executeMemoryException(intBuffer, indexedServers, pair -> {
                     // Definitely don't close this session
                     //noinspection IOResourceOpenedButNotSafelyClosed
-                    final ImhotepRemoteSession remoteSession = new ImhotepRemoteSession(hostAndPort.getHost(), hostAndPort.getPort(), concatenatedSessionIds, tempFileSizeBytesLeft, ImhotepRemoteSession.DEFAULT_SOCKET_TIMEOUT);
+                    final ImhotepRemoteSession remoteSession = new ImhotepRemoteSession(pair.getSecond().getHost(), pair.getSecond().getPort(), concatenatedSessionIds, tempFileSizeBytesLeft, ImhotepRemoteSession.DEFAULT_SOCKET_TIMEOUT);
                     final FieldAggregateBucketRegroupRequest request = FieldAggregateBucketRegroupRequest.newBuilder(requestBase)
-                            .addAllSessionId(sessionIdsPerHost.get(hostAndPort))
+                            .addAllSessionId(sessionIdsPerHost.get(pair.getSecond()))
+                            .setMyIndex(pair.getFirst())
                             .build();
                     return remoteSession.fieldAggregateBucketRegroup(request);
                 });

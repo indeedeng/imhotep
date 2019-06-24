@@ -331,9 +331,9 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
         if (replica != null) {
             return replica;
         }
-//        if (numReplica == 1) {
-//            return ftgaSupplier.get();
-//        }
+        if (numReplica > 0) {// FIXME
+            return ftgaSupplier.get();
+        }
         final TempFile tempFile = ImhotepTempFiles.createFTGAReplicaTempFile(getSessionId());
         final FTGAIterator iteratorToPersist = ftgaSupplier.get();
         try {

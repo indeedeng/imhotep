@@ -422,16 +422,17 @@ message FieldAggregateBucketRegroupRequest {
   }
   repeated string sessionId = 1;
   repeated FieldAggregateBucketRegroupSession sessionInfo = 2;
-  repeated AggregateStat metric = 3;
-  optional int64 min = 4;
-  optional int64 max = 5;
-  optional int64 interval = 6;
-  optional bool excludeGutters = 7;
-  optional bool withDefault = 8;
+  optional int32 myIndex = 3;
+  repeated AggregateStat metric = 4;
+  optional int64 min = 5;
+  optional int64 max = 6;
+  optional int64 interval = 7;
+  optional bool excludeGutters = 8;
+  optional bool withDefault = 9;
 
-  optional bool isIntField = 9;
-  repeated HostAndPort nodes = 10;
-  optional int64 localTempFileSizeLimit = 11;
+  optional bool isIntField = 10;
+  repeated HostAndPort nodes = 11;
+  optional int64 localTempFileSizeLimit = 12;
 }
 
 message ImhotepResponse {
