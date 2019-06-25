@@ -270,10 +270,6 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
         return Collections.max(Arrays.asList(integerBuf));
     }
 
-    public BatchRemoteImhotepMultiSession toBatch(){
-        return new BatchRemoteImhotepMultiSession(this);
-    }
-
     public static class SessionField {
         private final RemoteImhotepMultiSession session;
         private final Runnable synchronizeCallback;

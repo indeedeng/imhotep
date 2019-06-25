@@ -6,6 +6,7 @@ import com.indeed.flamdex.query.Term;
 import com.indeed.imhotep.GroupMultiRemapRule;
 import com.indeed.imhotep.QueryRemapRule;
 import com.indeed.imhotep.RegroupCondition;
+import com.indeed.imhotep.api.CommandSerializationParameters;
 import com.indeed.imhotep.api.ImhotepCommand;
 import com.indeed.imhotep.api.RegroupParams;
 import com.indeed.imhotep.protobuf.Operator;
@@ -17,6 +18,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Validating deserialization of ImhotepCommand gives expected command and parameters.
@@ -30,7 +32,22 @@ public class TestImhotepCommandDeserialization implements CommandsTest {
 
     private void assertEqualDeserialize(final ImhotepCommand command) throws IOException {
         final ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-        command.writeToOutputStream(outputStream);
+        command.writeToOutputStream(outputStream, new CommandSerializationParameters() {
+            @Override
+            public String getHost() {
+                return "localhost";
+            }
+
+            @Override
+            public int getPort() {
+                return 1337;
+            }
+
+            @Override
+            public AtomicLong getTempFileSizeBytesLeft() {
+                return new AtomicLong();
+            }
+        });
         final ByteArrayInputStream inputStream = new ByteArrayInputStream(outputStream.toByteArray());
         final ImhotepCommand deserializedCommand = ImhotepCommand.readFromInputStream(inputStream);
         Assert.assertEquals(0, inputStream.available());
