@@ -1,6 +1,5 @@
 package com.indeed.imhotep;
 
-import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.indeed.flamdex.query.Query;
 import com.indeed.imhotep.api.FTGSIterator;
@@ -40,7 +39,6 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
