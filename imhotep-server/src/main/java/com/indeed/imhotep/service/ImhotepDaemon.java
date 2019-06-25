@@ -968,7 +968,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                         openSession.shards,
                         openSessionData.getUsername(),
                         openSessionData.getClientName(),
-                        null, //TODO:
+                        socket.getInetAddress().getHostAddress(),
                         openSessionData.getPriority(),
                         openSession.clientVersion,
                         openSessionData.getMergeThreadLimit(),

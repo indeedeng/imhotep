@@ -119,7 +119,6 @@ public class BatchRemoteImhotepMultiSession extends AbstractImhotepSession {
     @Override
     public FTGSIterator getSubsetFTGSIterator(final String groupsName, final Map<String, long[]> intFields, final Map<String, String[]> stringFields, @Nullable final List<List<String>> stats) throws ImhotepOutOfMemoryException {
         executeBatch();
-        Preconditions.checkNotNull(remoteImhotepMultiSession);
         return remoteImhotepMultiSession.getSubsetFTGSIterator(groupsName, intFields, stringFields, stats);
     }
 

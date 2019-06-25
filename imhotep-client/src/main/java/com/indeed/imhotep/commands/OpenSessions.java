@@ -43,7 +43,6 @@ public class OpenSessions extends VoidAbstractImhotepCommand {
     public OpenSessions(
             final Map<Host, List<Shard>> hostToShards,
             final OpenSessionData openSessionData,
-
             final int socketTimeout,
             final long localTempFileSizeLimit,
             final boolean allowSessionForwarding,
@@ -63,7 +62,7 @@ public class OpenSessions extends VoidAbstractImhotepCommand {
 
     @Override
     protected RequestTools.ImhotepRequestSender imhotepRequestSenderInitializer() {
-        throw new UnsupportedOperationException("Shouldn't be calling this...");
+        throw new IllegalStateException("Shouldn't be calling this...");
     }
 
     @Override
