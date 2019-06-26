@@ -39,4 +39,6 @@ interface CommandsTest {
 
      void testDeleteGroups() throws Exception;
 
+     void testGetNumGroups() throws Exception;
+
 }

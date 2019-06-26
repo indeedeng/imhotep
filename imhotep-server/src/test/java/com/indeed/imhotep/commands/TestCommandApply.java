@@ -233,4 +233,12 @@ public class TestCommandApply implements CommandsTest {
             session.deleteGroups(groupsToDelete);
         });
     }
+
+    @Override
+    @Test
+    public void testGetNumGroups() throws Exception {
+        testApplyMethodCallInt(new GetNumGroups(ImhotepSession.DEFAULT_GROUPS, SESSION_ID), imhotepSession -> {
+            return imhotepSession.getNumGroups(EasyMock.eq(ImhotepSession.DEFAULT_GROUPS));
+        });
+    }
 }

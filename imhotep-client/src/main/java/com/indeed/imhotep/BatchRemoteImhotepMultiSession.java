@@ -12,6 +12,7 @@ import com.indeed.imhotep.api.RegroupParams;
 import com.indeed.imhotep.commands.ConsolidateGroups;
 import com.indeed.imhotep.commands.DeleteGroups;
 import com.indeed.imhotep.commands.GetGroupStats;
+import com.indeed.imhotep.commands.GetNumGroups;
 import com.indeed.imhotep.commands.IntOrRegroup;
 import com.indeed.imhotep.commands.MetricRegroup;
 import com.indeed.imhotep.commands.MultiRegroup;
@@ -59,6 +60,17 @@ public class BatchRemoteImhotepMultiSession extends AbstractImhotepSession {
     private <T> T executeBatchAndGetResult(final ImhotepCommand<T> lastCommand) throws ImhotepOutOfMemoryException {
         try {
             return remoteImhotepMultiSession.processImhotepBatchRequest(commands, lastCommand);
+        } finally {
+            commands.clear();
+        }
+    }
+
+    private <T> T executeBatchAndGetResultNoMemoryException(final ImhotepCommand<T> lastCommand) {
+        try {
+            return remoteImhotepMultiSession.processImhotepBatchRequest(commands, lastCommand);
+        } catch (final ImhotepOutOfMemoryException e) {
+            log.error("ImhotepOutOfMemoryException while executing Imhotep Batch commands. SessionId: " + getSessionId() + " commands class List: " + getLogCommandClassNameList());
+            throw Throwables.propagate(e);
         } finally {
             commands.clear();
         }
@@ -259,8 +271,7 @@ public class BatchRemoteImhotepMultiSession extends AbstractImhotepSession {
 
     @Override
     public int getNumGroups(final String groupsName) {
-        executeBatchNoMemoryException();
-        return remoteImhotepMultiSession.getNumGroups(groupsName);
+        return executeBatchAndGetResultNoMemoryException(new GetNumGroups(groupsName, getSessionId()));
     }
 
     @Override

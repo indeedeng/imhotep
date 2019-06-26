@@ -9,6 +9,7 @@ import com.indeed.imhotep.GroupMultiRemapRule;
 import com.indeed.imhotep.commands.ConsolidateGroups;
 import com.indeed.imhotep.commands.DeleteGroups;
 import com.indeed.imhotep.commands.GetGroupStats;
+import com.indeed.imhotep.commands.GetNumGroups;
 import com.indeed.imhotep.commands.IntOrRegroup;
 import com.indeed.imhotep.commands.MetricRegroup;
 import com.indeed.imhotep.commands.MultiRegroup;
@@ -220,6 +221,11 @@ public interface ImhotepCommand<T> extends HasSessionId {
             case DELETE_GROUPS:
                 return new DeleteGroups(
                         request.getGroupsToDeleteList(),
+                        request.getSessionId()
+                );
+            case GET_NUM_GROUPS:
+                return new GetNumGroups(
+                        request.getInputGroups(),
                         request.getSessionId()
                 );
             default:
