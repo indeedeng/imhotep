@@ -1598,11 +1598,13 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
 
         final GroupLookup inputGroups = namedGroupLookups.get(regroupParams.getInputGroups());
         final GroupLookup outputGroups = namedGroupLookups.ensureWriteable(regroupParams, maxOutputGroup);
-        final FastBitSet moved = new FastBitSet(numDocs);
 
-        final long memoryUsage = (BUFFER_SIZE * Ints.BYTES * 3) + ((long)inputGroups.getNumGroups() * Ints.BYTES);
-        memory.claimMemory(memoryUsage);
+        final long memoryUsage = (BUFFER_SIZE * Ints.BYTES * 3) + ((long)inputGroups.getNumGroups() * Ints.BYTES) + getBitSetMemoryUsage();
+        if (!memory.claimMemory(memoryUsage)) {
+            throw newImhotepOutOfMemoryException();
+        }
         try {
+            final FastBitSet moved = new FastBitSet(numDocs);
             final int[] docIdBuf = memoryPool.getIntBuffer(BUFFER_SIZE, true);
             final int[] docIdGroupBuf = memoryPool.getIntBuffer(BUFFER_SIZE, true);
             final int[] docIdNewGroupBuf = memoryPool.getIntBuffer(BUFFER_SIZE, true);
@@ -1641,11 +1643,12 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
 
         final GroupLookup inputGroups = namedGroupLookups.get(regroupParams.getInputGroups());
         final GroupLookup outputGroups = namedGroupLookups.ensureWriteable(regroupParams, maxOutputGroup);
-        final FastBitSet moved = new FastBitSet(numDocs);
-
-        final long memoryUsage = (BUFFER_SIZE * Ints.BYTES * 3) + ((long)inputGroups.getNumGroups() * Ints.BYTES);
-        memory.claimMemory(memoryUsage);
+        final long memoryUsage = (BUFFER_SIZE * Ints.BYTES * 3) + ((long)inputGroups.getNumGroups() * Ints.BYTES) + getBitSetMemoryUsage();
+        if (!memory.claimMemory(memoryUsage)) {
+            throw newImhotepOutOfMemoryException();
+        }
         try {
+            final FastBitSet moved = new FastBitSet(numDocs);
             final int[] docIdBuf = memoryPool.getIntBuffer(BUFFER_SIZE, true);
             final int[] docIdGroupBuf = memoryPool.getIntBuffer(BUFFER_SIZE, true);
             final int[] docIdNewGroupBuf = memoryPool.getIntBuffer(BUFFER_SIZE, true);

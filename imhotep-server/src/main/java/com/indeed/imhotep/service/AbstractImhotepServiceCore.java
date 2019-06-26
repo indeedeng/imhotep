@@ -451,10 +451,10 @@ public abstract class AbstractImhotepServiceCore
         try {
             final boolean useUpstreamTermLimit = (filters.size() == 0) && (request.getSortStat() == -1);
             final long upstreamTermLimit = useUpstreamTermLimit ? request.getTermLimit() : 0L;
-            final List<FTGSIterator[]> sessionSplitIterators = getMultiSessionSplitIterators(closer, validLocalSessionId, nodes, sessionInfoList, isIntField, splitIndex, upstreamTermLimit);
 
             final FTGAIterator ftgaIterator = doWithSession(validLocalSessionId, (IOOrOutOfMemoryFunction<MTImhotepLocalMultiSession, FTGAIterator>) session -> {
                 return session.getFTGSIteratorReplica(request.getReplicaId(), request.getNumReplica(), () -> {
+                    final List<FTGSIterator[]> sessionSplitIterators = getMultiSessionSplitIterators(closer, validLocalSessionId, nodes, sessionInfoList, isIntField, splitIndex, upstreamTermLimit);
                     final FTGAIterator[] streams = session.zipElementWise(modifiers, sessionSplitIterators, x -> new MultiSessionWrapper(x, filters.toList(), selects.toList()));
                     closer.registerOrClose(Closeables2.forArray(log, streams));
 
@@ -531,7 +531,7 @@ public abstract class AbstractImhotepServiceCore
         final Map<String, FieldAggregateBucketRegroupRequest.FieldAggregateBucketRegroupSession> sessionInfoMap = new HashMap<>();
         final List<RemoteImhotepMultiSession.SessionField> sessionFields = new ArrayList<>();
         for (final FieldAggregateBucketRegroupRequest.FieldAggregateBucketRegroupSession sessionInfo : sessionInfoList) {
-            sessionInfoMap.put(sessionInfo.getSessionId(), sessionInfo);
+            Preconditions.checkState(sessionInfoMap.put(sessionInfo.getSessionId(), sessionInfo) == null);
             final String sessionIdLocallyAvailable;
             if (getSessionManager().sessionIsValid(sessionInfo.getSessionId())) {
                 sessionIdLocallyAvailable = sessionInfo.getSessionId();

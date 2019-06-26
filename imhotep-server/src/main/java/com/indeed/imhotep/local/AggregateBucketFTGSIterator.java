@@ -28,9 +28,9 @@ public class AggregateBucketFTGSIterator implements FTGSIterator {
         this.max = max;
         this.interval = interval;
         final int numBuckets = Ints.checkedCast((max - min) / interval);
-        this.numBucketsIncludingGutter = (excludeGutters ? 0 : 2) + numBuckets;
-        this.lowerGutter = excludeGutters ? 0 : (numBuckets + (withDefault ? 2 : 1));
-        this.upperGutter = excludeGutters ? 0 : (numBuckets + 2);
+        this.numBucketsIncludingGutter = (excludeGutters ? 0 : (withDefault ? 1 : 2)) + numBuckets;
+        this.lowerGutter = excludeGutters ? 0 : (numBuckets + 1);
+        this.upperGutter = excludeGutters ? 0 : (numBuckets + (withDefault ? 1 : 2));
     }
 
     // Returns [0, numBuckets + 3).
