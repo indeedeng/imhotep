@@ -237,4 +237,11 @@ public class TestCommandDeserializeRemoteImhotepRequest implements CommandsTest 
         imhotepRemoteSession.deleteGroups(groupsToDelete);
         Assert.assertEquals(new DeleteGroups(groupsToDelete, SESSION_ID), holder.futureCommand.get());
     }
+
+    @Override
+    @Test
+    public void testGetNumGroups() throws Exception {
+        imhotepRemoteSession.getNumGroups(TEST_INPUT_GROUPS_NAME);
+        Assert.assertEquals(new GetNumGroups(TEST_INPUT_GROUPS_NAME, SESSION_ID), holder.futureCommand.get());
+    }
 }

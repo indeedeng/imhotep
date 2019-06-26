@@ -159,4 +159,9 @@ public class TestImhotepCommandDeserialization implements CommandsTest {
         assertEqualDeserialize(new DeleteGroups(Collections.singletonList("someGroups"), SESSION_ID));
     }
 
+    @Override
+    @Test
+    public void testGetNumGroups() throws Exception {
+        assertEqualDeserialize(new GetNumGroups(TEST_INPUT_GROUPS_NAME, SESSION_ID));
+    }
 }

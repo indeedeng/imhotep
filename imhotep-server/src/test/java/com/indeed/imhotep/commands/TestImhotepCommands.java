@@ -340,4 +340,12 @@ public class TestImhotepCommands implements CommandsTest {
     public void testDeleteGroups() {
         // nothing really great to check here
     }
+
+    @Override
+    @Test
+    public void testGetNumGroups() throws Exception {
+        assertEqualGroupStats(imhotepSession -> {
+            return imhotepSession.getNumGroups(ImhotepSession.DEFAULT_GROUPS);
+        });
+    }
 }
