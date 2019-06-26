@@ -13,6 +13,8 @@ import com.indeed.imhotep.commands.GetNumGroups;
 import com.indeed.imhotep.commands.IntOrRegroup;
 import com.indeed.imhotep.commands.MetricRegroup;
 import com.indeed.imhotep.commands.MultiRegroup;
+import com.indeed.imhotep.commands.OpenSession;
+import com.indeed.imhotep.commands.OpenSessionData;
 import com.indeed.imhotep.commands.QueryRegroup;
 import com.indeed.imhotep.commands.RandomMetricMultiRegroup;
 import com.indeed.imhotep.commands.RandomMetricRegroup;
@@ -48,7 +50,7 @@ public interface ImhotepCommand<T> extends HasSessionId {
     /**
      * Write Imhotep Request to outputStream.
      */
-    void writeToOutputStream(OutputStream os) throws IOException;
+    void writeToOutputStream(OutputStream os, final CommandSerializationParameters serializationParameters) throws IOException;
 
     /**
      * Read the response on client side.
@@ -227,6 +229,13 @@ public interface ImhotepCommand<T> extends HasSessionId {
                 return new GetNumGroups(
                         request.getInputGroups(),
                         request.getSessionId()
+                );
+            case OPEN_SESSION:
+                return new OpenSession(
+                        request.getSessionId(),
+                        OpenSessionData.readFromImhotepRequest(request),
+                        request.getShardsList(),
+                        request.getClientVersion()
                 );
             default:
                 throw new IllegalArgumentException("unsupported request type in batch request: " +

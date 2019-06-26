@@ -66,7 +66,10 @@ public class MultiRegroupMessagesSender extends AbstractImhotepCommand<Integer> 
     }
 
     @Override
-    public void writeToOutputStream(final OutputStream os) throws IOException {
+    public void writeToOutputStream(
+            final OutputStream os,
+            final CommandSerializationParameters serializationParameters
+    ) throws IOException {
         getImhotepRequestSender().writeToStreamNoFlush(os);
         groupMultiRemapRuleSender.writeToStreamNoFlush(os);
         os.flush();

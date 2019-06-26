@@ -40,6 +40,9 @@ import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.api.PerformanceStats;
 import com.indeed.imhotep.api.RegroupParams;
 import com.indeed.imhotep.client.Host;
+import com.indeed.imhotep.commands.OpenSession;
+import com.indeed.imhotep.commands.OpenSessionData;
+import com.indeed.imhotep.commands.OpenSessions;
 import com.indeed.imhotep.exceptions.InvalidSessionException;
 import com.indeed.imhotep.fs.RemoteCachingFileSystemProvider;
 import com.indeed.imhotep.io.ImhotepProtobufShipping;
@@ -949,6 +952,40 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             for (int i = 0; i < imhotepRequestCount; i++) {
                 commands.add(ImhotepCommand.readFromInputStream(is));
             }
+
+            // If the first command is open session, that means we haven't created the session yet and it's
+            // part of this batch.
+            if (commands.get(0) instanceof OpenSession) {
+                final OpenSession openSession = (OpenSession) commands.get(0);
+                NDC.push(openSession.getSessionId());
+                final OpenSessionData openSessionData = openSession.openSessionData;
+                final AtomicLong tempFileSizeBytesLeft =
+                        (openSessionData.getDaemonTempFileSizeLimit() > 0)
+                                ? new AtomicLong(openSessionData.getDaemonTempFileSizeLimit())
+                                : null;
+                service.handleOpenSession(
+                        openSessionData.getDataset(),
+                        openSession.shards,
+                        openSessionData.getUsername(),
+                        openSessionData.getClientName(),
+                        socket.getInetAddress().getHostAddress(),
+                        openSessionData.getPriority(),
+                        openSession.clientVersion,
+                        openSessionData.getMergeThreadLimit(),
+                        openSessionData.isOptimizeGroupZeroLookups(),
+                        openSession.getSessionId(),
+                        tempFileSizeBytesLeft,
+                        openSessionData.getSessionTimeout(),
+                        openSessionData.isUseFtgsPooledConnection()
+                );
+                commands.remove(0);
+
+                // was only OPEN_SESSION in the end
+                if (commands.isEmpty()) {
+                    return Pair.of(builder.build(), null);
+                }
+            }
+
 
             final ImhotepCommand lastCommand = commands.get(commands.size() - 1);
             commands.remove(commands.size() - 1);

@@ -1,22 +1,31 @@
 package com.indeed.imhotep.commands;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.indeed.flamdex.query.Query;
 import com.indeed.flamdex.query.Term;
 import com.indeed.imhotep.GroupMultiRemapRule;
+import com.indeed.imhotep.ImhotepRemoteSession;
 import com.indeed.imhotep.QueryRemapRule;
 import com.indeed.imhotep.RegroupCondition;
+import com.indeed.imhotep.Shard;
+import com.indeed.imhotep.api.CommandSerializationParameters;
 import com.indeed.imhotep.api.ImhotepCommand;
 import com.indeed.imhotep.api.RegroupParams;
+import com.indeed.imhotep.client.Host;
+import com.indeed.imhotep.protobuf.HostAndPort;
 import com.indeed.imhotep.protobuf.Operator;
+import com.indeed.imhotep.protobuf.ShardBasicInfoMessage;
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Validating deserialization of ImhotepCommand gives expected command and parameters.
@@ -28,12 +37,41 @@ public class TestImhotepCommandDeserialization implements CommandsTest {
     private static final String TEST_INPUT_GROUPS_NAME = "myOtherTestGroups";
     private static final RegroupParams TEST_REGROUP_PARAMS = new RegroupParams("myInputGroups", "myOutputGroups");
 
-    private void assertEqualDeserialize(final ImhotepCommand command) throws IOException {
+    private ImhotepCommand readSerializedAndDeserialized(
+            final ImhotepCommand command, final CommandSerializationParameters serializationParameters
+    ) throws IOException {
         final ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-        command.writeToOutputStream(outputStream);
+        command.writeToOutputStream(outputStream, serializationParameters);
         final ByteArrayInputStream inputStream = new ByteArrayInputStream(outputStream.toByteArray());
         final ImhotepCommand deserializedCommand = ImhotepCommand.readFromInputStream(inputStream);
         Assert.assertEquals(0, inputStream.available());
+        return deserializedCommand;
+    }
+
+    private CommandSerializationParameters makeSerializationParameters(final String host, final int port) {
+        return new CommandSerializationParameters() {
+            @Override
+            public String getHost() {
+                return host;
+            }
+
+            @Override
+            public int getPort() {
+                return port;
+            }
+
+            @Override
+            public AtomicLong getTempFileSizeBytesLeft() {
+                return new AtomicLong();
+            }
+        };
+    }
+
+    private void assertEqualDeserialize(final ImhotepCommand command) throws IOException {
+        final ImhotepCommand deserializedCommand = readSerializedAndDeserialized(
+                command,
+                makeSerializationParameters("localhost", 1337)
+        );
         Assert.assertEquals(command, deserializedCommand);
     }
 
@@ -157,6 +195,111 @@ public class TestImhotepCommandDeserialization implements CommandsTest {
     @Test
     public void testDeleteGroups() throws Exception {
         assertEqualDeserialize(new DeleteGroups(Collections.singletonList("someGroups"), SESSION_ID));
+    }
+
+    @Test
+    public void testOpenSessions() throws Exception {
+        final OpenSessionData openSessionData = new OpenSessionData(
+                "organic",
+                4,
+                "username",
+                "clientname",
+                (byte) 0,
+                false,
+                500L,
+                30L,
+                false
+        );
+        final OpenSessions openSessions = new OpenSessions(
+                ImmutableMap.of(
+                        new Host("host1", 1234),
+                        Collections.singletonList(new Shard("shardid1", 5, 1L, new Host("host1", 1234))),
+                        new Host("host1", 1235),
+                        Lists.newArrayList(
+                                new Shard("shardid2", 15, 1L, new Host("host1", 1235)),
+                                new Shard("shardid3", 30, 3L, new Host("host1", 1235))
+                        ),
+                        new Host("host2", 1234),
+                        Collections.singletonList(new Shard("shardid4", 15, 1L, new Host("host2", 1234)))
+                ),
+                openSessionData,
+                60,
+                100L,
+                false,
+                false
+        );
+
+        {
+            final List<ShardBasicInfoMessage> shards = new ArrayList<>();
+            shards.add(
+                    ShardBasicInfoMessage.newBuilder()
+                            .setShardName("shardid1.1")
+                            .setNumDocs(5)
+                            .build()
+            );
+            Assert.assertEquals(
+                    new OpenSession(
+                            openSessions.getSessionId(),
+                            openSessionData,
+                            shards,
+                            ImhotepRemoteSession.CURRENT_CLIENT_VERSION
+                    ),
+                    readSerializedAndDeserialized(
+                            openSessions,
+                            makeSerializationParameters("host1", 1234)
+                    )
+            );
+        }
+
+        {
+            final List<ShardBasicInfoMessage> shards = new ArrayList<>();
+            shards.add(
+                    ShardBasicInfoMessage.newBuilder()
+                            .setShardName("shardid2.1")
+                            .setNumDocs(15)
+                            .build()
+            );
+            shards.add(
+                    ShardBasicInfoMessage.newBuilder()
+                            .setShardName("shardid3.3")
+                            .setNumDocs(30)
+                            .build()
+            );
+            Assert.assertEquals(
+                    new OpenSession(
+                            openSessions.getSessionId(),
+                            openSessionData,
+                            shards,
+                            ImhotepRemoteSession.CURRENT_CLIENT_VERSION
+                    ),
+                    readSerializedAndDeserialized(
+                            openSessions,
+                            makeSerializationParameters("host1", 1235)
+                    )
+            );
+        }
+
+        {
+            final List<ShardBasicInfoMessage> shards = new ArrayList<>();
+            shards.add(
+                    ShardBasicInfoMessage.newBuilder()
+                            .setShardName("shardid4.1")
+                            .setNumDocs(15)
+                            .build()
+            );
+            Assert.assertEquals(
+                    new OpenSession(
+                            openSessions.getSessionId(),
+                            openSessionData,
+                            shards,
+                            ImhotepRemoteSession.CURRENT_CLIENT_VERSION
+                    ),
+                    readSerializedAndDeserialized(
+                            openSessions,
+                            makeSerializationParameters("host2", 1234)
+                    )
+            );
+        }
     }
 
     @Override

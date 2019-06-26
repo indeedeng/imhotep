@@ -130,7 +130,7 @@ public class TestImhotepCommands implements CommandsTest {
     public void setUpMultiSessions() throws InterruptedException, IOException, TimeoutException {
         final ImhotepClient imhotepClient = clusterRunner.createClient();
         imhotepMultiSession = (RemoteImhotepMultiSession) imhotepClient.sessionBuilder(DATASET, TODAY.minusDays(2), TODAY).build();
-        batchRemoteImhotepMultiSession = ((RemoteImhotepMultiSession) imhotepClient.sessionBuilder(DATASET, TODAY.minusDays(2), TODAY).build()).toBatch();
+        batchRemoteImhotepMultiSession = (BatchRemoteImhotepMultiSession) imhotepClient.sessionBuilder(DATASET, TODAY.minusDays(2), TODAY).useBatch(true).build();
     }
 
     @AfterClass
