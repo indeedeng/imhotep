@@ -75,6 +75,7 @@ import javax.annotation.Nullable;
 import javax.annotation.WillClose;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
@@ -619,7 +620,7 @@ public abstract class AbstractImhotepServiceCore
                                 try {
                                     final BufferedInputStream bufferedInputStream = tempFileFinal.bufferedInputStream();
                                     return new InputStreamFTGSIterator(bufferedInputStream, fieldStats, numStats, numGroups);
-                                } catch (final IOException e) {
+                                } catch (final FileNotFoundException e) {
                                     throw new RuntimeException(e);
                                 }
                             };
