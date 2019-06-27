@@ -61,6 +61,14 @@ public class TempFile {
         super.finalize();
     }
 
+    boolean isReferenced() {
+        return refCount != 0;
+    }
+
+    boolean removed() {
+        return removed;
+    }
+
     private void incRef() {
         synchronized (lock) {
             if (removed) {

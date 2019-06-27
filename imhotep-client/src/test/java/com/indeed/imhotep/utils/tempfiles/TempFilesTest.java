@@ -280,8 +280,73 @@ public class TempFilesTest {
             ByteStreams.readFully(inputStream, actual);
             assertArrayEquals(bytes, actual);
         }
-        ticker.add(1, TimeUnit.SECONDS);
+        tempFile.removeFile();
 
+        // We still hold a strong reference to the temp file object, but this situation can't be distinguished with slow GC.
+        // So this won't be reported as eventListener.expired.
+        ticker.add(1, TimeUnit.SECONDS);
+        tempFilesForTest.tryCleanupExpiredFiles();
+
+        assertEquals(0, eventListener.expiredCount.get());
+        assertEquals(0, eventListener.getSum());
+    }
+
+    @Test
+    public void testExpirationLeakFile() throws IOException {
+        final CountingEventListener eventListener = new CountingEventListener();
+        final StoppedTicker ticker = new StoppedTicker();
+
+        final TempFilesForTest tempFilesForTest = TempFilesForTest.builder()
+                .setRoot(temporaryFolder.getRoot().toPath())
+                .setEventListener(eventListener)
+                .setExpirationMillis(10)
+                .setTicker(ticker)
+                .build();
+
+        final TempFile tempFile = tempFilesForTest.createTempFile(TempFilesForTest.Type.A);
+        final byte[] bytes = "thisistest".getBytes(StandardCharsets.UTF_8);
+        try (final OutputStream outputStream = tempFile.bufferedOutputStream()) {
+            outputStream.write(bytes);
+        }
+        try (final InputStream inputStream = tempFile.bufferedInputStream()) {
+            final byte[] actual = new byte[bytes.length];
+            ByteStreams.readFully(inputStream, actual);
+            assertArrayEquals(bytes, actual);
+        }
+
+        // Without deleting the file
+        ticker.add(1, TimeUnit.SECONDS);
+        tempFilesForTest.tryCleanupExpiredFiles();
+
+        assertEquals(1, eventListener.expiredCount.get());
+        assertEquals(1, eventListener.getSum());
+        tempFile.removeFile();
+    }
+
+    @Test
+    public void testExpirationLeakIO() throws IOException {
+        final CountingEventListener eventListener = new CountingEventListener();
+        final StoppedTicker ticker = new StoppedTicker();
+
+        final TempFilesForTest tempFilesForTest = TempFilesForTest.builder()
+                .setRoot(temporaryFolder.getRoot().toPath())
+                .setEventListener(eventListener)
+                .setExpirationMillis(10)
+                .setTicker(ticker)
+                .build();
+
+        final TempFile tempFile = tempFilesForTest.createTempFile(TempFilesForTest.Type.A);
+        final byte[] bytes = "thisistest".getBytes(StandardCharsets.UTF_8);
+        try (final OutputStream outputStream = tempFile.bufferedOutputStream()) {
+            outputStream.write(bytes);
+        }
+        final InputStream inputStream = tempFile.bufferedInputStream(); // Don't close this one
+        final byte[] actual = new byte[bytes.length];
+        ByteStreams.readFully(inputStream, actual);
+        assertArrayEquals(bytes, actual);
+
+        // This will expire the temp file, while it is still referenced by the input stream.
+        ticker.add(1, TimeUnit.SECONDS);
         tempFilesForTest.tryCleanupExpiredFiles();
 
         assertEquals(1, eventListener.expiredCount.get());
