@@ -55,9 +55,9 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
     @Nullable private final AbstractImhotepMultiSession session;
     @Nullable private AbstractImhotepSession innerSession;
     private CountDownLatch waitLock = null;
-    private long lastExecutionStartTime = 0;
-    private long lastWaitStartTime = 0;
-    private long totalExecutionTime = 0;
+    private final AtomicLong lastExecutionStartTime = new AtomicLong(0);
+    private final AtomicLong lastWaitStartTime = new AtomicLong(0);
+    private final AtomicLong totalExecutionTime = new AtomicLong(0);
     private TaskScheduler ownerScheduler = null;
     private final Object executionTimeStatsLock = new Object(); // Lock for changing lastExecutionStartTime and totalExecutionTime atomically
 
@@ -67,7 +67,7 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
     private SchedulerCallback schedulerWaitTimeCallback;
 
     boolean cancelled;
-    private long nextYieldTime = 0;
+    private final AtomicLong nextYieldTime = new AtomicLong(0);
 
     public static void setup(final String userName, final String clientName, final byte priority, final SlotTiming slotTiming) {
         setup(userName, clientName, priority, null, null, null, slotTiming);
@@ -145,7 +145,7 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
             throw new RuntimeException("Tried to lock an already locked Task");
         }
         ownerScheduler = newOwnerScheduler;
-        lastWaitStartTime = System.nanoTime();
+        lastWaitStartTime.set(System.nanoTime());
         waitLock = new CountDownLatch(1);
     }
 
@@ -154,7 +154,7 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
             throw new IllegalStateException("Tried to schedule task that is not startable " + toString());
         }
         final long nanoTime = System.nanoTime();
-        final long waitTime = nanoTime - lastWaitStartTime;
+        final long waitTime = nanoTime - lastWaitStartTime.get();
         if (schedulerWaitTimeCallback != null) {
             schedulerWaitTimeCallback.call(schedulerType, waitTime);
         }
@@ -163,7 +163,7 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
         }
         waitLock.countDown();
         synchronized (executionTimeStatsLock) {
-            lastExecutionStartTime = nanoTime;
+            lastExecutionStartTime.set(nanoTime);
         }
     }
 
@@ -180,7 +180,7 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
                 if (session != null && session.isClosed()) {
                     throw new InvalidSessionException("Session with id " + session.getSessionId() + " was already closed");
                 }
-                nextYieldTime = ownerScheduler.getCurrentTimeMillis() + ownerScheduler.getExecutionChunkMillis();
+                nextYieldTime.set(ownerScheduler.getCurrentTimeMillis() + ownerScheduler.getExecutionChunkMillis());
             } catch(InterruptedException ignored){ }
         }
     }
@@ -192,10 +192,9 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
             if (!isRunning()) {
                 throw new IllegalStateException("Tried to finish a task that wasn't started");
             }
-            executionTime = System.nanoTime() - lastExecutionStartTime;
-            totalExecutionTime += executionTime;
-            lastExecutionStartTime = 0;
-            nextYieldTime = 0;
+            executionTime = System.nanoTime() - lastExecutionStartTime.getAndSet(0);
+            totalExecutionTime.addAndGet(executionTime);
+            nextYieldTime.set(0);
         }
         if (schedulerExecTimeCallback != null) {
             schedulerExecTimeCallback.call(schedulerType, executionTime);
@@ -245,23 +244,23 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
     }
 
     public boolean isRunning() {
-        return lastExecutionStartTime != 0;
+        return lastExecutionStartTime.get() != 0;
     }
 
     public long getLastExecutionStartTime() {
-        return lastExecutionStartTime;
+        return lastExecutionStartTime.get();
     }
 
     public long getLastWaitStartTime() {
-        return lastWaitStartTime;
+        return lastWaitStartTime.get();
     }
 
     public long getTotalExecutionTime() {
-        return totalExecutionTime;
+        return totalExecutionTime.get();
     }
 
     public long getNextYieldTime() {
-        return nextYieldTime;
+        return nextYieldTime.get();
     }
 
     @Nullable
@@ -289,7 +288,7 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
             if (!isRunning()) {
                 return OptionalLong.empty();
             }
-            return OptionalLong.of(System.nanoTime() - lastExecutionStartTime);
+            return OptionalLong.of(System.nanoTime() - lastExecutionStartTime.get());
         }
     }
 
@@ -319,9 +318,9 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
                     this.shardName,
                     this.numDocs,
                     this.priority,
-                    this.lastExecutionStartTime,
-                    this.lastWaitStartTime,
-                    this.totalExecutionTime,
+                    this.lastExecutionStartTime.get(),
+                    this.lastWaitStartTime.get(),
+                    this.totalExecutionTime.get(),
                     stackTrace
             );
         }
@@ -335,7 +334,7 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
     // used in tests to emulate actual work and not do Thread.sleep()
     @VisibleForTesting
     public void changeTaskStartTime(final long decreaseStartTimeMillis) {
-        this.lastExecutionStartTime -= TimeUnit.MILLISECONDS.toNanos(decreaseStartTimeMillis);
-        this.nextYieldTime -= decreaseStartTimeMillis;
+        this.lastExecutionStartTime.addAndGet(-TimeUnit.MILLISECONDS.toNanos(decreaseStartTimeMillis));
+        this.nextYieldTime.addAndGet(-decreaseStartTimeMillis);
     }
 }
