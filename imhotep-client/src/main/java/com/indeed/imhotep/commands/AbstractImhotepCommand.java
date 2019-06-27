@@ -10,6 +10,7 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -28,13 +29,21 @@ public abstract class AbstractImhotepCommand<T> implements ImhotepCommand<T> {
     @Getter
     final Class<T> resultClass;
 
-    @Nullable
-    final RegroupParams regroupParams;
+    final List<String> inputGroups;
+    final List<String> outputGroups;
 
     AbstractImhotepCommand(final String sessionId, final Class<T> resultClass, final RegroupParams regroupParams) {
         this.sessionId = sessionId;
         this.resultClass = resultClass;
-        this.regroupParams = regroupParams;
+        this.inputGroups = Collections.singletonList(regroupParams.getInputGroups());
+        this.outputGroups = Collections.singletonList(regroupParams.getOutputGroups());
+    }
+
+    AbstractImhotepCommand(final String sessionId, final Class<T> resultClass, final List<String> inputGroups, final List<String> outputGroups) {
+        this.sessionId = sessionId;
+        this.resultClass = resultClass;
+        this.inputGroups = inputGroups;
+        this.outputGroups = outputGroups;
     }
 
     protected abstract ImhotepRequestSender imhotepRequestSenderInitializer();
@@ -46,11 +55,11 @@ public abstract class AbstractImhotepCommand<T> implements ImhotepCommand<T> {
 
     @Override
     public List<String> getInputGroups() {
-        return Arrays.asList(regroupParams.getInputGroups());
+        return inputGroups;
     }
 
     @Override
-    public List<String> getOutputGroup() {
-        return Arrays.asList(regroupParams.getOutputGroups());
+    public List<String> getOutputGroups() {
+        return outputGroups;
     }
 }

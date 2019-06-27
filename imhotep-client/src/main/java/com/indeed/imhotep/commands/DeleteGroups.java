@@ -39,7 +39,7 @@ public class DeleteGroups extends VoidAbstractImhotepCommand {
     }
 
     @Override
-    public List<String> getOutputGroup() {
+    public List<String> getOutputGroups() {
         return groupsToDelete;
     }
 }

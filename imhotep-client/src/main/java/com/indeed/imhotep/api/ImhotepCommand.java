@@ -67,7 +67,7 @@ public interface ImhotepCommand<T> extends HasSessionId {
     /**
      * List of Output Named Groups the command will be adding / replacing.
      */
-    List<String> getOutputGroup();
+    List<String> getOutputGroups();
 
     /**
      * Apply the command on imhotepSession

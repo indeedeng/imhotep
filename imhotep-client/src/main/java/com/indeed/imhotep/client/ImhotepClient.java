@@ -330,7 +330,6 @@ public class ImhotepClient
         private boolean allowSessionForwarding = false;
         private boolean peerToPeerCache = false;
         private boolean useFtgsPooledConnection = false;
-        private boolean useBatchParallelExecution = false;
         private boolean executeBatchInParallel = false;
 
         private int hostCount = 0; // for logging
