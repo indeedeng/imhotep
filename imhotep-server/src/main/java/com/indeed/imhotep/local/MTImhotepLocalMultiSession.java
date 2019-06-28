@@ -406,7 +406,6 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
                 } catch (final Throwable ignored) {
                     // Closeables2.closeQuietly don't throw.
                     // This error is from Either.get(), ignoring it.
-
                 }
             }
         }

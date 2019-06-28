@@ -542,7 +542,6 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
         return Collections.max(Arrays.asList(intBuffer));
     }
 
-
     // This gives a conservative choice for when we have multiple sessions
     // with separate tempFileSizeBytesLeft, and also will behave correctly
     // once we fix it so that multiple sessions from the same IQL2 query
