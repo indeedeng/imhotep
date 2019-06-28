@@ -1590,9 +1590,8 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         }
     }
 
-    private void aggregateBucketMoveAbsentTerms(final GroupLookup outputGroups, final FastBitSet notMoved, final int[] docIdBuf, final int[] docIdGroupBuf) {
+    private void aggregateBucketMoveAbsentTerms(final GroupLookup outputGroups, final FastBitSet notMoved, final int[] docIdBuf, final int[] docIdGroupBuf, final BucketParams bucketParams) {
         final int bufSize = Math.min(docIdBuf.length, docIdGroupBuf.length);
-        Arrays.fill(docIdGroupBuf, 0, bufSize, 0);
         final FastBitSet.IntIterator iterator = notMoved.iterator();
         if (!iterator.next()) {
             return;
@@ -1601,7 +1600,9 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         int n = 0;
         while (hasNext) {
             final int docId = iterator.getValue();
-            docIdBuf[n++] = docId;
+            docIdBuf[n] = docId;
+            docIdGroupBuf[n] = bucketParams.getBucketIdForAbsent(outputGroups.get(docId));
+            ++n;
             hasNext = iterator.next();
             if (!hasNext || (n == bufSize)) {
                 outputGroups.batchSet(docIdBuf, docIdGroupBuf, n);
@@ -1610,7 +1611,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         }
     }
 
-    public synchronized int aggregateBucketRegroupInt(final RegroupParams regroupParams, final String field, final int maxOutputGroup, final FTGSIterator ftgsIterator) throws ImhotepOutOfMemoryException {
+    public synchronized int aggregateBucketRegroupInt(final RegroupParams regroupParams, final String field, final BucketParams bucketParams, final FTGSIterator ftgsIterator) throws ImhotepOutOfMemoryException {
         Preconditions.checkArgument(ftgsIterator.getNumStats() == 1);
         final long[] statsBuf = new long[1];
         if (namedGroupLookups.handleFiltered(regroupParams)) {
@@ -1618,7 +1619,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         }
 
         final GroupLookup inputGroups = namedGroupLookups.get(regroupParams.getInputGroups());
-        final GroupLookup outputGroups = namedGroupLookups.ensureWriteable(regroupParams, maxOutputGroup);
+        final GroupLookup outputGroups = namedGroupLookups.ensureWriteable(regroupParams, bucketParams.getResultNumGroups(inputGroups.getNumGroups()));
 
         final long memoryUsage = (BUFFER_SIZE * Ints.BYTES * 3) + ((long)inputGroups.getNumGroups() * Ints.BYTES) + getBitSetMemoryUsage();
         if (!memory.claimMemory(memoryUsage)) {
@@ -1647,7 +1648,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                     internalAggregateBucketRegroup(inputGroups, outputGroups, ftgsIterator, termIter, docIdStream, notMoved, statsBuf, docIdBuf, docIdGroupBuf, docIdNewGroupBuf, mapTo);
                 }
                 Preconditions.checkArgument(!ftgsIterator.nextField());
-                aggregateBucketMoveAbsentTerms(outputGroups, notMoved, docIdBuf, docIdGroupBuf);
+                aggregateBucketMoveAbsentTerms(outputGroups, notMoved, docIdBuf, docIdGroupBuf, bucketParams);
             } finally {
                 memoryPool.returnIntBuffers(mapTo, docIdBuf, docIdGroupBuf, docIdNewGroupBuf);
             }
@@ -1657,7 +1658,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         return namedGroupLookups.finalizeRegroup(regroupParams);
     }
 
-    public synchronized int aggregateBucketRegroupString(final RegroupParams regroupParams, final String field, final int maxOutputGroup, final FTGSIterator ftgsIterator) throws ImhotepOutOfMemoryException {
+    public synchronized int aggregateBucketRegroupString(final RegroupParams regroupParams, final String field, final BucketParams bucketParams, final FTGSIterator ftgsIterator) throws ImhotepOutOfMemoryException {
         Preconditions.checkArgument(ftgsIterator.getNumStats() == 1);
         final long[] statsBuf = new long[1];
         if (namedGroupLookups.handleFiltered(regroupParams)) {
@@ -1665,7 +1666,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         }
 
         final GroupLookup inputGroups = namedGroupLookups.get(regroupParams.getInputGroups());
-        final GroupLookup outputGroups = namedGroupLookups.ensureWriteable(regroupParams, maxOutputGroup);
+        final GroupLookup outputGroups = namedGroupLookups.ensureWriteable(regroupParams, bucketParams.getResultNumGroups(inputGroups.getNumGroups()));
         final long memoryUsage = (BUFFER_SIZE * Ints.BYTES * 3) + ((long)inputGroups.getNumGroups() * Ints.BYTES) + getBitSetMemoryUsage();
         if (!memory.claimMemory(memoryUsage)) {
             throw newImhotepOutOfMemoryException();
@@ -1693,7 +1694,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                     internalAggregateBucketRegroup(inputGroups, outputGroups, ftgsIterator, termIter, docIdStream, notMoved, statsBuf, docIdBuf, docIdGroupBuf, docIdNewGroupBuf, mapTo);
                 }
                 Preconditions.checkArgument(!ftgsIterator.nextField());
-                aggregateBucketMoveAbsentTerms(outputGroups, notMoved, docIdBuf, docIdGroupBuf);
+                aggregateBucketMoveAbsentTerms(outputGroups, notMoved, docIdBuf, docIdGroupBuf, bucketParams);
             } finally {
                 memoryPool.returnIntBuffers(mapTo, docIdBuf, docIdGroupBuf, docIdNewGroupBuf);
             }

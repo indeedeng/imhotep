@@ -48,6 +48,7 @@ import com.indeed.imhotep.api.RegroupParams;
 import com.indeed.imhotep.io.BlockOutputStream;
 import com.indeed.imhotep.io.ImhotepProtobufShipping;
 import com.indeed.imhotep.local.AggregateBucketFTGSIterator;
+import com.indeed.imhotep.local.BucketParams;
 import com.indeed.imhotep.local.MTImhotepLocalMultiSession;
 import com.indeed.imhotep.metrics.aggregate.AggregateStatStack;
 import com.indeed.imhotep.metrics.aggregate.ParseAggregate;
@@ -575,6 +576,7 @@ public abstract class AbstractImhotepServiceCore
             );
             sessionFields.add(new RemoteImhotepMultiSession.SessionField(remoteMultiSession, sessionInfo.getField(), sessionInfo.getStatsList().stream().map(DocStat::getStatList).collect(Collectors.toList())));
         }
+        final BucketParams bucketParams = new BucketParams(request.getMin(), request.getMax(), request.getInterval(), request.getExcludeGutters(), request.getWithDefault());
 
         TempFile tempFile = null;
         try {
@@ -595,7 +597,7 @@ public abstract class AbstractImhotepServiceCore
                             request.getMyIndex(),
                             nodes.length
                     );
-                    final AggregateBucketFTGSIterator ftgs = new AggregateBucketFTGSIterator(ftga, request.getMin(), request.getMax(), request.getInterval(), request.getExcludeGutters(), request.getWithDefault())
+                    final AggregateBucketFTGSIterator ftgs = new AggregateBucketFTGSIterator(ftga, bucketParams)
             ) {
                 numGroups = ftgs.getNumGroups();
                 numStats = ftgs.getNumStats();
@@ -603,7 +605,6 @@ public abstract class AbstractImhotepServiceCore
                 try (final BufferedOutputStream out = tempFile.bufferedOutputStream()) {
                     fieldStats = FTGSIteratorUtil.writeFtgsIteratorToStream(ftgs, out);
                 }
-                resultNumGroups = ftgs.getResultNumGroups();
             } catch (final IOException e) {
                 throw new RuntimeException(e);
             }
@@ -625,7 +626,7 @@ public abstract class AbstractImhotepServiceCore
                                 }
                             };
                             return doWithSessionAlreadyHasTask(sessionId, session ->
-                                    session.aggregateBucketRegroup(regroupParams, supplier, sessionInfo.getField(), request.getIsIntField(), resultNumGroups)
+                                    session.aggregateBucketRegroup(regroupParams, supplier, sessionInfo.getField(), request.getIsIntField(), bucketParams)
                             );
                         });
                 return Collections.max(Arrays.asList(intBuf));

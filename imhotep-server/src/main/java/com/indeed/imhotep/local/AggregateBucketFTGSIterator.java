@@ -1,7 +1,6 @@
 package com.indeed.imhotep.local;
 
 import com.google.common.base.Preconditions;
-import com.google.common.primitives.Ints;
 import com.indeed.imhotep.api.FTGAIterator;
 import com.indeed.imhotep.api.FTGSIterator;
 
@@ -12,57 +11,14 @@ import javax.annotation.WillCloseWhenClosed;
  * where the result stat is the group after the bucketing.
  */
 public class AggregateBucketFTGSIterator implements FTGSIterator {
-    private final FTGAIterator inner;
     private final double[] buf = new double[1];
-    private final long min;
-    private final long max;
-    private final double doubleMin;
-    private final double doubleMax;
-    private final long interval;
-    private final int numBucketsIncludingGutter;
-    private final int lowerGutter;
-    private final int upperGutter;
+    private final FTGAIterator inner;
+    private final BucketParams bucketParams;
 
-    public AggregateBucketFTGSIterator(@WillCloseWhenClosed final FTGAIterator inner, final long min, final long max, final long interval, final boolean excludeGutters, final boolean withDefault) {
+    public AggregateBucketFTGSIterator(@WillCloseWhenClosed final FTGAIterator inner, final BucketParams bucketParams) {
         Preconditions.checkArgument(inner.getNumStats() == 1);
         this.inner = inner;
-        this.min = min;
-        this.max = max;
-        this.doubleMin = min;
-        this.doubleMax = max;
-        this.interval = interval;
-        final int numBuckets = Ints.checkedCast((max - min) / interval);
-        this.numBucketsIncludingGutter = (excludeGutters ? 0 : (withDefault ? 1 : 2)) + numBuckets;
-        this.lowerGutter = excludeGutters ? 0 : (numBuckets + 1);
-        this.upperGutter = excludeGutters ? 0 : (numBuckets + (withDefault ? 1 : 2));
-    }
-
-    // Returns [0, numBuckets + 3).
-    // 0 means discard, [1, numBuckets] means it's in some normal bucket, [numBucket+1, numBucket+2] are gutters.
-    private int getBucketId(final double doubleValue) {
-        // Comparisons of double vs long to reject doubles that doesn't fit in long
-        if (doubleValue < doubleMin) {
-            return lowerGutter;
-        }
-        // > here because doubleValue == doubleMax doesn't imply longValue == max.
-        if (doubleValue > doubleMax) {
-            return upperGutter;
-        }
-        // doubleValue >= doubleMin doesn't imply longValue >= min.
-        // So we double-check them in long.
-        final long longValue = (long) doubleValue;
-        if (longValue < min) {
-            return lowerGutter;
-        }
-        if (longValue >= max) {
-            return upperGutter;
-        }
-        final int bucket = (int) ((longValue - min) / interval);
-        return bucket + 1;
-    }
-
-    public int getResultNumGroups() {
-        return getNumGroups() * numBucketsIncludingGutter;
+        this.bucketParams = bucketParams;
     }
 
     @Override
@@ -74,13 +30,7 @@ public class AggregateBucketFTGSIterator implements FTGSIterator {
     public void groupStats(final long[] stats, final int offset) {
         inner.groupStats(buf);
         final double value = buf[0];
-
-        final int bucketId = getBucketId(value);
-        if (bucketId == 0) {
-            stats[offset] = 0;
-        } else {
-            stats[offset] = ((group() - 1) * (numBucketsIncludingGutter)) + bucketId;
-        }
+        stats[offset] = bucketParams.getBucket(value, group());
     }
 
     @Override

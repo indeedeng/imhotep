@@ -477,13 +477,13 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
         super.postClose();
     }
 
-    public int aggregateBucketRegroup(final RegroupParams regroupParams, final Supplier<FTGSIterator> ftgsIteratorSupplier, final String field, final boolean isIntField, final int maxOutputGroup) throws ImhotepOutOfMemoryException {
+    public int aggregateBucketRegroup(final RegroupParams regroupParams, final Supplier<FTGSIterator> ftgsIteratorSupplier, final String field, final boolean isIntField, final BucketParams bucketParams) throws ImhotepOutOfMemoryException {
         executor().executeMemoryException(integerBuf, session -> {
             try (final FTGSIterator ftgsIterator = ftgsIteratorSupplier.get()) {
                 if (isIntField) {
-                    return session.aggregateBucketRegroupInt(regroupParams, field, maxOutputGroup, ftgsIterator);
+                    return session.aggregateBucketRegroupInt(regroupParams, field, bucketParams, ftgsIterator);
                 } else {
-                    return session.aggregateBucketRegroupString(regroupParams, field, maxOutputGroup, ftgsIterator);
+                    return session.aggregateBucketRegroupString(regroupParams, field, bucketParams, ftgsIterator);
                 }
             }
         });
