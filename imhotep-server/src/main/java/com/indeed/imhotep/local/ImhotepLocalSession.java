@@ -65,6 +65,7 @@ import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.api.PerformanceStats;
 import com.indeed.imhotep.api.RegroupParams;
+import com.indeed.imhotep.exceptions.MultiValuedFieldRegroupException;
 import com.indeed.imhotep.exceptions.MultiValuedFieldStringLenException;
 import com.indeed.imhotep.exceptions.MultiValuedFieldUidTimestampException;
 import com.indeed.imhotep.group.IterativeHasher;
@@ -1577,7 +1578,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             inputGroups.fillDocGrpBuffer(docIdBuf, docIdGroupBuf, n);
             for (int i = 0; i < n; ++i) {
                 if (moved.get(docIdBuf[i])) {
-                    throw new MultiValuedFieldStringLenException(createMessageWithSessionId("Aggregate bucket is not supported for multi-valued fields"));
+                    throw new MultiValuedFieldRegroupException(createMessageWithSessionId("Aggregate bucket is not supported for multi-valued fields"));
                 }
                 moved.set(docIdBuf[i]);
                 docIdNewGroupBuf[i] = mapTo[docIdGroupBuf[i]];
