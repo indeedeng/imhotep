@@ -55,9 +55,9 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
     @Nullable private final AbstractImhotepMultiSession session;
     @Nullable private AbstractImhotepSession innerSession;
     private CountDownLatch waitLock = null;
-    private long lastExecutionStartTime = 0;
-    private long lastWaitStartTime = 0;
-    private long totalExecutionTime = 0;
+    private volatile long lastExecutionStartTime = 0;
+    private volatile long lastWaitStartTime = 0;
+    private volatile long totalExecutionTime = 0;
     private TaskScheduler ownerScheduler = null;
     private final Object executionTimeStatsLock = new Object(); // Lock for changing lastExecutionStartTime and totalExecutionTime atomically
 
@@ -67,7 +67,7 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
     private SchedulerCallback schedulerWaitTimeCallback;
 
     boolean cancelled;
-    private long nextYieldTime = 0;
+    private volatile long nextYieldTime = 0;
 
     public static void setup(final String userName, final String clientName, final byte priority, final SlotTiming slotTiming) {
         setup(userName, clientName, priority, null, null, null, slotTiming);
