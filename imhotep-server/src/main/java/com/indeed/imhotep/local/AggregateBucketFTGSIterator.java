@@ -16,6 +16,8 @@ public class AggregateBucketFTGSIterator implements FTGSIterator {
     private final double[] buf = new double[1];
     private final long min;
     private final long max;
+    private final double doubleMin;
+    private final double doubleMax;
     private final long interval;
     private final int numBucketsIncludingGutter;
     private final int lowerGutter;
@@ -26,6 +28,8 @@ public class AggregateBucketFTGSIterator implements FTGSIterator {
         this.inner = inner;
         this.min = min;
         this.max = max;
+        this.doubleMin = min;
+        this.doubleMax = max;
         this.interval = interval;
         final int numBuckets = Ints.checkedCast((max - min) / interval);
         this.numBucketsIncludingGutter = (excludeGutters ? 0 : (withDefault ? 1 : 2)) + numBuckets;
@@ -35,14 +39,18 @@ public class AggregateBucketFTGSIterator implements FTGSIterator {
 
     // Returns [0, numBuckets + 3).
     // 0 means discard, [1, numBuckets] means it's in some normal bucket, [numBucket+1, numBucket+2] are gutters.
-    private int getBucketId(final double value) {
-        if (value < min) {
+    private int getBucketId(final double doubleValue) {
+        // Comparisons of double vs long to reject doubles that doesn't fit in long
+        if (doubleValue < doubleMin) {
             return lowerGutter;
         }
-        if (value >= max) {
+        // > here because doubleValue == doubleMax doesn't imply longValue == max.
+        if (doubleValue > doubleMax) {
             return upperGutter;
         }
-        final long longValue = (long) value;
+        // doubleValue >= doubleMin doesn't imply longValue >= min.
+        // So we double-check them in long.
+        final long longValue = (long) doubleValue;
         if (longValue < min) {
             return lowerGutter;
         }
