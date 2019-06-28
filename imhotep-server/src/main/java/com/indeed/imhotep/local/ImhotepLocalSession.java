@@ -1564,8 +1564,8 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     /**
      * Expects ftgs and term iterator where they're in a valid state with term matched.
      */
-    private void internalAggregateRegroup(
-            final GroupLookup inputGroups, final GroupLookup outputGroups, final FTGSIterator ftgsIterator, final TermIterator termIter, final DocIdStream docIdStream, final FastBitSet moved,
+    private void internalAggregateBucketRegroup(
+            final GroupLookup inputGroups, final GroupLookup outputGroups, final FTGSIterator ftgsIterator, final TermIterator termIter, final DocIdStream docIdStream, final FastBitSet notMoved,
             final long[] statsBuf, final int[] docIdBuf, final int[] docIdGroupBuf, final int[] docIdNewGroupBuf, final int[] mapTo
     ) {
         while (ftgsIterator.nextGroup()) {
@@ -1577,15 +1577,35 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             final int n = docIdStream.fillDocIdBuffer(docIdBuf);
             inputGroups.fillDocGrpBuffer(docIdBuf, docIdGroupBuf, n);
             for (int i = 0; i < n; ++i) {
-                if (moved.get(docIdBuf[i])) {
+                if (!notMoved.get(docIdBuf[i])) {
                     throw new MultiValuedFieldRegroupException(createMessageWithSessionId("Aggregate bucket is not supported for multi-valued fields"));
                 }
-                moved.set(docIdBuf[i]);
+                notMoved.clear(docIdBuf[i]);
                 docIdNewGroupBuf[i] = mapTo[docIdGroupBuf[i]];
             }
             outputGroups.batchSet(docIdBuf, docIdNewGroupBuf, n);
             if (n < docIdBuf.length) {
                 break;
+            }
+        }
+    }
+
+    private void aggregateBucketMoveAbsentTerms(final GroupLookup outputGroups, final FastBitSet notMoved, final int[] docIdBuf, final int[] docIdGroupBuf) {
+        final int bufSize = Math.min(docIdBuf.length, docIdGroupBuf.length);
+        Arrays.fill(docIdGroupBuf, 0, bufSize, 0);
+        final FastBitSet.IntIterator iterator = notMoved.iterator();
+        if (!iterator.next()) {
+            return;
+        }
+        boolean hasNext = true;
+        int n = 0;
+        while (hasNext) {
+            final int docId = iterator.getValue();
+            docIdBuf[n++] = docId;
+            hasNext = iterator.next();
+            if (!hasNext || (n == bufSize)) {
+                outputGroups.batchSet(docIdBuf, docIdGroupBuf, n);
+                n = 0;
             }
         }
     }
@@ -1605,7 +1625,8 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             throw newImhotepOutOfMemoryException();
         }
         try {
-            final FastBitSet moved = new FastBitSet(numDocs);
+            final FastBitSet notMoved = new FastBitSet(numDocs);
+            notMoved.setAll();
             final int[] docIdBuf = memoryPool.getIntBuffer(BUFFER_SIZE, true);
             final int[] docIdGroupBuf = memoryPool.getIntBuffer(BUFFER_SIZE, true);
             final int[] docIdNewGroupBuf = memoryPool.getIntBuffer(BUFFER_SIZE, true);
@@ -1623,9 +1644,10 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                     if (!termIter.next() || (termIter.term() != term)) {
                         continue;
                     }
-                    internalAggregateRegroup(inputGroups, outputGroups, ftgsIterator, termIter, docIdStream, moved, statsBuf, docIdBuf, docIdGroupBuf, docIdNewGroupBuf, mapTo);
+                    internalAggregateBucketRegroup(inputGroups, outputGroups, ftgsIterator, termIter, docIdStream, notMoved, statsBuf, docIdBuf, docIdGroupBuf, docIdNewGroupBuf, mapTo);
                 }
                 Preconditions.checkArgument(!ftgsIterator.nextField());
+                aggregateBucketMoveAbsentTerms(outputGroups, notMoved, docIdBuf, docIdGroupBuf);
             } finally {
                 memoryPool.returnIntBuffers(mapTo, docIdBuf, docIdGroupBuf, docIdNewGroupBuf);
             }
@@ -1649,7 +1671,8 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             throw newImhotepOutOfMemoryException();
         }
         try {
-            final FastBitSet moved = new FastBitSet(numDocs);
+            final FastBitSet notMoved = new FastBitSet(numDocs);
+            notMoved.setAll();
             final int[] docIdBuf = memoryPool.getIntBuffer(BUFFER_SIZE, true);
             final int[] docIdGroupBuf = memoryPool.getIntBuffer(BUFFER_SIZE, true);
             final int[] docIdNewGroupBuf = memoryPool.getIntBuffer(BUFFER_SIZE, true);
@@ -1667,9 +1690,10 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
                     if (!termIter.next() || (ftgsIterator.termStringLength() != termIter.termStringLength()) || !Bytes.equals(ftgsIterator.termStringBytes(), termIter.termStringBytes(), ftgsIterator.termStringLength())) {
                         continue;
                     }
-                    internalAggregateRegroup(inputGroups, outputGroups, ftgsIterator, termIter, docIdStream, moved, statsBuf, docIdBuf, docIdGroupBuf, docIdNewGroupBuf, mapTo);
+                    internalAggregateBucketRegroup(inputGroups, outputGroups, ftgsIterator, termIter, docIdStream, notMoved, statsBuf, docIdBuf, docIdGroupBuf, docIdNewGroupBuf, mapTo);
                 }
                 Preconditions.checkArgument(!ftgsIterator.nextField());
+                aggregateBucketMoveAbsentTerms(outputGroups, notMoved, docIdBuf, docIdGroupBuf);
             } finally {
                 memoryPool.returnIntBuffers(mapTo, docIdBuf, docIdGroupBuf, docIdNewGroupBuf);
             }
