@@ -43,10 +43,10 @@ public class AggregateBucketFTGSIterator implements FTGSIterator {
             return upperGutter;
         }
         final long longValue = (long) value;
-        if (value < min) {
+        if (longValue < min) {
             return lowerGutter;
         }
-        if (value >= max) {
+        if (longValue >= max) {
             return upperGutter;
         }
         final int bucket = (int) ((longValue - min) / interval);
