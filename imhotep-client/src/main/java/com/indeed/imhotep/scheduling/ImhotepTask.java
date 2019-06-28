@@ -55,11 +55,11 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
     @Nullable private final AbstractImhotepMultiSession session;
     @Nullable private AbstractImhotepSession innerSession;
     private CountDownLatch waitLock = null;
-    private long lastExecutionStartTime = 0;
-    private long lastWaitStartTime = 0;
-    private long totalExecutionTime = 0;
+    private volatile long lastExecutionStartTime = 0;
+    private volatile long lastWaitStartTime = 0;
+    private volatile long totalExecutionTime = 0;
     private TaskScheduler ownerScheduler = null;
-    private final Object executionTimeStatsLock = new Object(); // Lock for changing lastExecutionStartTime and totalExecutionTime atomically
+    private final Object executionTimeStatsLock = new Object(); // Lock for changing lastExecutionStartTime, totalExecutionTime, and nextYieldTime atomically
 
     @Nullable
     private SchedulerCallback schedulerExecTimeCallback;
@@ -67,7 +67,7 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
     private SchedulerCallback schedulerWaitTimeCallback;
 
     boolean cancelled;
-    private long nextYieldTime = 0;
+    private volatile long nextYieldTime = 0;
 
     public static void setup(final String userName, final String clientName, final byte priority, final SlotTiming slotTiming) {
         setup(userName, clientName, priority, null, null, null, slotTiming);
@@ -180,7 +180,9 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
                 if (session != null && session.isClosed()) {
                     throw new InvalidSessionException("Session with id " + session.getSessionId() + " was already closed");
                 }
-                nextYieldTime = ownerScheduler.getCurrentTimeMillis() + ownerScheduler.getExecutionChunkMillis();
+                synchronized (executionTimeStatsLock) {
+                    nextYieldTime = ownerScheduler.getCurrentTimeMillis() + ownerScheduler.getExecutionChunkMillis();
+                }
             } catch(InterruptedException ignored){ }
         }
     }
@@ -335,7 +337,9 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
     // used in tests to emulate actual work and not do Thread.sleep()
     @VisibleForTesting
     public void changeTaskStartTime(final long decreaseStartTimeMillis) {
-        this.lastExecutionStartTime -= TimeUnit.MILLISECONDS.toNanos(decreaseStartTimeMillis);
-        this.nextYieldTime -= decreaseStartTimeMillis;
+        synchronized (executionTimeStatsLock) {
+            this.lastExecutionStartTime -= TimeUnit.MILLISECONDS.toNanos(decreaseStartTimeMillis);
+            this.nextYieldTime -= decreaseStartTimeMillis;
+        }
     }
 }
