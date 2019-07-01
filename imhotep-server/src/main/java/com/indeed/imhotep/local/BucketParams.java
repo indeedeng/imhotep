@@ -1,5 +1,6 @@
 package com.indeed.imhotep.local;
 
+import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
 
 public class BucketParams {
@@ -14,6 +15,7 @@ public class BucketParams {
     private final int bucketIdForAbsent;
 
     public BucketParams(final long min, final long max, final long interval, final boolean excludeGutters, final boolean withDefault) {
+        Preconditions.checkArgument(!(excludeGutters && withDefault));
         this.min = min;
         this.max = max;
         this.doubleMin = min;
