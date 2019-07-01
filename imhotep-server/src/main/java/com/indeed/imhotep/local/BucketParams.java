@@ -55,7 +55,7 @@ public class BucketParams {
     }
 
     public int getBucketIdForAbsent(final int originalGroup) {
-        if (bucketIdForAbsent == 0) {
+        if ((bucketIdForAbsent == 0) || (originalGroup == 0)) {
             return 0;
         }else {
             return ((originalGroup - 1) * numBucketsIncludingGutter) + bucketIdForAbsent;
@@ -64,7 +64,7 @@ public class BucketParams {
 
     public int getBucket(final double stat, final int originalGroup) {
         final int bucketId = getBucketId(stat);
-        if (bucketId == 0) {
+        if ((bucketId == 0) || (originalGroup == 0)) {
             return 0;
         } else {
             return ((originalGroup - 1) * (numBucketsIncludingGutter)) + bucketId;
