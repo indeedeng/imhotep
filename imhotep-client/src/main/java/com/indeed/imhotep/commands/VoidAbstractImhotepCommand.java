@@ -16,6 +16,10 @@ public abstract class VoidAbstractImhotepCommand extends AbstractImhotepCommand<
         super(sessionId, Void.class, regroupParams);
     }
 
+    VoidAbstractImhotepCommand(final String sessionId, final List<String> inputGroups, final List<String> outputGroups) {
+        super(sessionId, Void.class, inputGroups, outputGroups);
+    }
+
     @Override
     public Void combine(final List<Void> subResults) {
         return null;

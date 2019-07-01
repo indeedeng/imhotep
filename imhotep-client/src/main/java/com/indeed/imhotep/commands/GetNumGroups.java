@@ -22,7 +22,7 @@ public class GetNumGroups extends AbstractImhotepCommand<Integer> {
     private final String groupsName;
 
     public GetNumGroups(final String groupsName, final String sessionId){
-        super(sessionId, Integer.class);
+        super(sessionId, Integer.class, Collections.singletonList(groupsName), Collections.emptyList());
         this.groupsName = groupsName;
     }
 

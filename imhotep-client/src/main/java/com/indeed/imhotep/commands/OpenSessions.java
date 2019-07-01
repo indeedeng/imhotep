@@ -18,6 +18,7 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -48,7 +49,7 @@ public class OpenSessions extends VoidAbstractImhotepCommand {
             final boolean allowSessionForwarding,
             final boolean p2pCache
     ) {
-        super(UUID.randomUUID().toString());
+        super(UUID.randomUUID().toString(), Collections.emptyList(), Collections.emptyList());
         this.hostToShards = hostToShards;
         this.openSessionData = openSessionData;
         this.socketTimeout = socketTimeout;

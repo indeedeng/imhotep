@@ -509,7 +509,8 @@ public class ImhotepClient
                                         optimizeGroupZeroLookups,
                                         daemonTempFileSizeLimit,
                                         sessionTimeout,
-                                        useFtgsPooledConnection
+                                        useFtgsPooledConnection,
+                                        executeBatchInParallel
                                 ),
                                 socketTimeout,
                                 localTempFileSizeLimit,

@@ -977,7 +977,8 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                         openSession.getSessionId(),
                         tempFileSizeBytesLeft,
                         openSessionData.getSessionTimeout(),
-                        openSessionData.isUseFtgsPooledConnection()
+                        openSessionData.isUseFtgsPooledConnection(),
+                        openSessionData.isExecuteBatchInParallel()
                 );
                 commands.remove(0);
 
