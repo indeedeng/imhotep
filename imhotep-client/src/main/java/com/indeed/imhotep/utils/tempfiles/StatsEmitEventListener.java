@@ -51,6 +51,6 @@ public class StatsEmitEventListener implements EventListener {
 
     @Override
     public void expired(final TempFileState tempFileState) {
-        statsEmitter.count(statsName, 1, getTags("leakTempObj", tempFileState));
+        statsEmitter.count(statsName, 1, getTags("expiration", tempFileState));
     }
 }
