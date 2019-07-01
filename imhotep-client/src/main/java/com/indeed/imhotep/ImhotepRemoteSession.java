@@ -111,7 +111,7 @@ public class ImhotepRemoteSession
 
     static final int DEFAULT_SOCKET_TIMEOUT = (int)TimeUnit.MINUTES.toMillis(30);
 
-    private static final int CURRENT_CLIENT_VERSION = 2; // id to be incremented as changes to the client are done
+    public static final int CURRENT_CLIENT_VERSION = 2; // id to be incremented as changes to the client are done
 
     private final String host;
     private final int port;
@@ -1503,9 +1503,9 @@ public class ImhotepRemoteSession
             os.flush();
 
             for (final ImhotepCommand command : firstCommands) {
-                command.writeToOutputStream(os);
+                command.writeToOutputStream(os, this);
             }
-            lastCommand.writeToOutputStream(os);
+            lastCommand.writeToOutputStream(os, this);
             os.flush();
 
             return lastCommand.readResponse(is, this);

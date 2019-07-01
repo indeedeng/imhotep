@@ -1,5 +1,7 @@
 package com.indeed.imhotep.api;
 
+import com.indeed.imhotep.client.Host;
+
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -10,6 +12,10 @@ public interface CommandSerializationParameters {
     String getHost();
 
     int getPort();
+
+    default Host getHostAndPort() {
+        return new Host(getHost(), getPort());
+    }
 
     AtomicLong getTempFileSizeBytesLeft();
 }

@@ -130,7 +130,7 @@ public class TestImhotepCommands implements CommandsTest {
     public void setUpMultiSessions() throws InterruptedException, IOException, TimeoutException {
         final ImhotepClient imhotepClient = clusterRunner.createClient();
         imhotepMultiSession = (RemoteImhotepMultiSession) imhotepClient.sessionBuilder(DATASET, TODAY.minusDays(2), TODAY).build();
-        batchRemoteImhotepMultiSession = ((RemoteImhotepMultiSession) imhotepClient.sessionBuilder(DATASET, TODAY.minusDays(2), TODAY).build()).toBatch();
+        batchRemoteImhotepMultiSession = (BatchRemoteImhotepMultiSession) imhotepClient.sessionBuilder(DATASET, TODAY.minusDays(2), TODAY).useBatch(true).build();
     }
 
     @AfterClass
@@ -339,5 +339,13 @@ public class TestImhotepCommands implements CommandsTest {
     @Test
     public void testDeleteGroups() {
         // nothing really great to check here
+    }
+
+    @Override
+    @Test
+    public void testGetNumGroups() throws Exception {
+        assertEqualGroupStats(imhotepSession -> {
+            return imhotepSession.getNumGroups(ImhotepSession.DEFAULT_GROUPS);
+        });
     }
 }

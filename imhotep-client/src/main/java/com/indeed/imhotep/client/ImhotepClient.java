@@ -20,6 +20,7 @@ import com.google.common.collect.Lists;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
 import com.google.common.primitives.Longs;
+import com.indeed.imhotep.BatchRemoteImhotepMultiSession;
 import com.indeed.imhotep.DatasetInfo;
 import com.indeed.imhotep.DynamicIndexSubshardDirnameUtil;
 import com.indeed.imhotep.ImhotepRemoteSession;
@@ -29,6 +30,8 @@ import com.indeed.imhotep.Shard;
 import com.indeed.imhotep.ShardInfo;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
+import com.indeed.imhotep.commands.OpenSessionData;
+import com.indeed.imhotep.commands.OpenSessions;
 import com.indeed.imhotep.exceptions.ImhotepKnownException;
 import com.indeed.imhotep.shardmasterrpc.RequestResponseClient;
 import com.indeed.imhotep.shardmasterrpc.ShardMaster;
@@ -332,6 +335,8 @@ public class ImhotepClient
         private boolean useFtgsPooledConnection = false;
         private boolean executeBatchInParallel = false;
 
+        private boolean useBatch = false;
+
         private int hostCount = 0; // for logging
 
         public SessionBuilder(final String dataset, final DateTime start, final DateTime end) {
@@ -434,6 +439,11 @@ public class ImhotepClient
             return this;
         }
 
+        public SessionBuilder useBatch(final boolean useBatch) {
+            this.useBatch = useBatch;
+            return this;
+        }
+
         /**
          * Returns shards that were selected for the time range requested in the constructor.
          * Shards in the list are sorted chronologically.
@@ -486,11 +496,34 @@ public class ImhotepClient
             }
             final Map<Host, List<Shard>> hostsToShardsMap = orderShardsByHost(locatedShards);
             hostCount = hostsToShardsMap.size();
-            return getSessionForShards(
-                    dataset, hostsToShardsMap, mergeThreadLimit, username, clientName, priority, optimizeGroupZeroLookups,
-                    socketTimeout, localTempFileSizeLimit, daemonTempFileSizeLimit, sessionTimeout,
-                    allowSessionForwarding, peerToPeerCache, useFtgsPooledConnection, executeBatchInParallel
-            );
+            if (useBatch) {
+                return new BatchRemoteImhotepMultiSession(
+                        new OpenSessions(
+                                hostsToShardsMap,
+                                new OpenSessionData(
+                                        dataset,
+                                        mergeThreadLimit,
+                                        username,
+                                        clientName,
+                                        priority,
+                                        optimizeGroupZeroLookups,
+                                        daemonTempFileSizeLimit,
+                                        sessionTimeout,
+                                        useFtgsPooledConnection
+                                ),
+                                socketTimeout,
+                                localTempFileSizeLimit,
+                                allowSessionForwarding,
+                                peerToPeerCache
+                        )
+                );
+            } else {
+                return getSessionForShards(
+                        dataset, hostsToShardsMap, mergeThreadLimit, username, clientName, priority, optimizeGroupZeroLookups,
+                        socketTimeout, localTempFileSizeLimit, daemonTempFileSizeLimit, sessionTimeout,
+                        allowSessionForwarding, peerToPeerCache, useFtgsPooledConnection, executeBatchInParallel
+                );
+            }
         }
     }
 
