@@ -15,12 +15,14 @@ public class ImhotepConnection implements Closeable {
     private static final Logger logger = Logger.getLogger(ImhotepConnection.class);
 
     private final KeyedObjectPool<Host, Socket> sourcePool;
+    private final ImhotepConnectionPool connectionPool;
     private final Socket socket;
     private final Host host;
     private final AtomicBoolean closedOrInvalidated;
 
-    ImhotepConnection(final KeyedObjectPool<Host, Socket> sourcePool, final Socket socket, final Host host) {
-        this.sourcePool = sourcePool;
+    ImhotepConnection(final ImhotepConnectionPool connectionPool, final Socket socket, final Host host) {
+        this.connectionPool = connectionPool;
+        this.sourcePool = connectionPool.getSourcePool();
         this.socket = socket;
         this.host = host;
         this.closedOrInvalidated = new AtomicBoolean(false);
@@ -34,6 +36,8 @@ public class ImhotepConnection implements Closeable {
             return;
         }
 
+        // update the invalidated count
+        connectionPool.increaseInvalidatedCount();
         try {
             sourcePool.invalidateObject(host, socket);
         } catch (final Throwable e) {

@@ -72,7 +72,7 @@ public class ImhotepConnectionPool implements Closeable {
     public ImhotepConnection getConnection(final Host host) throws IOException {
         try {
             final Socket socket = sourcePool.borrowObject(host);
-            return new ImhotepConnection(sourcePool, socket, host);
+            return new ImhotepConnection(this, socket, host);
         } catch (final Exception e) {
             throw Throwables2.propagate(e, IOException.class);
         }
@@ -95,19 +95,23 @@ public class ImhotepConnectionPool implements Closeable {
     public ImhotepConnection getConnection(final Host host, final int timeoutMillis) throws IOException {
         try {
             final Socket socket = sourcePool.borrowObject(host, timeoutMillis);
-            return new ImhotepConnection(sourcePool, socket, host);
+            return new ImhotepConnection(this, socket, host);
         } catch (final Exception e) {
             throw Throwables2.propagate(e, IOException.class);
         }
     }
 
-    @VisibleForTesting
+    // expose it in the ImhotepConnection
     GenericKeyedObjectPool<Host, Socket> getSourcePool() {
         return sourcePool;
     }
 
     long getAndResetInvalidatedCount() {
         return invalidatedConnectionCount.getAndSet(0);
+    }
+
+    void increaseInvalidatedCount() {
+        invalidatedConnectionCount.incrementAndGet();
     }
 
     /**
@@ -121,7 +125,7 @@ public class ImhotepConnectionPool implements Closeable {
             try {
                 return function.apply(connection);
             } catch (final Throwable t) {
-                invalidateConnection(connection);
+                connection.markAsInvalid();
                 throw t;
             }
         }
@@ -139,15 +143,10 @@ public class ImhotepConnectionPool implements Closeable {
             try {
                 return function.apply(connection);
             } catch (final Throwable t) {
-                invalidateConnection(connection);
+                connection.markAsInvalid();
                 throw t;
             }
         }
-    }
-
-    private void invalidateConnection(final ImhotepConnection connection) {
-        invalidatedConnectionCount.incrementAndGet();
-        connection.markAsInvalid();
     }
 
     /**
@@ -161,7 +160,7 @@ public class ImhotepConnectionPool implements Closeable {
             try {
                 return function.apply(connection);
             } catch (final Throwable t) {
-                invalidateConnection(connection);
+                connection.markAsInvalid();
                 throw t;
             }
         }
@@ -180,7 +179,7 @@ public class ImhotepConnectionPool implements Closeable {
             try {
                 return function.apply(connection);
             } catch (final Throwable t) {
-                invalidateConnection(connection);
+                connection.markAsInvalid();
                 throw t;
             }
         }
