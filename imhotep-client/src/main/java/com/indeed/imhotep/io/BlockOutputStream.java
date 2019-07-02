@@ -24,7 +24,6 @@ import java.io.OutputStream;
  * Should close the stream once all data has been written to flush blocks in buffer.
  */
 @NotThreadSafe
-@WillCloseWhenClosed
 public class BlockOutputStream extends FilterOutputStream {
     /** The default batch size of stream */
     private static final int DEFAULT_BLOCK_SIZE = 8192;
