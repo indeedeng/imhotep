@@ -101,7 +101,7 @@ public class ImhotepConnectionPool implements Closeable {
         }
     }
 
-    // expose it in the ImhotepConnection
+    @VisibleForTesting
     GenericKeyedObjectPool<Host, Socket> getSourcePool() {
         return sourcePool;
     }
@@ -110,8 +110,21 @@ public class ImhotepConnectionPool implements Closeable {
         return invalidatedConnectionCount.getAndSet(0);
     }
 
-    void increaseInvalidatedCount() {
+    void invalidSocket(final Host host, final Socket socket) {
         invalidatedConnectionCount.incrementAndGet();
+        try {
+            sourcePool.invalidateObject(host, socket);
+        } catch (final Throwable e) {
+            logger.warn("Errors happened when setting socket as invalid, socket = " + socket, e);
+        }
+    }
+
+    void returnSocket(final Host host, final Socket socket) {
+        try {
+            sourcePool.returnObject(host, socket);
+        } catch (final Throwable e) {
+            logger.warn("Errors happened when returning socket, socket = " + socket, e);
+        }
     }
 
     /**
