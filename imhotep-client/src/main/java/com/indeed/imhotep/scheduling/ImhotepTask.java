@@ -20,6 +20,7 @@ import com.indeed.imhotep.AbstractImhotepMultiSession;
 import com.indeed.imhotep.AbstractImhotepSession;
 import com.indeed.imhotep.RequestContext;
 import com.indeed.imhotep.SlotTiming;
+import com.indeed.imhotep.api.ImhotepCommand;
 import com.indeed.imhotep.exceptions.InvalidSessionException;
 import org.apache.log4j.Logger;
 
@@ -54,6 +55,7 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
     @Nullable private final Integer numDocs;
     @Nullable private final AbstractImhotepMultiSession session;
     @Nullable private AbstractImhotepSession innerSession;
+    @Nullable private final Class imhotepCommandResultClass;
     private CountDownLatch waitLock = null;
     private long lastExecutionStartTime = 0;
     private long lastWaitStartTime = 0;
@@ -73,8 +75,13 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
         setup(userName, clientName, priority, null, null, null, slotTiming);
     }
 
-    public static void setup(AbstractImhotepMultiSession session) {
-        final ImhotepTask task = new ImhotepTask(session);
+    public static void setup(final AbstractImhotepMultiSession session) {
+        final ImhotepTask task = new ImhotepTask(session, null);
+        ImhotepTask.THREAD_LOCAL_TASK.set(task);
+    }
+
+    public static void setup(final AbstractImhotepMultiSession session, final Class imhotepCommandResultClass) {
+        final ImhotepTask task = new ImhotepTask(session, imhotepCommandResultClass);
         ImhotepTask.THREAD_LOCAL_TASK.set(task);
     }
 
@@ -87,7 +94,7 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
             @Nullable final Integer numDocs,
             @Nonnull final SlotTiming slotTiming
     ) {
-        final ImhotepTask task = new ImhotepTask(userName, clientName, priority, null, dataset, shardName, numDocs,
+        final ImhotepTask task = new ImhotepTask(userName, clientName, priority, null, dataset, shardName, numDocs, null,
                 (schedulerType, execTime) -> slotTiming.schedulerExecTimeCallback(schedulerType, execTime),
                 (schedulerType, waitTime) -> slotTiming.schedulerWaitTimeCallback(schedulerType, waitTime));
         ImhotepTask.THREAD_LOCAL_TASK.set(task);
@@ -115,6 +122,7 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
             @Nullable final String dataset,
             @Nullable final String shardName,
             @Nullable final Integer numDocs,
+            @Nullable final Class imhotepCommandResultClass,
             @Nullable final SchedulerCallback execTimeCallback,
             @Nullable final SchedulerCallback waitTimeCallback
     ) {
@@ -129,13 +137,14 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
         this.taskId = nextTaskId.incrementAndGet();
         creationTimestamp = System.nanoTime();
         this.session = session;
+        this.imhotepCommandResultClass = imhotepCommandResultClass;
 
         this.schedulerExecTimeCallback = execTimeCallback;
         this.schedulerWaitTimeCallback = waitTimeCallback;
     }
 
-    private ImhotepTask(AbstractImhotepMultiSession session) {
-        this(session.getUserName(), session.getClientName(), session.getPriority(), session, null, null, null,
+    private ImhotepTask(final AbstractImhotepMultiSession session, @Nullable final Class imhotepCommandResultClass) {
+        this(session.getUserName(), session.getClientName(), session.getPriority(), session, null, null, null, imhotepCommandResultClass,
                 (schedulerType, execTime) -> session.schedulerExecTimeCallback(schedulerType, execTime),
                 (schedulerType, waitTime) -> session.schedulerWaitTimeCallback(schedulerType, waitTime));
     }

@@ -848,9 +848,7 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
         }
 
         final T[] buffer = (T[]) Array.newInstance(lastCommand.getResultClass(), sessions.length);
-        executor().lockCPU(false).executeMemoryException(buffer, session -> {
-            return session.executeBatchRequestParallel(firstCommands, lastCommand, new CommandDependencyManager<T>(this, commandThreads, session));
-        });
+        executor().lockCPU(false).executeMemoryException(buffer, session -> session.<T>executeBatchRequestParallel(new CommandExecutor(this, commandThreads, session, firstCommands, lastCommand)));
         return lastCommand.combine(Arrays.asList(buffer));
     }
 }

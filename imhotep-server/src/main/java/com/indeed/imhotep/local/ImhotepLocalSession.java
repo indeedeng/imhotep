@@ -362,8 +362,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
 
     @Override
     public long[] getGroupStats(final String groupsName, final List<String> stat) throws ImhotepOutOfMemoryException {
-        long[] ans = getGroupStatsMulti(groupsName, Collections.singletonList(stat))[0];
-        return ans;
+        return getGroupStatsMulti(groupsName, Collections.singletonList(stat))[0];
     }
 
     // @Override
@@ -3338,7 +3337,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         return lastCommand.apply(this);
     }
 
-    public <T> T executeBatchRequestParallel(final List<ImhotepCommand> firstCommands, final ImhotepCommand<T> lastCommand, final CommandDependencyManager commandDependencyManager) throws ImhotepOutOfMemoryException, ExecutionException, InterruptedException {
-        return (T)commandDependencyManager.processCommands(firstCommands, lastCommand, new DefUseManager());
+    public <T> T executeBatchRequestParallel(final CommandExecutor<T> commandExecutor) throws ImhotepOutOfMemoryException, ExecutionException, InterruptedException {
+        return commandExecutor.processCommands(new DefUseManager());
     }
 }

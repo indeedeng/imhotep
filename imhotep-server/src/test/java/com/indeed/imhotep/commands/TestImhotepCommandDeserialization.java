@@ -208,6 +208,7 @@ public class TestImhotepCommandDeserialization implements CommandsTest {
                 false,
                 500L,
                 30L,
+                false,
                 false
         );
         final OpenSessions openSessions = new OpenSessions(

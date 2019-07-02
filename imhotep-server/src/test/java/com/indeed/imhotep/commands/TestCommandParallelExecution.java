@@ -107,8 +107,8 @@ public class TestCommandParallelExecution implements CommandsTest {
     @Before
     public void testSetup() throws InterruptedException, IOException, TimeoutException {
         final ImhotepClient imhotepClient = clusterRunner.createClient();
-        batchRemoteMultiSessionSerial = ((RemoteImhotepMultiSession) imhotepClient.sessionBuilder(DATASET, TODAY.minusDays(1), TODAY).build()).toBatch();
-        batchRemoteMultiSessionParallel = ((RemoteImhotepMultiSession) imhotepClient.sessionBuilder(DATASET, TODAY.minusDays(1), TODAY).executeBatchInParallel(true).build()).toBatch();
+        batchRemoteMultiSessionSerial = (BatchRemoteImhotepMultiSession) imhotepClient.sessionBuilder(DATASET, TODAY.minusDays(1), TODAY).useBatch(true).build();
+        batchRemoteMultiSessionParallel = (BatchRemoteImhotepMultiSession) imhotepClient.sessionBuilder(DATASET, TODAY.minusDays(1), TODAY).useBatch(true).executeBatchInParallel(true).build();
     }
 
     private <T> void applyEachMultiSession(final ThrowingFunction<ImhotepSession, T> applyFunction) throws ImhotepOutOfMemoryException {
@@ -228,6 +228,7 @@ public class TestCommandParallelExecution implements CommandsTest {
     @Override
     @Test
     public void testGetGroupStats() throws Exception {
+        // already tested in other tests
     }
 
     @Override
@@ -397,6 +398,11 @@ public class TestCommandParallelExecution implements CommandsTest {
     @Test
     public void testDeleteGroups() throws Exception {
         // already tested for all tests in assertEqualGroupStats()
+    }
+
+    @Override
+    public void testGetNumGroups() throws Exception {
+
     }
 
     private interface ThrowingFunction<K, V> {
