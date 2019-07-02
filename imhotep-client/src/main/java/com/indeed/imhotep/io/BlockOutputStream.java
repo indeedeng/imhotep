@@ -3,7 +3,7 @@ package com.indeed.imhotep.io;
 import com.google.common.base.Preconditions;
 
 import javax.annotation.Nonnull;
-import javax.annotation.WillNotClose;
+import javax.annotation.WillCloseWhenClosed;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.io.FilterOutputStream;
 import java.io.IOException;
@@ -24,6 +24,7 @@ import java.io.OutputStream;
  * Should close the stream once all data has been written to flush blocks in buffer.
  */
 @NotThreadSafe
+@WillCloseWhenClosed
 public class BlockOutputStream extends FilterOutputStream {
     /** The default batch size of stream */
     private static final int DEFAULT_BLOCK_SIZE = 8192;
@@ -33,11 +34,11 @@ public class BlockOutputStream extends FilterOutputStream {
     private int count;
     private boolean closed;
 
-    public BlockOutputStream(@Nonnull @WillNotClose final OutputStream out) {
+    public BlockOutputStream(@Nonnull @WillCloseWhenClosed final OutputStream out) {
         this(out, DEFAULT_BLOCK_SIZE);
     }
 
-    public BlockOutputStream(@Nonnull @WillNotClose final OutputStream out, final int blockSize) {
+    public BlockOutputStream(@Nonnull @WillCloseWhenClosed final OutputStream out, final int blockSize) {
         super(out);
 
         Preconditions.checkArgument(out != null, "OutputStream shouldn't be null");

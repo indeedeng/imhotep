@@ -4,7 +4,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.io.ByteStreams;
 
 import javax.annotation.Nonnull;
-import javax.annotation.WillNotClose;
+import javax.annotation.WillCloseWhenClosed;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.io.EOFException;
 import java.io.FilterInputStream;
@@ -37,7 +37,7 @@ public class BlockInputStream extends FilterInputStream {
      * Initialize a block input stream with the wrapped stream and the block size
      * @param in
      */
-    public BlockInputStream(@Nonnull @WillNotClose final InputStream in) {
+    public BlockInputStream(@Nonnull @WillCloseWhenClosed final InputStream in) {
         super(in);
         Preconditions.checkArgument(in != null, "input stream shouldn't be null");
 

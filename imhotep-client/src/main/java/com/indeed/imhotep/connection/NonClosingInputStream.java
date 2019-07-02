@@ -7,7 +7,7 @@ import java.io.InputStream;
 /**
  * @author xweng
  */
-public class NonClosingInputStream extends InputStream {
+class NonClosingInputStream extends InputStream {
     private boolean closed;
     private final InputStream in;
 

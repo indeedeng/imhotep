@@ -7,7 +7,7 @@ import java.io.OutputStream;
 /**
  * @author xweng
  */
-public class NonClosingOutputStream extends OutputStream {
+class NonClosingOutputStream extends OutputStream {
     private boolean closed;
     private final OutputStream out;
 
