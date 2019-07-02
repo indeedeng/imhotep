@@ -43,8 +43,12 @@ public class ImhotepConnectionPool implements Closeable {
         final ImhotepConnectionKeyedPooledObjectFactory factory = new ImhotepConnectionKeyedPooledObjectFactory(config);
 
         final GenericKeyedObjectPoolConfig<Socket> sourcePoolConfig = new GenericKeyedObjectPoolConfig<>();
+        // unlimited sockets for every host
+        sourcePoolConfig.setMaxTotalPerKey(-1);
+        sourcePoolConfig.setMaxTotal(-1);
         sourcePoolConfig.setMaxIdlePerKey(config.getMaxIdleSocketPerHost());
-        sourcePoolConfig.setLifo(true);
+        sourcePoolConfig.setBlockWhenExhausted(false);
+        sourcePoolConfig.setLifo(false);
         sourcePoolConfig.setTestOnBorrow(true);
 
         sourcePool = new GenericKeyedObjectPool<>(factory, sourcePoolConfig);
@@ -68,7 +72,7 @@ public class ImhotepConnectionPool implements Closeable {
     public ImhotepConnection getConnection(final Host host) throws IOException {
         try {
             final Socket socket = sourcePool.borrowObject(host);
-            return new ImhotepConnection(sourcePool, socket, host);
+            return new ImhotepConnection(this, socket, host);
         } catch (final Exception e) {
             throw Throwables2.propagate(e, IOException.class);
         }
@@ -91,7 +95,7 @@ public class ImhotepConnectionPool implements Closeable {
     public ImhotepConnection getConnection(final Host host, final int timeoutMillis) throws IOException {
         try {
             final Socket socket = sourcePool.borrowObject(host, timeoutMillis);
-            return new ImhotepConnection(sourcePool, socket, host);
+            return new ImhotepConnection(this, socket, host);
         } catch (final Exception e) {
             throw Throwables2.propagate(e, IOException.class);
         }
@@ -106,6 +110,23 @@ public class ImhotepConnectionPool implements Closeable {
         return invalidatedConnectionCount.getAndSet(0);
     }
 
+    void invalidSocket(final Host host, final Socket socket) {
+        invalidatedConnectionCount.incrementAndGet();
+        try {
+            sourcePool.invalidateObject(host, socket);
+        } catch (final Throwable e) {
+            logger.warn("Errors happened when setting socket as invalid, socket = " + socket, e);
+        }
+    }
+
+    void returnSocket(final Host host, final Socket socket) {
+        try {
+            sourcePool.returnObject(host, socket);
+        } catch (final Throwable e) {
+            logger.warn("Errors happened when returning socket, socket = " + socket, e);
+        }
+    }
+
     /**
      * Execute the function with connection
      */
@@ -117,7 +138,7 @@ public class ImhotepConnectionPool implements Closeable {
             try {
                 return function.apply(connection);
             } catch (final Throwable t) {
-                invalidateConnection(connection);
+                connection.markAsInvalid();
                 throw t;
             }
         }
@@ -135,15 +156,10 @@ public class ImhotepConnectionPool implements Closeable {
             try {
                 return function.apply(connection);
             } catch (final Throwable t) {
-                invalidateConnection(connection);
+                connection.markAsInvalid();
                 throw t;
             }
         }
-    }
-
-    private void invalidateConnection(final ImhotepConnection connection) {
-        invalidatedConnectionCount.incrementAndGet();
-        connection.markAsInvalid();
     }
 
     /**
