@@ -60,7 +60,7 @@ final class SimpleStringTermIteratorImpl implements SimpleStringTermIterator {
     private byte[] lastTermBytes = new byte[100];
     private ByteBuffer lastTermByteBuffer = ByteBuffer.wrap(lastTermBytes);
     private int lastTermLength = 0;
-    private int lastTermCommomPrefixLen = 0;
+    private int lastTermCommonPrefixLen = 0;
     private long lastTermOffset = 0L;
     private int lastTermDocFreq = 0;
     private String lastString = null;
@@ -110,7 +110,7 @@ final class SimpleStringTermIteratorImpl implements SimpleStringTermIterator {
         bufferPtr = 0;
 
         done = false;
-        lastTermCommomPrefixLen = 0;
+        lastTermCommonPrefixLen = 0;
     }
 
     private void internalReset(final String term) throws IOException {
@@ -136,7 +136,7 @@ final class SimpleStringTermIteratorImpl implements SimpleStringTermIterator {
                 lastTermOffset = p.getSecond();
                 lastTermDocFreq = (int) readVLong();
                 done = false;
-                lastTermCommomPrefixLen = 0;
+                lastTermCommonPrefixLen = 0;
                 bufferNext = true;
             }
         } else {
@@ -176,7 +176,7 @@ final class SimpleStringTermIteratorImpl implements SimpleStringTermIterator {
 
     @Override
     public int commonPrefixLengthWithPreviousLowerBound() {
-        return lastTermCommomPrefixLen;
+        return lastTermCommonPrefixLen;
     }
 
     @Override
@@ -207,10 +207,10 @@ final class SimpleStringTermIteratorImpl implements SimpleStringTermIterator {
         final int removeLen = (int)readVLong(firstByte);
         final int newLen = (int)readVLong();
 
-        lastTermCommomPrefixLen = lastTermLength - removeLen;
-        ensureCapacity(lastTermCommomPrefixLen + newLen);
-        readFully(lastTermBytes, lastTermCommomPrefixLen, newLen);
-        lastTermLength = lastTermCommomPrefixLen + newLen;
+        lastTermCommonPrefixLen = lastTermLength - removeLen;
+        ensureCapacity(lastTermCommonPrefixLen + newLen);
+        readFully(lastTermBytes, lastTermCommonPrefixLen, newLen);
+        lastTermLength = lastTermCommonPrefixLen + newLen;
         lastString = null;
 
         final long offsetDelta = readVLong();
