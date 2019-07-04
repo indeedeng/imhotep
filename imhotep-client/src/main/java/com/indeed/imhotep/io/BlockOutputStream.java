@@ -3,7 +3,7 @@ package com.indeed.imhotep.io;
 import com.google.common.base.Preconditions;
 
 import javax.annotation.Nonnull;
-import javax.annotation.WillCloseWhenClosed;
+import javax.annotation.WillNotClose;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.io.FilterOutputStream;
 import java.io.IOException;
@@ -21,7 +21,8 @@ import java.io.OutputStream;
  * At the end of stream, it has an empty block with block size as 0, which indicates no following blocks will come and the stream ends.
  * So except the last empty block, all blocks should have a block size greater than 0.
  *
- * Should close the stream once all data has been written to flush blocks in buffer.
+ * Should close the stream once all data has been written to flush blocks in buffer. The close method won't close the inner
+ * stream, you should close the inner stream manually if necessary.
  */
 @NotThreadSafe
 public class BlockOutputStream extends FilterOutputStream {
@@ -33,11 +34,11 @@ public class BlockOutputStream extends FilterOutputStream {
     private int count;
     private boolean closed;
 
-    public BlockOutputStream(@Nonnull @WillCloseWhenClosed final OutputStream out) {
+    public BlockOutputStream(@Nonnull @WillNotClose final OutputStream out) {
         this(out, DEFAULT_BLOCK_SIZE);
     }
 
-    public BlockOutputStream(@Nonnull @WillCloseWhenClosed final OutputStream out, final int blockSize) {
+    public BlockOutputStream(@Nonnull @WillNotClose final OutputStream out, final int blockSize) {
         super(out);
 
         Preconditions.checkArgument(out != null, "OutputStream shouldn't be null");
@@ -132,14 +133,9 @@ public class BlockOutputStream extends FilterOutputStream {
         }
         closed = true;
 
-        try {
-            flushBuffer();
-            // write the empty block indicating stream ends
-            writeBlockSize(0);
-
-            out.flush();
-        } finally {
-            out.close();
-        }
+        flushBuffer();
+        // write the empty block indicating stream ends
+        writeBlockSize(0);
+        out.flush();
     }
 }

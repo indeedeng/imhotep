@@ -4,7 +4,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.io.ByteStreams;
 
 import javax.annotation.Nonnull;
-import javax.annotation.WillCloseWhenClosed;
+import javax.annotation.WillNotClose;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.io.EOFException;
 import java.io.FilterInputStream;
@@ -21,7 +21,8 @@ import java.io.InputStream;
  *  [block size]      [actual data]
  * At the end of stream, it has an empty block with 0 block size, which indicates no following blocks will come and the stream ends.
  *
- * You need to read through the end of the block input stream, or otherwise the original input stream will contain garbage.
+ * The inner input stream won't be closed when {@link BlockInputStream} is closed. You need to close the inner stream manually if necessary.
+ * Also you need to read through the end of the block input stream, or otherwise the original input stream will contain garbage.
  */
 @NotThreadSafe
 public class BlockInputStream extends FilterInputStream {
@@ -37,7 +38,7 @@ public class BlockInputStream extends FilterInputStream {
      * Initialize a block input stream with the wrapped stream and the block size
      * @param in
      */
-    public BlockInputStream(@Nonnull @WillCloseWhenClosed final InputStream in) {
+    public BlockInputStream(@Nonnull @WillNotClose final InputStream in) {
         super(in);
         Preconditions.checkArgument(in != null, "input stream shouldn't be null");
 
@@ -194,6 +195,5 @@ public class BlockInputStream extends FilterInputStream {
             return;
         }
         closed = true;
-        in.close();
     }
 }

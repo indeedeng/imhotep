@@ -234,9 +234,6 @@ public class ImhotepConnectionPool implements Closeable {
         if (!inputStream.isClosed() || !outputStream.isClosed()) {
             throw new IOException("The stream from connection pool should be closed");
         }
-        if (inputStream.available() != 0) {
-            throw new IOException("The input stream still contains garbage data");
-        }
     }
 
     interface ConnectionUser<R, E extends Exception> {
