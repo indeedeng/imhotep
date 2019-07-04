@@ -157,7 +157,7 @@ public class ImhotepConnectionPool implements Closeable {
             final int timeoutMillis,
             final ConnectionUser<R, E> function) throws E, IOException {
         // Note: ImhotepConnection::close don't throw, so the returned value won't be leaked even if R implements closeable.
-        try (final ImhotepConnection connection = getConnection(host)) {
+        try (final ImhotepConnection connection = getConnection(host, timeoutMillis)) {
             try {
                 return function.apply(connection);
             } catch (final Throwable t) {
