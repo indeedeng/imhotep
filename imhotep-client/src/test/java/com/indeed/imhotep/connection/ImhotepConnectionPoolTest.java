@@ -1,6 +1,7 @@
 package com.indeed.imhotep.connection;
 
 import com.indeed.imhotep.client.Host;
+import com.indeed.util.core.io.Closeables2;
 import org.apache.commons.pool2.impl.GenericKeyedObjectPool;
 import org.junit.After;
 import org.junit.Before;
@@ -176,6 +177,44 @@ public class ImhotepConnectionPoolTest {
             assertEquals(socket.getInetAddress().getHostName(), host2.getHostname());
             assertEquals(socket.getPort(), host2.getPort());
         }
+    }
+
+    @Test
+    public void testWithBufferedStream() throws IOException {
+        testConnnectionPool.withBufferedSocketStream(host1, (ImhotepConnectionPool.SocketStreamUser<Integer, IOException>)(is, os) -> {
+            try {
+                return is.available();
+            } finally {
+                Closeables2.closeAll(null, is, os);
+            }
+        });
+    }
+
+    @Test(expected = IOException.class)
+    public void testWithBufferedStreamNonClosingStream() throws IOException {
+        testConnnectionPool.withBufferedSocketStream(host1, (ImhotepConnectionPool.SocketStreamUser<Integer, IOException>)(is, os) -> is.available());
+    }
+
+    @Test(expected = IOException.class)
+    public void testWithBufferedStreamNonClosingOutputStream() throws IOException {
+        testConnnectionPool.withBufferedSocketStream(host1, (ImhotepConnectionPool.SocketStreamUser<Integer, IOException>)(is, os) -> {
+            try {
+                return is.available();
+            } finally {
+                Closeables2.closeQuietly(is, null);
+            }
+        });
+    }
+
+    @Test(expected = IOException.class)
+    public void testWithBufferedStreamNonClosingInputStream() throws IOException {
+        testConnnectionPool.withBufferedSocketStream(host1, (ImhotepConnectionPool.SocketStreamUser<Integer, IOException>)(is, os) -> {
+            try {
+                return is.available();
+            } finally {
+                Closeables2.closeQuietly(os, null);
+            }
+        });
     }
 
     private class Task implements Callable<Socket>{

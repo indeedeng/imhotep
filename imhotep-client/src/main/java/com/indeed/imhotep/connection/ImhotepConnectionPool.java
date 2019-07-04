@@ -2,6 +2,7 @@ package com.indeed.imhotep.connection;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.indeed.imhotep.client.Host;
+import com.indeed.util.core.Pair;
 import com.indeed.util.core.Throwables2;
 import com.indeed.util.core.io.Closeables2;
 import lombok.experimental.Delegate;
@@ -10,8 +11,14 @@ import org.apache.commons.pool2.impl.GenericKeyedObjectPoolConfig;
 import org.apache.commons.pool2.impl.GenericKeyedObjectPoolMXBean;
 import org.apache.log4j.Logger;
 
+import javax.annotation.WillClose;
+import javax.annotation.WillNotClose;
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
 import java.io.Closeable;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.Socket;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -20,14 +27,16 @@ import java.util.concurrent.atomic.AtomicLong;
  *
  * recommended usage:
  *
- * testConnnectionPool.withConnection(host, timeoutMillis, connection -&gt; {
- *     // do something with the connection and return a value
+ * testConnnectionPool.withBufferedSocketStream(host, timeoutMillis, (in, out) -&gt; {
+ *     try {
+ *          // do something with the wrapped i/o stream
+ *      } finally {
+ *          Closeables2.closeAll(logger, in, out);
+ *      }
  * });
  *
- * or without timeout
- *
- * testConnnectionPool.withConnection(host, connection -&gt; {
- *     // do something with the connection and return a value
+ * testConnnectionPool.withConnection(host, timeoutMillis, connection -&gt; {
+ *     // do something with the connection
  * });
  */
 
@@ -70,12 +79,7 @@ public class ImhotepConnectionPool implements Closeable {
      */
     @VisibleForTesting
     public ImhotepConnection getConnection(final Host host) throws IOException {
-        try {
-            final Socket socket = sourcePool.borrowObject(host);
-            return new ImhotepConnection(this, socket, host);
-        } catch (final Exception e) {
-            throw Throwables2.propagate(e, IOException.class);
-        }
+        return getConnection(host, -1);
     }
 
     /**
@@ -88,7 +92,7 @@ public class ImhotepConnectionPool implements Closeable {
      * Notice: all bytes caused as a result of this connection must be fully consumed before returning to the pool in case of successful completion
      *
      * @param host the connection host name
-     * @param timeoutMillis timeout to get the connection
+     * @param timeoutMillis timeout to get the connection, -1 means no timeout limit
      * @return An valid ImhotepConnection
      * @throws IOException
      */
@@ -110,6 +114,13 @@ public class ImhotepConnectionPool implements Closeable {
         return invalidatedConnectionCount.getAndSet(0);
     }
 
+    private Pair<NonClosingInputStream, NonClosingOutputStream> getBufferedSocketStream(final ImhotepConnection connection) throws IOException {
+        final Socket socket = connection.getSocket();
+        return Pair.of(
+                new NonClosingInputStream(new BufferedInputStream(socket.getInputStream())),
+                new NonClosingOutputStream(new BufferedOutputStream(socket.getOutputStream())));
+    }
+
     void invalidSocket(final Host host, final Socket socket) {
         invalidatedConnectionCount.incrementAndGet();
         try {
@@ -128,11 +139,23 @@ public class ImhotepConnectionPool implements Closeable {
     }
 
     /**
-     * Execute the function with connection
+     * An execution function to operate with connection.
      */
     public <R, E extends Exception> R withConnection(
             final Host host,
-            final ThrowingFunction<ImhotepConnection, R, E> function) throws E, IOException {
+            final ConnectionUser<R, E> function) throws E, IOException {
+        return withConnection(host, -1, function);
+    }
+
+    /**
+     * An execution function to operate with connection with timeout when getting sockets.
+     * @param host the host
+     * @param timeoutMillis timeout to get the connection, -1 means no timeout limit
+     */
+    public <R, E extends Exception> R withConnection(
+            final Host host,
+            final int timeoutMillis,
+            final ConnectionUser<R, E> function) throws E, IOException {
         // Note: ImhotepConnection::close don't throw, so the returned value won't be leaked even if R implements closeable.
         try (final ImhotepConnection connection = getConnection(host)) {
             try {
@@ -145,16 +168,37 @@ public class ImhotepConnectionPool implements Closeable {
     }
 
     /**
-     * Execute the function with the connection, also set the timeout when getting connection
+     * An execution function to read/write to the buffered socket stream.
+     * IMPORTANT: You shouldn't return any streams from {@code is} or {@code os} to outside callers in {@code function}.
+     * When it reaches to the end of {@code function}, the socket will be returned to the pool automatically.
+     * If you really need to return, please take the {@code withConnection} method and close the connection when stream is closed.
      */
-    public <R, E extends Exception> R withConnection(
+    public <R, E extends Exception> R withBufferedSocketStream(
+            final Host host,
+            final SocketStreamUser<R, E> function) throws E, IOException {
+        return withBufferedSocketStream(host, -1, function);
+    }
+
+    /**
+     * An execution function to read/write to the buffered socket stream with timeout when getting connections.
+     * IMPORTANT: You shouldn't return any streams from {@code is} or {@code os} to outside callers in {@code function}.
+     * When it reaches to the end of {@code function}, the socket will be returned to the pool automatically.
+     * If you really need to return, please take the {@code withConnection} method and close the connection when stream is closed.
+     *
+     * @param host
+     * @param timeoutMillis timeout to get the buffered stream, -1 means no timeout limit
+     */
+    public <R, E extends Exception> R withBufferedSocketStream(
             final Host host,
             final int timeoutMillis,
-            final ThrowingFunction<ImhotepConnection, R, E> function) throws E, IOException {
+            final SocketStreamUser<R, E> function) throws E, IOException {
         // Note: ImhotepConnection::close don't throw, so the returned value won't be leaked even if R implements closeable.
         try (final ImhotepConnection connection = getConnection(host, timeoutMillis)) {
+            final Pair<NonClosingInputStream, NonClosingOutputStream> socketStream = getBufferedSocketStream(connection);
             try {
-                return function.apply(connection);
+                final R r = function.apply(socketStream.getFirst(), socketStream.getSecond());
+                ensureStreamClosed(socketStream);
+                return r;
             } catch (final Throwable t) {
                 connection.markAsInvalid();
                 throw t;
@@ -163,34 +207,37 @@ public class ImhotepConnectionPool implements Closeable {
     }
 
     /**
-     * Execute the function with the connection and it may throw two kinds of exceptions
+     * An execution function to read/write to the buffered socket stream, which may throw two kinds of exceptions.
+     * IMPORTANT: You shouldn't return any streams from {@code is} or {@code os} to outside callers in {@code function}.
+     * When it reaches to the end of {@code function}, the socket will be returned to the pool automatically.
+     * If you really need to return, please take the {@code withConnection} method and close the connection when stream is closed.
      */
-    public <R, E1 extends Exception, E2 extends Exception> R withConnectionBinaryException(
+    public <R, E1 extends Exception, E2 extends Exception> R withBufferedSocketStream(
             final Host host,
-            final BinaryThrowingFunction<ImhotepConnection, R, E1, E2> function) throws E1, E2, IOException {
-        // Note: ImhotepConnection::close don't throw, so the returned value won't be leaked even if R implements closeable.
-        try (final ImhotepConnection connection = getConnection(host)) {
-            try {
-                return function.apply(connection);
-            } catch (final Throwable t) {
-                connection.markAsInvalid();
-                throw t;
-            }
-        }
+            final SocketStreamUser2Throwings<R, E1, E2> function) throws E1, E2, IOException {
+        return withBufferedSocketStream(host, -1, function);
     }
 
     /**
-     * Execute the function with the connection and it may throw two kinds of exceptions,
-     * also set the timeout when getting connection
+     * An execution function to read/write to the buffered socket stream with timeout when getting connections. It may throw two kinds of exceptions.
+     * IMPORTANT: You shouldn't return any streams from {@code is} or {@code os} to outside callers in {@code function}.
+     * When it reaches to the end of {@code function}, the socket will be returned to the pool automatically.
+     * If you really need to return, please take the {@code withConnection} method and close the connection when stream is closed.
+     *
+     * @param host
+     * @param timeoutMillis timeout to get the buffered stream, -1 means no timeout limit
      */
-    public <R, E1 extends Exception, E2 extends Exception> R withConnectionBinaryException(
+    public <R, E1 extends Exception, E2 extends Exception> R withBufferedSocketStream(
             final Host host,
             final int timeoutMillis,
-            final BinaryThrowingFunction<ImhotepConnection, R, E1, E2> function) throws E1, E2, IOException {
+            final SocketStreamUser2Throwings<R, E1, E2> function) throws E1, E2, IOException {
         // Note: ImhotepConnection::close don't throw, so the returned value won't be leaked even if R implements closeable.
         try (final ImhotepConnection connection = getConnection(host, timeoutMillis)) {
+            final Pair<NonClosingInputStream, NonClosingOutputStream> socketStream = getBufferedSocketStream(connection);
             try {
-                return function.apply(connection);
+                final R r = function.apply(socketStream.getFirst(), socketStream.getSecond());
+                ensureStreamClosed(socketStream);
+                return r;
             } catch (final Throwable t) {
                 connection.markAsInvalid();
                 throw t;
@@ -198,12 +245,24 @@ public class ImhotepConnectionPool implements Closeable {
         }
     }
 
-    public interface ThrowingFunction<K, R, E extends Exception> {
-        R apply(K k) throws E;
+    private void ensureStreamClosed(final Pair<NonClosingInputStream, NonClosingOutputStream> socketStream) throws IOException {
+        final NonClosingInputStream inputStream = socketStream.getFirst();
+        final NonClosingOutputStream outputStream = socketStream.getSecond();
+        if (!inputStream.isClosed() || !outputStream.isClosed()) {
+            throw new IOException("The stream from connection pool should be closed");
+        }
     }
 
-    public interface BinaryThrowingFunction<K, R, E1 extends Exception, E2 extends Exception> {
-        R apply(K k) throws E1, E2;
+    interface ConnectionUser<R, E extends Exception> {
+        R apply(@WillNotClose ImhotepConnection connection) throws E;
+    }
+
+    public interface SocketStreamUser<R, E extends Exception> {
+        R apply(@WillClose InputStream in, @WillClose OutputStream out) throws E;
+    }
+
+    public interface SocketStreamUser2Throwings<R, E1 extends Exception, E2 extends Exception> {
+        R apply(@WillClose InputStream in, @WillClose OutputStream out) throws E1, E2;
     }
 
     @Override

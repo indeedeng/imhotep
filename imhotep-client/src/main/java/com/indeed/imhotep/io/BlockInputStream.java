@@ -190,9 +190,6 @@ public class BlockInputStream extends FilterInputStream {
         }
     }
 
-    /**
-     * Won't close the inner input stream
-     */
     @Override
     public void close() throws IOException {
         if (closed) {
