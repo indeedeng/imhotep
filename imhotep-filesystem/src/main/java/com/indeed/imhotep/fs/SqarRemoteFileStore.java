@@ -135,7 +135,11 @@ class SqarRemoteFileStore extends RemoteFileStore implements Closeable {
                 try {
                     sqarMetaDataManager.copyDecompressed(archiveIS, srcPath, destPath, fileMetadata);
                 } catch (final IOException e) {
-                    Files.delete(destPath);
+                    try {
+                        Files.delete(destPath);
+                    } catch (final Throwable throwable) {
+                        e.addSuppressed(throwable);
+                    }
                     throw Throwables.propagate(e);
                 }
             }
