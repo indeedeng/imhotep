@@ -15,7 +15,6 @@
 package com.indeed.imhotep.fs;
 
 import com.google.common.base.Function;
-import com.google.common.base.Throwables;
 import com.google.common.collect.FluentIterable;
 import com.indeed.imhotep.archive.FileMetadata;
 import com.indeed.imhotep.scheduling.TaskScheduler;
