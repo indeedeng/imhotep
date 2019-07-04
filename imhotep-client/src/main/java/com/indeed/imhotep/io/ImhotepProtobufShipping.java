@@ -14,6 +14,7 @@
  package com.indeed.imhotep.io;
 
 import com.google.common.io.ByteStreams;
+import com.google.common.primitives.Ints;
 import com.google.protobuf.Message;
 import com.indeed.imhotep.GroupStatsStreamReader;
 import com.indeed.imhotep.api.GroupStatsIterator;
@@ -42,7 +43,7 @@ public final class ImhotepProtobufShipping {
     }
 
     public static void sendProtobufNoFlush(final Message request, final OutputStream os) throws IOException {
-        os.write(Bytes.intToBytes(request.getSerializedSize()));
+        os.write(Ints.toByteArray(request.getSerializedSize()));
         request.writeTo(os);
     }
 
@@ -77,7 +78,7 @@ public final class ImhotepProtobufShipping {
     private static InputStream readPayloadStream(final InputStream is) throws IOException {
         final byte[] payloadLengthBytes = new byte[4];
         ByteStreams.readFully(is, payloadLengthBytes);
-        final int payloadLength = Bytes.bytesToInt(payloadLengthBytes);
+        final int payloadLength = Ints.fromByteArray(payloadLengthBytes);
 
         return ByteStreams.limit(is, payloadLength);
     }

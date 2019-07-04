@@ -37,11 +37,11 @@ class ConsumptionTracker {
      *
      * @return boolean true if the consumption tracker has activity within the current history window, otherwise false
      */
-    synchronized boolean isActive() {
+    synchronized boolean isActive(final long nanoTime) {
         if (history.isEmpty()) {
             return false;
         }
-        long lastTimeToKeep = System.nanoTime() - historyLengthNanos;
+        long lastTimeToKeep = nanoTime - historyLengthNanos;
         long latestTimeRecorded = history.getLast().timestamp;
         return latestTimeRecorded > lastTimeToKeep;
     }
@@ -56,16 +56,16 @@ class ConsumptionTracker {
             history.addLast(new TimestampedConsumption(currentTime, consumption));
         }
 
-        trim();
+        trim(currentTime);
     }
 
-    synchronized long getConsumption() {
-        trim();
+    synchronized long getConsumption(final long nanoTime) {
+        trim(nanoTime);
         return sum;
     }
 
-    synchronized void trim() {
-        long lastTimeToKeep = System.nanoTime() - historyLengthNanos;
+    private synchronized void trim(final long nanoTime) {
+        long lastTimeToKeep = nanoTime - historyLengthNanos;
         for(Iterator<TimestampedConsumption> historyIterator = history.iterator(); historyIterator.hasNext(); ) {
             final TimestampedConsumption timestampedConsumption = historyIterator.next();
             if(timestampedConsumption.timestamp < lastTimeToKeep) {

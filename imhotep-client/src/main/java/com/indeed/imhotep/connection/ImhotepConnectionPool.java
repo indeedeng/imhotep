@@ -49,13 +49,15 @@ public class ImhotepConnectionPool implements Closeable {
     private final AtomicLong invalidatedConnectionCount;
 
     ImhotepConnectionPool(final ImhotepConnectionPoolConfig config) {
-        final ImhotepConnectionKeyedPooledObjectFactory factory = new ImhotepConnectionKeyedPooledObjectFactory(
-                config.getSocketReadTimeoutMills(),
-                config.getSocketConnectingTimeoutMills());
+        final ImhotepConnectionKeyedPooledObjectFactory factory = new ImhotepConnectionKeyedPooledObjectFactory(config);
 
         final GenericKeyedObjectPoolConfig<Socket> sourcePoolConfig = new GenericKeyedObjectPoolConfig<>();
+        // unlimited sockets for every host
+        sourcePoolConfig.setMaxTotalPerKey(-1);
+        sourcePoolConfig.setMaxTotal(-1);
         sourcePoolConfig.setMaxIdlePerKey(config.getMaxIdleSocketPerHost());
-        sourcePoolConfig.setLifo(true);
+        sourcePoolConfig.setBlockWhenExhausted(false);
+        sourcePoolConfig.setLifo(false);
         sourcePoolConfig.setTestOnBorrow(true);
 
         sourcePool = new GenericKeyedObjectPool<>(factory, sourcePoolConfig);
@@ -97,7 +99,7 @@ public class ImhotepConnectionPool implements Closeable {
     public ImhotepConnection getConnection(final Host host, final int timeoutMillis) throws IOException {
         try {
             final Socket socket = sourcePool.borrowObject(host, timeoutMillis);
-            return new ImhotepConnection(sourcePool, socket, host);
+            return new ImhotepConnection(this, socket, host);
         } catch (final Exception e) {
             throw Throwables2.propagate(e, IOException.class);
         }
@@ -112,16 +114,28 @@ public class ImhotepConnectionPool implements Closeable {
         return invalidatedConnectionCount.getAndSet(0);
     }
 
-    private void invalidateConnection(final ImhotepConnection connection) {
-        invalidatedConnectionCount.incrementAndGet();
-        connection.markAsInvalid();
-    }
-
     private Pair<NonClosingInputStream, NonClosingOutputStream> getBufferedSocketStream(final ImhotepConnection connection) throws IOException {
         final Socket socket = connection.getSocket();
         return Pair.of(
                 new NonClosingInputStream(new BufferedInputStream(socket.getInputStream())),
                 new NonClosingOutputStream(new BufferedOutputStream(socket.getOutputStream())));
+    }
+
+    void invalidSocket(final Host host, final Socket socket) {
+        invalidatedConnectionCount.incrementAndGet();
+        try {
+            sourcePool.invalidateObject(host, socket);
+        } catch (final Throwable e) {
+            logger.warn("Errors happened when setting socket as invalid, socket = " + socket, e);
+        }
+    }
+
+    void returnSocket(final Host host, final Socket socket) {
+        try {
+            sourcePool.returnObject(host, socket);
+        } catch (final Throwable e) {
+            logger.warn("Errors happened when returning socket, socket = " + socket, e);
+        }
     }
 
     /**
@@ -142,11 +156,12 @@ public class ImhotepConnectionPool implements Closeable {
             final Host host,
             final int timeoutMillis,
             final ConnectionUser<R, E> function) throws E, IOException {
-        try (final ImhotepConnection connection = getConnection(host, timeoutMillis)) {
+        // Note: ImhotepConnection::close don't throw, so the returned value won't be leaked even if R implements closeable.
+        try (final ImhotepConnection connection = getConnection(host)) {
             try {
                 return function.apply(connection);
             } catch (final Throwable t) {
-                invalidateConnection(connection);
+                connection.markAsInvalid();
                 throw t;
             }
         }
@@ -177,6 +192,7 @@ public class ImhotepConnectionPool implements Closeable {
             final Host host,
             final int timeoutMillis,
             final SocketStreamUser<R, E> function) throws E, IOException {
+        // Note: ImhotepConnection::close don't throw, so the returned value won't be leaked even if R implements closeable.
         try (final ImhotepConnection connection = getConnection(host, timeoutMillis)) {
             final Pair<NonClosingInputStream, NonClosingOutputStream> socketStream = getBufferedSocketStream(connection);
             try {
@@ -184,7 +200,7 @@ public class ImhotepConnectionPool implements Closeable {
                 ensureStreamClosed(socketStream);
                 return r;
             } catch (final Throwable t) {
-                invalidateConnection(connection);
+                connection.markAsInvalid();
                 throw t;
             }
         }
@@ -215,6 +231,7 @@ public class ImhotepConnectionPool implements Closeable {
             final Host host,
             final int timeoutMillis,
             final SocketStreamUser2Throwings<R, E1, E2> function) throws E1, E2, IOException {
+        // Note: ImhotepConnection::close don't throw, so the returned value won't be leaked even if R implements closeable.
         try (final ImhotepConnection connection = getConnection(host, timeoutMillis)) {
             final Pair<NonClosingInputStream, NonClosingOutputStream> socketStream = getBufferedSocketStream(connection);
             try {
@@ -222,7 +239,7 @@ public class ImhotepConnectionPool implements Closeable {
                 ensureStreamClosed(socketStream);
                 return r;
             } catch (final Throwable t) {
-                invalidateConnection(connection);
+                connection.markAsInvalid();
                 throw t;
             }
         }

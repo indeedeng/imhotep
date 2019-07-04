@@ -40,6 +40,9 @@ import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.api.PerformanceStats;
 import com.indeed.imhotep.api.RegroupParams;
 import com.indeed.imhotep.client.Host;
+import com.indeed.imhotep.commands.OpenSession;
+import com.indeed.imhotep.commands.OpenSessionData;
+import com.indeed.imhotep.commands.OpenSessions;
 import com.indeed.imhotep.exceptions.InvalidSessionException;
 import com.indeed.imhotep.fs.RemoteCachingFileSystemProvider;
 import com.indeed.imhotep.io.ImhotepProtobufShipping;
@@ -78,6 +81,7 @@ import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
+import java.net.SocketTimeoutException;
 import java.net.URISyntaxException;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -950,6 +954,40 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 commands.add(ImhotepCommand.readFromInputStream(is));
             }
 
+            // If the first command is open session, that means we haven't created the session yet and it's
+            // part of this batch.
+            if (commands.get(0) instanceof OpenSession) {
+                final OpenSession openSession = (OpenSession) commands.get(0);
+                NDC.push(openSession.getSessionId());
+                final OpenSessionData openSessionData = openSession.openSessionData;
+                final AtomicLong tempFileSizeBytesLeft =
+                        (openSessionData.getDaemonTempFileSizeLimit() > 0)
+                                ? new AtomicLong(openSessionData.getDaemonTempFileSizeLimit())
+                                : null;
+                service.handleOpenSession(
+                        openSessionData.getDataset(),
+                        openSession.shards,
+                        openSessionData.getUsername(),
+                        openSessionData.getClientName(),
+                        socket.getInetAddress().getHostAddress(),
+                        openSessionData.getPriority(),
+                        openSession.clientVersion,
+                        openSessionData.getMergeThreadLimit(),
+                        openSessionData.isOptimizeGroupZeroLookups(),
+                        openSession.getSessionId(),
+                        tempFileSizeBytesLeft,
+                        openSessionData.getSessionTimeout(),
+                        openSessionData.isUseFtgsPooledConnection()
+                );
+                commands.remove(0);
+
+                // was only OPEN_SESSION in the end
+                if (commands.isEmpty()) {
+                    return Pair.of(builder.build(), null);
+                }
+            }
+
+
             final ImhotepCommand lastCommand = commands.get(commands.size() - 1);
             commands.remove(commands.size() - 1);
 
@@ -1224,12 +1262,15 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                     log.warn("ImhotepOutOfMemoryException while servicing request", e);
                     sendResponse(ImhotepResponse.newBuilder().setResponseCode(oom).build(), os);
                 } catch (final IOException e) {
-                    try {
-                        sendResponse(newErrorResponse(e), os);
-                    } catch (final Exception e2) {
-                        log.error("Exception during sending back the error", e2);
+                    // IMTEPD-571: Ignore the socket timeout exception, which would be caused frequently by the connection pool
+                    if (!(e instanceof SocketTimeoutException)) {
+                        try {
+                            sendResponse(newErrorResponse(e), os);
+                        } catch (final Exception e2) {
+                            log.error("Exception during sending back the error", e2);
+                        }
+                        throw e;
                     }
-                    throw e;
                 } catch (final RuntimeException e) {
                     expireSession(request, e);
                     try {

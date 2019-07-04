@@ -28,11 +28,15 @@ dependencies {
         exclude group:'com.sun.jersey.contribs', module:'jersey-guice'
     }
     compile 'org.apache.commons:commons-pool2:2.6.1'
+    compile 'com.fasterxml.jackson.core:jackson-annotations:2.9.6'
     compileOnly 'org.projectlombok:lombok:1.18.4'
     annotationProcessor 'org.projectlombok:lombok:1.18.4'
     testCompile 'junit:junit:4.8.2'
     testCompile 'org.easymock:easymock:2.4'
     testCompile 'org.apache.curator:curator-test:2.7.1'
+    testCompile 'org.hamcrest:hamcrest:2.1'
+    testCompileOnly 'org.projectlombok:lombok:1.18.4'
+    testAnnotationProcessor 'org.projectlombok:lombok:1.18.4'
 }
 
 ext['indeed.publish.name'] = 'imhotep-client'

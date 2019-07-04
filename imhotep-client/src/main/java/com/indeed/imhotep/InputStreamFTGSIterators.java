@@ -15,13 +15,10 @@
 package com.indeed.imhotep;
 
 import com.indeed.imhotep.FTGSBinaryFormat.FieldStat;
+import com.indeed.imhotep.utils.tempfiles.TempFile;
 import com.indeed.util.core.Pair;
 
-import java.io.BufferedInputStream;
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.io.InputStream;
 
 /**
  * @author kenh
@@ -30,18 +27,14 @@ import java.io.InputStream;
 public class InputStreamFTGSIterators {
     private InputStreamFTGSIterators() {}
 
-    private static InputStream createInputStream(final File file) throws FileNotFoundException {
-        return new BufferedInputStream(new FileInputStream(file));
-    }
-
-    public static InputStreamFTGSIterator create(final File file,
+    public static InputStreamFTGSIterator create(final TempFile file,
                                                  final FieldStat[] fieldStats,
                                                  final int numStats,
                                                  final int numGroups) throws FileNotFoundException {
-        return new InputStreamFTGSIterator(createInputStream(file), fieldStats, numStats, numGroups);
+        return new InputStreamFTGSIterator(file.bufferedInputStream(), fieldStats, numStats, numGroups);
     }
 
-    public static InputStreamFTGSIterator create(final Pair<File, FieldStat[]> fileAndStats,
+    public static InputStreamFTGSIterator create(final Pair<TempFile, FieldStat[]> fileAndStats,
                                                  final int numStats,
                                                  final int numGroups) throws FileNotFoundException {
         return create(fileAndStats.getFirst(), fileAndStats.getSecond(), numStats, numGroups);

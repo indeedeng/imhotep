@@ -26,26 +26,27 @@ import java.util.concurrent.TimeUnit;
 
 public class TestCommandYield {
 
-    private List<String> scheduleOrder = new ArrayList<>();
+    private final List<String> scheduleOrder = new ArrayList<>();
 
-    private static String USER1 = "userName1";
-    private static String CLIENT1 = "ClientName1";
-    private static String USER2 = "userName2";
-    private static String CLIENT2 = "ClientName2";
-    private static String COMMANDID1 = "commandId1";
-    private static String COMMANDID2 = "commandId2";
-    private static String SESSIONID = "randomSessionIdString";
+    private static final String USER1 = "userName1";
+    private static final String CLIENT1 = "ClientName1";
+    private static final String USER2 = "userName2";
+    private static final String CLIENT2 = "ClientName2";
+    private static final String COMMANDID1 = "commandId1";
+    private static final String COMMANDID2 = "commandId2";
+    private static final String SESSIONID = "randomSessionIdString";
 
     private static TaskScheduler oldCPUScheduler = TaskScheduler.CPUScheduler;
 
-    private ImhotepCommand getSleepingCommand(final long milliSeconds, final String commandId) {
+    private ImhotepCommand<Void> getSleepingCommand(final long milliSeconds, final String commandId) {
         return new VoidAbstractImhotepCommand(SESSIONID) {
             @Override
-            public void applyVoid(final ImhotepSession imhotepSession) throws ImhotepOutOfMemoryException {
+            public void applyVoid(final ImhotepSession imhotepSession) {
                 synchronized (scheduleOrder) {
                     scheduleOrder.add(commandId);
                 }
-                ImhotepTask.THREAD_LOCAL_TASK.get().overritdeTaskStartTime(System.nanoTime() - milliSeconds*1000000L);
+                // Instead of Thread.sleep(milliSeconds) hack start time.
+                ImhotepTask.THREAD_LOCAL_TASK.get().changeTaskStartTime(milliSeconds);
             }
 
             @Override
@@ -57,11 +58,12 @@ public class TestCommandYield {
 
     @Before
     public void setup() {
-        TaskScheduler.CPUScheduler = new TaskScheduler(1, TimeUnit.SECONDS.toNanos(60) , TimeUnit.SECONDS.toNanos(1), SchedulerType.CPU, MetricStatsEmitter.NULL_EMITTER);
+        TaskScheduler.CPUScheduler = new TaskScheduler(1, TimeUnit.SECONDS.toNanos(60) , TimeUnit.SECONDS.toNanos(1), 50, SchedulerType.CPU, MetricStatsEmitter.NULL_EMITTER);
 
         ImhotepTask.setup(USER1, CLIENT1, (byte) 0, new SlotTiming());
         try (final SilentCloseable slot = TaskScheduler.CPUScheduler.lockSlot()) {
-            ImhotepTask.THREAD_LOCAL_TASK.get().overritdeTaskStartTime(System.nanoTime() - 1000_000_000L);
+            // Hacking user consumption stats, so USER1 have 1sec of execution already when each test starts.
+            ImhotepTask.THREAD_LOCAL_TASK.get().changeTaskStartTime(1000);
         }
 
         ImhotepTask.setup(USER2, CLIENT2, (byte) 0, new SlotTiming());
@@ -76,36 +78,33 @@ public class TestCommandYield {
         scheduleOrder.clear();
     }
 
-    public Thread getCommandThread(final String username, final String clientName, final String commandID, long... commandsExecTimeMillis) {
+    public Thread getCommandThread(final String username, final String clientName, final String commandID, final long... commandsExecTimeMillis) {
         return new Thread(() -> {
-            try {
-                final ImhotepLocalSession imhotepLocalSession = new ImhotepJavaLocalSession(SESSIONID, new MemoryFlamdex(), null );
+            try(final ImhotepLocalSession imhotepLocalSession = new ImhotepJavaLocalSession(SESSIONID, new MemoryFlamdex(), null )) {
 
                 final List<ImhotepCommand> firstCommands = new ArrayList<>();
                 for (int i = 0; i < (commandsExecTimeMillis.length - 1); i++) {
                     firstCommands.add(getSleepingCommand(commandsExecTimeMillis[i], commandID));
                 }
 
-                final ImhotepCommand lastCommand = getSleepingCommand(commandsExecTimeMillis[commandsExecTimeMillis.length - 1], commandID);
+                final ImhotepCommand<Void> lastCommand = getSleepingCommand(commandsExecTimeMillis[commandsExecTimeMillis.length - 1], commandID);
 
                 ImhotepTask.setup(username, clientName, (byte)0, new SlotTiming());
                 try (final SilentCloseable slot = TaskScheduler.CPUScheduler.lockSlot()) {
                     imhotepLocalSession.executeBatchRequest(firstCommands, lastCommand);
                 }
-                imhotepLocalSession.close();
-
-            } catch (ImhotepOutOfMemoryException e) {
+            } catch (final ImhotepOutOfMemoryException e) {
                 Throwables.propagate(e);
             }
         });
     }
 
-    private void executeThreads(final Thread thread1, final Thread thread2) throws InterruptedException {
+    private static void executeThreads(final Thread thread1, final Thread thread2) throws InterruptedException {
         ImhotepTask.setup("TestUsername", "testClient", (byte) 0, new SlotTiming());
         try (final SilentCloseable slot = TaskScheduler.CPUScheduler.lockSlot()) {
             thread1.start();
             thread2.start();
-            Thread.sleep(100L);
+            Thread.sleep(100);
         }
 
         thread1.join();
@@ -156,5 +155,62 @@ public class TestCommandYield {
         executeThreads(thread1, thread2);
 
         Assert.assertEquals(scheduleOrder, Arrays.asList(COMMANDID2, COMMANDID2, COMMANDID2, COMMANDID1, COMMANDID1, COMMANDID2));
+    }
+
+    private static void runFullUtilizationTest(final int slotsCount, final int taskCount, final int taskTimeMillis) {
+        // Goal of this test is to check that yield works and scheduler switches task in the middle of execution.
+        // Let's say we have 3 task 1000 milliseconds each and we want to execute them on 2 execution slots.
+        // Then without yielding total wallclock time will be 2000 millis (first 1000 millis 2 task are executed on 2 slots,
+        // then third task takes another 1000 millis on one slot)
+        // With yielding total wallclock time will be 1500 millis because the will be switching between tasks
+        // and 3000 millis of execution time are divided between 2 slots
+
+        Assert.assertTrue(slotsCount < taskCount);
+        final Thread[] threads = new Thread[taskCount];
+        for (int i = 0; i < taskCount; i++) {
+            final int index = i; // constant copy to pass in lambda
+            threads[i] = new Thread(() -> {
+                ImhotepTask.setup("user" + index, "client" + index, (byte)0, new SlotTiming());
+                try (final SilentCloseable slot = TaskScheduler.CPUScheduler.lockSlot()) {
+                    final int waitMillis = 10; // yielding every 10 millis
+                    final int iterCount = taskTimeMillis / waitMillis;
+                    for (int iter = 0; iter < iterCount; iter++) {
+                        Thread.sleep(waitMillis);
+                        TaskScheduler.CPUScheduler.yieldIfNecessary();
+                    }
+                } catch (final InterruptedException e) {
+                    Throwables.propagate(e);
+                }
+            });
+            }
+        final TaskScheduler old = TaskScheduler.CPUScheduler;
+        TaskScheduler.CPUScheduler = new TaskScheduler(slotsCount, TimeUnit.SECONDS.toNanos(60) , TimeUnit.SECONDS.toNanos(1),
+                100 /*executionChunkMillis*/, SchedulerType.CPU, MetricStatsEmitter.NULL_EMITTER);
+
+        final long start = System.currentTimeMillis();
+        for (final Thread thread : threads) {
+            thread.start();
+        }
+        for (final Thread thread : threads) {
+            try {
+                thread.join();
+            } catch (final InterruptedException ignored) {
+            }
+        }
+        final long end = System.currentTimeMillis();
+
+        TaskScheduler.CPUScheduler = old;
+
+        // Check that all slots were busy all the time.
+        // Add extra 100 millis for scheduling + Thread.start + Thread.join overhead.
+        Assert.assertTrue( end - start < taskCount * taskTimeMillis / slotsCount + 500);
+    }
+
+    @Test
+    public void testYield() {
+        runFullUtilizationTest(2, 3, 1000);
+        runFullUtilizationTest(5, 7, 1500);
+        runFullUtilizationTest(10, 11, 1000);
+        runFullUtilizationTest(3, 5, 900);
     }
 }

@@ -1,5 +1,6 @@
 package com.indeed.imhotep.commands;
 
+import com.indeed.imhotep.api.CommandSerializationParameters;
 import com.indeed.imhotep.api.ImhotepCommand;
 import com.indeed.imhotep.io.RequestTools.ImhotepRequestSender;
 import lombok.EqualsAndHashCode;
@@ -32,7 +33,10 @@ public abstract class AbstractImhotepCommand<T> implements ImhotepCommand<T> {
     protected abstract ImhotepRequestSender imhotepRequestSenderInitializer();
 
     @Override
-    public void writeToOutputStream(final OutputStream os) throws IOException {
+    public void writeToOutputStream(
+            final OutputStream os,
+            final CommandSerializationParameters serializationParameters
+    ) throws IOException {
         getImhotepRequestSender().writeToStreamNoFlush(os);
     }
 }

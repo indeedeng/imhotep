@@ -19,7 +19,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 import com.indeed.imhotep.ZkEndpointPersister;
@@ -53,7 +52,6 @@ import java.net.ServerSocket;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Timer;
@@ -274,7 +272,7 @@ public class ShardMasterDaemon {
         @Nullable
         private ShardMaster dynamicShardMaster = null;
         @Nullable
-        private String datasetHostLimitMap;
+        private Map<String, Integer> datasetHostLimitMap;
 
         /*
          * Local mode does:
@@ -399,16 +397,16 @@ public class ShardMasterDaemon {
             return this;
         }
 
-        public Config setDatasetHostLimitMap(final String datasetHostLimitMap) {
+        public Config setDatasetHostLimitMap(final Map<String, Integer> datasetHostLimitMap) {
             this.datasetHostLimitMap = datasetHostLimitMap;
             return this;
         }
 
         public Map<String, Integer> getDatasetHostLimitMap() {
-            if (StringUtils.isBlank(datasetHostLimitMap)) {
+            if (datasetHostLimitMap == null) {
                 return Collections.emptyMap();
             }
-            return parseDatasetHostLimitMap(datasetHostLimitMap);
+            return datasetHostLimitMap;
         }
 
         boolean hasStaticHostsList() {
@@ -440,19 +438,6 @@ public class ShardMasterDaemon {
                 }
             }
             return hostsBuilder.build();
-        }
-
-        private Map<String, Integer> parseDatasetHostLimitMap(final String value) {
-            final Map<String, Integer> hostLimitMap = new HashMap<>();
-            for (final String datasetHostLimitPair : COMMA_SPLITTER.split(value)) {
-                try {
-                    final String[] pair = datasetHostLimitPair.split(":");
-                    hostLimitMap.put(pair[0], Integer.valueOf(pair[1]));
-                } catch (final IndexOutOfBoundsException | NumberFormatException e) {
-                    LOGGER.warn("Failed to parse datasetHostsLimitPair " + datasetHostLimitPair, e);
-                }
-            }
-            return ImmutableMap.copyOf(hostLimitMap);
         }
 
         ExecutorService createExecutorService() {

@@ -97,9 +97,9 @@ public class TestCommandDeserializeRemoteImhotepRequest implements CommandsTest 
 
     @Override
     @Test
-    public void testGetGroupStats() throws ImhotepOutOfMemoryException, ExecutionException, InterruptedException {
+    public void testGetGroupStats() throws ImhotepOutOfMemoryException, ExecutionException, InterruptedException, IOException {
         final List<String> stats = Lists.newArrayList("1");
-        imhotepRemoteSession.getGroupStatsIterator(TEST_INPUT_GROUPS_NAME, stats);
+        imhotepRemoteSession.getGroupStatsIterator(TEST_INPUT_GROUPS_NAME, stats).close();
         Assert.assertEquals(new GetGroupStats(TEST_INPUT_GROUPS_NAME, stats, SESSION_ID), holder.futureCommand.get());
     }
 
@@ -236,5 +236,12 @@ public class TestCommandDeserializeRemoteImhotepRequest implements CommandsTest 
         final List<String> groupsToDelete = Collections.singletonList("someGroups");
         imhotepRemoteSession.deleteGroups(groupsToDelete);
         Assert.assertEquals(new DeleteGroups(groupsToDelete, SESSION_ID), holder.futureCommand.get());
+    }
+
+    @Override
+    @Test
+    public void testGetNumGroups() throws Exception {
+        imhotepRemoteSession.getNumGroups(TEST_INPUT_GROUPS_NAME);
+        Assert.assertEquals(new GetNumGroups(TEST_INPUT_GROUPS_NAME, SESSION_ID), holder.futureCommand.get());
     }
 }

@@ -15,14 +15,15 @@
 
 import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.service.FTGSOutputStreamWriter;
+import com.indeed.imhotep.utils.tempfiles.ImhotepTempFiles;
+import com.indeed.imhotep.utils.tempfiles.TempFile;
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -308,10 +309,13 @@ public class InputStreamFTGSIteratorTest {
 
     @Test
     public void testFileInputStreamIterators() throws IOException {
-        final File tmp = File.createTempFile("ftgs", ".tmp");
+        final TempFile tmp = ImhotepTempFiles.createFTGATempFile("dummy");
         final FTGSBinaryFormat.FieldStat[] stats;
         try {
-            try (final FTGSOutputStreamWriter w = new FTGSOutputStreamWriter(new FileOutputStream(tmp))) {
+            try (
+                    final OutputStream os = tmp.outputStream();
+                    final FTGSOutputStreamWriter w = new FTGSOutputStreamWriter(os)
+            ) {
                 w.switchField("a", true);
                 w.switchIntTerm(1, 5);
                 w.switchGroup(1);
@@ -362,7 +366,7 @@ public class InputStreamFTGSIteratorTest {
             }
 
         } finally {
-            tmp.delete();
+            tmp.removeFile();
         }
     }
 }

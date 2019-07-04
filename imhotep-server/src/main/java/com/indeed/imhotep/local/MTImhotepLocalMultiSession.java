@@ -27,6 +27,7 @@ import com.indeed.imhotep.GroupStatsIteratorCombiner;
 import com.indeed.imhotep.ImhotepRemoteSession;
 import com.indeed.imhotep.MemoryReservationContext;
 import com.indeed.imhotep.MultiSessionMerger;
+import com.indeed.imhotep.SlotTiming;
 import com.indeed.imhotep.SortedFTGSInterleaver;
 import com.indeed.imhotep.TermLimitedFTGSIterator;
 import com.indeed.imhotep.UnsortedFTGSIterator;
@@ -91,9 +92,10 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
                                       final String userName,
                                       final String clientName,
                                       final byte priority,
+                                      final SlotTiming slotTiming,
                                       final boolean useFtgsPooledConnection)
     {
-        super(sessionId, sessions, tempFileSizeBytesLeft, userName, clientName, priority);
+        super(sessionId, sessions, tempFileSizeBytesLeft, userName, clientName, priority, slotTiming);
         this.memory = memory;
         this.useFtgsPooledConnection = useFtgsPooledConnection;
         this.closed.set(false);
@@ -134,15 +136,14 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
     public long[] getGroupStats(final String groupsName, final List<String> stat) throws ImhotepOutOfMemoryException {
         final GroupStatsPool pool = new GroupStatsPool(getNumGroups());
 
-        executeMemoryException(nullBuf, session -> {
+        executor().executeMemoryExceptionVoid(nullBuf, session -> {
             if (session.isFilteredOut(groupsName)) {
-                return null;
+                return;
             }
             final long[] buffer = pool.getBuffer();
             final GroupLookup docIdToGroup = session.namedGroupLookups.get(groupsName);
             session.addGroupStats(docIdToGroup, stat, buffer);
             pool.returnBuffer(buffer);
-            return null;
         });
 
         // TODO: run as a separate task maybe?
@@ -209,7 +210,9 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
 
         final FTGSSplitter[] ftgsIteratorSplitters = new FTGSSplitter[sessions.length];
         try {
-            executeSessions(getSplitBufferThreads, ftgsIteratorSplitters, true, imhotepSession -> imhotepSession.getFTGSIteratorSplitter(groupsName, intFields, stringFields, numSplits, termLimit, stats));
+            closeOnFailExecutor()
+                    .executorService(getSplitBufferThreads)
+                    .executeSessions(ftgsIteratorSplitters, imhotepSession -> imhotepSession.getFTGSIteratorSplitter(groupsName, intFields, stringFields, numSplits, termLimit, stats));
             initSplits(ftgsIteratorSplitters, numSplits, termLimit);
         } catch (final Throwable t) {
             Closeables2.closeAll(log, ftgsIteratorSplitters);
@@ -230,7 +233,9 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
 
         final FTGSSplitter[] ftgsIteratorSplitters = new FTGSSplitter[sessions.length];
         try {
-            executeSessions(getSplitBufferThreads, ftgsIteratorSplitters, true, imhotepSession -> imhotepSession.getSubsetFTGSIteratorSplitter(groupsName, intFields, stringFields, numSplits, stats));
+            closeOnFailExecutor()
+                    .executorService(getSplitBufferThreads)
+                    .executeSessions(ftgsIteratorSplitters, imhotepSession -> imhotepSession.getSubsetFTGSIteratorSplitter(groupsName, intFields, stringFields, numSplits, stats));
             initSplits(ftgsIteratorSplitters, numSplits, 0);
         } catch (final Throwable t) {
             Closeables2.closeAll(log, ftgsIteratorSplitters);
@@ -345,37 +350,23 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
 
     @Override
     public void stringOrRegroup(final RegroupParams regroupParams, final String field, final String[] terms, final int targetGroup, final int negativeGroup, final int positiveGroup) throws ImhotepOutOfMemoryException {
-        executeMemoryException(nullBuf, (ThrowingFunction<ImhotepSession, Object>) session -> {
-            session.stringOrRegroup(regroupParams, field, terms, targetGroup, negativeGroup, positiveGroup);
-            return null;
-        });
+        executor().executeMemoryExceptionVoid(nullBuf, session -> session.stringOrRegroup(regroupParams, field, terms, targetGroup, negativeGroup, positiveGroup));
     }
 
     @Override
     public int regroup(final RegroupParams regroupParams, final int[] fromGroups, final int[] toGroups, final boolean filterOutNotTargeted) throws ImhotepOutOfMemoryException {
-        executeMemoryException(integerBuf, new ThrowingFunction<ImhotepLocalSession, Integer>() {
-            @Override
-            public Integer apply(final ImhotepLocalSession session) throws ImhotepOutOfMemoryException {
-                return session.regroup(regroupParams, fromGroups, toGroups, filterOutNotTargeted);
-            }
-        });
-
+        executor().executeMemoryException(integerBuf, session -> session.regroup(regroupParams, fromGroups, toGroups, filterOutNotTargeted));
         return Collections.max(Arrays.asList(integerBuf));
     }
 
     @Override
     public void intOrRegroup(final RegroupParams regroupParams, final String field, final long[] terms, final int targetGroup, final int negativeGroup, final int positiveGroup) throws ImhotepOutOfMemoryException {
-        executeMemoryException(nullBuf, (ThrowingFunction<ImhotepSession, Object>) session -> {
-            session.intOrRegroup(regroupParams, field, terms, targetGroup, negativeGroup, positiveGroup);
-            return null;
-        });
+        executor().executeMemoryExceptionVoid(nullBuf, session -> session.intOrRegroup(regroupParams, field, terms, targetGroup, negativeGroup, positiveGroup));
     }
 
     @Override
     public int regroup(final RegroupParams regroupParams, final GroupMultiRemapRule[] rawRules, final boolean errorOnCollisions) throws ImhotepOutOfMemoryException {
-        executeMemoryException(integerBuf, (ThrowingFunction<ImhotepSession, Integer>) session ->
-                session.regroup(regroupParams, rawRules, errorOnCollisions));
-
+        executor().executeMemoryException(integerBuf, (ThrowingFunction<ImhotepSession, Integer>) session -> session.regroup(regroupParams, rawRules, errorOnCollisions));
         return Collections.max(Arrays.asList(integerBuf));
     }
 
@@ -467,19 +458,15 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
             iterators[0] = remoteSession.getFTGSIterator(params.intFields, params.stringFields, perSplitTermLimit, params.stats);
         } else {
             checkSplitParams(splitIndex, numGlobalSplits);
-            try {
-                execute(mergeSplitBufferThreads, iterators, nodes, false,
-                        // This session exists solely to make remote calls and should never be closed.
-                        // Closing it would close the session, and make future operations fail.
-                        // This is similar to mergeFTGSSplit.
-                        node -> getRemoteSession(remoteSessionId, node).getFTGSIteratorSplit(groupsName, params.intFields, params.stringFields, params.stats, splitIndex, numGlobalSplits, perSplitTermLimit, useFtgsPooledConnection));
-            } catch (final Throwable t) {
-                Closeables2.closeAll(log, iterators);
-                if (t instanceof ExecutionException) {
-                    Throwables.propagateIfInstanceOf(t.getCause(), ImhotepOutOfMemoryException.class);
-                }
-                throw Throwables.propagate(t);
-            }
+            closeOnFailExecutor()
+                    .lockCPU(false)
+                    .executorService(mergeSplitBufferThreads)
+                    .executeMemoryException(iterators, nodes,
+                            // This session exists solely to make remote calls and should never be closed.
+                            // Closing it would close the session, and make future operations fail.
+                            // This is similar to mergeFTGSSplit.
+                            node -> getRemoteSession(remoteSessionId, node).getFTGSIteratorSplit(groupsName, params.intFields, params.stringFields, params.stats, splitIndex, numGlobalSplits, perSplitTermLimit, useFtgsPooledConnection));
+
         }
 
         final Closer closeOnFailCloser = Closer.create();
@@ -500,11 +487,11 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
             final Function<MultiFTGSIterator, FTGAIterator> processor
     ) {
         final Closer closer = Closer.create();
-        for (final FTGSIterator[] subIteratorList : subIteratorLists) {
-            closer.register(Closeables2.forArray(log, subIteratorList));
-        }
         try {
-            Preconditions.checkArgument(subIteratorLists.size() > 0);
+            for (final FTGSIterator[] subIteratorList : subIteratorLists) {
+                closer.register(Closeables2.forArray(log, subIteratorList));
+            }
+            Preconditions.checkArgument(!subIteratorLists.isEmpty());
             final int numSplits = subIteratorLists.get(0).length;
             for (final FTGSIterator[] list : subIteratorLists) {
                 Preconditions.checkArgument(list.length == numSplits);
@@ -517,14 +504,12 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
                     indexIterators.add(list[i]);
                 }
                 final MultiSessionMerger sessionMerger = closer.register(new MultiSessionMerger(indexIterators, null));
-                final FTGAIterator processed = closer.register(processor.apply(sessionMerger));
-                splitEntries[i] = closer.register(modifiers.wrap(processed));
+                splitEntries[i] = closer.register(processor.apply(sessionMerger));
             }
             final FTGAIterator[] persisted = new FTGAIterator[numSplits];
-            execute(persisted, splitEntries, true, this::persist);
+            closeOnFailExecutor()
+                    .executeRuntimeException(persisted, splitEntries, x -> this.persist(modifiers.wrap(x)));
             return persisted;
-        } catch (ExecutionException e) {
-            throw Throwables.propagate(e);
         } finally {
             Closeables2.closeQuietly(closer, log);
         }
@@ -539,12 +524,11 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
             final List<Integer> windowSizes,
             @Nullable final int[] parentGroups) throws ImhotepOutOfMemoryException {
         final Closer closer = Closer.create();
-        final Closer closeOnFailCloser = Closer.create();
         try {
             for (final FTGSIterator[] subIteratorList : subIteratorLists) {
                 closer.register(Closeables2.forArray(log, subIteratorList));
             }
-            Preconditions.checkArgument(subIteratorLists.size() > 0);
+            Preconditions.checkArgument(!subIteratorLists.isEmpty());
             final int numSplits = subIteratorLists.get(0).length;
             for (final FTGSIterator[] list : subIteratorLists) {
                 Preconditions.checkArgument(list.length == numSplits);
@@ -560,13 +544,9 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
             }
 
             final GroupStatsIterator[] threadCounts = new GroupStatsIterator[numSplits];
-            closeOnFailCloser.register(Closeables2.forArray(log, threadCounts));
-            execute(threadCounts, splitEntries, true, x -> calculateMultiDistinct(x, filters, windowSizes, parentGroups));
+            closeOnFailExecutor()
+                    .executeMemoryException(threadCounts, splitEntries, x -> calculateMultiDistinct(x, filters, windowSizes, parentGroups));
             return new GroupStatsIteratorCombiner(threadCounts);
-        } catch (final ExecutionException e) {
-            Closeables2.closeQuietly(closeOnFailCloser, log);
-            Throwables.propagateIfInstanceOf(e.getCause(), ImhotepOutOfMemoryException.class);
-            throw Throwables.propagate(e);
         } finally {
             Closeables2.closeQuietly(closer, log);
         }
@@ -765,20 +745,14 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
             final int sortStat,
             final boolean sorted,
             final StatsSortOrder statsSortOrder,
-            final ThrowingFunction<T, FTGSIterator> getIteratorFromSession
+            final ThrowingFunction<? super T, ? extends FTGSIterator> getIteratorFromSession
     ) throws ImhotepOutOfMemoryException, IOException {
         checkSplitParams(imhotepSessions.length);
         final FTGSIterator[] iterators = new FTGSIterator[imhotepSessions.length];
-
-        try {
-            execute(mergeSplitBufferThreads, iterators, imhotepSessions, false, getIteratorFromSession);
-        } catch (final Throwable t) {
-            Closeables2.closeAll(log, iterators);
-            if (t instanceof ExecutionException) {
-                Throwables.propagateIfInstanceOf(t.getCause(), ImhotepOutOfMemoryException.class);
-            }
-            throw Throwables.propagate(t);
-        }
+        closeOnFailExecutor()
+                .lockCPU(false)
+                .executorService(mergeSplitBufferThreads)
+                .executeMemoryException(iterators, imhotepSessions, getIteratorFromSession);
         return parallelMergeFTGS(iterators, termLimit, sortStat, sorted, statsSortOrder);
     }
 
@@ -791,17 +765,13 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
         try {
             final FTGSIterator[] mergers = parallelDisjointSplitAndMerge(closer, iterators);
             final FTGSIterator[] persistedMergers = new FTGSIterator[mergers.length];
-            closer.register(Closeables2.forArray(log, persistedMergers));
-            execute(mergeSplitBufferThreads, persistedMergers, mergers, true, this::persist);
-
+            closeOnFailExecutor()
+                    .executorService(mergeSplitBufferThreads)
+                    .executeIOException(persistedMergers, mergers, this::persist);
             final FTGSIterator interleaver = sorted ? new SortedFTGSInterleaver(persistedMergers) : new UnsortedFTGSIterator(persistedMergers);
             return new FTGSModifiers(termLimit, sortStat, sorted, statsSortOrder).wrap(interleaver);
         } catch (final Throwable t) {
             Closeables2.closeQuietly(closer, log);
-            Throwables.propagateIfInstanceOf(t, IOException.class);
-            if (t instanceof ExecutionException) {
-                Throwables.propagateIfInstanceOf(t.getCause(), IOException.class);
-            }
             throw Throwables.propagate(t);
         }
     }
@@ -822,15 +792,15 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
         final FTGSIterator[][] iteratorSplits = new FTGSIterator[iterators.length][];
 
         try {
-            execute(iteratorSplits, iterators, true, iterator -> FTGSSplitter.doSplit(
-                    iterator,
-                    numSplits,
-                    981044833,
-                    tempFileSizeBytesLeft
-            ));
-        } catch (final ExecutionException e) {
-            Throwables.propagateIfInstanceOf(e.getCause(), IOException.class);
-            throw newRuntimeException(e);
+            this.<FTGSIterator[]>executor()
+                    .cleanupFunction(iters -> Closeables2.closeAll(log, iters))
+                    .executeIOException(iteratorSplits, iterators, iterator -> FTGSSplitter.doSplit(
+                            iterator,
+                            numSplits,
+                            981044833,
+                            tempFileSizeBytesLeft
+                            )
+                    );
         } finally {
             Closeables2.closeAll(log, iterators);
             for (final FTGSIterator[] splits : iteratorSplits) {
@@ -864,9 +834,7 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
 
     public <T> T executeBatchRequest(final List<ImhotepCommand> firstCommands, final ImhotepCommand<T> lastCommand) throws ImhotepOutOfMemoryException {
         final T[] buffer = (T[]) Array.newInstance(lastCommand.getResultClass(), sessions.length);
-        executeMemoryException(buffer, (ThrowingFunction<ImhotepLocalSession, Object>) session -> {
-            return session.executeBatchRequest(firstCommands, lastCommand);
-        });
+        executor().executeMemoryException(buffer, session -> session.executeBatchRequest(firstCommands, lastCommand));
         return lastCommand.combine(Arrays.asList(buffer));
     }
 }

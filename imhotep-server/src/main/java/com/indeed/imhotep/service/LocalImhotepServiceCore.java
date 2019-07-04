@@ -28,6 +28,7 @@ import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.client.Host;
 import com.indeed.imhotep.connection.ImhotepConnectionPoolStatsReporter;
 import com.indeed.imhotep.connection.ImhotepConnectionPoolWrapper;
+import com.indeed.imhotep.connection.ImhotepMemoryStatsReporter;
 import com.indeed.imhotep.fs.RemoteCachingPath;
 import com.indeed.imhotep.io.ImhotepProtobufShipping;
 import com.indeed.imhotep.local.ImhotepJavaLocalSession;
@@ -39,9 +40,9 @@ import com.indeed.imhotep.protobuf.ImhotepResponse;
 import com.indeed.imhotep.protobuf.ShardBasicInfoMessage;
 import com.indeed.imhotep.scheduling.SchedulerType;
 import com.indeed.imhotep.scheduling.TaskScheduler;
+import com.indeed.imhotep.utils.tempfiles.ImhotepTempFiles;
 import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.core.reference.SharedReference;
-import com.indeed.util.core.shell.PosixFileOperations;
 import com.indeed.util.varexport.VarExporter;
 import org.apache.commons.io.IOUtils;
 import org.apache.log4j.Logger;
@@ -71,6 +72,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static com.indeed.imhotep.utils.ImhotepResponseUtils.appendErrorMessage;
 import static com.indeed.imhotep.utils.ImhotepResponseUtils.newErrorResponse;
@@ -82,8 +84,6 @@ public class LocalImhotepServiceCore
     extends AbstractImhotepServiceCore {
     private static final Logger log = Logger.getLogger(LocalImhotepServiceCore.class);
 
-    private static final int STATS_REPORT_FREQUENCY_SECONDS = 10;
-
     private final LocalSessionManager sessionManager;
 
     private final ScheduledExecutorService heartBeat;
@@ -94,7 +94,8 @@ public class LocalImhotepServiceCore
     private final MemoryReserver memory;
     private final ConcurrentFlamdexReaderFactory flamderReaderFactory;
 
-    private ImhotepConnectionPoolStatsReporter statsReporter;
+    private final ImhotepConnectionPoolStatsReporter connectionPoolStatsReporter;
+    private final ImhotepMemoryStatsReporter memoryStatsReporter;
 
     /**
      * @param shardTempDir
@@ -146,29 +147,36 @@ public class LocalImhotepServiceCore
         if(config.getCpuSlots() > 0) {
             TaskScheduler.CPUScheduler = new TaskScheduler(config.getCpuSlots(),
                     TimeUnit.SECONDS.toNanos(config.getCpuSchedulerHistoryLengthSeconds()),
-                    TimeUnit.SECONDS.toNanos(1), SchedulerType.CPU,
+                    TimeUnit.SECONDS.toNanos(1),
+                    config.getCpuExecutionChunkMillis(),
+                    SchedulerType.CPU,
                     statsEmitter);
         }
 
         if(config.getRemoteFSIOSlots() > 0) {
             TaskScheduler.RemoteFSIOScheduler = new TaskScheduler(config.getRemoteFSIOSlots(),
                     TimeUnit.SECONDS.toNanos(config.getRemoteFSIOSchedulerHistoryLengthSeconds()),
-                    TimeUnit.SECONDS.toNanos(1), SchedulerType.REMOTE_FS_IO,
+                    TimeUnit.SECONDS.toNanos(1),
+                    0,
+                    SchedulerType.REMOTE_FS_IO,
                     statsEmitter);
         }
 
         if (config.getP2pFSIOSlots() > 0) {
             TaskScheduler.P2PFSIOScheduler = new TaskScheduler(config.getP2pFSIOSlots(),
                     TimeUnit.SECONDS.toNanos(config.getP2PFSIOSchedulerHistoryLengthSeconds()),
-                    TimeUnit.SECONDS.toNanos(1), SchedulerType.P2P_FS_IO,
+                    TimeUnit.SECONDS.toNanos(1),
+                    0,
+                    SchedulerType.P2P_FS_IO,
                     statsEmitter);
         }
 
-        this.statsReporter = new ImhotepConnectionPoolStatsReporter(ImhotepConnectionPoolWrapper.INSTANCE, statsEmitter);
-        statsReporter.start(STATS_REPORT_FREQUENCY_SECONDS);
+        this.connectionPoolStatsReporter = new ImhotepConnectionPoolStatsReporter(ImhotepConnectionPoolWrapper.INSTANCE, statsEmitter, 1);
+        this.memoryStatsReporter = new ImhotepMemoryStatsReporter(statsEmitter, memory);
 
         sessionManager = new LocalSessionManager(statsEmitter, config.getMaxSessionsTotal(), config.getMaxSessionsPerUser());
 
+        ImhotepTempFiles.tryCleanupTempFiles();
         clearTempDir(shardTempDir);
 
 
@@ -229,16 +237,8 @@ public class LocalImhotepServiceCore
                 final String baseName = p.getFileName().toString();
                 final boolean isDirectory = Files.isDirectory(p);
 
-                if (isDirectory && baseName.endsWith(".optimization_log")) {
-                    /* an optimized index */
-                    PosixFileOperations.rmrf(p);
-                }
                 if (!isDirectory && baseName.startsWith(".tmp")) {
                     /* an optimization log */
-                    Files.delete(p);
-                }
-                if (!isDirectory && baseName.startsWith("ftgs") && baseName.endsWith(".tmp")) {
-                    /* created by AbstractImhotepMultisession::persist() */
                     Files.delete(p);
                 }
                 if (!isDirectory && baseName.startsWith("native-split")) {
@@ -298,24 +298,26 @@ public class LocalImhotepServiceCore
             return;
         }
 
-        final List<FileAttributesMessage> attributeMessageList = Files.walk(dirPath).map(path -> {
-            try {
-                final BasicFileAttributes attributes = Files.readAttributes(path, BasicFileAttributes.class);
-                // only list files
-                // don't call filter(Files::isRegularFile) to avoid readAttributes twice
-                if (attributes.isDirectory()) {
-                    return null;
+        try (final Stream<Path> fileStream = Files.walk(dirPath)) {
+            final List<FileAttributesMessage> attributeMessageList = fileStream.map(path -> {
+                try {
+                    final BasicFileAttributes attributes = Files.readAttributes(path, BasicFileAttributes.class);
+                    // only list files
+                    // don't call filter(Files::isRegularFile) to avoid readAttributes twice
+                    if (attributes.isDirectory()) {
+                        return null;
+                    }
+                    return FileAttributesMessage.newBuilder()
+                            .setPath(dirPath.relativize(path).toString())
+                            .setSize(attributes.size())
+                            .setIsDirectory(attributes.isDirectory())
+                            .build();
+                } catch (final IOException e) {
+                    throw new RuntimeException(e);
                 }
-                return FileAttributesMessage.newBuilder()
-                        .setPath(dirPath.relativize(path).toString())
-                        .setSize(attributes.size())
-                        .setIsDirectory(attributes.isDirectory())
-                        .build();
-            } catch (final IOException e) {
-                throw new RuntimeException(e);
-            }
-        }).filter(Objects::nonNull).collect(Collectors.toList());
-        builder.addAllFilesAttributes(attributeMessageList);
+            }).filter(Objects::nonNull).collect(Collectors.toList());
+            builder.addAllFilesAttributes(attributeMessageList);
+        }
     }
 
     private Path getShardFilePath(final String fileUri) throws IOException {
@@ -376,8 +378,8 @@ public class LocalImhotepServiceCore
             // Construct flamdex readers
             final List<ConcurrentFlamdexReaderFactory.CreateRequest> readerRequests =
                     shardRequestListToFlamdexReaderRequests(dataset, shardRequestList, username, clientName, priority);
-            final Map<Path, SharedReference<CachedFlamdexReader>> flamdexes = flamderReaderFactory.constructFlamdexReaders(readerRequests);
-
+            final ConcurrentFlamdexReaderFactory.ConstructFlamdexReadersResult constructReadersResult = flamderReaderFactory.constructFlamdexReaders(readerRequests);
+            final Map<Path, SharedReference<CachedFlamdexReader>> flamdexes = constructReadersResult.flamdexes;
             // Construct local sessions using the above readers
             final SessionObserver observer = new SessionObserver(dataset, sessionId, username, clientName, ipAddress);
             int sessionIndex = 0;
@@ -406,6 +408,7 @@ public class LocalImhotepServiceCore
                     username,
                     clientName,
                     priority,
+                    constructReadersResult.slotTiming,
                     useFtgsPooledConnection);
 
             // create flamdex reference copies for the session manager
@@ -454,8 +457,14 @@ public class LocalImhotepServiceCore
     public void close() {
         super.close();
         heartBeat.shutdown();
-        TaskScheduler.CPUScheduler.close();
-        TaskScheduler.RemoteFSIOScheduler.close();
+        Closeables2.closeAll(
+                log,
+                TaskScheduler.CPUScheduler,
+                TaskScheduler.RemoteFSIOScheduler,
+                TaskScheduler.P2PFSIOScheduler,
+                connectionPoolStatsReporter,
+                memoryStatsReporter
+        );
     }
 
     private final AtomicInteger counter = new AtomicInteger(new Random().nextInt());

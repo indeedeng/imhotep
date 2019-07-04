@@ -23,7 +23,7 @@ import java.util.PriorityQueue;
  * Represents a queue of tasks that should run in FIFO order.
  */
 public class TaskQueue implements Comparable<TaskQueue> {
-    private final PriorityQueue<QueuedImhotepTask> queue = Queues.newPriorityQueue();
+    private final PriorityQueue<ImhotepTask> queue = Queues.newPriorityQueue();
     private final OwnerAndPriority ownerAndPriority;
     private final ConsumptionTracker consumptionTracker;
     private long cachedConsumption;
@@ -33,19 +33,15 @@ public class TaskQueue implements Comparable<TaskQueue> {
         this.consumptionTracker = consumptionTracker;
     }
 
-    public QueuedImhotepTask poll() {
+    public ImhotepTask poll() {
         return queue.poll();
     }
 
     public ImhotepTask peek() {
-        final QueuedImhotepTask queuedTask = queue.peek();
-        if (queuedTask == null) {
-            return null;
-        }
-        return queuedTask.imhotepTask;
+        return queue.peek();
     }
 
-    public void offer(QueuedImhotepTask queuedTask) {
+    public void offer(final ImhotepTask queuedTask) {
         queue.offer(queuedTask);
     }
 
@@ -61,8 +57,8 @@ public class TaskQueue implements Comparable<TaskQueue> {
         return queue.size();
     }
 
-    public void updateConsumptionCache() {
-        cachedConsumption = consumptionTracker.getConsumption();
+    public void updateConsumptionCache(final long nanoTime) {
+        cachedConsumption = consumptionTracker.getConsumption(nanoTime);
     }
 
     /** Used to prioritize queues with higher priority number or, if equal, with lower consumption in the TaskScheduler */
