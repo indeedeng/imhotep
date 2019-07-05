@@ -8,9 +8,11 @@ dependencies {
     compile 'com.indeed:util-core:1.0.24'
     compile 'com.indeed:util-io:1.0.24'
     compile 'com.indeed:util-mmap:1.0.24'
-    compile 'com.indeed:util-zookeeper:1.0.24'
-    compile 'log4j:log4j:1.2.17'
+    compile ('com.indeed:util-zookeeper:1.0.24') {
+        exclude group:'org.apache.zookeeper', module:'zookeeper'    // we want the below version
+    }
     compile 'org.apache.zookeeper:zookeeper:3.4.5-cdh5.15.1'
+    compile 'log4j:log4j:1.2.17'
     compile 'com.google.guava:guava:16.0.1'
     compile 'com.google.code.findbugs:jsr305:1.3.9'
     compile 'org.apache.lucene:lucene-core:2.4.1'
