@@ -83,6 +83,7 @@ import java.net.Socket;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.net.URISyntaxException;
+import java.net.UnknownHostException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -184,6 +185,15 @@ public class ImhotepDaemon implements Instrumentation.Provider {
     public void run() {
         NDC.push("main");
 
+        String localAddr;
+        try {
+            localAddr = InetAddress.getLocalHost().toString();
+        } catch (final UnknownHostException e) {
+            localAddr = "";
+            log.warn("cannot initialize localAddr", e);
+        }
+
+
         try {
             log.info("starting up daemon");
             isStarted = true;
@@ -194,7 +204,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                     socket.setSoTimeout(SERVER_SOCKET_TIMEOUT);
                     socket.setTcpNoDelay(true);
                     log.debug("received connection, running");
-                    executor.execute(new DaemonWorker(socket));
+                    executor.execute(new DaemonWorker(socket, localAddr));
                 } catch (final IOException e) {
                     log.warn("server socket error", e);
                 }
@@ -241,18 +251,9 @@ public class ImhotepDaemon implements Instrumentation.Provider {
         private final Socket socket;
         private final String localAddr;
 
-        private DaemonWorker(final Socket socket) {
+        private DaemonWorker(final Socket socket, final String localAddr) {
             this.socket = socket;
-
-            String tmpAddr;
-            try {
-                tmpAddr = InetAddress.getLocalHost().toString();
-            }
-            catch (final Exception ex) {
-                tmpAddr = "";
-                log.warn("cannot initialize localAddr", ex);
-            }
-            this.localAddr = tmpAddr;
+            this.localAddr = localAddr;
         }
 
         @Override

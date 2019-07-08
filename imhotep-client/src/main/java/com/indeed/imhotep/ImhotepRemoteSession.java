@@ -123,10 +123,6 @@ public class ImhotepRemoteSession
 
     private final long numDocs;
 
-    // cached for use by SubmitRequestEvent
-    private final String sourceAddr;
-    private final String targetAddr;
-
     public ImhotepRemoteSession(final String host, final int port, final String sessionId,
                                 final AtomicLong tempFileSizeBytesLeft) {
         this(host, port, sessionId, tempFileSizeBytesLeft, DEFAULT_SOCKET_TIMEOUT);
@@ -148,25 +144,6 @@ public class ImhotepRemoteSession
         this.socketTimeout = socketTimeout;
         this.tempFileSizeBytesLeft = tempFileSizeBytesLeft;
         this.numDocs = numDocs;
-
-        String tmpAddr;
-        try {
-            tmpAddr = InetAddress.getLocalHost().toString();
-        }
-        catch (final Exception ex) {
-            tmpAddr = "";
-            log.warn("[" + getSessionId() + "] Cannot initialize sourceAddr", ex);
-        }
-        this.sourceAddr = tmpAddr;
-
-        try {
-            tmpAddr = InetAddress.getByName(host).toString();
-        }
-        catch (final Exception ex) {
-            tmpAddr = host;
-            log.warn("[" + getSessionId() + "] Cannot initialize targetAddr", ex);
-        }
-        this.targetAddr = tmpAddr;
     }
 
     public static ImhotepStatusDump getStatusDump(final String host, final int port) throws IOException {
