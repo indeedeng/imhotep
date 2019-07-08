@@ -652,7 +652,7 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
         return new Executor<R>().cleanupFunction(Closeable::close);
     }
 
-    protected <R> Executor<R> closeIfCloseableOnFailure() {
+    protected <R> Executor<R> closeIfCloseableOnFailExecutor() {
         return new Executor<R>().cleanupFunction(x -> {
             if (x instanceof AutoCloseable) {
                 ((AutoCloseable)x).close();
