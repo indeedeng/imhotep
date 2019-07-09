@@ -277,7 +277,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
         return new BatchRemoteImhotepMultiSession(this);
     }
 
-    public static class SessionField {
+    public static class PerSessionFTGSInfo {
         private final RemoteImhotepMultiSession session;
         private final Runnable synchronizeCallback;
         private final String field;
@@ -286,7 +286,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
         private final String groupsName;
         private final String outputGroupsName; // For field aggregate bucket
 
-        public SessionField(final ImhotepSession session, final String field, @Nullable final List<List<String>> stats) {
+        public PerSessionFTGSInfo(final ImhotepSession session, final String field, @Nullable final List<List<String>> stats) {
             this(session, field, stats, ImhotepSession.DEFAULT_GROUPS, ImhotepSession.DEFAULT_GROUPS);
         }
 
@@ -296,7 +296,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
          *
          * @throws IllegalArgumentException if session is not a RemoteImhotepMultiSession or AsynchronousRemoteImhotepMultiSession
          */
-        public SessionField(final ImhotepSession session, final String field, @Nullable final List<List<String>> stats, final String groupsName, final String outputGroupsName) {
+        public PerSessionFTGSInfo(final ImhotepSession session, final String field, @Nullable final List<List<String>> stats, final String groupsName, final String outputGroupsName) {
             this.groupsName = groupsName;
             this.outputGroupsName = outputGroupsName;
             if (session instanceof RemoteImhotepMultiSession) {
@@ -320,7 +320,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
      * g0 f0, g0 f1, g0 f2, g1 f0, g1 f1, g1 f2, ...
      */
     public static GroupStatsIterator aggregateDistinct(
-            final List<SessionField> sessionsWithFields,
+            final List<PerSessionFTGSInfo> sessionsWithFields,
             final List<AggregateStatTree> filters,
             final boolean isIntField
     ) throws ImhotepOutOfMemoryException {
@@ -333,7 +333,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
      * g0 f0, g0 f1, g0 f2, g1 f0, g1 f1, g1 f2, ...
      */
     public static GroupStatsIterator aggregateDistinct(
-            final List<SessionField> sessionsWithFields,
+            final List<PerSessionFTGSInfo> sessionsWithFields,
             final List<AggregateStatTree> filters,
             final List<Integer> windowSizes,
             final boolean isIntField,
@@ -398,7 +398,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
     //
     // Those then get combined by the thing that handles the results of this, index-for-index zipping across all of the datasets.
     public static FTGAIterator multiFtgs(
-            final List<SessionField> sessionsWithFields,
+            final List<PerSessionFTGSInfo> sessionsWithFields,
             final List<AggregateStatTree> selects,
             final List<AggregateStatTree> filters,
             final boolean isIntField,
@@ -422,7 +422,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
     }
 
     public static FTGAIterator multiFtgs(
-            final List<SessionField> sessionsWithFields,
+            final List<PerSessionFTGSInfo> sessionsWithFields,
             final List<AggregateStat> selects,
             final List<AggregateStat> filters,
             final boolean isIntField,
@@ -494,7 +494,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
     }
 
     public static int aggregateBucketRegroup(
-            final List<SessionField> sessionsWithFields,
+            final List<PerSessionFTGSInfo> sessionsWithFields,
             final AggregateStatTree metric,
             final boolean isIntField,
             final long min,
@@ -546,7 +546,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
     // with separate tempFileSizeBytesLeft, and also will behave correctly
     // once we fix it so that multiple sessions from the same IQL2 query
     // share a single AtomicLong.
-    private static AtomicLong getTempFileSizeBytesLeft(final List<SessionField> sessionsWithFields) {
+    private static AtomicLong getTempFileSizeBytesLeft(final List<PerSessionFTGSInfo> sessionsWithFields) {
         return sessionsWithFields
                 .stream()
                 .map(x -> x.session.tempFileSizeBytesLeft)
@@ -557,7 +557,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
 
     // This will not affect semantics on the other side but allows
     // properly tracing and logging things in useful ways.
-    private static String getConcatenatedSessionIds(final List<SessionField> sessionsWithFields) {
+    private static String getConcatenatedSessionIds(final List<PerSessionFTGSInfo> sessionsWithFields) {
         return sessionsWithFields
                         .stream()
                         .map(x -> x.session.getSessionId())
@@ -577,16 +577,16 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
     }
 
     // Adds nodes and sessionInfos to the given builder, and extracts the list of imhotep sessions
-    private static List<RemoteImhotepMultiSession> processSessionFields(final List<SessionField> sessionsWithFields, final MultiFTGSRequest.Builder builder) {
+    private static List<RemoteImhotepMultiSession> processSessionFields(final List<PerSessionFTGSInfo> sessionsWithFields, final MultiFTGSRequest.Builder builder) {
         final List<RemoteImhotepMultiSession> remoteSessions = new ArrayList<>();
         final Set<HostAndPort> allNodes = new HashSet<>();
 
-        for (final SessionField sessionField : sessionsWithFields) {
-            sessionField.synchronizeCallback.run();
+        for (final PerSessionFTGSInfo perSessionFTGSInfo : sessionsWithFields) {
+            perSessionFTGSInfo.synchronizeCallback.run();
 
-            final RemoteImhotepMultiSession session = sessionField.session;
+            final RemoteImhotepMultiSession session = perSessionFTGSInfo.session;
             remoteSessions.add(session);
-            final String fieldName = sessionField.field;
+            final String fieldName = perSessionFTGSInfo.field;
             final List<HostAndPort> nodes = Arrays.stream(session.nodes).map(input ->
                     HostAndPort.newBuilder()
                             .setHost(input.getHostName())
@@ -599,12 +599,12 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
                     .addAllNodes(nodes)
                     .setField(fieldName);
 
-            if (sessionField.stats != null) {
-                sessionBuilder.addAllStats(sessionField.stats.stream().map(x -> DocStat.newBuilder().addAllStat(x).build()).collect(Collectors.toList()));
+            if (perSessionFTGSInfo.stats != null) {
+                sessionBuilder.addAllStats(perSessionFTGSInfo.stats.stream().map(x -> DocStat.newBuilder().addAllStat(x).build()).collect(Collectors.toList()));
                 sessionBuilder.setHasStats(true);
             }
 
-            sessionBuilder.setGroupsName(sessionField.groupsName);
+            sessionBuilder.setGroupsName(perSessionFTGSInfo.groupsName);
         }
 
         final List<HostAndPort> allNodesList = Lists.newArrayList(allNodes);
@@ -613,16 +613,16 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
     }
 
     // Adds nodes and sessionInfos to the given builder, and extracts the list of imhotep sessions and session id per host
-    private static Pair<List<RemoteImhotepMultiSession>, Map<HostAndPort, List<String>>> processSessionFields(final List<SessionField> sessionsWithFields, final FieldAggregateBucketRegroupRequest.Builder builder) {
+    private static Pair<List<RemoteImhotepMultiSession>, Map<HostAndPort, List<String>>> processSessionFields(final List<PerSessionFTGSInfo> sessionsWithFields, final FieldAggregateBucketRegroupRequest.Builder builder) {
         final List<RemoteImhotepMultiSession> remoteSessions = new ArrayList<>();
         final Map<HostAndPort, List<String>> sessionsPerNode = new HashMap<>();
 
-        for (final SessionField sessionField : sessionsWithFields) {
-            sessionField.synchronizeCallback.run();
+        for (final PerSessionFTGSInfo perSessionFTGSInfo : sessionsWithFields) {
+            perSessionFTGSInfo.synchronizeCallback.run();
 
-            final RemoteImhotepMultiSession session = sessionField.session;
+            final RemoteImhotepMultiSession session = perSessionFTGSInfo.session;
             remoteSessions.add(session);
-            final String fieldName = sessionField.field;
+            final String fieldName = perSessionFTGSInfo.field;
             final List<HostAndPort> nodes = Arrays.stream(session.nodes).map(input ->
                     HostAndPort.newBuilder()
                             .setHost(input.getHostName())
@@ -637,13 +637,13 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
                     .addAllNodes(nodes)
                     .setField(fieldName);
 
-            if (sessionField.stats != null) {
-                sessionBuilder.addAllStats(sessionField.stats.stream().map(x -> DocStat.newBuilder().addAllStat(x).build()).collect(Collectors.toList()));
+            if (perSessionFTGSInfo.stats != null) {
+                sessionBuilder.addAllStats(perSessionFTGSInfo.stats.stream().map(x -> DocStat.newBuilder().addAllStat(x).build()).collect(Collectors.toList()));
                 sessionBuilder.setHasStats(true);
             }
 
-            sessionBuilder.setInputGroup(sessionField.groupsName);
-            sessionBuilder.setOutputGroup(sessionField.outputGroupsName);
+            sessionBuilder.setInputGroup(perSessionFTGSInfo.groupsName);
+            sessionBuilder.setOutputGroup(perSessionFTGSInfo.outputGroupsName);
         }
 
         final List<HostAndPort> allNodesList = Lists.newArrayList(sessionsPerNode.keySet());

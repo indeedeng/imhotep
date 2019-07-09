@@ -531,7 +531,7 @@ public abstract class AbstractImhotepServiceCore
         final List<FieldAggregateBucketRegroupRequest.FieldAggregateBucketRegroupSession> sessionInfoList = request.getSessionInfoList();
 
         final Map<String, FieldAggregateBucketRegroupRequest.FieldAggregateBucketRegroupSession> sessionInfoMap = new HashMap<>();
-        final List<RemoteImhotepMultiSession.SessionField> sessionFields = new ArrayList<>();
+        final List<RemoteImhotepMultiSession.PerSessionFTGSInfo> perSessionFTGSInfos = new ArrayList<>();
         final String sessionIdLocallyAvailable = sessionIds.get(0);
         final String username;
         final String clientName;
@@ -568,7 +568,7 @@ public abstract class AbstractImhotepServiceCore
                     clientName,
                     priority
             );
-            sessionFields.add(new RemoteImhotepMultiSession.SessionField(remoteMultiSession, sessionInfo.getField(), sessionInfo.getStatsList().stream().map(DocStat::getStatList).collect(Collectors.toList())));
+            perSessionFTGSInfos.add(new RemoteImhotepMultiSession.PerSessionFTGSInfo(remoteMultiSession, sessionInfo.getField(), sessionInfo.getStatsList().stream().map(DocStat::getStatList).collect(Collectors.toList())));
         }
         final BucketParams bucketParams = new BucketParams(request.getMin(), request.getMax(), request.getInterval(), request.getExcludeGutters(), request.getWithDefault());
 
@@ -579,7 +579,7 @@ public abstract class AbstractImhotepServiceCore
             final int numStats;
             try (
                     final FTGAIterator ftga = RemoteImhotepMultiSession.multiFtgs(
-                            sessionFields,
+                            perSessionFTGSInfos,
                             request.getMetricList(),
                             Collections.emptyList(),
                             request.getIsIntField(),
