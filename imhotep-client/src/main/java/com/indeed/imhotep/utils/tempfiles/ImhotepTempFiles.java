@@ -52,7 +52,7 @@ public class ImhotepTempFiles extends AbstractTempFiles<ImhotepTempFiles.Type> {
     }
 
     public static TempFile createAggregateBucketTempFile(final List<String> sessionIds) throws IOException {
-        return getInstance().createTempFile(Type.AGGREGATE_BUCKET, String.join(".", sessionIds));
+        return getInstance().createTempFile(Type.AGGREGATE_BUCKET, String.join("_", sessionIds));
     }
 
     public static void tryCleanupTempFiles() {
