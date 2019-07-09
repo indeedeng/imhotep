@@ -496,6 +496,10 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
         return modifiers.wrap(interleaver);
     }
 
+    // In each node, we first pull FTGA for the metric from all the nodes, calculate the output group for each term/group pair
+    // using the A of FTGA and bucket parameters, and then regroup docs.
+    //
+    // Since each node will require exactly the same FTGA, we'll use replicaId/numReplica args of multiFtgs method.
     public static int aggregateBucketRegroup(
             final List<PerSessionFTGSInfo> sessionsWithFields,
             final AggregateStatTree metric,
