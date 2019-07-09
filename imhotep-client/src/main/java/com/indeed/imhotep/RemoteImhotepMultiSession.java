@@ -456,8 +456,8 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
 
         final FTGAIterator[] subIterators = new FTGAIterator[indexedServers.length];
 
-        final Closer closer = Closer.create();
-        closer.register(Closeables2.forArray(log, subIterators));
+        final Closer closeOnFailCloser = Closer.create();
+        closeOnFailCloser.register(Closeables2.forArray(log, subIterators));
         try {
             final AtomicLong tempFileSizeBytesLeft = getTempFileSizeBytesLeft(sessionsWithFields);
             final String concatenatedSessionIds = getConcatenatedSessionIds(sessionsWithFields);
@@ -478,7 +478,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
                         return remoteSession.multiFTGS(proto);
                     });
         } catch (final Throwable t) {
-            Closeables2.closeQuietly(closer, log);
+            Closeables2.closeQuietly(closeOnFailCloser, log);
             throw t;
         }
 
