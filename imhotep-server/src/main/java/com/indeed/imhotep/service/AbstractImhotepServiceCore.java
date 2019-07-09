@@ -532,28 +532,22 @@ public abstract class AbstractImhotepServiceCore
 
         final Map<String, FieldAggregateBucketRegroupRequest.FieldAggregateBucketRegroupSession> sessionInfoMap = new HashMap<>();
         final List<RemoteImhotepMultiSession.SessionField> sessionFields = new ArrayList<>();
+        final String sessionIdLocallyAvailable = sessionIds.get(0);
+        final String username;
+        final String clientName;
+        final byte priority;
+        final AtomicLong tempFileSizeBytesLeft;
+        try (final SharedReference<MTImhotepLocalMultiSession> ref = getSessionManager().getSession(sessionIdLocallyAvailable)) {
+            username = ref.get().getUserName();
+            clientName = ref.get().getClientName();
+            priority = ref.get().getPriority();
+            tempFileSizeBytesLeft = ref.get().getTempFileSizeBytesLeft();
+        } catch (final IOException e) {
+            throw new RuntimeException(e);
+        }
+
         for (final FieldAggregateBucketRegroupRequest.FieldAggregateBucketRegroupSession sessionInfo : sessionInfoList) {
             Preconditions.checkState(sessionInfoMap.put(sessionInfo.getSessionId(), sessionInfo) == null);
-            final String sessionIdLocallyAvailable;
-            if (getSessionManager().sessionIsValid(sessionInfo.getSessionId())) {
-                sessionIdLocallyAvailable = sessionInfo.getSessionId();
-            } else {
-                sessionIdLocallyAvailable = sessionIds.get(0);
-            }
-
-            final String username;
-            final String clientName;
-            final byte priority;
-            final AtomicLong tempFileSizeBytesLeft;
-            try (final SharedReference<MTImhotepLocalMultiSession> ref = getSessionManager().getSession(sessionIdLocallyAvailable)) {
-                tempFileSizeBytesLeft = ref.get().getTempFileSizeBytesLeft();
-                username = ref.get().getUserName();
-                clientName = ref.get().getClientName();
-                priority = ref.get().getPriority();
-            } catch (final IOException e) {
-                throw new RuntimeException(e);
-            }
-
             final List<ImhotepRemoteSession> remoteSessions = new ArrayList<>();
             final List<InetSocketAddress> addresses = new ArrayList<>();
             for (final HostAndPort hostAndPort : sessionInfo.getNodesList()) {
@@ -583,7 +577,6 @@ public abstract class AbstractImhotepServiceCore
             final FTGSBinaryFormat.FieldStat[] fieldStats;
             final int numGroups;
             final int numStats;
-            final int resultNumGroups;
             try (
                     final FTGAIterator ftga = RemoteImhotepMultiSession.multiFtgs(
                             sessionFields,
@@ -610,7 +603,7 @@ public abstract class AbstractImhotepServiceCore
             }
 
             final TempFile tempFileFinal = tempFile;
-            return doWithSession(sessionIds.get(0), (ThrowingFunction<MTImhotepLocalMultiSession, Integer, ImhotepOutOfMemoryException>) whateverSession -> {
+            return doWithSession(sessionIdLocallyAvailable, (ThrowingFunction<MTImhotepLocalMultiSession, Integer, ImhotepOutOfMemoryException>) whateverSession -> {
                 final Integer[] intBuf = new Integer[sessionIds.size()];
                 whateverSession
                         .executor()
