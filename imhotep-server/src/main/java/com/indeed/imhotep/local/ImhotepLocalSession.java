@@ -882,39 +882,6 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     }
 
     @Override
-    public synchronized void randomMultiRegroup(final RegroupParams regroupParams,
-                                                final String field,
-                                                final boolean isIntField,
-                                                final String salt,
-                                                final int targetGroup,
-                                                final double[] percentages,
-                                                final int[] resultGroups)
-        throws ImhotepOutOfMemoryException {
-        ensureValidMultiRegroupArrays(percentages, resultGroups);
-
-        if (namedGroupLookups.handleFiltered(regroupParams)) {
-            return;
-        }
-
-        final GroupLookup docIdToGroup = namedGroupLookups.ensureWriteable(regroupParams, Ints.max(resultGroups));
-
-        try(final IterativeHasherUtils.TermHashIterator iterator =
-                    IterativeHasherUtils.create(flamdexReader, field, isIntField, salt)) {
-            final IterativeHasherUtils.GroupChooser groupChooser =
-                    IterativeHasherUtils.createChooser(percentages);
-            while (iterator.hasNext()) {
-                final int hash = iterator.getHash();
-                final int groupIndex = groupChooser.getGroup(hash);
-                final int newGroup = resultGroups[groupIndex];
-                final DocIdStream stream = iterator.getDocIdStream();
-                remapDocs(docIdToGroup, stream, targetGroup, newGroup);
-            }
-        }
-
-        namedGroupLookups.finalizeRegroup(regroupParams);
-    }
-
-    @Override
     public synchronized void randomMetricRegroup(
             final RegroupParams regroupParams,
             final List<String> stat,
@@ -1240,7 +1207,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
 
     /**
      * Ensures that the percentages and resultGroups array are valid inputs for
-     * a randomMultiRegroup. Otherwise, throws an IllegalArgumentException.
+     * a randomMetricMultiRegroup. Otherwise, throws an IllegalArgumentException.
      * Specifically, checks to make sure
      * <ul>
      * <li>percentages is in ascending order,</li>
@@ -1248,15 +1215,14 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
      * <li>len(percentages) == len(resultGroups) - 1</li>
      * </ul>
      *
-     * @see ImhotepLocalSession#randomMultiRegroup(String, boolean, String, int,
-     *      double[], int[])
+     * @see ImhotepLocalSession#randomMetricMultiRegroup(RegroupParams, List, String, int, double[], int[])
      */
     protected void ensureValidMultiRegroupArrays(final double[] percentages,
                                                  final int[] resultGroups)
         throws IllegalArgumentException {
         // Ensure non-null inputs
         if (null == percentages || null == resultGroups) {
-            throw newIllegalArgumentException("received null percentages or resultGroups to randomMultiRegroup");
+            throw newIllegalArgumentException("received null percentages or resultGroups in randomMetricMultiRegroup");
         }
 
         // Ensure that the lengths are correct

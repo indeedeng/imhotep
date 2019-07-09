@@ -270,14 +270,6 @@ public class TestImhotepCommands implements CommandsTest {
 
     @Override
     @Test
-    public void testRandomMultiRegroup() throws ImhotepOutOfMemoryException {
-        assertEqualGroupStatsVoid(imhotepSession -> {
-            imhotepSession.randomMultiRegroup("if2", true, "salt", 1, new double[]{0.4, 0.8}, new int[]{3, 5, 6});
-        });
-    }
-
-    @Override
-    @Test
     public void testRandomRegroup() throws ImhotepOutOfMemoryException {
         assertEqualGroupStatsVoid(imhotepSession -> {
             imhotepSession.randomRegroup("if1", true, "salt123", 0.60, 1, 2, 3);

@@ -21,7 +21,6 @@ import com.indeed.imhotep.api.RegroupParams;
 import com.indeed.imhotep.exceptions.GenericImhotepKnownException;
 import com.indeed.imhotep.exceptions.ImhotepKnownException;
 import com.indeed.imhotep.exceptions.QueryCancelledException;
-import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
 import com.indeed.imhotep.protobuf.StatsSortOrder;
 
 import javax.annotation.Nullable;
@@ -109,12 +108,6 @@ public abstract class AbstractImhotepSession implements ImhotepSession {
     @Override
     public int regroup(final RegroupParams regroupParams, final GroupMultiRemapRule[] rawRules) throws ImhotepOutOfMemoryException {
         return regroup(regroupParams, rawRules, false);
-    }
-
-    @Override
-    public int regroupWithProtos(final RegroupParams regroupParams, final GroupMultiRemapMessage[] rawRuleMessages,
-                          final boolean errorOnCollisions) throws ImhotepOutOfMemoryException {
-        throw newUnsupportedOperationException("Local imhotep sessions don't use protobufs, only remote sessions do");
     }
 
     @Override
