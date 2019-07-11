@@ -160,9 +160,12 @@ class LocalFileCache implements Closeable {
 
     @Override
     public void close() {
-        fastStatsReportingExecutor.shutdown();
-        slowStatsReportingExecutor.shutdown();
-        Closeables2.closeQuietly(unusedFilesCache, LOGGER);
+        try {
+            fastStatsReportingExecutor.shutdown();
+            slowStatsReportingExecutor.shutdown();
+        } finally {
+            Closeables2.closeQuietly(unusedFilesCache, LOGGER);
+        }
     }
 
     private class CacheStatsEmitter {
