@@ -56,7 +56,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * @author kenh
  */
 
-class LocalFileCache {
+class LocalFileCache implements Closeable {
     private static final Logger LOGGER = Logger.getLogger(LocalFileCache.class);
     private final Path cacheRootDir;
     private final long diskSpaceCapacity;
@@ -72,6 +72,9 @@ class LocalFileCache {
     private static final int SLOW_REPORTING_FREQUENCY_MINUTES = 60;
     // whether load already cached files under the cacheRootDir when LocalFileCache is initialized
     private final boolean loadExistingFiles;
+    private final ScheduledExecutorService fastStatsReportingExecutor;
+    private final ScheduledExecutorService slowStatsReportingExecutor;
+
 
     @VisibleForTesting
     LocalFileCache(
@@ -98,10 +101,10 @@ class LocalFileCache {
         this.statsEmitter = statsEmitter;
 
         final CacheStatsEmitter cacheFileStatsEmitter = new CacheStatsEmitter(statsTypePrefix);
-        final ScheduledExecutorService fastStatsReportingExecutor =
+        fastStatsReportingExecutor =
                 Executors.newSingleThreadScheduledExecutor(new ThreadFactoryBuilder().setNameFormat("sumCacheOldestFileReferencedFilesSizeReporter").setDaemon(true).build());
         fastStatsReportingExecutor.scheduleAtFixedRate(cacheFileStatsEmitter::reportFastFreqStats, FAST_REPORTING_FREQUENCY_MILLIS, FAST_REPORTING_FREQUENCY_MILLIS, TimeUnit.MILLISECONDS);
-        final ScheduledExecutorService slowStatsReportingExecutor =
+        slowStatsReportingExecutor =
                 Executors.newSingleThreadScheduledExecutor(new ThreadFactoryBuilder().setNameFormat("sumCacheFileSizeReporter").setDaemon(true).build());
         slowStatsReportingExecutor.scheduleAtFixedRate(cacheFileStatsEmitter::reportSumCacheFileSize, SLOW_REPORTING_FREQUENCY_MINUTES, SLOW_REPORTING_FREQUENCY_MINUTES, TimeUnit.MINUTES);
 
@@ -154,8 +157,13 @@ class LocalFileCache {
 
     }
 
+    @Override
+    public void close() {
+        fastStatsReportingExecutor.shutdown();
+        slowStatsReportingExecutor.shutdown();
+    }
 
-    private class CacheStatsEmitter{
+    private class CacheStatsEmitter {
         private final String statsTypePrefix;
 
         public CacheStatsEmitter(final String statsTypePrefix) {
@@ -433,9 +441,9 @@ class LocalFileCache {
         private final LinkedHashMap<RemoteCachingPath, FileCacheEntry> updateOrderMap = new LinkedHashMap<>();
         private final LinkedBlockingQueue<Path> unusedFilesDeletionQueue = new LinkedBlockingQueue<>();
         private final Path stopDeletionThreadDummyPath = Paths.get("/tmp/nonexistentfileforshutdown");
+        private final Thread unusedFilesDeletionThread = new Thread(this::unusedFilesDeleter, "LocalFileCacheUnusedFilesDeleter");
 
         UnusedFileCache() {
-            final Thread unusedFilesDeletionThread = new Thread(this::unusedFilesDeleter, "LocalFileCacheUnusedFilesDeleter");
             unusedFilesDeletionThread.setDaemon(true);
             unusedFilesDeletionThread.start();
         }
@@ -443,6 +451,9 @@ class LocalFileCache {
         @Override
         public void cleanUp() {
             synchronized (this) {
+                if (unusedFilesDeletionThread.isInterrupted()) {
+                    throw new IllegalStateException("Trying to cleanup LocalFileCache after the Deletion thread is interrupted.");
+                }
                 while ((diskSpaceUsage.get() > diskSpaceCapacity) && !updateOrderMap.isEmpty()) {
                     final Iterator<FileCacheEntry> iterator = updateOrderMap.values().iterator();
                     final FileCacheEntry entry = iterator.next();
@@ -536,6 +547,7 @@ class LocalFileCache {
         @Override
         public void close() throws IOException {
             unusedFilesDeletionQueue.add(stopDeletionThreadDummyPath);
+            unusedFilesDeletionThread.interrupt();
         }
     }
 }
