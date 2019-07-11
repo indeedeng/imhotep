@@ -22,7 +22,6 @@ import com.indeed.imhotep.commands.OpenSessions;
 import com.indeed.imhotep.commands.QueryRegroup;
 import com.indeed.imhotep.commands.RandomMetricMultiRegroup;
 import com.indeed.imhotep.commands.RandomMetricRegroup;
-import com.indeed.imhotep.commands.RandomMultiRegroup;
 import com.indeed.imhotep.commands.RandomRegroup;
 import com.indeed.imhotep.commands.RegexRegroup;
 import com.indeed.imhotep.commands.ResetGroups;
@@ -31,7 +30,6 @@ import com.indeed.imhotep.commands.TargetedMetricFilter;
 import com.indeed.imhotep.commands.UnconditionalRegroup;
 import com.indeed.imhotep.commands.UntargetedMetricFilter;
 import com.indeed.imhotep.io.RequestTools;
-import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
 import com.indeed.imhotep.protobuf.Operator;
 import it.unimi.dsi.fastutil.longs.LongIterators;
 import org.apache.log4j.Logger;
@@ -150,12 +148,6 @@ public class BatchRemoteImhotepMultiSession extends AbstractImhotepSession {
         return -999;
     }
 
-    @Override
-    public int regroupWithProtos(final RegroupParams regroupParams, final GroupMultiRemapMessage[] rawRuleMessages, final boolean errorOnCollisions) throws ImhotepOutOfMemoryException {
-        commands.add(MultiRegroupMessagesSender.createMultiRegroupMessagesSender(regroupParams, rawRuleMessages, errorOnCollisions, getSessionId()));
-        return -999;
-    }
-
     public int regroupWithRuleSender(final RegroupParams regroupParams, final RequestTools.GroupMultiRemapRuleSender ruleSender, final boolean errorOnCollisions) throws ImhotepOutOfMemoryException {
         commands.add(MultiRegroupMessagesSender.createMultiRegroupMessagesSender(regroupParams, ruleSender, errorOnCollisions, getSessionId()));
         return -999;
@@ -191,11 +183,6 @@ public class BatchRemoteImhotepMultiSession extends AbstractImhotepSession {
     @Override
     public void randomRegroup(final RegroupParams regroupParams, final String field, final boolean isIntField, final String salt, final double p, final int targetGroup, final int negativeGroup, final int positiveGroup) throws ImhotepOutOfMemoryException {
         commands.add(new RandomRegroup(regroupParams, field, isIntField, salt, p, targetGroup, negativeGroup, positiveGroup, getSessionId()));
-    }
-
-    @Override
-    public void randomMultiRegroup(final RegroupParams regroupParams, final String field, final boolean isIntField, final String salt, final int targetGroup, final double[] percentages, final int[] resultGroups) throws ImhotepOutOfMemoryException {
-        commands.add(new RandomMultiRegroup(regroupParams, field, isIntField, salt, targetGroup, percentages, resultGroups, getSessionId()));
     }
 
     @Override

@@ -18,7 +18,6 @@ import com.indeed.imhotep.commands.OpenSessionData;
 import com.indeed.imhotep.commands.QueryRegroup;
 import com.indeed.imhotep.commands.RandomMetricMultiRegroup;
 import com.indeed.imhotep.commands.RandomMetricRegroup;
-import com.indeed.imhotep.commands.RandomMultiRegroup;
 import com.indeed.imhotep.commands.RandomRegroup;
 import com.indeed.imhotep.commands.RegexRegroup;
 import com.indeed.imhotep.commands.ResetGroups;
@@ -130,17 +129,6 @@ public interface ImhotepCommand<T> extends HasSessionId {
                         request.getTargetGroup(),
                         request.getNegativeGroup(),
                         request.getPositiveGroup(),
-                        request.getSessionId()
-                );
-            case RANDOM_MULTI_REGROUP:
-                return new RandomMultiRegroup(
-                        RegroupParams.fromImhotepRequest(request),
-                        request.getField(),
-                        request.getIsIntField(),
-                        request.getSalt(),
-                        request.getTargetGroup(),
-                        Doubles.toArray(request.getPercentagesList()),
-                        Ints.toArray(request.getResultGroupsList()),
                         request.getSessionId()
                 );
             case RANDOM_REGROUP:

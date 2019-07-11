@@ -35,7 +35,6 @@ import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.api.PerformanceStats;
 import com.indeed.imhotep.api.RegroupParams;
 import com.indeed.imhotep.exceptions.MultiValuedFieldUidTimestampException;
-import com.indeed.imhotep.group.IterativeHasher;
 import com.indeed.imhotep.group.IterativeHasherUtils;
 import com.indeed.imhotep.io.TestFileUtils;
 import com.indeed.imhotep.protobuf.Operator;
@@ -477,7 +476,7 @@ public class TestImhotepLocalSession {
     }
 
     @Test
-    public void testRandomMultiRegroupIndexCalculation() throws ImhotepOutOfMemoryException {
+    public void testRandomMetricMultiRegroupIndexCalculation() throws ImhotepOutOfMemoryException {
 
         // normal case -- 0.5 falls in the [0.4, 0.7) bucket, which is the
         // fourth (index == 3) in the list of:
@@ -513,7 +512,7 @@ public class TestImhotepLocalSession {
     }
 
     @Test
-    public void testRandomMultiRegroup_ensureValidMultiRegroupArrays() throws ImhotepOutOfMemoryException {
+    public void testRandomMetricMultiRegroup_ensureValidMultiRegroupArrays() throws ImhotepOutOfMemoryException {
         final FlamdexReader r = MakeAFlamdex.make();
         try (ImhotepLocalSession session = new ImhotepJavaLocalSession("testLocalSession", r, null)) {
 
@@ -565,66 +564,6 @@ public class TestImhotepLocalSession {
                 fail("ensureValidMultiRegroupArrays didn't throw IllegalArgumentException");
             } catch (final IllegalArgumentException e) {
             } // expected
-        }
-    }
-
-    @Test
-    public void testRandomMultiRegroup() throws ImhotepOutOfMemoryException {
-        final FlamdexReader r = MakeAFlamdex.make();
-        try (ImhotepLocalSession session = new ImhotepJavaLocalSession("testLocalSession", r, null)) {
-
-            // Expected
-            // ( @see MakeAFlamdex.make() )
-            final String regroupField = "sf1";
-            final double[] percentages = new double[]{0.10, 0.50};
-            final int[] resultGroups = new int[]{5, 6, 7};
-
-            final String[] docIdToTerm = new String[]{"", // 0
-                    "a", // 1
-                    null, // 2
-                    "hello world", // 3
-                    null, // 4
-                    "", // 5
-                    "a", // 6
-                    null, // 7
-                    "a", // 8
-                    "hello world", // 9
-                    null, // 10
-                    null, // 11
-                    null, // 12
-                    null, // 13
-                    null, // 14
-                    null, // 15
-                    "hello world", // 16
-                    null, // 17
-                    null, // 18
-                    "a" // 19
-            };
-
-            final String salt = "mySalt";
-            final IterativeHasher.StringHasher hasher =
-                    new IterativeHasher.Murmur3Hasher(salt).stringHasher();
-
-            final IterativeHasherUtils.GroupChooser chooser = IterativeHasherUtils.createChooser(percentages);
-            final Map<String, Integer> termToGroup = Maps.newHashMap();
-            for (final String term : Arrays.asList("", "a", "hello world")) {
-                final int hash = hasher.calculateHash(term);
-                final int groupIndex = chooser.getGroup(hash);
-                termToGroup.put(term, resultGroups[groupIndex]);
-            }
-            termToGroup.put(null, 1);
-
-            // Actual
-            session.randomMultiRegroup(regroupField, false, salt, 1, percentages, resultGroups);
-
-            // Make sure they're in the correct groups
-            final int[] docIdToGroup = new int[20];
-            session.exportDocIdToGroupId(docIdToGroup);
-            for (int docId = 0; docId < 20; docId++) {
-                final int actualGroup = docIdToGroup[docId];
-                final int expectedGroup = termToGroup.get(docIdToTerm[docId]);
-                assertEquals("doc id #" + docId + " was misgrouped", expectedGroup, actualGroup);
-            }
         }
     }
 

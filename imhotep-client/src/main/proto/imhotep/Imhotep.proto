@@ -120,7 +120,7 @@ message ImhotepRequest {
     UPDATE_DYNAMIC_METRIC = 20;
     RESET_GROUPS = 21;
     DELETED___GET_SHARD_INFO_LIST = 22; // No longer implemented. Use GET_SHARD_LIST in ShardMaster
-    RANDOM_MULTI_REGROUP = 23;
+    DELETED___RANDOM_MULTI_REGROUP = 23; // No longer implemented.
     MULTISPLIT_REGROUP = 24;
     APPROXIMATE_TOP_TERMS = 25;
     CONDITIONAL_UPDATE_DYNAMIC_METRIC = 26;
@@ -221,7 +221,7 @@ message ImhotepRequest {
   optional string dynamic_metric_name = 31;
   repeated sint32 dynamic_metric_deltas = 32 [packed=true];
 
-  // for randomMultiRegroup()
+  // for randomMetricMultiRegroup()
   repeated double percentages = 33;
   repeated uint32 result_groups = 34;
 

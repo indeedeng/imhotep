@@ -172,13 +172,6 @@ public class TestCommandDeserializeRemoteImhotepRequest implements CommandsTest 
 
     @Override
     @Test
-    public void testRandomMultiRegroup() throws ImhotepOutOfMemoryException, ExecutionException, InterruptedException {
-        imhotepRemoteSession.randomMultiRegroup(TEST_REGROUP_PARAMS, "field", true, RANDOM_SALT, 1, new double[]{0.4, 0.8}, new int[]{3, 4, 6});
-        Assert.assertEquals(new RandomMultiRegroup(TEST_REGROUP_PARAMS, "field", true, RANDOM_SALT, 1, new double[]{0.4, 0.8}, new int[]{3, 4, 6}, SESSION_ID), holder.futureCommand.get());
-    }
-
-    @Override
-    @Test
     public void testRandomRegroup() throws ImhotepOutOfMemoryException, ExecutionException, InterruptedException {
         imhotepRemoteSession.randomRegroup(TEST_REGROUP_PARAMS, "field", true, RANDOM_SALT, 0.3, 1, 2, 3);
         Assert.assertEquals(new RandomRegroup(TEST_REGROUP_PARAMS, "field", true, RANDOM_SALT, 0.3, 1, 2, 3, SESSION_ID), holder.futureCommand.get());

@@ -7,7 +7,6 @@ import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.api.RegroupParams;
 import com.indeed.imhotep.io.RequestTools.GroupMultiRemapRuleSender;
 import com.indeed.imhotep.io.RequestTools.ImhotepRequestSender;
-import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
 import com.indeed.imhotep.protobuf.ImhotepRequest;
 import com.indeed.imhotep.protobuf.ImhotepResponse;
 import lombok.EqualsAndHashCode;
@@ -16,7 +15,6 @@ import lombok.ToString;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -36,10 +34,6 @@ public class MultiRegroupMessagesSender extends AbstractImhotepCommand<Integer> 
         this.regroupParams = regroupParams;
         this.groupMultiRemapRuleSender = groupMultiRemapRuleSender;
         this.errorOnCollision = errorOnCollision;
-    }
-
-    public static MultiRegroupMessagesSender createMultiRegroupMessagesSender(final RegroupParams regroupParams, final GroupMultiRemapMessage[] messages, final boolean errorOnCollision, final String sessionId) {
-        return new MultiRegroupMessagesSender(regroupParams, GroupMultiRemapRuleSender.createFromMessages(Arrays.asList(messages).iterator(), true), errorOnCollision, sessionId);
     }
 
     public static MultiRegroupMessagesSender createMultiRegroupMessagesSender(final RegroupParams regroupParams, final GroupMultiRemapRuleSender groupMultiRemapRuleSender, final boolean errorOnCollision, final String sessionId) {

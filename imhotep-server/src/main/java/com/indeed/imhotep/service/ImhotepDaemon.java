@@ -42,7 +42,6 @@ import com.indeed.imhotep.api.RegroupParams;
 import com.indeed.imhotep.client.Host;
 import com.indeed.imhotep.commands.OpenSession;
 import com.indeed.imhotep.commands.OpenSessionData;
-import com.indeed.imhotep.commands.OpenSessions;
 import com.indeed.imhotep.exceptions.InvalidSessionException;
 import com.indeed.imhotep.fs.RemoteCachingFileSystemProvider;
 import com.indeed.imhotep.io.ImhotepProtobufShipping;
@@ -398,21 +397,6 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                                         request.getTargetGroup(),
                                         request.getNegativeGroup(),
                                         request.getPositiveGroup());
-            return builder.build();
-        }
-
-        private ImhotepResponse randomMultiRegroup(
-                final ImhotepRequest          request,
-                final ImhotepResponse.Builder builder)
-            throws ImhotepOutOfMemoryException {
-            service.handleRandomMultiRegroup(request.getSessionId(),
-                                             RegroupParams.fromImhotepRequest(request),
-                                             request.getField(),
-                                             request.getIsIntField(),
-                                             request.getSalt(),
-                                             request.getTargetGroup(),
-                                             Doubles.toArray(request.getPercentagesList()),
-                                             Ints.toArray(request.getResultGroupsList()));
             return builder.build();
         }
 
@@ -1064,9 +1048,6 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                     break;
                 case RANDOM_REGROUP:
                     response = randomRegroup(request, builder);
-                    break;
-                case RANDOM_MULTI_REGROUP:
-                    response = randomMultiRegroup(request, builder);
                     break;
                 case RANDOM_METRIC_REGROUP:
                     response = randomMetricRegroup(request, builder);

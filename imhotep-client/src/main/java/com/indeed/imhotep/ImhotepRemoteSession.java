@@ -45,7 +45,6 @@ import com.indeed.imhotep.io.TempFileSizeLimitExceededException;
 import com.indeed.imhotep.io.WriteLimitExceededException;
 import com.indeed.imhotep.marshal.ImhotepClientMarshaller;
 import com.indeed.imhotep.protobuf.DocStat;
-import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
 import com.indeed.imhotep.protobuf.HostAndPort;
 import com.indeed.imhotep.protobuf.ImhotepRequest;
 import com.indeed.imhotep.protobuf.ImhotepResponse;
@@ -72,7 +71,6 @@ import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
@@ -669,15 +667,6 @@ public class ImhotepRemoteSession
         return regroupWithSender(regroupParams, ruleSender, errorOnCollisions);
     }
 
-    @Override
-    public int regroupWithProtos(final RegroupParams regroupParams,
-                                 final GroupMultiRemapMessage[] rawRuleMessages,
-                                 final boolean errorOnCollisions) throws ImhotepOutOfMemoryException {
-        final RequestTools.GroupMultiRemapRuleSender ruleSender =
-                GroupMultiRemapRuleSender.createFromMessages(Arrays.asList(rawRuleMessages).iterator(), false);
-        return regroupWithSender(regroupParams, ruleSender, errorOnCollisions);
-    }
-
     public int regroupWithSender(final RegroupParams regroupParams,
                                  final GroupMultiRemapRuleSender ruleSender,
                                  final boolean errorOnCollisions) throws ImhotepOutOfMemoryException {
@@ -821,34 +810,6 @@ public class ImhotepRemoteSession
                 .setTargetGroup(targetGroup)
                 .setNegativeGroup(negativeGroup)
                 .setPositiveGroup(positiveGroup)
-                .setInputGroups(regroupParams.getInputGroups())
-                .setOutputGroups(regroupParams.getOutputGroups())
-                .build();
-
-        try {
-            sendRequestWithMemoryException(request, host, port, socketTimeout);
-        } catch (final IOException e) {
-            throw newRuntimeException(e);
-        }
-    }
-
-    @Override
-    public void randomMultiRegroup(
-            final RegroupParams regroupParams,
-            final String field,
-            final boolean isIntField,
-            final String salt,
-            final int targetGroup,
-            final double[] percentages,
-            final int[] resultGroups) throws ImhotepOutOfMemoryException {
-        final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.RANDOM_MULTI_REGROUP)
-                .setSessionId(getSessionId())
-                .setField(field)
-                .setIsIntField(isIntField)
-                .setSalt(salt)
-                .setTargetGroup(targetGroup)
-                .addAllPercentages(Doubles.asList(percentages))
-                .addAllResultGroups(Ints.asList(resultGroups))
                 .setInputGroups(regroupParams.getInputGroups())
                 .setOutputGroups(regroupParams.getOutputGroups())
                 .build();

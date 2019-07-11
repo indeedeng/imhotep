@@ -13,7 +13,6 @@ import com.indeed.imhotep.RemoteImhotepMultiSession;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.client.ImhotepClient;
-import com.indeed.imhotep.local.ImhotepLocalSession;
 import com.indeed.imhotep.metrics.aggregate.AggregateStatTree;
 import com.indeed.imhotep.protobuf.StatsSortOrder;
 import org.apache.commons.io.FileUtils;
@@ -141,13 +140,6 @@ public class TestThrowingImhotepOutOfMemoryExceptions {
     public void testRandomRegroup() throws ImhotepOutOfMemoryException {
         try (final ImhotepSession session = client.sessionBuilder(DATASET, START, END).build()) {
             session.randomRegroup("sf1", false, "", 0.5, 1, 1000000, 1000000);
-        }
-    }
-
-    @Test(expected = ImhotepOutOfMemoryException.class)
-    public void testRandomMultiRegroup() throws ImhotepOutOfMemoryException {
-        try (final ImhotepSession session = client.sessionBuilder(DATASET, START, END).build()) {
-            session.randomMultiRegroup("sf1", false, "", 1, new double[]{0.5}, new int[]{1, 1000000});
         }
     }
 
