@@ -29,7 +29,7 @@ public class BucketParams {
     }
 
     private int getBucketId(final double doubleValue) {
-        // Comparisons of double vs long to reject doubles that doesn't fit in long
+        // Comparisons of double vs double to reject doubles that doesn't fit in long
         if (doubleValue < doubleMin) {
             return lowerGutter;
         }
@@ -57,7 +57,7 @@ public class BucketParams {
     public int getBucketIdForAbsent(final int originalGroup) {
         if ((bucketIdForAbsent == 0) || (originalGroup == 0)) {
             return 0;
-        }else {
+        } else {
             return ((originalGroup - 1) * numBucketsIncludingGutter) + bucketIdForAbsent;
         }
     }
