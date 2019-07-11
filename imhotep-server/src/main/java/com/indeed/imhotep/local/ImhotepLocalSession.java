@@ -1591,10 +1591,11 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     }
 
     /**
-     * Breaks {@code moved}
+     * This method will destroy contents of {@code moved} by inverting it.
      */
     private void aggregateBucketMoveAbsentTerms(final GroupLookup outputGroups, final FastBitSet moved, final int[] docIdBuf, final int[] docIdGroupBuf, final BucketParams bucketParams) {
-        final int bufSize = Math.min(docIdBuf.length, docIdGroupBuf.length);
+        Preconditions.checkState(docIdBuf.length == docIdGroupBuf.length);
+        final int bufSize = docIdBuf.length;
         moved.invertAll();
         final FastBitSet.IntIterator iterator = moved.iterator();
         if (!iterator.next()) {
