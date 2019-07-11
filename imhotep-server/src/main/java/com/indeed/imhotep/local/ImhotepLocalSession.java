@@ -1576,14 +1576,21 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         while (true) {
             final int n = docIdStream.fillDocIdBuffer(docIdBuf);
             inputGroups.fillDocGrpBuffer(docIdBuf, docIdGroupBuf, n);
+            int numMapped = 0;
             for (int i = 0; i < n; ++i) {
                 if (moved.get(docIdBuf[i])) {
                     throw new MultiValuedFieldRegroupException(createMessageWithSessionId("Aggregate bucket is not supported for multi-valued fields"));
                 }
                 moved.set(docIdBuf[i]);
-                docIdNewGroupBuf[i] = mapTo[docIdGroupBuf[i]];
+                final int groupBefore = docIdGroupBuf[i];
+                if (groupBefore == 0) {
+                    continue;
+                }
+                docIdBuf[numMapped] = docIdBuf[i];
+                docIdNewGroupBuf[numMapped] = mapTo[groupBefore];
+                numMapped++;
             }
-            outputGroups.batchSet(docIdBuf, docIdNewGroupBuf, n);
+            outputGroups.batchSet(docIdBuf, docIdNewGroupBuf, numMapped);
             if (n < docIdBuf.length) {
                 break;
             }
