@@ -1615,7 +1615,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         }
     }
 
-    public synchronized int aggregateBucketRegroupInt(final RegroupParams regroupParams, final String field, final BucketParams bucketParams, final FTGSIterator ftgsIterator) throws ImhotepOutOfMemoryException {
+    synchronized int aggregateBucketRegroup(final RegroupParams regroupParams, final String field, final boolean isIntField, final BucketParams bucketParams, final FTGSIterator ftgsIterator) throws ImhotepOutOfMemoryException {
         Preconditions.checkArgument(ftgsIterator.getNumStats() == 1);
         final long[] statsBuf = new long[1];
         if (namedGroupLookups.handleFiltered(regroupParams)) {
@@ -1630,73 +1630,49 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             throw newImhotepOutOfMemoryException();
         }
         try {
+            Preconditions.checkArgument(ftgsIterator.nextField());
+            Preconditions.checkState("magic".equals(ftgsIterator.fieldName()), "MultiFTGSIterator has field name \"%s\", expected \"magic\"", ftgsIterator.fieldName());
+
             final FastBitSet moved = new FastBitSet(numDocs);
             final int[] docIdBuf = memoryPool.getIntBuffer(BUFFER_SIZE, true);
             final int[] docIdGroupBuf = memoryPool.getIntBuffer(BUFFER_SIZE, true);
             final int[] docIdNewGroupBuf = memoryPool.getIntBuffer(BUFFER_SIZE, true);
             final int[] mapTo = memoryPool.getIntBuffer(inputGroups.getNumGroups(), true);
             mapTo[0] = 0;
-            try (
-                    final IntTermIterator termIter = flamdexReader.getUnsortedIntTermIterator(field);
-                    final DocIdStream docIdStream = flamdexReader.getDocIdStream()
-            ) {
-                Preconditions.checkArgument(ftgsIterator.nextField());
-                Preconditions.checkState("magic".equals(ftgsIterator.fieldName()), "MultiFTGSIterator has field name \"%s\", expected \"magic\"", ftgsIterator.fieldName());
-                while (ftgsIterator.nextTerm()) {
-                    final long term = ftgsIterator.termIntVal();
-                    termIter.reset(term);
-                    if (!termIter.next() || (termIter.term() != term)) {
-                        continue;
+            try {
+                if (isIntField) {
+                    try (
+                            final IntTermIterator termIter = flamdexReader.getUnsortedIntTermIterator(field);
+                            final DocIdStream docIdStream = flamdexReader.getDocIdStream()
+                    ) {
+                        while (ftgsIterator.nextTerm()) {
+                            final long term = ftgsIterator.termIntVal();
+                            termIter.reset(term);
+                            if (!termIter.next() || (termIter.term() != term)) {
+                                continue;
+                            }
+                            aggregateBucketMoveTerm(inputGroups, outputGroups, ftgsIterator, termIter, docIdStream, moved, statsBuf, docIdBuf, docIdGroupBuf, docIdNewGroupBuf, mapTo);
+                        }
+                        Preconditions.checkArgument(!ftgsIterator.nextField());
+                        aggregateBucketMoveAbsentTerms(outputGroups, moved, docIdBuf, docIdGroupBuf, bucketParams);
                     }
-                    aggregateBucketMoveTerm(inputGroups, outputGroups, ftgsIterator, termIter, docIdStream, moved, statsBuf, docIdBuf, docIdGroupBuf, docIdNewGroupBuf, mapTo);
-                }
-                Preconditions.checkArgument(!ftgsIterator.nextField());
-                aggregateBucketMoveAbsentTerms(outputGroups, moved, docIdBuf, docIdGroupBuf, bucketParams);
-            } finally {
-                memoryPool.returnIntBuffers(mapTo, docIdBuf, docIdGroupBuf, docIdNewGroupBuf);
-            }
-        } finally {
-            memory.releaseMemory(memoryUsage);
-        }
-        return namedGroupLookups.finalizeRegroup(regroupParams);
-    }
-
-    public synchronized int aggregateBucketRegroupString(final RegroupParams regroupParams, final String field, final BucketParams bucketParams, final FTGSIterator ftgsIterator) throws ImhotepOutOfMemoryException {
-        Preconditions.checkArgument(ftgsIterator.getNumStats() == 1);
-        final long[] statsBuf = new long[1];
-        if (namedGroupLookups.handleFiltered(regroupParams)) {
-            return 1;
-        }
-
-        final GroupLookup inputGroups = namedGroupLookups.get(regroupParams.getInputGroups());
-        final GroupLookup outputGroups = namedGroupLookups.ensureWriteable(regroupParams, bucketParams.getResultNumGroups(inputGroups.getNumGroups()));
-        final long memoryUsage = (BUFFER_SIZE * Ints.BYTES * 3) + ((long)inputGroups.getNumGroups() * Ints.BYTES) + getBitSetMemoryUsage();
-        if (!memory.claimMemory(memoryUsage)) {
-            throw newImhotepOutOfMemoryException();
-        }
-        try {
-            final FastBitSet moved = new FastBitSet(numDocs);
-            final int[] docIdBuf = memoryPool.getIntBuffer(BUFFER_SIZE, true);
-            final int[] docIdGroupBuf = memoryPool.getIntBuffer(BUFFER_SIZE, true);
-            final int[] docIdNewGroupBuf = memoryPool.getIntBuffer(BUFFER_SIZE, true);
-            final int[] mapTo = memoryPool.getIntBuffer(inputGroups.getNumGroups(), true);
-            mapTo[0] = 0;
-            try (
-                    final StringTermIterator termIter = flamdexReader.getStringTermIterator(field);
-                    final DocIdStream docIdStream = flamdexReader.getDocIdStream()
-            ) {
-                Preconditions.checkArgument(ftgsIterator.nextField());
-                Preconditions.checkState("magic".equals(ftgsIterator.fieldName()), "MultiFTGSIterator has field name \"%s\", expected \"magic\"", ftgsIterator.fieldName());
-                while (ftgsIterator.nextTerm()) {
-                    final String term = ftgsIterator.termStringVal();
-                    termIter.reset(term);
-                    if (!termIter.next() || (ftgsIterator.termStringLength() != termIter.termStringLength()) || !Bytes.equals(ftgsIterator.termStringBytes(), termIter.termStringBytes(), ftgsIterator.termStringLength())) {
-                        continue;
+                } else {
+                    try (
+                            final StringTermIterator termIter = flamdexReader.getStringTermIterator(field);
+                            final DocIdStream docIdStream = flamdexReader.getDocIdStream()
+                    ) {
+                        while (ftgsIterator.nextTerm()) {
+                            final String term = ftgsIterator.termStringVal();
+                            termIter.reset(term);
+                            if (!termIter.next() || (ftgsIterator.termStringLength() != termIter.termStringLength()) || !Bytes.equals(ftgsIterator.termStringBytes(), termIter.termStringBytes(), ftgsIterator.termStringLength())) {
+                                continue;
+                            }
+                            aggregateBucketMoveTerm(inputGroups, outputGroups, ftgsIterator, termIter, docIdStream, moved, statsBuf, docIdBuf, docIdGroupBuf, docIdNewGroupBuf, mapTo);
+                        }
+                        Preconditions.checkArgument(!ftgsIterator.nextField());
+                        aggregateBucketMoveAbsentTerms(outputGroups, moved, docIdBuf, docIdGroupBuf, bucketParams);
                     }
-                    aggregateBucketMoveTerm(inputGroups, outputGroups, ftgsIterator, termIter, docIdStream, moved, statsBuf, docIdBuf, docIdGroupBuf, docIdNewGroupBuf, mapTo);
                 }
-                Preconditions.checkArgument(!ftgsIterator.nextField());
-                aggregateBucketMoveAbsentTerms(outputGroups, moved, docIdBuf, docIdGroupBuf, bucketParams);
             } finally {
                 memoryPool.returnIntBuffers(mapTo, docIdBuf, docIdGroupBuf, docIdNewGroupBuf);
             }

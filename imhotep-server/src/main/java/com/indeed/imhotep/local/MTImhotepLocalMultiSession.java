@@ -480,11 +480,7 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
     public int aggregateBucketRegroup(final RegroupParams regroupParams, final Supplier<FTGSIterator> ftgsIteratorSupplier, final String field, final boolean isIntField, final BucketParams bucketParams) throws ImhotepOutOfMemoryException {
         executor().executeMemoryException(integerBuf, session -> {
             try (final FTGSIterator ftgsIterator = ftgsIteratorSupplier.get()) {
-                if (isIntField) {
-                    return session.aggregateBucketRegroupInt(regroupParams, field, bucketParams, ftgsIterator);
-                } else {
-                    return session.aggregateBucketRegroupString(regroupParams, field, bucketParams, ftgsIterator);
-                }
+                return session.aggregateBucketRegroup(regroupParams, field, isIntField, bucketParams, ftgsIterator);
             }
         });
         return Collections.max(Arrays.asList(integerBuf));
