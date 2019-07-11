@@ -25,6 +25,7 @@ import com.google.common.collect.FluentIterable;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.indeed.imhotep.scheduling.TaskScheduler;
 import com.indeed.imhotep.service.MetricStatsEmitter;
+import com.indeed.util.core.io.Closeables2;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import org.apache.commons.io.FileUtils;
 import org.apache.log4j.Logger;
@@ -161,6 +162,7 @@ class LocalFileCache implements Closeable {
     public void close() {
         fastStatsReportingExecutor.shutdown();
         slowStatsReportingExecutor.shutdown();
+        Closeables2.closeQuietly(unusedFilesCache, LOGGER);
     }
 
     private class CacheStatsEmitter {
@@ -451,9 +453,6 @@ class LocalFileCache implements Closeable {
         @Override
         public void cleanUp() {
             synchronized (this) {
-                if (unusedFilesDeletionThread.isInterrupted()) {
-                    throw new IllegalStateException("Trying to cleanup LocalFileCache after the Deletion thread is interrupted.");
-                }
                 while ((diskSpaceUsage.get() > diskSpaceCapacity) && !updateOrderMap.isEmpty()) {
                     final Iterator<FileCacheEntry> iterator = updateOrderMap.values().iterator();
                     final FileCacheEntry entry = iterator.next();
@@ -545,9 +544,8 @@ class LocalFileCache implements Closeable {
         }
 
         @Override
-        public void close() throws IOException {
+        public void close() {
             unusedFilesDeletionQueue.add(stopDeletionThreadDummyPath);
-            unusedFilesDeletionThread.interrupt();
         }
     }
 }

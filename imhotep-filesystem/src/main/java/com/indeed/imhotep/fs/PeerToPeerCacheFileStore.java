@@ -327,6 +327,6 @@ public class PeerToPeerCacheFileStore extends RemoteFileStore implements Closeab
     @Override
     public void close() throws IOException {
         Closeables2.closeQuietly(sqarMetaDataDao, logger);
-        fileCache.close();
+        Closeables2.closeQuietly(fileCache, logger);
     }
 }

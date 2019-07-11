@@ -112,7 +112,7 @@ public class RemoteCachingFileSystem extends FileSystem {
         if (peerToPeerCacheFileStore != null) {
             Closeables2.closeQuietly(peerToPeerCacheFileStore, LOGGER);
         }
-        fileCache.close();
+        Closeables2.closeQuietly(fileCache, LOGGER);
     }
 
     @Override
