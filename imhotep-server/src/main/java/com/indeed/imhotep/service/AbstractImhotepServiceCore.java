@@ -538,12 +538,13 @@ public abstract class AbstractImhotepServiceCore
         final byte priority;
         final AtomicLong tempFileSizeBytesLeft;
         try (final SharedReference<MTImhotepLocalMultiSession> ref = getSessionManager().getSession(sessionIdLocallyAvailable)) {
-            username = ref.get().getUserName();
-            clientName = ref.get().getClientName();
-            priority = ref.get().getPriority();
-            tempFileSizeBytesLeft = ref.get().getTempFileSizeBytesLeft();
+            final MTImhotepLocalMultiSession locallyAvailableSession = ref.get();
+            username = locallyAvailableSession.getUserName();
+            clientName = locallyAvailableSession.getClientName();
+            priority = locallyAvailableSession.getPriority();
+            tempFileSizeBytesLeft = locallyAvailableSession.getTempFileSizeBytesLeft();
         } catch (final IOException e) {
-            throw new RuntimeException(e);
+            throw new IllegalStateException("Shouldn't fail to close reference to the session, or the query canceled?", e);
         }
 
         for (final FieldAggregateBucketRegroupRequest.FieldAggregateBucketRegroupSession sessionInfo : sessionInfoList) {
