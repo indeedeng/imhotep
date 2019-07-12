@@ -17,7 +17,6 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.protobuf.ByteString;
-import com.indeed.flamdex.query.Query;
 import com.indeed.imhotep.AbstractImhotepMultiSession;
 import com.indeed.imhotep.FTGSIteratorUtil;
 import com.indeed.imhotep.GroupMultiRemapRule;
@@ -25,7 +24,6 @@ import com.indeed.imhotep.ImhotepStatusDump;
 import com.indeed.imhotep.Instrumentation;
 import com.indeed.imhotep.Instrumentation.Keys;
 import com.indeed.imhotep.QueryRemapRule;
-import com.indeed.imhotep.RegroupCondition;
 import com.indeed.imhotep.SortedFTGAInterleaver;
 import com.indeed.imhotep.StrictCloser;
 import com.indeed.imhotep.TermCount;
@@ -720,53 +718,12 @@ public abstract class AbstractImhotepServiceCore
     }
 
     @Override
-    public void handleCreateDynamicMetric(final String sessionId, final String dynamicMetricName) throws ImhotepOutOfMemoryException {
-        doWithSession(sessionId, (ThrowingFunction<MTImhotepLocalMultiSession, Void, ImhotepOutOfMemoryException>) session -> {
-            session.createDynamicMetric(dynamicMetricName);
-            return null;
-        });
-    }
-
-    @Override
-    public void handleUpdateDynamicMetric(final String sessionId, final String groupsName, final String dynamicMetricName, final int[] deltas) throws ImhotepOutOfMemoryException {
-        doWithSession(sessionId, (ThrowingFunction<MTImhotepLocalMultiSession, Void, ImhotepOutOfMemoryException>) session -> {
-            session.updateDynamicMetric(groupsName, dynamicMetricName, deltas);
-            return null;
-        });
-    }
-
-    @Override
-    public void handleConditionalUpdateDynamicMetric(final String sessionId, final String dynamicMetricName, final RegroupCondition[] conditions, final int[] deltas) {
-        doWithSession(sessionId, (Function<MTImhotepLocalMultiSession, Void>) session -> {
-            session.conditionalUpdateDynamicMetric(dynamicMetricName, conditions, deltas);
-            return null;
-        });
-    }
-
-    @Override
-    public void handleGroupConditionalUpdateDynamicMetric(final String sessionId, final String groupsName, final String dynamicMetricName, final int[] groups, final RegroupCondition[] conditions, final int[] deltas) {
-        doWithSession(sessionId, (Function<MTImhotepLocalMultiSession, Void>) session -> {
-            session.groupConditionalUpdateDynamicMetric(groupsName, dynamicMetricName, groups, conditions, deltas);
-            return null;
-        });
-    }
-
-    public void handleGroupQueryUpdateDynamicMetric(final String sessionId, final String groupsName, final String dynamicMetricName, final int[] groups, final Query[] queries, final int[] deltas) throws ImhotepOutOfMemoryException {
-        doWithSession(sessionId, (ThrowingFunction<MTImhotepLocalMultiSession, Void, ImhotepOutOfMemoryException>) session -> {
-            session.groupQueryUpdateDynamicMetric(groupsName, dynamicMetricName, groups, queries, deltas);
-            return null;
-        });
-    }
-
-    @Override
     public void handleResetGroups(final String sessionId, final String groupsName) throws ImhotepOutOfMemoryException {
         doWithSession(sessionId, (ThrowingFunction<MTImhotepLocalMultiSession, Void, ImhotepOutOfMemoryException>) session -> {
             session.resetGroups(groupsName);
             return null;
         });
     }
-
-    public abstract List<String> getShardsForSession(String sessionId);
 
     public abstract String handleOpenSession(
             String dataset,

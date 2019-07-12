@@ -13,11 +13,9 @@
  */
  package com.indeed.imhotep.api;
 
-import com.indeed.flamdex.query.Query;
 import com.indeed.imhotep.GroupMultiRemapRule;
 import com.indeed.imhotep.Instrumentation;
 import com.indeed.imhotep.QueryRemapRule;
-import com.indeed.imhotep.RegroupCondition;
 import com.indeed.imhotep.TermCount;
 import com.indeed.imhotep.protobuf.ImhotepRequest;
 import com.indeed.imhotep.protobuf.Operator;
@@ -491,45 +489,6 @@ public interface ImhotepSession
         return getNumGroups(ImhotepSession.DEFAULT_GROUPS);
     }
     int getNumGroups(String groupsName);
-
-    /**
-     * create a per-document dynamic metric
-     * @param name the name of the metric to create
-     * @throws ImhotepOutOfMemoryException in case there's not enough memory
-     */
-    void createDynamicMetric(String name) throws ImhotepOutOfMemoryException;
-
-    /**
-     * add a per-group constant to each element of a dynamic metric, using saturating arithmetic
-     * @param name the name of the metric to update
-     * @param deltas an array of constant values to add for each group
-     * @throws ImhotepOutOfMemoryException in case there's not enough memory
-     */
-    default void updateDynamicMetric(final String name, final int[] deltas) throws ImhotepOutOfMemoryException {
-        updateDynamicMetric(DEFAULT_GROUPS, name, deltas);
-    }
-    void updateDynamicMetric(String groupsName, String name, int[] deltas) throws ImhotepOutOfMemoryException;
-
-    /**
-     * Adjusts the given dynamic metric on a per-document basis where the delta for each condition that matches
-     * is summed up and applied.
-     * The group that a document is in is irrelevant.
-     * Does not currently support inequality conditions.
-     * @param name the name of the metric to update
-     * @param conditions conditions to match against
-     * @param deltas deltas to adjust document by if the corresponding condition matches
-     */
-    void conditionalUpdateDynamicMetric(String name, RegroupCondition[] conditions, int[] deltas);
-
-    default void groupConditionalUpdateDynamicMetric(final String name, final int[] groups, final RegroupCondition[] conditions, final int[] deltas) {
-        groupConditionalUpdateDynamicMetric(DEFAULT_GROUPS, name, groups, conditions, deltas);
-    }
-    void groupConditionalUpdateDynamicMetric(String groupsName, String name, int[] groups, RegroupCondition[] conditions, int[] deltas);
-
-    default void groupQueryUpdateDynamicMetric(final String name, final int[] groups, final Query[] conditions, final int[] deltas) throws ImhotepOutOfMemoryException {
-        groupQueryUpdateDynamicMetric(DEFAULT_GROUPS, name, groups, conditions, deltas);
-    }
-    void groupQueryUpdateDynamicMetric(String groupsName, String name, int[] groups, Query[] conditions, int[] deltas) throws ImhotepOutOfMemoryException;
 
     /**
      * close the session and free up any associated resources

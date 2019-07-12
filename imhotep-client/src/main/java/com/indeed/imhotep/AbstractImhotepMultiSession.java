@@ -15,7 +15,6 @@ package com.indeed.imhotep;
 
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
-import com.indeed.flamdex.query.Query;
 import com.indeed.flamdex.query.Term;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
@@ -368,31 +367,6 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
         // and cpu-cheap request for remote sessions
         executor().lockCPU(false).executeRuntimeException(integerBuf, imhotepSession -> imhotepSession.getNumGroups(groupsName));
         return Collections.max(Arrays.asList(integerBuf));
-    }
-
-    @Override
-    public void createDynamicMetric(final String name) throws ImhotepOutOfMemoryException {
-        executor().executeMemoryExceptionVoid(nullBuf, imhotepSession -> imhotepSession.createDynamicMetric(name));
-    }
-
-    @Override
-    public void updateDynamicMetric(final String groupsName, final String name, final int[] deltas) {
-        executor().executeRuntimeExceptionVoid(nullBuf, imhotepSession -> imhotepSession.updateDynamicMetric(groupsName, name, deltas));
-    }
-
-    @Override
-    public void conditionalUpdateDynamicMetric(final String name, final RegroupCondition[] conditions, final int[] deltas) {
-        executor().executeRuntimeExceptionVoid(nullBuf, imhotepSession -> imhotepSession.conditionalUpdateDynamicMetric(name, conditions, deltas));
-    }
-
-    @Override
-    public void groupConditionalUpdateDynamicMetric(final String groupsName, final String name, final int[] groups, final RegroupCondition[] conditions, final int[] deltas) {
-        executor().executeRuntimeExceptionVoid(nullBuf, imhotepSession -> imhotepSession.groupConditionalUpdateDynamicMetric(groupsName, name, groups, conditions, deltas));
-    }
-
-    @Override
-    public void groupQueryUpdateDynamicMetric(final String groupsName, final String name, final int[] groups, final Query[] conditions, final int[] deltas) {
-        executor().executeRuntimeExceptionVoid(nullBuf, imhotepSession -> imhotepSession.groupQueryUpdateDynamicMetric(groupsName, name, groups, conditions, deltas));
     }
 
     private int validateNumStats(final Integer[] numStatBuf) {

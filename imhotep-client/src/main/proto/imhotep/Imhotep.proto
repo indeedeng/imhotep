@@ -116,14 +116,14 @@ message ImhotepRequest {
     QUERY_REGROUP = 16;
     METRIC_REGROUP = 17;
     DELETED___METRIC_REGROUP_2D = 18;
-    CREATE_DYNAMIC_METRIC = 19;
-    UPDATE_DYNAMIC_METRIC = 20;
+    DELETED___CREATE_DYNAMIC_METRIC = 19; // Dynamic metrics are no longer supported.
+    DELETED___UPDATE_DYNAMIC_METRIC = 20; // Dynamic metrics are no longer supported.
     RESET_GROUPS = 21;
     DELETED___GET_SHARD_INFO_LIST = 22; // No longer implemented. Use GET_SHARD_LIST in ShardMaster
     DELETED___RANDOM_MULTI_REGROUP = 23; // No longer implemented.
     MULTISPLIT_REGROUP = 24;
     APPROXIMATE_TOP_TERMS = 25;
-    CONDITIONAL_UPDATE_DYNAMIC_METRIC = 26;
+    DELETED___CONDITIONAL_UPDATE_DYNAMIC_METRIC = 26; // Dynamic metrics are no longer supported.
     EXPLODED_MULTISPLIT_REGROUP = 27;
     METRIC_FILTER = 28;
     DELETED___GET_DOC_ITERATOR = 29; // No longer implemented.
@@ -131,14 +131,14 @@ message ImhotepRequest {
     DELETED___OPTIMIZE_SESSION = 31; // No longer implemented.
     GET_FTGS_SPLIT = 32;
     MERGE_FTGS_SPLIT = 33;
-    GROUP_CONDITIONAL_UPDATE_DYNAMIC_METRIC = 34;
+    DELETED___GROUP_CONDITIONAL_UPDATE_DYNAMIC_METRIC = 34; // Dynamic metrics are no longer supported.
     GET_SUBSET_FTGS_ITERATOR = 35;
     GET_SUBSET_FTGS_SPLIT = 36;
     MERGE_SUBSET_FTGS_SPLIT = 37;
     GET_NUM_GROUPS = 38;
     REGEX_REGROUP = 39;
     DELETED___GET_FTGS_SPLIT_NATIVE=40;
-    GROUP_QUERY_UPDATE_DYNAMIC_METRIC = 41;
+    DELETED___GROUP_QUERY_UPDATE_DYNAMIC_METRIC = 41; // Dynamic metrics are no longer supported.
     STREAMING_GET_GROUP_STATS = 42;
     GET_PERFORMANCE_STATS = 43;
     DELETED___GET_DATASET_METADATA = 44; // No longer implemented. Data comes from ShardMaster
@@ -218,8 +218,8 @@ message ImhotepRequest {
   optional int32 session_priority = 30 [default = 0];
 
   // dynamic messages
-  optional string dynamic_metric_name = 31;
-  repeated sint32 dynamic_metric_deltas = 32 [packed=true];
+  optional string deleted___dynamic_metric_name = 31;
+  repeated sint32 deleted___dynamic_metric_deltas = 32 [packed=true];
 
   // for randomMetricMultiRegroup()
   repeated double percentages = 33;
@@ -235,7 +235,7 @@ message ImhotepRequest {
   optional int32 k = 37;
 
   // for conditionalUpdateDynamicMetric()
-  repeated RegroupConditionMessage conditions = 38;
+  repeated RegroupConditionMessage deleted___conditions = 38;
 
   // for exploded multisplit regroup
   optional int32 length = 39;
@@ -255,7 +255,7 @@ message ImhotepRequest {
   //for getFtgsSplit
   optional int32 numSplits = 45;
   //for groupConditionalUpdateDynamicMetric
-  repeated uint32 groups = 46;
+  repeated uint32 deleted___groups = 46;
 
   //for ftgs subset calls
   repeated IntFieldAndTerms intFieldsToTerms = 47;
@@ -288,7 +288,7 @@ message ImhotepRequest {
   optional bool includeShardList = 57 [default = false];
 
   // for groupQueryUpdateDynamicMetric
-  repeated QueryMessage queryMessages = 58;
+  repeated QueryMessage deleted___queryMessages = 58;
 
   // for getPerformanceStats
   optional bool resetPerformanceStats = 59;

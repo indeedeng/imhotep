@@ -16,7 +16,6 @@
 import com.indeed.imhotep.GroupMultiRemapRule;
 import com.indeed.imhotep.ImhotepStatusDump;
 import com.indeed.imhotep.QueryRemapRule;
-import com.indeed.imhotep.RegroupCondition;
 import com.indeed.imhotep.SlotTiming;
 import com.indeed.imhotep.TermCount;
 import com.indeed.imhotep.protobuf.HostAndPort;
@@ -67,14 +66,9 @@ public interface ImhotepServiceCore {
     GroupStatsIterator handleGetDistinct(String sessionId, String groupsName, String field, boolean isIntField);
     GroupStatsIterator handleMergeDistinctSplit(String groupsName, String sessionId, String field, boolean isIntField, HostAndPort[] nodes, int splitIndex);
     GroupStatsIterator handleMergeMultiDistinctSplit(final MultiFTGSRequest request, final String validLocalSessionId, final HostAndPort[] nodes) throws ImhotepOutOfMemoryException;
-    List<String> getShardsForSession(String sessionId);
     boolean sessionIsValid(String sessionId);
     void handleCloseSession(String sessionId);
     void handleCloseSession(String sessionId, Exception e);
-    void handleCreateDynamicMetric(String sessionId, String dynamicMetricName) throws ImhotepOutOfMemoryException;
-    void handleUpdateDynamicMetric(String sessionId, String groupsName, String dynamicMetricName, int[] deltas) throws ImhotepOutOfMemoryException;
-    void handleConditionalUpdateDynamicMetric(String sessionId, String dynamicMetricName, RegroupCondition[] conditions, int[] deltas);
-    void handleGroupConditionalUpdateDynamicMetric(String sessionId, String groupsName, String dynamicMetricName, int[] groups, RegroupCondition[] conditions, int[] deltas);
     void handleResetGroups(String sessionId, String groupsName) throws ImhotepOutOfMemoryException;
     int handleGetNumGroups(String sessionId, String groupsName);
     PerformanceStats handleGetPerformanceStats(String sessionId, boolean reset);
