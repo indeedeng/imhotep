@@ -9,7 +9,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
+/**
+ * Manages the Definitions and Usages for all named Group.
+ * A named Group is defined whenever an Imhotep Command uses it for the first time, or if re-used after deletion.
+ * Each successive ImhotepCommand using it as it's input Group will add to it's usage.
+ */
 public class DefUseManager {
 
     private final Map<String, DefUseList> defUseListMap = new HashMap<>();
@@ -18,7 +24,8 @@ public class DefUseManager {
         return new DefUseList(Futures.immediateFuture(null), new ArrayList<>());
     }
 
-    public List<ListenableFuture<Object>> getDependentFutures(final List<String> inputGroups, final List<String> outputGroups) {
+    // returns a list of futures which should be executed before the gives set of input and output Groups.
+    public List<ListenableFuture<Object>> getUpstreamFutures(final List<String> inputGroups, final List<String> outputGroups) {
         final List<ListenableFuture<Object>> dependentFutures = inputGroups.stream().map(this::getDef).collect(Collectors.toList());
         outputGroups.forEach(outputGroup -> {
             if (defUseListMap.containsKey(outputGroup)) {
@@ -33,16 +40,8 @@ public class DefUseManager {
         return defUseListMap.get(groupName).def;
     }
 
-    private List<ListenableFuture<Object>> getUses(final String groupName) {
-        defUseListMap.putIfAbsent(groupName, getDefaultDefUseListForGroup());
-        return defUseListMap.get(groupName).uses;
-    }
-
     private List<ListenableFuture<Object>> getDefAndUses(final String groupName) {
-        defUseListMap.putIfAbsent(groupName, getDefaultDefUseListForGroup());
-        final List<ListenableFuture<Object>> defAndUses = getUses(groupName);
-        defAndUses.add(getDef(groupName));
-        return defAndUses;
+        return defUseListMap.get(groupName).getDefAndUse();
     }
 
     public void addUses(final List<String> groupNames, final ListenableFuture<Object> usingFuture) {
@@ -52,13 +51,12 @@ public class DefUseManager {
         }
     }
 
-    public void addDefinition(final List<String> outputGroups, final ListenableFuture<Object> commandFuture) {
+    public void addDefinitions(final List<String> outputGroups, final ListenableFuture<Object> commandFuture) {
         outputGroups.forEach(outputGroup -> defUseListMap.put(outputGroup, new DefUseList(commandFuture, new ArrayList<>())));
     }
 
-    public List<ListenableFuture<Object>> getAllFutures(final ListenableFuture<Object> firstFuture) {
+    public List<ListenableFuture<Object>> getAllDefsUses() {
         final List<ListenableFuture<Object>> allFutures = new ArrayList<>();
-        allFutures.add(firstFuture);
         defUseListMap.forEach((s, defuseList) -> {
             allFutures.addAll(defuseList.uses);
             allFutures.add(defuseList.def);
@@ -67,12 +65,16 @@ public class DefUseManager {
     }
 
     private static class DefUseList {
-        public final ListenableFuture<Object> def;
-        public final List<ListenableFuture<Object>> uses;
+        private final ListenableFuture<Object> def;
+        private final List<ListenableFuture<Object>> uses;
 
         DefUseList(final ListenableFuture def, final List<ListenableFuture<Object>> uses) {
             this.def = def;
             this.uses = uses;
+        }
+
+        public List<ListenableFuture<Object>> getDefAndUse() {
+            return Stream.concat(Stream.of(def), uses.stream()).collect(Collectors.toList());
         }
     }
 }

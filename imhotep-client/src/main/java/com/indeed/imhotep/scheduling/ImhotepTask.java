@@ -20,7 +20,6 @@ import com.indeed.imhotep.AbstractImhotepMultiSession;
 import com.indeed.imhotep.AbstractImhotepSession;
 import com.indeed.imhotep.RequestContext;
 import com.indeed.imhotep.SlotTiming;
-import com.indeed.imhotep.api.ImhotepCommand;
 import com.indeed.imhotep.exceptions.InvalidSessionException;
 import org.apache.log4j.Logger;
 
@@ -55,7 +54,7 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
     @Nullable private final Integer numDocs;
     @Nullable private final AbstractImhotepMultiSession session;
     @Nullable private AbstractImhotepSession innerSession;
-    @Nullable private final Class imhotepCommandResultClass;
+    @Nullable private final Class imhotepCommandClass;
     private CountDownLatch waitLock = null;
     private long lastExecutionStartTime = 0;
     private long lastWaitStartTime = 0;
@@ -122,7 +121,7 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
             @Nullable final String dataset,
             @Nullable final String shardName,
             @Nullable final Integer numDocs,
-            @Nullable final Class imhotepCommandResultClass,
+            @Nullable final Class imhotepCommandClass,
             @Nullable final SchedulerCallback execTimeCallback,
             @Nullable final SchedulerCallback waitTimeCallback
     ) {
@@ -137,14 +136,14 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
         this.taskId = nextTaskId.incrementAndGet();
         creationTimestamp = System.nanoTime();
         this.session = session;
-        this.imhotepCommandResultClass = imhotepCommandResultClass;
+        this.imhotepCommandClass = imhotepCommandClass;
 
         this.schedulerExecTimeCallback = execTimeCallback;
         this.schedulerWaitTimeCallback = waitTimeCallback;
     }
 
-    private ImhotepTask(final AbstractImhotepMultiSession session, @Nullable final Class imhotepCommandResultClass) {
-        this(session.getUserName(), session.getClientName(), session.getPriority(), session, null, null, null, imhotepCommandResultClass,
+    private ImhotepTask(final AbstractImhotepMultiSession session, @Nullable final Class imhotepCommandClass) {
+        this(session.getUserName(), session.getClientName(), session.getPriority(), session, null, null, null, imhotepCommandClass,
                 (schedulerType, execTime) -> session.schedulerExecTimeCallback(schedulerType, execTime),
                 (schedulerType, waitTime) -> session.schedulerWaitTimeCallback(schedulerType, waitTime));
     }

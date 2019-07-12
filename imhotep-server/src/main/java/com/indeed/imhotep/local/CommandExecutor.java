@@ -37,8 +37,9 @@ public class CommandExecutor<T> {
     }
 
     private T applyCommand(final ImhotepCommand<T> imhotepCommand) {
+        ImhotepTask.setup(imhotepMultiSession, imhotepCommand.getClass());
+        ImhotepTask.registerInnerSession(imhotepLocalSession);
         try (final SilentCloseable ignored = TaskScheduler.CPUScheduler.lockSlot()) {
-            ImhotepTask.setup(imhotepMultiSession, imhotepCommand.getResultClass());
             try {
                 return imhotepCommand.apply(imhotepLocalSession);
             } catch (final ImhotepOutOfMemoryException e) {
@@ -49,11 +50,11 @@ public class CommandExecutor<T> {
     }
 
     private ListenableFuture<Object> processCommand(final ImhotepCommand imhotepCommand, final DefUseManager defUseManager) {
-        final List<ListenableFuture<Object>> dependentFutures = defUseManager.getDependentFutures(imhotepCommand.getInputGroups(), imhotepCommand.getOutputGroups());
-        final ListenableFuture<Object> commandFuture = Futures.transform(Futures.allAsList(dependentFutures), (final List<Object> ignored) -> applyCommand(imhotepCommand), executorService);
+        final List<ListenableFuture<Object>> upstreamFutures = defUseManager.getUpstreamFutures(imhotepCommand.getInputGroups(), imhotepCommand.getOutputGroups());
+        final ListenableFuture<Object> commandFuture = Futures.transform(Futures.allAsList(upstreamFutures), (final List<Object> ignored) -> applyCommand(imhotepCommand), executorService);
 
         defUseManager.addUses(imhotepCommand.getInputGroups(), commandFuture);
-        defUseManager.addDefinition(imhotepCommand.getOutputGroups(), commandFuture);
+        defUseManager.addDefinitions(imhotepCommand.getOutputGroups(), commandFuture);
 
         return commandFuture;
     }
@@ -64,7 +65,8 @@ public class CommandExecutor<T> {
         }
         final ListenableFuture<Object> lastCommandFuture = processCommand(lastCommand, defUseManager);
 
-        final List<ListenableFuture<Object>> allFutures = defUseManager.getAllFutures(lastCommandFuture);
-        return (T) Futures.transform(Futures.allAsList(allFutures), (final List<Object> inputs) -> inputs.get(0), executorService).get();
+        final List<ListenableFuture<Object>> allFutures = defUseManager.getAllDefsUses();
+        allFutures.add(lastCommandFuture);
+        return (T) Futures.transform(Futures.allAsList(allFutures), (final List<Object> inputs) -> inputs.get(inputs.size() - 1), executorService).get();
     }
 }
