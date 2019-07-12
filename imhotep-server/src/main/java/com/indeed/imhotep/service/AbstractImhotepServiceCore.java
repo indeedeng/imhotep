@@ -455,7 +455,7 @@ public abstract class AbstractImhotepServiceCore
             final long upstreamTermLimit = useUpstreamTermLimit ? request.getTermLimit() : 0L;
 
             final FTGAIterator ftgaIterator = doWithSession(validLocalSessionId, (IOOrOutOfMemoryFunction<MTImhotepLocalMultiSession, FTGAIterator>) session -> {
-                return session.getFTGSIteratorReplica(request.getReplicaId(), request.getNumReplica(), () -> {
+                return session.getFTGAIteratorReplica(request.getReplicaId(), request.getNumReplica(), () -> {
                     final List<FTGSIterator[]> sessionSplitIterators = getMultiSessionSplitIterators(closer, validLocalSessionId, nodes, sessionInfoList, isIntField, splitIndex, upstreamTermLimit);
                     final FTGAIterator[] streams = session.zipElementWise(modifiers, sessionSplitIterators, x -> new MultiSessionWrapper(x, filters.toList(), selects.toList()));
                     closer.registerOrClose(Closeables2.forArray(log, streams));

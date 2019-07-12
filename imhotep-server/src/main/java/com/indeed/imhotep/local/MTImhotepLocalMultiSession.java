@@ -60,7 +60,6 @@ import javax.annotation.WillClose;
 import javax.annotation.WillNotClose;
 import java.io.BufferedOutputStream;
 import java.io.Closeable;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.lang.reflect.Array;
 import java.net.InetSocketAddress;
@@ -328,39 +327,24 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
         }
     }
 
-    public FTGAIterator getFTGSIteratorReplica(final int replicaId, final int numReplica, final IOOrOutOfMemorySupplier<FTGAIterator> ftgaSupplier) throws ImhotepOutOfMemoryException, IOException {
+    public FTGAIterator getFTGAIteratorReplica(final int replicaId, final int numReplica, final IOOrOutOfMemorySupplier<FTGAIterator> ftgaSupplier) throws ImhotepOutOfMemoryException, IOException {
         synchronized (multiFTGALock) {
             if ((replicaId < 0) || (replicaId >= numReplica)) {
                 throw new IllegalArgumentException("Illegal replicaId: " + replicaId);
             }
-
-            final FTGAIterator replica = getMultiFTGSReplicaOrThrow(replicaId, numReplica);
+            final FTGAIterator replica = getMultiFTGAReplicaOrThrow(replicaId, numReplica);
             if (replica != null) {
                 return replica;
             }
             if (numReplica == 1) {
                 return ftgaSupplier.get();
             }
-            final TempFile tempFile = ImhotepTempFiles.createFTGAReplicaTempFile(getSessionId());
-            final FTGAIterator iteratorToPersist = ftgaSupplier.get();
-            try {
-                final FTGSBinaryFormat.FieldStat[] fieldStats;
-                try (final BufferedOutputStream out = tempFile.bufferedOutputStream()) {
-                    fieldStats = FTGSIteratorUtil.writeFtgaIteratorToStream(iteratorToPersist, out);
-                }
-                initMultiFTGSReplica(tempFile, fieldStats, iteratorToPersist.getNumStats(), iteratorToPersist.getNumGroups(), numReplica);
-                return getMultiFTGSReplicaOrThrow(replicaId, numReplica);
-            } catch (final Throwable t) {
-                Closeables2.closeQuietly(iteratorToPersist, log);
-                initMultiFTGSReplicasWithError(t, numReplica);
-                throw t;
-            } finally {
-                tempFile.removeFileStillReferenced();
-            }
+            initFTGAReplica(ftgaSupplier, numReplica);
+            return getMultiFTGAReplicaOrThrow(replicaId, numReplica);
         }
     }
 
-    private FTGAIterator getMultiFTGSReplicaOrThrow(final int replicaId, final int numReplica) throws ImhotepOutOfMemoryException {
+    private FTGAIterator getMultiFTGAReplicaOrThrow(final int replicaId, final int numReplica) throws ImhotepOutOfMemoryException {
         try {
             if ((multiFTGAReplica != null) && (multiFTGAReplica.length == numReplica) && (multiFTGAReplica[replicaId] != null)) {
                 final Either<Throwable, FTGAIterator> result = multiFTGAReplica[replicaId];
@@ -375,16 +359,29 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
 
     }
 
-    private void initMultiFTGSReplica(final TempFile tempFile, final FTGSBinaryFormat.FieldStat[] fieldStats, final int numStats, final int numGroups, final int numReplica) throws FileNotFoundException {
-        closeMultiFTGSReplicas();
-        multiFTGAReplica = new Either[numReplica];
-        for (int index = 0; index < numReplica; index++) {
-            multiFTGAReplica[index] = Either.Right.of(new InputStreamFTGAIterator(tempFile.bufferedInputStream(), fieldStats, numStats, numGroups));
+    private void initFTGAReplica(final IOOrOutOfMemorySupplier<FTGAIterator> ftgaSupplier, final int numReplica) throws IOException, ImhotepOutOfMemoryException {
+        closeMultiFTGAReplicas();
+
+        final TempFile tempFile = ImhotepTempFiles.createFTGAReplicaTempFile(getSessionId());
+        try (final FTGAIterator iteratorToPersist = ftgaSupplier.get()) {
+            final FTGSBinaryFormat.FieldStat[] fieldStats;
+            try (final BufferedOutputStream out = tempFile.bufferedOutputStream()) {
+                fieldStats = FTGSIteratorUtil.writeFtgaIteratorToStream(iteratorToPersist, out);
+            }
+            multiFTGAReplica = new Either[numReplica];
+            for (int index = 0; index < numReplica; index++) {
+                multiFTGAReplica[index] = Either.Right.of(new InputStreamFTGAIterator(tempFile.bufferedInputStream(), fieldStats, iteratorToPersist.getNumStats(), iteratorToPersist.getNumGroups()));
+            }
+        } catch (final Throwable t) {
+            initFTGAReplicasWithError(t, numReplica);
+            throw t;
+        } finally {
+            tempFile.removeFileStillReferenced();
         }
     }
 
-    private void initMultiFTGSReplicasWithError(Throwable error, final int numReplica) {
-        closeMultiFTGSReplicas();
+    private void initFTGAReplicasWithError(Throwable error, final int numReplica) {
+        closeMultiFTGAReplicas();
         // Unwrap ExecutionException to get access to whatever the real thing was
         if ((error instanceof ExecutionException) && (error.getCause() != null)) {
             error = error.getCause();
@@ -395,7 +392,7 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
         }
     }
 
-    private void closeMultiFTGSReplicas() {
+    private void closeMultiFTGAReplicas() {
         if (multiFTGAReplica != null) {
             for (int i = 0; i < multiFTGAReplica.length; i++) {
                 try {
@@ -474,7 +471,7 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
         }
         Closeables2.closeQuietly(memory, log);
         closeSplits();
-        closeMultiFTGSReplicas();
+        closeMultiFTGAReplicas();
         super.postClose();
     }
 
