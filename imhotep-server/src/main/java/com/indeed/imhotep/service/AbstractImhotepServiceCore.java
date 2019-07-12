@@ -65,6 +65,7 @@ import com.indeed.imhotep.protobuf.ShardBasicInfoMessage;
 import com.indeed.imhotep.protobuf.StatsSortOrder;
 import com.indeed.imhotep.scheduling.ImhotepTask;
 import com.indeed.imhotep.scheduling.SilentCloseable;
+import com.indeed.imhotep.scheduling.TaskScheduler;
 import com.indeed.imhotep.utils.tempfiles.ImhotepTempFiles;
 import com.indeed.imhotep.utils.tempfiles.TempFile;
 import com.indeed.imhotep.utils.tempfiles.TempFiles;
@@ -597,7 +598,11 @@ public abstract class AbstractImhotepServiceCore
                 numStats = ftgs.getNumStats();
                 tempFile = ImhotepTempFiles.createAggregateBucketTempFile(sessionIds);
                 try (final BufferedOutputStream out = tempFile.bufferedOutputStream()) {
-                    fieldStats = FTGSIteratorUtil.writeFtgsIteratorToStream(ftgs, out);
+                    fieldStats = doWithSession(sessionIdLocallyAvailable, (ThrowingFunction<MTImhotepLocalMultiSession, FTGSBinaryFormat.FieldStat[], IOException>) whateverSession -> {
+                        try (final SilentCloseable ignored = TaskScheduler.CPUScheduler.lockSlot()) {
+                            return FTGSIteratorUtil.writeFtgsIteratorToStream(ftgs, out);
+                        }
+                    });
                 }
             } catch (final IOException e) {
                 throw new RuntimeException(e);
