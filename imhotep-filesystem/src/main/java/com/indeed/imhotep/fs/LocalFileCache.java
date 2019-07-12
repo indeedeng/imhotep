@@ -158,14 +158,19 @@ class LocalFileCache implements Closeable {
 
     }
 
+    private void shutDownExecutorQuietly(final ScheduledExecutorService executorService) {
+        try {
+            executorService.shutdown();
+        } catch (final Exception e) {
+            LOGGER.error("Error while shutting down ScheduledExecutorService: " + executorService + ". Error : " + e);
+        }
+    }
+
     @Override
     public void close() {
-        try {
-            fastStatsReportingExecutor.shutdown();
-            slowStatsReportingExecutor.shutdown();
-        } finally {
-            Closeables2.closeQuietly(unusedFilesCache, LOGGER);
-        }
+        shutDownExecutorQuietly(fastStatsReportingExecutor);
+        shutDownExecutorQuietly(slowStatsReportingExecutor);
+        Closeables2.closeQuietly(unusedFilesCache, LOGGER);
     }
 
     private class CacheStatsEmitter {
