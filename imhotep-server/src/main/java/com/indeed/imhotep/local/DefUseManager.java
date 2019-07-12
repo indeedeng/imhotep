@@ -56,12 +56,7 @@ public class DefUseManager {
     }
 
     public List<ListenableFuture<Object>> getAllDefsUses() {
-        final List<ListenableFuture<Object>> allFutures = new ArrayList<>();
-        defUseListMap.forEach((s, defuseList) -> {
-            allFutures.addAll(defuseList.uses);
-            allFutures.add(defuseList.def);
-        });
-        return allFutures;
+        return defUseListMap.values().parallelStream().map(DefUseList::getDefAndUse).flatMap(List::stream).collect(Collectors.toList());
     }
 
     private static class DefUseList {
