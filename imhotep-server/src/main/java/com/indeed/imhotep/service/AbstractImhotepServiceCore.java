@@ -650,6 +650,7 @@ public abstract class AbstractImhotepServiceCore
     private <Z, T extends Throwable> Z doWithSessionAlreadyHasTask(
             final String sessionId,
             final ThrowingFunction<MTImhotepLocalMultiSession, Z, T> f) throws T {
+        Preconditions.checkState(ImhotepTask.hasTask(), "Current thread supposed to have an imhotep task already, but it appeared it doesn't");
         final SharedReference<MTImhotepLocalMultiSession> sessionRef = getSessionManager().getSession(sessionId);
         try {
             final MTImhotepLocalMultiSession session = sessionRef.get();

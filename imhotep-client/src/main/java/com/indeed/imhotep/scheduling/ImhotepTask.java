@@ -78,6 +78,10 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
         ImhotepTask.THREAD_LOCAL_TASK.set(task);
     }
 
+    public static boolean hasTask() {
+        return ImhotepTask.THREAD_LOCAL_TASK.get() != null;
+    }
+
     public static void setup(
             final String userName,
             final String clientName,
