@@ -302,9 +302,7 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
             error = error.getCause();
         }
         ftgsSplits = new Either[numSplits];
-        for (int index = 0; index < numSplits; index++) {
-            ftgsSplits[index] = Either.Left.of(error);
-        }
+        Arrays.fill(ftgsSplits, Either.Left.of(error));
     }
 
     // Closing splits, but leaving errors.
@@ -387,9 +385,7 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
             error = error.getCause();
         }
         multiFTGAReplica = new Either[numReplica];
-        for (int index = 0; index < numReplica; index++) {
-            ftgsSplits[index] = Either.Left.of(error);
-        }
+        Arrays.fill(multiFTGAReplica, Either.Left.of(error));
     }
 
     private void closeMultiFTGAReplicas() {
