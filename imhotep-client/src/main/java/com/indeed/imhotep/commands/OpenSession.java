@@ -22,7 +22,7 @@ public class OpenSession extends VoidAbstractImhotepCommand {
             final List<ShardBasicInfoMessage> shards,
             final int clientVersion
     ) {
-        super(sessionId, Collections.emptyList(), Collections.singletonList());
+        super(sessionId, Collections.emptyList(), Collections.singletonList(ImhotepSession.DEFAULT_GROUPS));
         this.openSessionData = openSessionData;
         this.shards = shards;
         this.clientVersion = clientVersion;
