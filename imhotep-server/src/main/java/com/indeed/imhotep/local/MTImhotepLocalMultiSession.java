@@ -474,6 +474,7 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
         }
         Closeables2.closeQuietly(memory, log);
         closeSplits();
+        closeMultiFTGSReplicas();
         super.postClose();
     }
 
