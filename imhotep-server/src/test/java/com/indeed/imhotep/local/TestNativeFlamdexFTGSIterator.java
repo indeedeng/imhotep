@@ -15,8 +15,10 @@
 
 import com.indeed.flamdex.api.FlamdexOutOfMemoryException;
 import com.indeed.flamdex.api.IntValueLookup;
+import com.indeed.flamdex.fieldcache.LongArrayIntValueLookup;
 import com.indeed.flamdex.simple.SimpleFlamdexReader;
 import com.indeed.flamdex.simple.SimpleFlamdexWriter;
+import com.indeed.flamdex.utils.FlamdexUtils;
 import com.indeed.flamdex.writer.IntFieldWriter;
 import com.indeed.flamdex.writer.StringFieldWriter;
 import com.indeed.imhotep.client.ShardTimeUtils;
@@ -273,7 +275,8 @@ public class TestNativeFlamdexFTGSIterator {
         d[0] = nDocs - 3;
         for (int i = 0; i < 100; i++) {
             for (final String metric : metricNames) {
-                final IntValueLookup verificationIVL = verificationShard.getMetricJava(metric);
+                final IntValueLookup verificationIVL =
+                        new LongArrayIntValueLookup(FlamdexUtils.cacheLongField(metric, verificationShard));
                 verificationIVL.lookup(d, v, 1);
                 foo += v[0];
                 final IntValueLookup testIVL = testShard.getMetric(metric);
@@ -285,7 +288,8 @@ public class TestNativeFlamdexFTGSIterator {
 
         for (final String metric : metricNames) {
             final long t1 = System.nanoTime();
-            final IntValueLookup verificationIVL = verificationShard.getMetricJava(metric);
+            final IntValueLookup verificationIVL =
+                    new LongArrayIntValueLookup(FlamdexUtils.cacheLongField(metric, verificationShard));
             final long t2 = System.nanoTime();
             final IntValueLookup testIVL = testShard.getMetric(metric);
             final long t3 = System.nanoTime();

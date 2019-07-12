@@ -99,32 +99,6 @@ public class FieldCacherUtil {
         }
     }
 
-    public static FieldCacher getCacherForField(final String field, final FlamdexReader r, final MinMax minMax) {
-        final long[] minMaxTerm = FlamdexUtils.getMinMaxTerm(field, r);
-        final long minTermVal = minMaxTerm[0];
-        final long maxTermVal = minMaxTerm[1];
-        minMax.min = minTermVal;
-        minMax.max = maxTermVal;
-
-        if (minTermVal == maxTermVal) {
-            return FieldCacher.CONSTANT;
-        } else if (minTermVal >= 0 && maxTermVal <= 1) {
-            return FieldCacher.BITSET;
-        } else if (minTermVal >= 0 && maxTermVal <= 255) {
-            return FieldCacher.BYTE;
-        } else if (minTermVal >= Byte.MIN_VALUE && maxTermVal <= Byte.MAX_VALUE) {
-            return FieldCacher.SIGNED_BYTE;
-        } else if (minTermVal >= 0 && maxTermVal <= 65535) {
-            return FieldCacher.CHAR;
-        } else if (minTermVal >= Short.MIN_VALUE && maxTermVal <= Short.MAX_VALUE) {
-            return FieldCacher.SHORT;
-        } else if (minTermVal >= Integer.MIN_VALUE && maxTermVal <= Integer.MAX_VALUE) {
-            return FieldCacher.INT;
-        } else {
-            return FieldCacher.LONG;
-        }
-    }
-
     public static NativeFlamdexFieldCacher getNativeCacherForField(final String field,
                                                                    final SimpleFlamdexReader r,
                                                                    final MinMax minMax) {
