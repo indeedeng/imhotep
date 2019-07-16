@@ -141,9 +141,11 @@ public class SquallArchiveReader {
      * @throws IOException if there is an IO problem
      */
     public void copyAllToLocal(final File localDir, final FileMetadataFilter filter) throws IOException {
-        for (final FileMetadata metadata : readMetadata()) {
-            if (filter.accept(metadata)) {
-                copyToLocal(metadata, localDir);
+        try (final InputStreamPool pool = new InputStreamPool(fs)) {
+            for (final FileMetadata metadata : readMetadata()) {
+                if (filter.accept(metadata)) {
+                    copyToLocal(metadata, localDir, pool);
+                }
             }
         }
     }
@@ -174,10 +176,16 @@ public class SquallArchiveReader {
      * @throws IOException if there is an IO problem
      */
     public void copyToLocal(final FileMetadata file, final File localDir) throws IOException {
+        try (final InputStreamPool pool = new InputStreamPool(fs)) {
+            copyToLocal(file, localDir, pool);
+        }
+    }
+
+    private void copyToLocal(final FileMetadata file, final File localDir, final InputStreamPool pool) throws IOException {
         int retries = 3;
         while (true) {
             try {
-                tryCopyToLocal(file, localDir);
+                tryCopyToLocal(file, localDir, pool);
                 break;
             } catch (final IOException e) {
                 log.error(e);
@@ -195,6 +203,12 @@ public class SquallArchiveReader {
     }
 
     public void tryCopyToLocal(final FileMetadata file, final File localDir) throws IOException {
+        try (final InputStreamPool pool = new InputStreamPool(fs)) {
+            tryCopyToLocal(file, localDir, pool);
+        }
+    }
+
+    private void tryCopyToLocal(final FileMetadata file, final File localDir, final InputStreamPool pool) throws IOException {
         if (!localDir.exists() && !localDir.mkdirs()) {
             throw new IOException("could not create directory " + localDir);
         }
@@ -214,15 +228,21 @@ public class SquallArchiveReader {
             targetFile = new File(localDir, file.getFilename());
         }
         final OutputStream os = new BufferedOutputStream(new FileOutputStream(targetFile));
-        tryCopyToStream(file, os);
+        tryCopyToStream(file, os, pool);
     }
 
     public void tryCopyToStream(FileMetadata file, final OutputStream os) throws IOException {
+        try (final InputStreamPool pool = new InputStreamPool(fs)) {
+            tryCopyToStream(file, os, pool);
+        }
+    }
+
+    private void tryCopyToStream(FileMetadata file, final OutputStream os, final InputStreamPool pool) throws IOException {
         final String fullFilename = file.getFilename();
 
         final Path archivePath = new Path(path, file.getArchiveFilename());
         final SquallArchiveCompressor compressor = file.getCompressor();
-        try (FSDataInputStream is = fs.open(archivePath)) {
+        try (final FSDataInputStream is = pool.get(archivePath)) {
             is.seek(file.getStartOffset());
             final DigestInputStream digestStream = new DigestInputStream(compressor.newInputStream(is), ArchiveUtils.getMD5Digest());
             ArchiveUtils.streamCopy(digestStream, os, file.getSize());
