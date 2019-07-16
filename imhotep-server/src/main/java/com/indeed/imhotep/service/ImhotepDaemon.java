@@ -276,6 +276,8 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                     log.error("worker exception", e);
                 }
                 throw e;
+            } finally {
+                NDC.remove();
             }
         }
 
