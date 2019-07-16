@@ -13,10 +13,7 @@
  */
 package com.indeed.flamdex.fieldcache;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.io.ByteStreams;
-import com.indeed.flamdex.api.FlamdexReader;
-import com.indeed.flamdex.api.IntTermIterator;
 import com.indeed.flamdex.api.IntValueLookup;
 import com.indeed.flamdex.datastruct.FastBitSet;
 import com.indeed.flamdex.datastruct.MMapFastBitSet;
@@ -871,56 +868,20 @@ public enum NativeFlamdexFieldCacher {
                                                                 long min,
                                                                 long max) throws IOException;
 
-    public IntValueLookup newFieldCache(final IntTermIterator iterator, final int numDocs, final long min, final long max)
+    public IntValueLookup newFieldCache(final SimpleIntTermIterator iterator, final int numDocs, final long min, final long max)
     throws IOException {
-        if (!(iterator instanceof SimpleIntTermIterator)) {
-            throw new UnsupportedOperationException(
-                    "NativeFlamdexFieldCacher only supports SimpleIntTermIterators.  "
-                            + "Please use FieldCacher instead.");
-        }
-
-        final SimpleIntTermIterator iter = (SimpleIntTermIterator) iterator;
-        return newFieldCacheInternal(iter, numDocs, min, max);
+        return newFieldCacheInternal(iterator, numDocs, min, max);
     }
 
-    public IntValueLookup newMMapFieldCache(final IntTermIterator iterator,
+    public IntValueLookup newMMapFieldCache(final SimpleIntTermIterator iterator,
                                             final int numDocs,
                                             final String field,
                                             final Path directory,
                                             final long min,
                                             final long max) throws IOException {
-        if (!(iterator instanceof SimpleIntTermIterator)) {
-            throw new UnsupportedOperationException(
-                    "NativeFlamdexFieldCacher only supports SimpleIntTermIterators.  "
-                            + "Please use FieldCacher instead.");
-        }
-
-        final SimpleIntTermIterator iter = (SimpleIntTermIterator) iterator;
-        return newMMapFieldCacheInternal(iter, numDocs, field, directory, min, max);
+        return newMMapFieldCacheInternal(iterator, numDocs, field, directory, min, max);
     }
 
-    @VisibleForTesting
-    private IntValueLookup newFieldCache(final String field,
-                                               final FlamdexReader r,
-                                               final long min,
-                                               final long max) throws IOException {
-        try (IntTermIterator iterator = r.getUnsortedIntTermIterator(field)) {
-            return newFieldCache(iterator, r.getNumDocs(), min, max);
-        }
-    }
-
-    @VisibleForTesting
-    private IntValueLookup newMMapFieldCache(final String field,
-                                                   final FlamdexReader r,
-                                                   final Path directory,
-                                                   final long min,
-                                                   final long max) throws IOException {
-        try (IntTermIterator iterator = r.getUnsortedIntTermIterator(field)) {
-            return newMMapFieldCache(iterator, r.getNumDocs(), field, directory, min, max);
-        }
-    }
-
-    @VisibleForTesting
     abstract String getMMapFileName(String field);
 
     private static void deleteQuietly(final Path p) {
