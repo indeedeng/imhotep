@@ -1,7 +1,6 @@
 package com.indeed.imhotep;
 
 import com.google.common.base.Throwables;
-import com.indeed.flamdex.query.Query;
 import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.api.FTGSParams;
 import com.indeed.imhotep.api.GroupStatsIterator;
@@ -260,36 +259,6 @@ public class BatchRemoteImhotepMultiSession extends AbstractImhotepSession {
     @Override
     public int getNumGroups(final String groupsName) {
         return executeBatchAndGetResultNoMemoryException(new GetNumGroups(groupsName, getSessionId()));
-    }
-
-    @Override
-    public void createDynamicMetric(final String name) throws ImhotepOutOfMemoryException {
-        executeBatch();
-        remoteImhotepMultiSession.createDynamicMetric(name);
-    }
-
-    @Override
-    public void updateDynamicMetric(final String groupsName, final String name, final int[] deltas) throws ImhotepOutOfMemoryException {
-        executeBatch();
-        remoteImhotepMultiSession.updateDynamicMetric(groupsName, name, deltas);
-    }
-
-    @Override
-    public void conditionalUpdateDynamicMetric(final String name, final RegroupCondition[] conditions, final int[] deltas) {
-        executeBatchNoMemoryException();
-        remoteImhotepMultiSession.conditionalUpdateDynamicMetric(name, conditions, deltas);
-    }
-
-    @Override
-    public void groupConditionalUpdateDynamicMetric(final String groupsName, final String name, final int[] groups, final RegroupCondition[] conditions, final int[] deltas) {
-        executeBatchNoMemoryException();
-        remoteImhotepMultiSession.groupConditionalUpdateDynamicMetric(groupsName, name, groups, conditions, deltas);
-    }
-
-    @Override
-    public void groupQueryUpdateDynamicMetric(final String groupsName, final String name, final int[] groups, final Query[] conditions, final int[] deltas) throws ImhotepOutOfMemoryException {
-        executeBatch();
-        remoteImhotepMultiSession.groupQueryUpdateDynamicMetric(groupsName, name, groups, conditions, deltas);
     }
 
     @Override

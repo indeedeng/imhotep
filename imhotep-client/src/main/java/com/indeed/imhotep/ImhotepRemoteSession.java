@@ -20,7 +20,6 @@ import com.google.common.io.ByteStreams;
 import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
-import com.indeed.flamdex.query.Query;
 import com.indeed.imhotep.api.CommandSerializationParameters;
 import com.indeed.imhotep.api.FTGAIterator;
 import com.indeed.imhotep.api.FTGSIterator;
@@ -51,9 +50,7 @@ import com.indeed.imhotep.protobuf.ImhotepResponse;
 import com.indeed.imhotep.protobuf.IntFieldAndTerms;
 import com.indeed.imhotep.protobuf.MultiFTGSRequest;
 import com.indeed.imhotep.protobuf.Operator;
-import com.indeed.imhotep.protobuf.QueryMessage;
 import com.indeed.imhotep.protobuf.QueryRemapMessage;
-import com.indeed.imhotep.protobuf.RegroupConditionMessage;
 import com.indeed.imhotep.protobuf.ShardBasicInfoMessage;
 import com.indeed.imhotep.protobuf.StringFieldAndTerms;
 import com.indeed.imhotep.utils.tempfiles.ImhotepTempFiles;
@@ -74,7 +71,6 @@ import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
@@ -1062,96 +1058,6 @@ public class ImhotepRemoteSession
             return result;
         } catch (final IOException e) {
             throw Throwables.propagate(e);
-        }
-    }
-
-    @Override
-    public void createDynamicMetric(final String name) throws ImhotepOutOfMemoryException {
-        final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.CREATE_DYNAMIC_METRIC)
-                .setSessionId(getSessionId())
-                .setDynamicMetricName(name)
-                .build();
-
-        try {
-            sendRequestWithMemoryException(request, host, port, socketTimeout);
-        } catch (final IOException e) {
-            throw newRuntimeException(e);
-        }
-    }
-
-    @Override
-    public void updateDynamicMetric(final String groupsName, final String name, final int[] deltas) {
-        final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.UPDATE_DYNAMIC_METRIC)
-                .setSessionId(getSessionId())
-                .setDynamicMetricName(name)
-                .addAllDynamicMetricDeltas(Ints.asList(deltas))
-                .setInputGroups(groupsName)
-                .build();
-
-        try {
-            sendRequest(request, host, port, socketTimeout);
-        } catch (final SocketTimeoutException e) {
-            throw newRuntimeException(buildExceptionAfterSocketTimeout(e, host, port, null));
-        } catch (final IOException e) {
-            throw newRuntimeException(e);
-        }
-    }
-
-    @Override
-    public void conditionalUpdateDynamicMetric(final String name, final RegroupCondition[] conditions, final int[] deltas) {
-        final List<RegroupConditionMessage> conditionMessages = ImhotepClientMarshaller.marshal(conditions);
-
-        final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.CONDITIONAL_UPDATE_DYNAMIC_METRIC)
-                .setSessionId(getSessionId())
-                .setDynamicMetricName(name)
-                .addAllConditions(conditionMessages)
-                .addAllDynamicMetricDeltas(Ints.asList(deltas))
-                .build();
-        try {
-            sendRequest(request, host, port, socketTimeout);
-        } catch (final IOException e) {
-            throw newRuntimeException(e);
-        }
-    }
-
-    @Override
-    public void groupConditionalUpdateDynamicMetric(final String groupsName, final String name, final int[] groups, final RegroupCondition[] conditions, final int[] deltas) {
-        final List<RegroupConditionMessage> conditionMessages = ImhotepClientMarshaller.marshal(conditions);
-
-        final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.GROUP_CONDITIONAL_UPDATE_DYNAMIC_METRIC)
-                .setSessionId(getSessionId())
-                .setDynamicMetricName(name)
-                .addAllGroups(Ints.asList(groups))
-                .addAllConditions(conditionMessages)
-                .addAllDynamicMetricDeltas(Ints.asList(deltas))
-                .setInputGroups(groupsName)
-                .build();
-        try {
-            sendRequest(request, host, port, socketTimeout);
-        } catch (final IOException e) {
-            throw newRuntimeException(e);
-        }
-    }
-
-    @Override
-    public void groupQueryUpdateDynamicMetric(final String groupsName, final String name, final int[] groups, final Query[] conditions, final int[] deltas) {
-        final List<QueryMessage> queryMessages = new ArrayList<>();
-        for (final Query q : conditions) {
-            queryMessages.add(ImhotepClientMarshaller.marshal(q));
-        }
-
-        final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.GROUP_QUERY_UPDATE_DYNAMIC_METRIC)
-                .setSessionId(getSessionId())
-                .setDynamicMetricName(name)
-                .addAllGroups(Ints.asList(groups))
-                .addAllQueryMessages(queryMessages)
-                .addAllDynamicMetricDeltas(Ints.asList(deltas))
-                .setInputGroups(groupsName)
-                .build();
-        try {
-            sendRequest(request, host, port, socketTimeout);
-        } catch (final IOException e) {
-            throw newRuntimeException(e);
         }
     }
 

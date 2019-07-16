@@ -21,13 +21,11 @@ import com.google.common.collect.UnmodifiableIterator;
 import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
-import com.indeed.flamdex.query.Query;
 import com.indeed.imhotep.GroupMultiRemapRule;
 import com.indeed.imhotep.ImhotepRemoteSession;
 import com.indeed.imhotep.ImhotepStatusDump;
 import com.indeed.imhotep.Instrumentation;
 import com.indeed.imhotep.Instrumentation.Keys;
-import com.indeed.imhotep.RegroupCondition;
 import com.indeed.imhotep.RequestContext;
 import com.indeed.imhotep.SlotTiming;
 import com.indeed.imhotep.TermCount;
@@ -54,9 +52,7 @@ import com.indeed.imhotep.protobuf.ImhotepRequest;
 import com.indeed.imhotep.protobuf.ImhotepResponse;
 import com.indeed.imhotep.protobuf.IntFieldAndTerms;
 import com.indeed.imhotep.protobuf.MultiFTGSRequest;
-import com.indeed.imhotep.protobuf.QueryMessage;
 import com.indeed.imhotep.protobuf.QueryRemapMessage;
-import com.indeed.imhotep.protobuf.RegroupConditionMessage;
 import com.indeed.imhotep.protobuf.ShardBasicInfoMessage;
 import com.indeed.imhotep.protobuf.StringFieldAndTerms;
 import com.indeed.imhotep.scheduling.ImhotepTask;
@@ -754,74 +750,6 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             return builder.build();
         }
 
-        private ImhotepResponse createDynamicMetric(
-                final ImhotepRequest          request,
-                final ImhotepResponse.Builder builder)
-            throws ImhotepOutOfMemoryException {
-            service.handleCreateDynamicMetric(request.getSessionId(),
-                                              request.getDynamicMetricName());
-            return builder.build();
-        }
-
-        private ImhotepResponse updateDynamicMetric(
-                final ImhotepRequest          request,
-                final ImhotepResponse.Builder builder)
-            throws ImhotepOutOfMemoryException {
-            service.handleUpdateDynamicMetric(request.getSessionId(),
-                                              request.getInputGroups(),
-                                              request.getDynamicMetricName(),
-                                              Ints.toArray(request.getDynamicMetricDeltasList()));
-            return builder.build();
-        }
-
-        private ImhotepResponse conditionalUpdateDynamicMetric(
-                final ImhotepRequest          request,
-                final ImhotepResponse.Builder builder)
-            throws ImhotepOutOfMemoryException {
-            final List<RegroupConditionMessage> conditionsList = request.getConditionsList();
-            final RegroupCondition[] conditions =
-                ImhotepDaemonMarshaller.marshalRegroupConditionMessageList(conditionsList);
-            final int[] deltas = Ints.toArray(request.getDynamicMetricDeltasList());
-            service.handleConditionalUpdateDynamicMetric(request.getSessionId(),
-                                                         request.getDynamicMetricName(),
-                                                         conditions, deltas);
-            return builder.build();
-        }
-
-        private ImhotepResponse groupConditionalUpdateDynamicMetric(
-                final ImhotepRequest          request,
-                final ImhotepResponse.Builder builder)
-            throws ImhotepOutOfMemoryException {
-            final List<RegroupConditionMessage> conditionsList = request.getConditionsList();
-            final RegroupCondition[] conditions =
-                ImhotepDaemonMarshaller.marshalRegroupConditionMessageList(conditionsList);
-            final int[] deltas = Ints.toArray(request.getDynamicMetricDeltasList());
-            service.handleGroupConditionalUpdateDynamicMetric(request.getSessionId(),
-                                                              request.getInputGroups(),
-                                                              request.getDynamicMetricName(),
-                                                              Ints.toArray(request.getGroupsList()),
-                                                              conditions, deltas);
-            return builder.build();
-        }
-
-        private ImhotepResponse groupQueryUpdateDynamicMetric(
-                final ImhotepRequest          request,
-                final ImhotepResponse.Builder builder)
-                throws ImhotepOutOfMemoryException {
-            final Query[] queries = new Query[request.getQueryMessagesCount()];
-            for (int i = 0; i < request.getQueryMessagesCount(); i++) {
-                final QueryMessage queryMessage = request.getQueryMessages(i);
-                queries[i] = ImhotepDaemonMarshaller.marshal(queryMessage);
-            }
-            final int[] deltas = Ints.toArray(request.getDynamicMetricDeltasList());
-            service.handleGroupQueryUpdateDynamicMetric(request.getSessionId(),
-                    request.getInputGroups(),
-                    request.getDynamicMetricName(),
-                    Ints.toArray(request.getGroupsList()),
-                    queries, deltas);
-            return builder.build();
-        }
-
         private ImhotepResponse resetGroups(
                 final ImhotepRequest          request,
                 final ImhotepResponse.Builder builder)
@@ -1107,21 +1035,6 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 case METRIC_FILTER:
                     response = metricFilter(request, builder);
                     break;
-                case CREATE_DYNAMIC_METRIC:
-                    response = createDynamicMetric(request, builder);
-                    break;
-                case UPDATE_DYNAMIC_METRIC:
-                    response = updateDynamicMetric(request, builder);
-                    break;
-                case CONDITIONAL_UPDATE_DYNAMIC_METRIC:
-                    response = conditionalUpdateDynamicMetric(request, builder);
-                    break;
-                case GROUP_CONDITIONAL_UPDATE_DYNAMIC_METRIC:
-                    response = groupConditionalUpdateDynamicMetric(request, builder);
-                    break;
-                case GROUP_QUERY_UPDATE_DYNAMIC_METRIC:
-                    response = groupQueryUpdateDynamicMetric(request, builder);
-                    break;
                 case RESET_GROUPS:
                     response = resetGroups(request, builder);
                     break;
@@ -1318,7 +1231,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 final String sessionId = protoRequest.getSessionId();
                 log.info("exception caught, closing session "+sessionId);
                 try {
-                    service.handleCloseSession(sessionId);
+                    service.handleCloseSession(sessionId, reason);
                 } catch (final RuntimeException e) {
                     log.warn(e);
                 }

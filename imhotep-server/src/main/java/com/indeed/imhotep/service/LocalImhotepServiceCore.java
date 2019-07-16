@@ -335,11 +335,6 @@ public class LocalImhotepServiceCore
     }
 
     @Override
-    public List<String> getShardsForSession(final String sessionId) {
-        return getSessionManager().getShardsForSession(sessionId);
-    }
-
-    @Override
     public String handleOpenSession(
             String dataset,
             List<ShardBasicInfoMessage> shardRequestList,

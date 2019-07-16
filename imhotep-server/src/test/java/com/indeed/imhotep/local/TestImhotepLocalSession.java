@@ -16,7 +16,6 @@
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.primitives.Ints;
-import com.google.common.primitives.Longs;
 import com.indeed.flamdex.MakeAFlamdex;
 import com.indeed.flamdex.MemoryFlamdex;
 import com.indeed.flamdex.api.FlamdexReader;
@@ -438,33 +437,6 @@ public class TestImhotepLocalSession {
             assertEquals(5, stats[2]);
             assertEquals(4, stats[3]);
             assertEquals(1, stats[4]);
-        }
-    }
-
-    @Test
-    public void testDynamicMetric() throws ImhotepOutOfMemoryException {
-        final FlamdexReader r = MakeAFlamdex.make();
-        try (ImhotepLocalSession session = new ImhotepJavaLocalSession("testLocalSession", r, null)) {
-            session.createDynamicMetric("foo");
-
-            final List<String> dynamicStat = singletonList("dynamic foo");
-            assertEquals(Longs.asList(0, 0), Longs.asList(session.getGroupStats(dynamicStat)));
-
-            session.updateDynamicMetric("foo", new int[]{0, 1});
-            assertEquals(Longs.asList(0, 20), Longs.asList(session.getGroupStats(dynamicStat)));
-
-            session.regroup(new GroupMultiRemapRule[]{new GroupMultiRemapRule(1, 1, new int[]{2}, new RegroupCondition[]{new RegroupCondition("if2", true, 0, null, false)})});
-            assertEquals(Longs.asList(0, 15, 5), Longs.asList(session.getGroupStats(dynamicStat)));
-
-            session.updateDynamicMetric("foo", new int[]{0, 0, -2});
-            assertEquals(Longs.asList(0, 15, -5), Longs.asList(session.getGroupStats(dynamicStat)));
-
-            // reset all to group 1
-            session.regroup(new GroupMultiRemapRule[]{
-                    new GroupMultiRemapRule(1, 1, new int[]{1}, new RegroupCondition[]{new RegroupCondition("if2", true, 0, null, false)}),
-                    new GroupMultiRemapRule(2, 1, new int[]{1}, new RegroupCondition[]{new RegroupCondition("if2", true, 0, null, false)})
-            });
-            assertEquals(Longs.asList(0, 10), Longs.asList(session.getGroupStats(dynamicStat)).subList(0, 2));
         }
     }
 
@@ -1591,51 +1563,6 @@ public class TestImhotepLocalSession {
         for (final String term : map.keySet()) {
             final List<Integer> docs = map.get(term);
             r.addStringTerm(fieldName, term, docs);
-        }
-    }
-
-    @Test
-    public void testConditionalUpdateDynamicMetric() throws ImhotepOutOfMemoryException {
-        final int[] iCanCount = new int[10];
-        for (int i = 0; i < iCanCount.length; i++) {
-            iCanCount[i] = i;
-        }
-        final MockFlamdexReader r = new MockFlamdexReader();
-        r.addIntTerm("if1", 0, 0, 2, 4, 6, 8);
-        r.addIntTerm("if1", 1, 1, 3, 5, 7, 9);
-        r.addStringTerm("sf1", "even", 0, 2, 4, 6, 8);
-        r.addStringTerm("sf1", "odd", 1, 3, 5, 7, 9);
-        try (ImhotepLocalSession session = new ImhotepJavaLocalSession("testLocalSession", r, null)) {
-            final String METRIC_NAME = "test metric!";
-            session.createDynamicMetric(METRIC_NAME);
-            final long[] exported = new long[10];
-            // Should be a no-op
-            session.conditionalUpdateDynamicMetric(METRIC_NAME,
-                    new RegroupCondition[]{
-                            new RegroupCondition("if1",
-                                    true,
-                                    0,
-                                    null,
-                                    false),
-                            new RegroupCondition("sf1",
-                                    false,
-                                    0,
-                                    "even",
-                                    false)},
-                    new int[]{100, -100});
-            final DynamicMetric metric = session.getDynamicMetrics().get(METRIC_NAME);
-            metric.lookup(iCanCount, exported, 10);
-            Assert.assertArrayEquals(new long[10], exported);
-            // Should increase odd terms by 10
-            session.conditionalUpdateDynamicMetric(METRIC_NAME,
-                    new RegroupCondition[]{new RegroupCondition("if1",
-                            true,
-                            1,
-                            null,
-                            false)},
-                    new int[]{10});
-            metric.lookup(iCanCount, exported, 10);
-            Assert.assertArrayEquals(new long[]{0, 10, 0, 10, 0, 10, 0, 10, 0, 10}, exported);
         }
     }
 
