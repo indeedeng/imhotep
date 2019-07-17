@@ -11,12 +11,20 @@ import com.indeed.imhotep.scheduling.ImhotepTask;
 import com.indeed.imhotep.scheduling.SilentCloseable;
 import com.indeed.imhotep.scheduling.TaskScheduler;
 import org.apache.log4j.Logger;
+import org.springframework.util.concurrent.ListenableFutureTask;
 
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 
 /**
  * Executes the Commands. Execution Order is decided based on def-use graph of named input groups and output groups.
+ * A command is executed only after
+ * <ul>
+ *     <li> Execution of definitions of input groups and </li>
+ *     <li> Execution of definition and uses of output groups </li>
+ * </ul>
+ * completes execution.
+ * This list of upstream ListenableFutures is returned by {@link DefUseManager#getUpstreamFutures(List, List)}
  */
 public class CommandExecutor<T> {
 
@@ -37,7 +45,7 @@ public class CommandExecutor<T> {
     }
 
     private T applyCommand(final ImhotepCommand<T> imhotepCommand) {
-        ImhotepTask.setup(imhotepMultiSession, imhotepCommand.getClass());
+        ImhotepTask.setup(imhotepMultiSession, imhotepCommand);
         ImhotepTask.registerInnerSession(imhotepLocalSession);
         try (final SilentCloseable ignored = TaskScheduler.CPUScheduler.lockSlot()) {
             try {
@@ -50,6 +58,9 @@ public class CommandExecutor<T> {
     }
 
     private ListenableFuture<Object> processCommand(final ImhotepCommand imhotepCommand, final DefUseManager defUseManager) {
+        defUseManager.addDefaultDefinitionsIfAbsent(imhotepCommand.getInputGroups());
+        defUseManager.addDefaultDefinitionsIfAbsent(imhotepCommand.getOutputGroups());
+
         final List<ListenableFuture<Object>> upstreamFutures = defUseManager.getUpstreamFutures(imhotepCommand.getInputGroups(), imhotepCommand.getOutputGroups());
         final ListenableFuture<Object> commandFuture = Futures.transform(Futures.allAsList(upstreamFutures), (final List<Object> ignored) -> applyCommand(imhotepCommand), executorService);
 

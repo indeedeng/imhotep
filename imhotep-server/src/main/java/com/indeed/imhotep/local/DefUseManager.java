@@ -20,7 +20,7 @@ public class DefUseManager {
 
     private final Map<String, DefUseList> defUseListMap = new HashMap<>();
 
-    public static DefUseList getDefaultDefUseListForGroup() {
+    private static DefUseList getDefaultDefUseListForGroup() {
         return new DefUseList(Futures.immediateFuture(null), new ArrayList<>());
     }
 
@@ -35,12 +35,19 @@ public class DefUseManager {
         return dependentFutures;
     }
 
+    public void addDefaultDefinitionsIfAbsent(final List<String> namedGroups) {
+        for (final String namedGroup: namedGroups) {
+            defUseListMap.putIfAbsent(namedGroup, getDefaultDefUseListForGroup());
+        }
+    }
+
     private ListenableFuture<Object> getDef(final String groupName) {
-        defUseListMap.putIfAbsent(groupName, getDefaultDefUseListForGroup());
+        Preconditions.checkArgument(defUseListMap.containsKey(groupName), "No definition/Uses of NamedGroup " + groupName + " exist");
         return defUseListMap.get(groupName).def;
     }
 
     private List<ListenableFuture<Object>> getDefAndUses(final String groupName) {
+        Preconditions.checkArgument(defUseListMap.containsKey(groupName), "No definition/Uses of NamedGroup " + groupName + " exist");
         return defUseListMap.get(groupName).getDefAndUse();
     }
 
