@@ -59,7 +59,7 @@ public class InputStreamPool implements Closeable {
     private class StreamWrapper extends FSDataInputStream {
         private final Path path;
 
-        StreamWrapper(final Path path, final InputStream in) {
+        StreamWrapper(final Path path, final FSDataInputStream in) {
             super(in);
             this.path = path;
         }
@@ -68,7 +68,7 @@ public class InputStreamPool implements Closeable {
         public void close() throws IOException {
             if (!streams.containsKey(path)) {
                 // return this stream to the pool
-                streams.put(path, StreamWrapper.this);
+                streams.put(path, (FSDataInputStream) in);
             } else {
                 // there's already another stream in the pool for this file, so close this one
                 super.close();
