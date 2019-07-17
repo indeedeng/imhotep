@@ -1,7 +1,6 @@
 package com.indeed.imhotep;
 
 import com.google.common.base.Throwables;
-import com.indeed.flamdex.query.Query;
 import com.indeed.imhotep.api.FTGSIterator;
 import com.indeed.imhotep.api.FTGSParams;
 import com.indeed.imhotep.api.GroupStatsIterator;
@@ -22,7 +21,6 @@ import com.indeed.imhotep.commands.OpenSessions;
 import com.indeed.imhotep.commands.QueryRegroup;
 import com.indeed.imhotep.commands.RandomMetricMultiRegroup;
 import com.indeed.imhotep.commands.RandomMetricRegroup;
-import com.indeed.imhotep.commands.RandomMultiRegroup;
 import com.indeed.imhotep.commands.RandomRegroup;
 import com.indeed.imhotep.commands.RegexRegroup;
 import com.indeed.imhotep.commands.ResetGroups;
@@ -31,7 +29,6 @@ import com.indeed.imhotep.commands.TargetedMetricFilter;
 import com.indeed.imhotep.commands.UnconditionalRegroup;
 import com.indeed.imhotep.commands.UntargetedMetricFilter;
 import com.indeed.imhotep.io.RequestTools;
-import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
 import com.indeed.imhotep.protobuf.Operator;
 import it.unimi.dsi.fastutil.longs.LongIterators;
 import org.apache.log4j.Logger;
@@ -150,12 +147,6 @@ public class BatchRemoteImhotepMultiSession extends AbstractImhotepSession {
         return -999;
     }
 
-    @Override
-    public int regroupWithProtos(final RegroupParams regroupParams, final GroupMultiRemapMessage[] rawRuleMessages, final boolean errorOnCollisions) throws ImhotepOutOfMemoryException {
-        commands.add(MultiRegroupMessagesSender.createMultiRegroupMessagesSender(regroupParams, rawRuleMessages, errorOnCollisions, getSessionId()));
-        return -999;
-    }
-
     public int regroupWithRuleSender(final RegroupParams regroupParams, final RequestTools.GroupMultiRemapRuleSender ruleSender, final boolean errorOnCollisions) throws ImhotepOutOfMemoryException {
         commands.add(MultiRegroupMessagesSender.createMultiRegroupMessagesSender(regroupParams, ruleSender, errorOnCollisions, getSessionId()));
         return -999;
@@ -191,11 +182,6 @@ public class BatchRemoteImhotepMultiSession extends AbstractImhotepSession {
     @Override
     public void randomRegroup(final RegroupParams regroupParams, final String field, final boolean isIntField, final String salt, final double p, final int targetGroup, final int negativeGroup, final int positiveGroup) throws ImhotepOutOfMemoryException {
         commands.add(new RandomRegroup(regroupParams, field, isIntField, salt, p, targetGroup, negativeGroup, positiveGroup, getSessionId()));
-    }
-
-    @Override
-    public void randomMultiRegroup(final RegroupParams regroupParams, final String field, final boolean isIntField, final String salt, final int targetGroup, final double[] percentages, final int[] resultGroups) throws ImhotepOutOfMemoryException {
-        commands.add(new RandomMultiRegroup(regroupParams, field, isIntField, salt, targetGroup, percentages, resultGroups, getSessionId()));
     }
 
     @Override
@@ -273,36 +259,6 @@ public class BatchRemoteImhotepMultiSession extends AbstractImhotepSession {
     @Override
     public int getNumGroups(final String groupsName) {
         return executeBatchAndGetResultNoMemoryException(new GetNumGroups(groupsName, getSessionId()));
-    }
-
-    @Override
-    public void createDynamicMetric(final String name) throws ImhotepOutOfMemoryException {
-        executeBatch();
-        remoteImhotepMultiSession.createDynamicMetric(name);
-    }
-
-    @Override
-    public void updateDynamicMetric(final String groupsName, final String name, final int[] deltas) throws ImhotepOutOfMemoryException {
-        executeBatch();
-        remoteImhotepMultiSession.updateDynamicMetric(groupsName, name, deltas);
-    }
-
-    @Override
-    public void conditionalUpdateDynamicMetric(final String name, final RegroupCondition[] conditions, final int[] deltas) {
-        executeBatchNoMemoryException();
-        remoteImhotepMultiSession.conditionalUpdateDynamicMetric(name, conditions, deltas);
-    }
-
-    @Override
-    public void groupConditionalUpdateDynamicMetric(final String groupsName, final String name, final int[] groups, final RegroupCondition[] conditions, final int[] deltas) {
-        executeBatchNoMemoryException();
-        remoteImhotepMultiSession.groupConditionalUpdateDynamicMetric(groupsName, name, groups, conditions, deltas);
-    }
-
-    @Override
-    public void groupQueryUpdateDynamicMetric(final String groupsName, final String name, final int[] groups, final Query[] conditions, final int[] deltas) throws ImhotepOutOfMemoryException {
-        executeBatch();
-        remoteImhotepMultiSession.groupQueryUpdateDynamicMetric(groupsName, name, groups, conditions, deltas);
     }
 
     @Override

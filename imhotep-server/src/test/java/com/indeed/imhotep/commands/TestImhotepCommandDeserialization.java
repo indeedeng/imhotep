@@ -13,7 +13,6 @@ import com.indeed.imhotep.api.CommandSerializationParameters;
 import com.indeed.imhotep.api.ImhotepCommand;
 import com.indeed.imhotep.api.RegroupParams;
 import com.indeed.imhotep.client.Host;
-import com.indeed.imhotep.protobuf.HostAndPort;
 import com.indeed.imhotep.protobuf.Operator;
 import com.indeed.imhotep.protobuf.ShardBasicInfoMessage;
 import org.junit.Assert;
@@ -138,12 +137,6 @@ public class TestImhotepCommandDeserialization implements CommandsTest {
     public void testRandomMetricRegroup() throws IOException {
         final List<String> stats = Lists.newArrayList("1");
         assertEqualDeserialize(new RandomMetricRegroup(TEST_REGROUP_PARAMS, stats, RANDOM_SALT, 0.4, 1, 2, 3, SESSION_ID));
-    }
-
-    @Override
-    @Test
-    public void testRandomMultiRegroup() throws IOException {
-        assertEqualDeserialize(new RandomMultiRegroup(TEST_REGROUP_PARAMS, "fieldName", false, RANDOM_SALT, 1, new double[]{0.4, 0.8}, new int[]{3, 4, 6}, SESSION_ID));
     }
 
     @Override

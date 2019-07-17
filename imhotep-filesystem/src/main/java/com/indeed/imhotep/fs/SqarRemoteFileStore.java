@@ -15,7 +15,6 @@
 package com.indeed.imhotep.fs;
 
 import com.google.common.base.Function;
-import com.google.common.base.Throwables;
 import com.google.common.collect.FluentIterable;
 import com.indeed.imhotep.archive.FileMetadata;
 import com.indeed.imhotep.scheduling.TaskScheduler;
@@ -128,15 +127,19 @@ class SqarRemoteFileStore extends RemoteFileStore implements Closeable {
 
         final FileMetadata fileMetadata = remoteFileMetadata.getFileMetadata();
         final RemoteCachingPath archivePath = SqarMetaDataUtil.getFullArchivePath(srcPath, fileMetadata.getArchiveFilename());
-        try (Closeable ignore = TaskScheduler.RemoteFSIOScheduler.lockSlot()) {
+        try (final Closeable ignore = TaskScheduler.RemoteFSIOScheduler.lockSlot()) {
             try (final InputStream archiveIS = backingFileStore.newInputStream(archivePath,
                     fileMetadata.getStartOffset(),
                     remoteFileMetadata.getCompressedSize())) {
                 try {
                     sqarMetaDataManager.copyDecompressed(archiveIS, srcPath, destPath, fileMetadata);
                 } catch (final IOException e) {
-                    Files.delete(destPath);
-                    throw Throwables.propagate(e);
+                    try {
+                        Files.delete(destPath);
+                    } catch (final Throwable throwable) {
+                        e.addSuppressed(throwable);
+                    }
+                    throw e;
                 }
             }
         }

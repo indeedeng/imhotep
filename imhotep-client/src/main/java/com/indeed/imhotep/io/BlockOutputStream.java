@@ -12,7 +12,7 @@ import java.io.OutputStream;
 /**
  * @author xweng
  *
- * A wrapped output stream used to write data in block to a keep-open stream without the knowlege how many bytes
+ * A wrapped output stream used to write data in block to a stream without the knowlege how many bytes
  * it will write in advance, it works with {@link BlockInputStream}.
  *
  * This stream separates the data into several blocks and send them out. The format of each block is:
@@ -136,7 +136,6 @@ public class BlockOutputStream extends FilterOutputStream {
         flushBuffer();
         // write the empty block indicating stream ends
         writeBlockSize(0);
-
         out.flush();
     }
 }

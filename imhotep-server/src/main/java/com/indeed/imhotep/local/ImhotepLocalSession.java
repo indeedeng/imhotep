@@ -14,17 +14,12 @@
 package com.indeed.imhotep.local;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
-import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Multimaps;
 import com.google.common.io.Closer;
 import com.google.common.primitives.Ints;
-import com.google.common.primitives.Longs;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.indeed.flamdex.api.DocIdStream;
 import com.indeed.flamdex.api.FlamdexOutOfMemoryException;
@@ -104,16 +99,12 @@ import com.indeed.imhotep.protobuf.QueryMessage;
 import com.indeed.imhotep.scheduling.SilentCloseable;
 import com.indeed.imhotep.scheduling.TaskScheduler;
 import com.indeed.imhotep.service.InstrumentedFlamdexReader;
-import com.indeed.util.core.Pair;
 import com.indeed.util.core.Throwables2;
 import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.core.reference.SharedReference;
 import com.indeed.util.core.threads.ThreadSafeBitSet;
 import it.unimi.dsi.fastutil.PriorityQueue;
-import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntIterator;
-import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
-import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectHeapPriorityQueue;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.log4j.Logger;
@@ -179,9 +170,6 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     private final ReentrantReadWriteLock metricStackLock = new ReentrantReadWriteLock(); // for reading or writing to the global MetricStack
 
     private AtomicBoolean closed = new AtomicBoolean(false);
-
-    @VisibleForTesting
-    protected Map<String, DynamicMetric> dynamicMetrics = Maps.newHashMap();
 
     private final Exception constructorStackTrace;
 
@@ -268,10 +256,6 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     @Override
     public Map<String, Integer> weakGetNumGroups() {
         return namedGroupLookups.getAllNumGroups();
-    }
-
-    public Map<String, DynamicMetric> getDynamicMetrics() {
-        return dynamicMetrics;
     }
 
     public long getNumDocs() {
@@ -889,39 +873,6 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     }
 
     @Override
-    public void randomMultiRegroup(final RegroupParams regroupParams,
-                                                final String field,
-                                                final boolean isIntField,
-                                                final String salt,
-                                                final int targetGroup,
-                                                final double[] percentages,
-                                                final int[] resultGroups)
-        throws ImhotepOutOfMemoryException {
-        ensureValidMultiRegroupArrays(percentages, resultGroups);
-
-        if (namedGroupLookups.handleFiltered(regroupParams)) {
-            return;
-        }
-
-        final GroupLookup docIdToGroup = namedGroupLookups.ensureWriteable(regroupParams, Ints.max(resultGroups));
-
-        try(final IterativeHasherUtils.TermHashIterator iterator =
-                    IterativeHasherUtils.create(flamdexReader, field, isIntField, salt)) {
-            final IterativeHasherUtils.GroupChooser groupChooser =
-                    IterativeHasherUtils.createChooser(percentages);
-            while (iterator.hasNext()) {
-                final int hash = iterator.getHash();
-                final int groupIndex = groupChooser.getGroup(hash);
-                final int newGroup = resultGroups[groupIndex];
-                final DocIdStream stream = iterator.getDocIdStream();
-                remapDocs(docIdToGroup, stream, targetGroup, newGroup);
-            }
-        }
-
-        namedGroupLookups.finalizeRegroup(regroupParams);
-    }
-
-    @Override
     public void randomMetricRegroup(
             final RegroupParams regroupParams,
             final List<String> stat,
@@ -1247,7 +1198,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
 
     /**
      * Ensures that the percentages and resultGroups array are valid inputs for
-     * a randomMultiRegroup. Otherwise, throws an IllegalArgumentException.
+     * a randomMetricMultiRegroup. Otherwise, throws an IllegalArgumentException.
      * Specifically, checks to make sure
      * <ul>
      * <li>percentages is in ascending order,</li>
@@ -1255,15 +1206,14 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
      * <li>len(percentages) == len(resultGroups) - 1</li>
      * </ul>
      *
-     * @see ImhotepLocalSession#randomMultiRegroup(String, boolean, String, int,
-     *      double[], int[])
+     * @see ImhotepLocalSession#randomMetricMultiRegroup(RegroupParams, List, String, int, double[], int[])
      */
     protected void ensureValidMultiRegroupArrays(final double[] percentages,
                                                  final int[] resultGroups)
         throws IllegalArgumentException {
         // Ensure non-null inputs
         if (null == percentages || null == resultGroups) {
-            throw newIllegalArgumentException("received null percentages or resultGroups to randomMultiRegroup");
+            throw newIllegalArgumentException("received null percentages or resultGroups in randomMetricMultiRegroup");
         }
 
         // Ensure that the lengths are correct
@@ -1921,13 +1871,6 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             }
 
             stack.push(statName, scaledFloatLookup(field, scale, offset));
-        } else if (statName.startsWith("dynamic ")) {
-            final String name = statName.substring("dynamic ".length()).trim();
-            final DynamicMetric metric = getDynamicMetrics().get(name);
-            if (metric == null) {
-                throw newIllegalArgumentException("invalid dynamic metric: " + name);
-            }
-            stack.push(statName, metric);
         } else if (statName.startsWith("exp ")) {
             final int scaleFactor = Integer.valueOf(statName.substring("exp ".length()).trim());
             final IntValueLookup operand = stack.popLookup();
@@ -2274,404 +2217,6 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     }
 
     @Override
-    public void createDynamicMetric(final String name)
-        throws ImhotepOutOfMemoryException {
-        if (getDynamicMetrics().containsKey(name)) {
-            throw newRuntimeException("dynamic metric \"" + name + "\" already exists");
-        }
-        if (!memory.claimMemory(flamdexReader.getNumDocs() * 4L)) {
-            throw newImhotepOutOfMemoryException();
-        }
-        getDynamicMetrics().put(name, new DynamicMetric(flamdexReader.getNumDocs()));
-    }
-
-    @Override
-    public void updateDynamicMetric(final String groupsName, final String name, final int[] deltas)
-        throws ImhotepOutOfMemoryException {
-        final DynamicMetric metric = getDynamicMetrics().get(name);
-        if (metric == null) {
-            throw newRuntimeException("dynamic metric \"" + name + "\" does not exist");
-        }
-
-        final GroupLookup docIdToGroup = namedGroupLookups.get(groupsName);
-
-        final int numDocs = flamdexReader.getNumDocs();
-        final DynamicMetric.Editor editor = metric.getEditor();
-        for (int doc = 0; doc < numDocs; doc++) {
-            final int group = docIdToGroup.get(doc);
-            if (group >= 0 && group < deltas.length) {
-                editor.add(doc, deltas[group]);
-            }
-        }
-    }
-
-    @Override
-    public void conditionalUpdateDynamicMetric(final String name,
-                                                            final RegroupCondition[] conditions,
-                                                            final int[] deltas) {
-        validateConditionalUpdateDynamicMetricInput(conditions, deltas);
-        final DynamicMetric metric = getDynamicMetrics().get(name);
-        if (metric == null) {
-            throw newRuntimeException("dynamic metric \"" + name + "\" does not exist");
-        }
-
-        final List<Integer> indexes = Lists.newArrayList();
-        for (int i = 0; i < conditions.length; i++) {
-            indexes.add(i);
-        }
-
-        // I don't think it's really worth claiming memory for this, so I won't.
-        final ImmutableListMultimap<Pair<String, Boolean>, Integer> fieldIndexMap =
-                Multimaps.index(indexes, new Function<Integer, Pair<String, Boolean>>() {
-                    @Override
-                    public Pair<String, Boolean> apply(final Integer index) {
-                        return Pair.of(conditions[index].field, conditions[index].intType);
-                    }
-                });
-        for (final Pair<String, Boolean> field : fieldIndexMap.keySet()) {
-            final String fieldName = field.getFirst();
-            final boolean fieldIsIntType = field.getSecond();
-            final List<Integer> indices = Lists.newArrayList(fieldIndexMap.get(field));
-            // Sort within the field
-            Collections.sort(indices, new Comparator<Integer>() {
-                @Override
-                public int compare(final Integer o1, final Integer o2) {
-                    if (fieldIsIntType) {
-                        return Longs.compare(conditions[o1].intTerm, conditions[o2].intTerm);
-                    } else {
-                        return conditions[o1].stringTerm.compareTo(conditions[o2].stringTerm);
-                    }
-                }
-            });
-            final DocIdStream docIdStream = flamdexReader.getDocIdStream();
-            final int[] docIdBuf = memoryPool.getIntBuffer(BUFFER_SIZE, true);
-            if (fieldIsIntType) {
-                final IntTermIterator termIterator = flamdexReader.getUnsortedIntTermIterator(fieldName);
-                for (final int index : indices) {
-                    final long term = conditions[index].intTerm;
-                    final int delta = deltas[index];
-                    termIterator.reset(term);
-                    if (termIterator.next() && termIterator.term() == term) {
-                        docIdStream.reset(termIterator);
-                        adjustDeltas(metric, docIdStream, delta, docIdBuf);
-                    }
-                }
-            } else {
-                final StringTermIterator termIterator =
-                        flamdexReader.getStringTermIterator(fieldName);
-                for (final int index : indices) {
-                    final String term = conditions[index].stringTerm;
-                    final int delta = deltas[index];
-                    termIterator.reset(term);
-                    if (termIterator.next() && termIterator.term().equals(term)) {
-                        docIdStream.reset(termIterator);
-                        adjustDeltas(metric, docIdStream, delta, docIdBuf);
-                    }
-                }
-            }
-            memoryPool.returnIntBuffer(docIdBuf);
-        }
-    }
-
-    private void validateConditionalUpdateDynamicMetricInput(final RegroupCondition[] conditions,
-                                                             final int[] deltas) {
-        if (conditions.length != deltas.length) {
-            throw newIllegalArgumentException("conditions and deltas must be of the same length");
-        }
-        for (final RegroupCondition condition : conditions) {
-            if (condition.inequality) {
-                throw newIllegalArgumentException(
-                        "inequality conditions not currently supported by conditionalUpdateDynamicMetric!");
-            }
-        }
-    }
-
-    private void validateQueryUpdateDynamicMetricInput(
-            final Query[] conditions,
-            final int[] deltas) {
-        if (conditions.length != deltas.length) {
-            throw newIllegalArgumentException("conditions and deltas must be of the same length");
-        }
-    }
-
-    public void groupConditionalUpdateDynamicMetric(
-            final String groupsName,
-            final String name,
-            final int[] groups,
-            final RegroupCondition[] conditions,
-            final int[] deltas) {
-        if (groups.length != conditions.length) {
-            throw newIllegalArgumentException("groups and conditions must be the same length");
-        }
-        validateConditionalUpdateDynamicMetricInput(conditions, deltas);
-        final DynamicMetric metric = getDynamicMetrics().get(name);
-        if (metric == null) {
-            throw newRuntimeException("dynamic metric \"" + name + "\" does not exist");
-        }
-        final IntArrayList groupsSet = new IntArrayList();
-
-        final GroupLookup docIdToGroup = namedGroupLookups.get(groupsName);
-        final int numGroups = docIdToGroup.getNumGroups();
-
-        final FastBitSet groupsWithCurrentTerm = new FastBitSet(numGroups);
-        final int[] groupToDelta = new int[numGroups];
-        final Map<String, Long2ObjectMap<Pair<IntArrayList, IntArrayList>>> intFields = Maps.newHashMap();
-        final Map<String, Map<String, Pair<IntArrayList, IntArrayList>>> stringFields = Maps.newHashMap();
-        for (int i = 0; i < groups.length; i++) {
-            //if the last group(s) exist on other shards but not this one docIdToGroup.getNumGroups() is wrong
-            if (groups[i] >= groupToDelta.length) {
-                continue;
-            }
-            final RegroupCondition condition = conditions[i];
-            Pair<IntArrayList, IntArrayList> groupDeltas;
-            if (condition.intType) {
-                Long2ObjectMap<Pair<IntArrayList, IntArrayList>> termToGroupDeltas =
-                    intFields.get(condition.field);
-                if (termToGroupDeltas == null) {
-                    termToGroupDeltas = new Long2ObjectOpenHashMap<>();
-                    intFields.put(condition.field, termToGroupDeltas);
-                }
-                groupDeltas = termToGroupDeltas.get(condition.intTerm);
-                if (groupDeltas == null) {
-                    groupDeltas = Pair.of(new IntArrayList(), new IntArrayList());
-                    termToGroupDeltas.put(condition.intTerm, groupDeltas);
-                }
-            } else {
-                Map<String, Pair<IntArrayList, IntArrayList>> termToGroupDeltas =
-                    stringFields.get(condition.field);
-                if (termToGroupDeltas == null) {
-                    termToGroupDeltas = Maps.newHashMap();
-                    stringFields.put(condition.field, termToGroupDeltas);
-                }
-                groupDeltas = termToGroupDeltas.get(condition.stringTerm);
-                if (groupDeltas == null) {
-                    groupDeltas = Pair.of(new IntArrayList(), new IntArrayList());
-                    termToGroupDeltas.put(condition.stringTerm, groupDeltas);
-                }
-            }
-            groupDeltas.getFirst().add(groups[i]);
-            groupDeltas.getSecond().add(deltas[i]);
-        }
-
-        try (final DocIdStream docIdStream = flamdexReader.getDocIdStream()){
-            for (final Map.Entry<String, Long2ObjectMap<Pair<IntArrayList, IntArrayList>>> entry :
-                     intFields.entrySet()) {
-                final String field = entry.getKey();
-                final Long2ObjectMap<Pair<IntArrayList, IntArrayList>> termToGroupDeltas = entry.getValue();
-                try (final IntTermIterator intTermIterator = flamdexReader.getUnsortedIntTermIterator(field)) {
-                    for (final Long2ObjectMap.Entry<Pair<IntArrayList, IntArrayList>> entry2 :
-                            termToGroupDeltas.long2ObjectEntrySet()) {
-                        for (int i = 0; i < groupsSet.size(); i++) {
-                            groupsWithCurrentTerm.clear(groupsSet.getInt(i));
-                        }
-                        groupsSet.clear();
-                        final long term = entry2.getLongKey();
-                        final Pair<IntArrayList, IntArrayList> groupDeltas = entry2.getValue();
-                        final IntArrayList termGroups = groupDeltas.getFirst();
-                        final IntArrayList termDeltas = groupDeltas.getSecond();
-                        for (int i = 0; i < termGroups.size(); i++) {
-                            final int group = termGroups.getInt(i);
-                            groupsWithCurrentTerm.set(group);
-                            groupToDelta[group] = termDeltas.getInt(i);
-                            groupsSet.add(group);
-                        }
-                        intTermIterator.reset(term);
-                        if (!intTermIterator.next()) {
-                            continue;
-                        }
-                        if (intTermIterator.term() != term) {
-                            continue;
-                        }
-                        docIdStream.reset(intTermIterator);
-                        updateDocsWithTermDynamicMetric(docIdToGroup, metric, groupsWithCurrentTerm,
-                                groupToDelta, docIdStream);
-                    }
-                }
-            }
-            for (final Map.Entry<String, Map<String, Pair<IntArrayList, IntArrayList>>> entry :
-                     stringFields.entrySet()) {
-                final String field = entry.getKey();
-                final Map<String, Pair<IntArrayList, IntArrayList>> termToGroupDeltas = entry.getValue();
-                try (final StringTermIterator stringTermIterator = flamdexReader.getStringTermIterator(field)) {
-                    for (final Map.Entry<String, Pair<IntArrayList, IntArrayList>> entry2 :
-                            termToGroupDeltas.entrySet()) {
-                        for (int i = 0; i < groupsSet.size(); i++) {
-                            groupsWithCurrentTerm.clear(groupsSet.getInt(i));
-                        }
-                        groupsSet.clear();
-                        final String term = entry2.getKey();
-                        final Pair<IntArrayList, IntArrayList> groupDeltas = entry2.getValue();
-                        final IntArrayList termGroups = groupDeltas.getFirst();
-                        final IntArrayList termDeltas = groupDeltas.getSecond();
-                        for (int i = 0; i < termGroups.size(); i++) {
-                            final int group = termGroups.getInt(i);
-                            groupsWithCurrentTerm.set(group);
-                            groupToDelta[group] = termDeltas.getInt(i);
-                            groupsSet.add(group);
-                        }
-                        stringTermIterator.reset(term);
-                        if (!stringTermIterator.next()) {
-                            continue;
-                        }
-                        if (!stringTermIterator.term().equals(term)) {
-                            continue;
-                        }
-                        docIdStream.reset(stringTermIterator);
-                        updateDocsWithTermDynamicMetric(docIdToGroup, metric, groupsWithCurrentTerm, groupToDelta, docIdStream);
-                    }
-                }
-            }
-        }
-    }
-
-    private void updateDocsWithTermDynamicMetric(
-            final GroupLookup docIdToGroup,
-            final DynamicMetric metric,
-            final FastBitSet groupsWithCurrentTerm,
-            final int[] groupToDelta,
-            final DocIdStream docIdStream) {
-        final int[] docIdBuf = memoryPool.getIntBuffer(BUFFER_SIZE, true);
-        final int[] docGroupBuffer = memoryPool.getIntBuffer(BUFFER_SIZE, true);
-        while (true) {
-            final int n = docIdStream.fillDocIdBuffer(docIdBuf);
-            groupAdjustDeltas(docIdToGroup, metric, groupsWithCurrentTerm, groupToDelta, docIdBuf, docGroupBuffer, n);
-            if (n < docIdBuf.length) {
-                memoryPool.returnIntBuffer(docIdBuf);
-                memoryPool.returnIntBuffer(docGroupBuffer);
-                break;
-            }
-        }
-    }
-
-    @Override
-    public void groupQueryUpdateDynamicMetric(
-            final String groupsName,
-            final String name,
-            final int[] groups,
-            final Query[] conditions,
-            final int[] deltas) throws ImhotepOutOfMemoryException {
-        if (groups.length != conditions.length) {
-            throw newIllegalArgumentException("groups and conditions must be the same length");
-        }
-        validateQueryUpdateDynamicMetricInput(conditions, deltas);
-        final DynamicMetric metric = getDynamicMetrics().get(name);
-        if (metric == null) {
-            throw newRuntimeException("dynamic metric \"" + name + "\" does not exist");
-        }
-        final IntArrayList groupsSet = new IntArrayList();
-
-        final GroupLookup docIdToGroup = namedGroupLookups.get(groupsName);
-
-        final int[] groupToDelta = new int[docIdToGroup.getNumGroups()];
-        final Map<Query, Pair<IntArrayList, IntArrayList>> queryToGroupDeltas = Maps.newHashMap();
-        for (int i = 0; i < groups.length; i++) {
-            //if the last group(s) exist on other shards but not this one docIdToGroup.getNumGroups() is wrong
-            if (groups[i] >= groupToDelta.length) {
-                continue;
-            }
-            final Query condition = conditions[i];
-            Pair<IntArrayList, IntArrayList> groupDeltas;
-            groupDeltas = queryToGroupDeltas.get(condition);
-            if (groupDeltas == null) {
-                groupDeltas = Pair.of(new IntArrayList(), new IntArrayList());
-                queryToGroupDeltas.put(condition, groupDeltas);
-            }
-            groupDeltas.getFirst().add(groups[i]);
-            groupDeltas.getSecond().add(deltas[i]);
-        }
-
-        final FastBitSetPooler bitSetPooler = new ImhotepBitSetPooler(memory);
-        FastBitSet bitSet = null;
-        FastBitSet groupsWithCurrentTerm = null;
-
-        try {
-            bitSet = bitSetPooler.create(flamdexReader.getNumDocs());
-            groupsWithCurrentTerm = bitSetPooler.create(docIdToGroup.getNumGroups());
-            final FlamdexSearcher searcher = new FlamdexSearcher(flamdexReader);
-            for (final Map.Entry<Query, Pair<IntArrayList, IntArrayList>> entry :
-                    queryToGroupDeltas.entrySet()) {
-                for (int i = 0; i < groupsSet.size(); i++) {
-                    groupsWithCurrentTerm.clear(groupsSet.getInt(i));
-                }
-                groupsSet.clear();
-                final Pair<IntArrayList, IntArrayList> groupDeltas = entry.getValue();
-                final IntArrayList termGroups = groupDeltas.getFirst();
-                final IntArrayList termDeltas = groupDeltas.getSecond();
-                for (int i = 0; i < termGroups.size(); i++) {
-                    final int group = termGroups.getInt(i);
-                    groupsWithCurrentTerm.set(group);
-                    groupToDelta[group] = termDeltas.getInt(i);
-                    groupsSet.add(group);
-                }
-                final Query query = entry.getKey();
-                searcher.search(query, bitSet, bitSetPooler);
-
-                final FastBitSet.IntIterator iterator = bitSet.iterator();
-                final int[] docIdBuf = memoryPool.getIntBuffer(BUFFER_SIZE, true);
-                final int[] docGroupBuffer = memoryPool.getIntBuffer(BUFFER_SIZE, true);
-                while (true) {
-                    int n;
-                    for (n = 0; n < docIdBuf.length; n++) {
-                        if (!iterator.next()) {
-                            break;
-                        }
-                        docIdBuf[n] = iterator.getValue();
-                    }
-                    groupAdjustDeltas(docIdToGroup, metric, groupsWithCurrentTerm, groupToDelta, docIdBuf, docGroupBuffer, n);
-                    if (n < docIdBuf.length) {
-                        memoryPool.returnIntBuffer(docIdBuf);
-                        memoryPool.returnIntBuffer(docGroupBuffer);
-                        break;
-                    }
-                }
-            }
-        } catch (final FlamdexOutOfMemoryException e) {
-            throw newImhotepOutOfMemoryException(e);
-        } finally {
-            if (groupsWithCurrentTerm != null) {
-                bitSetPooler.release(groupsWithCurrentTerm.memoryUsage());
-            }
-            if (bitSet != null) {
-                bitSetPooler.release(bitSet.memoryUsage());
-            }
-        }
-    }
-
-    private void groupAdjustDeltas(
-            final GroupLookup docIdToGroup,
-            final DynamicMetric metric,
-            final FastBitSet groupsWithCurrentTerm,
-            final int[] groupToDelta,
-            final int[] docIdBuf,
-            final int[] docGroupBuffer,
-            final int n) {
-        docIdToGroup.fillDocGrpBuffer(docIdBuf, docGroupBuffer, n);
-        final DynamicMetric.Editor editor = metric.getEditor();
-        for (int i = 0; i < n; i++) {
-            if (groupsWithCurrentTerm.get(docGroupBuffer[i])) {
-                editor.add(docIdBuf[i], groupToDelta[docGroupBuffer[i]]);
-            }
-        }
-    }
-
-    private synchronized void adjustDeltas(
-            final DynamicMetric metric,
-            final DocIdStream docIdStream,
-            final int delta,
-            final int[] docIdBuf) {
-        final DynamicMetric.Editor editor = metric.getEditor();
-        while (true) {
-            final int n = docIdStream.fillDocIdBuffer(docIdBuf);
-            for (int i = 0; i < n; i++) {
-                editor.add(docIdBuf[i], delta);
-            }
-            if (n != docIdBuf.length) {
-                break;
-            }
-        }
-    }
-
-    @Override
     public synchronized void close() {
         if (!closed.get()) {
             try {
@@ -2694,14 +2239,6 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             // not closed in finally because this impacts memory usage and the leak logging below
             Closeables2.closeQuietly(namedGroupLookups, log);
 
-            long dynamicMetricUsage = 0;
-            for (final DynamicMetric metric : getDynamicMetrics().values()) {
-                dynamicMetricUsage += metric.memoryUsed();
-            }
-            getDynamicMetrics().clear();
-            if (dynamicMetricUsage > 0) {
-                memory.releaseMemory(dynamicMetricUsage);
-            }
             if (memory.usedMemory() > 0) {
                 log.error("ImhotepLocalSession [" + getSessionId() + "] is leaking! memory reserved after " +
                           "all memory has been freed: " + memory.usedMemory());

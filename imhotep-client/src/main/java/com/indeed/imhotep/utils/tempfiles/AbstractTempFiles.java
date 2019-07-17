@@ -167,13 +167,16 @@ public abstract class AbstractTempFiles<E extends Enum<E> & TempFileType<E>> {
             }
             if (eventListener != null) {
                 final RemovalListener<Path, TempFile> removalListener = notification -> {
-                    @Nullable final TempFile tempFile = notification.getValue();
                     // COLLECTED: Should be handled by finalizer. Other ones should not be used.
-                    if (notification.getCause() == RemovalCause.EXPIRED) {
-                        if (tempFile != null) { // Null means it's already GCed.
-                            eventListener.expired(tempFile.getState());
-                        }
+                    if (notification.getCause() != RemovalCause.EXPIRED) {
+                        return;
                     }
+                    @Nullable final TempFile tempFile = notification.getValue();
+                    // Null means it's already GCed. !isReferenced && removed means everything except GC worked fine, so most likely to be GC delay.
+                    if ((tempFile == null) || (!tempFile.isReferenced() && tempFile.removed())) {
+                        return;
+                    }
+                    eventListener.expired(tempFile.getState());
                 };
                 // It just returns casted self, so ignore that.
                 //noinspection ResultOfMethodCallIgnored

@@ -5,12 +5,12 @@ dependencies {
     compile 'log4j:log4j:1.2.17'
     compile 'com.google.protobuf:protobuf-java:2.5.0'
     compile 'com.google.code.findbugs:jsr305:1.3.9'
-    compile 'com.indeed:util-zookeeper:1.0.24'
+    compile ('com.indeed:util-zookeeper:1.0.24') {
+        exclude group:'org.apache.zookeeper', module:'zookeeper'    // we want the below version
+    }
     compile 'org.apache.zookeeper:zookeeper:3.4.5-cdh5.15.1'
-    compile 'joda-time:joda-time:2.0'
-    compile 'it.unimi.dsi:fastutil:6.2.2'
-    compile 'net.sf.trove4j:trove4j:3.0.3'
     compile ('org.apache.hadoop:hadoop-common:2.6.0-cdh5.15.1') {
+        exclude group:'org.apache.zookeeper', module:'zookeeper'    // we want the above version
         exclude group:'org.apache.hadoop', module:'hadoop-yarn-api'
         exclude group:'org.apache.hadoop', module:'hadoop-mapreduce-client-app'
         exclude group:'org.apache.hadoop', module:'hadoop-mapreduce-client-core'
@@ -27,6 +27,9 @@ dependencies {
         exclude group:'com.sun.jersey', module:'jersey-json'
         exclude group:'com.sun.jersey.contribs', module:'jersey-guice'
     }
+    compile 'joda-time:joda-time:2.0'
+    compile 'it.unimi.dsi:fastutil:6.2.2'
+    compile 'net.sf.trove4j:trove4j:3.0.3'
     compile 'org.apache.commons:commons-pool2:2.6.1'
     compile 'com.fasterxml.jackson.core:jackson-annotations:2.9.6'
     compileOnly 'org.projectlombok:lombok:1.18.4'

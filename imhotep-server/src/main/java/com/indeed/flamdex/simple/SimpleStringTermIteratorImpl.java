@@ -14,6 +14,7 @@
  package com.indeed.flamdex.simple;
 
 import com.google.common.base.Charsets;
+import com.indeed.imhotep.AbstractBatchedFTGMerger;
 import com.indeed.lsmtree.core.Generation;
 import com.indeed.lsmtree.core.ImmutableBTreeIndex;
 import com.indeed.util.core.reference.SharedReference;
@@ -59,7 +60,7 @@ final class SimpleStringTermIteratorImpl implements SimpleStringTermIterator {
     private byte[] lastTermBytes = new byte[100];
     private ByteBuffer lastTermByteBuffer = ByteBuffer.wrap(lastTermBytes);
     private int lastTermLength = 0;
-    private int lastTermCommomPrefixLen = 0;
+    private int lastTermCommonPrefixLen = 0;
     private long lastTermOffset = 0L;
     private int lastTermDocFreq = 0;
     private String lastString = null;
@@ -98,7 +99,22 @@ final class SimpleStringTermIteratorImpl implements SimpleStringTermIterator {
         }
     }
 
+    private void resetToFirst() {
+        lastTermLength = 0;
+        lastTermOffset = 0L;
+        lastTermDocFreq = 0;
+        lastString = null;
+
+        bufferLen = 0;
+        bufferOffset = 0L;
+        bufferPtr = 0;
+
+        done = false;
+        lastTermCommonPrefixLen = 0;
+    }
+
     private void internalReset(final String term) throws IOException {
+        final byte[] targetBytes = term.getBytes(Charsets.UTF_8);
         if (indexPath != null) {
             if (index == null) {
                 index = new ImmutableBTreeIndex.Reader<>(indexPath,
@@ -107,39 +123,33 @@ final class SimpleStringTermIteratorImpl implements SimpleStringTermIterator {
                     false
                 );
             }
-            Generation.Entry<String, LongPair> e = index.floor(term);
+            final Generation.Entry<String, LongPair> e = index.floor(term);
             if (e == null) {
-                e = index.first();
+                resetToFirst();
+            } else {
+                lastTermBytes = e.getKey().getBytes(Charsets.UTF_8);
+                lastTermByteBuffer = ByteBuffer.wrap(lastTermBytes);
+                lastTermLength = lastTermBytes.length;
+                lastString = null;
+                final LongPair p = e.getValue();
+                refillBuffer(p.getFirst());
+                lastTermOffset = p.getSecond();
+                lastTermDocFreq = (int) readVLong();
+                done = false;
+                lastTermCommonPrefixLen = 0;
+                bufferNext = true;
             }
-            lastTermBytes = e.getKey().getBytes(Charsets.UTF_8);
-            lastTermByteBuffer = ByteBuffer.wrap(lastTermBytes);
-            lastTermLength = lastTermBytes.length;
-            lastString = null;
-            final LongPair p = e.getValue();
-            refillBuffer(p.getFirst());
-            lastTermOffset = p.getSecond();
-            lastTermDocFreq = (int)readVLong();
-            done = false;
-            lastTermCommomPrefixLen = 0;
-
-            while (decoder.decode((ByteBuffer)lastTermByteBuffer.position(0).limit(lastTermLength)).toString().compareTo(term) < 0 && next()) {}
-            bufferNext = true;
         } else {
-            lastTermLength = 0;
-            lastTermOffset = 0L;
-            lastTermDocFreq = 0;
-            lastString = null;
-
-            bufferLen = 0;
-            bufferOffset = 0L;
-            bufferPtr = 0;
-
-            done = false;
-            lastTermCommomPrefixLen = 0;
-
-            while (next() && new String(lastTermBytes, 0, lastTermLength, Charsets.UTF_8).compareTo(term) < 0) {}
-            bufferNext = true;
+            resetToFirst();
         }
+        // Now, next() should return the last element that is known to be less or equals to the target term.
+
+        while (next()) {
+            if (AbstractBatchedFTGMerger.compareBytes(lastTermBytes, lastTermLength, targetBytes, targetBytes.length) >= 0) {
+                break;
+            }
+        }
+        bufferNext = true;
     }
 
     @Override
@@ -166,7 +176,7 @@ final class SimpleStringTermIteratorImpl implements SimpleStringTermIterator {
 
     @Override
     public int commonPrefixLengthWithPreviousLowerBound() {
-        return lastTermCommomPrefixLen;
+        return lastTermCommonPrefixLen;
     }
 
     @Override
@@ -197,10 +207,10 @@ final class SimpleStringTermIteratorImpl implements SimpleStringTermIterator {
         final int removeLen = (int)readVLong(firstByte);
         final int newLen = (int)readVLong();
 
-        lastTermCommomPrefixLen = lastTermLength - removeLen;
-        ensureCapacity(lastTermCommomPrefixLen + newLen);
-        readFully(lastTermBytes, lastTermCommomPrefixLen, newLen);
-        lastTermLength = lastTermCommomPrefixLen + newLen;
+        lastTermCommonPrefixLen = lastTermLength - removeLen;
+        ensureCapacity(lastTermCommonPrefixLen + newLen);
+        readFully(lastTermBytes, lastTermCommonPrefixLen, newLen);
+        lastTermLength = lastTermCommonPrefixLen + newLen;
         lastString = null;
 
         final long offsetDelta = readVLong();

@@ -34,7 +34,6 @@ import com.indeed.imhotep.io.RequestTools.GroupMultiRemapRuleSender;
 import com.indeed.imhotep.io.RequestTools.ImhotepRequestSender;
 import com.indeed.imhotep.metrics.aggregate.AggregateStatTree;
 import com.indeed.imhotep.protobuf.DocStat;
-import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
 import com.indeed.imhotep.protobuf.HostAndPort;
 import com.indeed.imhotep.protobuf.ImhotepRequest;
 import com.indeed.imhotep.protobuf.MultiFTGSRequest;
@@ -207,15 +206,6 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
         final GroupMultiRemapRuleSender ruleSender =
                 GroupMultiRemapRuleSender.createFromRules(
                         Arrays.asList(rawRules).iterator(),
-                        sessions.length > 1);
-        return regroupWithRuleSender(regroupParams, ruleSender, errorOnCollisions);
-    }
-
-    @Override
-    public int regroupWithProtos(final RegroupParams regroupParams, final GroupMultiRemapMessage[] rawRuleMessages, final boolean errorOnCollisions) throws ImhotepOutOfMemoryException {
-        final GroupMultiRemapRuleSender ruleSender =
-                GroupMultiRemapRuleSender.createFromMessages(
-                        Arrays.asList(rawRuleMessages).iterator(),
                         sessions.length > 1);
         return regroupWithRuleSender(regroupParams, ruleSender, errorOnCollisions);
     }
@@ -540,7 +530,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
 
     <T> T processImhotepBatchRequest(final List<ImhotepCommand> firstCommands, final ImhotepCommand<T> lastCommand ) throws ImhotepOutOfMemoryException {
         final T[] buffer = (T[]) Array.newInstance(lastCommand.getResultClass(), sessions.length);
-        executor().executeMemoryException(buffer, session -> session.sendImhotepBatchRequest(firstCommands, lastCommand));
+        closeIfCloseableOnFailExecutor().executeMemoryException(buffer, session -> session.sendImhotepBatchRequest(firstCommands, lastCommand));
         return lastCommand.combine(Arrays.asList(buffer));
     }
 }

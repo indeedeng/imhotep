@@ -17,7 +17,6 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
-import com.indeed.flamdex.query.Query;
 import com.indeed.flamdex.query.Term;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
@@ -252,12 +251,6 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
     }
 
     @Override
-    public void randomMultiRegroup(final RegroupParams regroupParams, final String field, final boolean isIntField, final String salt, final int targetGroup,
-                                   final double[] percentages, final int[] resultGroups) throws ImhotepOutOfMemoryException {
-        executor().executeMemoryExceptionVoid(nullBuf, session -> session.randomMultiRegroup(regroupParams, field, isIntField, salt, targetGroup, percentages, resultGroups));
-    }
-
-    @Override
     public void randomMetricRegroup(final RegroupParams regroupParams, final List<String> stat, final String salt, final double p, final int targetGroup, final int negativeGroup, final int positiveGroup) throws ImhotepOutOfMemoryException {
         executor().executeMemoryExceptionVoid(nullBuf, session -> session.randomMetricRegroup(regroupParams, stat, salt, p, targetGroup, negativeGroup, positiveGroup));
     }
@@ -379,31 +372,6 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
         // and cpu-cheap request for remote sessions
         executor().lockCPU(false).executeRuntimeException(integerBuf, imhotepSession -> imhotepSession.getNumGroups(groupsName));
         return Collections.max(Arrays.asList(integerBuf));
-    }
-
-    @Override
-    public void createDynamicMetric(final String name) throws ImhotepOutOfMemoryException {
-        executor().executeMemoryExceptionVoid(nullBuf, imhotepSession -> imhotepSession.createDynamicMetric(name));
-    }
-
-    @Override
-    public void updateDynamicMetric(final String groupsName, final String name, final int[] deltas) {
-        executor().executeRuntimeExceptionVoid(nullBuf, imhotepSession -> imhotepSession.updateDynamicMetric(groupsName, name, deltas));
-    }
-
-    @Override
-    public void conditionalUpdateDynamicMetric(final String name, final RegroupCondition[] conditions, final int[] deltas) {
-        executor().executeRuntimeExceptionVoid(nullBuf, imhotepSession -> imhotepSession.conditionalUpdateDynamicMetric(name, conditions, deltas));
-    }
-
-    @Override
-    public void groupConditionalUpdateDynamicMetric(final String groupsName, final String name, final int[] groups, final RegroupCondition[] conditions, final int[] deltas) {
-        executor().executeRuntimeExceptionVoid(nullBuf, imhotepSession -> imhotepSession.groupConditionalUpdateDynamicMetric(groupsName, name, groups, conditions, deltas));
-    }
-
-    @Override
-    public void groupQueryUpdateDynamicMetric(final String groupsName, final String name, final int[] groups, final Query[] conditions, final int[] deltas) {
-        executor().executeRuntimeExceptionVoid(nullBuf, imhotepSession -> imhotepSession.groupQueryUpdateDynamicMetric(groupsName, name, groups, conditions, deltas));
     }
 
     private int validateNumStats(final Integer[] numStatBuf) {
@@ -656,6 +624,14 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
 
     protected <R extends Closeable> Executor<R> closeOnFailExecutor() {
         return new Executor<R>().cleanupFunction(Closeable::close);
+    }
+
+    protected <R> Executor<R> closeIfCloseableOnFailExecutor() {
+        return new Executor<R>().cleanupFunction(x -> {
+            if (x instanceof AutoCloseable) {
+                ((AutoCloseable)x).close();
+            }
+        });
     }
 
     @Accessors(fluent = true, chain = true)
