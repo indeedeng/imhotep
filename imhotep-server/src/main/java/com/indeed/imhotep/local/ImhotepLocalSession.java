@@ -2143,11 +2143,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     @Override
     public void close() {
         if (!closed.getAndSet(true)) {
-            try {
-                tryClose();
-            } finally {
-                closed.set(true);
-            }
+            tryClose();
         }
     }
 

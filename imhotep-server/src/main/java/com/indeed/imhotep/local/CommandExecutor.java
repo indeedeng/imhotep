@@ -65,7 +65,7 @@ public class CommandExecutor<T> {
         return commandFuture;
     }
 
-    T processCommands(final DefUseManager defUseManager) throws ExecutionException, InterruptedException {
+    T processCommands(final DefUseManager defUseManager) throws ExecutionException, InterruptedException, ImhotepOutOfMemoryException {
         for (final ImhotepCommand imhotepCommand : firstCommands) {
             processCommand(imhotepCommand, defUseManager);
         }
@@ -73,6 +73,14 @@ public class CommandExecutor<T> {
 
         final List<ListenableFuture<Object>> allFutures = defUseManager.getAllDefsUses();
         allFutures.add(lastCommandFuture);
-        return (T) Futures.transform(Futures.allAsList(allFutures), (final List<Object> inputs) -> inputs.get(inputs.size() - 1), executorService).get();
+        try {
+            return  (T) Futures.transform(Futures.allAsList(allFutures), (final List<Object> inputs) -> inputs.get(inputs.size() - 1), executorService).get();
+        } catch (final ExecutionException e) {
+            if (e.getCause() instanceof ImhotepOutOfMemoryException) {
+                throw new ImhotepOutOfMemoryException(e.getCause());
+            } else {
+                throw e;
+            }
+        }
     }
 }
