@@ -394,8 +394,16 @@ public class TestCommandParallelExecution implements CommandsTest {
     }
 
     @Override
+    @Test
     public void testGetNumGroups() throws Exception {
-
+        applyEachNamedGroupFieldVoid(indices -> imhotepSession -> imhotepSession.regroup(indices.namedGroup, new int[]{1}, new int[]{5}, false));
+        final List<String> stat = new ArrayList<>();
+        stat.add("1");
+        applyEachNamedGroupFieldVoid(indices -> imhotepSession -> imhotepSession.metricRegroup(indices.namedGroup, stat, -5, 5, 1));
+        for (int i = 0; i < NAMED_GROUP_COUNT; i++) {
+            Assert.assertEquals(batchRemoteMultiSessionSerial.getNumGroups(getNamedGroup(i)), batchRemoteMultiSessionParallel.getNumGroups(getNamedGroup(i)));
+        }
+        deleteAllGroups();
     }
 
     private interface ThrowingFunction<K, V> {

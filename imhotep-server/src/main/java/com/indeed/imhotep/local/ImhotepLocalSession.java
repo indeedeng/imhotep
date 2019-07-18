@@ -398,7 +398,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     }
 
     @Override
-    public synchronized FTGSIterator getSubsetFTGSIterator(
+    public FTGSIterator getSubsetFTGSIterator(
             final String groupsName,
             final Map<String, long[]> intFields,
             final Map<String, String[]> stringFields,
@@ -416,7 +416,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         return new FlamdexSubsetFTGSIterator(this, docIdToGroup, flamdexReaderRef.copy(), intFields, stringFields, stack);
     }
 
-    public synchronized FTGSSplitter getFTGSIteratorSplitter(
+    public FTGSSplitter getFTGSIteratorSplitter(
             final String groupsName,
             final String[] intFields,
             final String[] stringFields,
@@ -433,7 +433,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         }
     }
 
-    public synchronized FTGSSplitter getSubsetFTGSIteratorSplitter(
+    public FTGSSplitter getSubsetFTGSIteratorSplitter(
             final String groupsName,
             final Map<String, long[]> intFields,
             final Map<String, String[]> stringFields,
@@ -2094,10 +2094,8 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         return stack.numStats;
     }
 
-
-
     @Override
-    public int pushStats(final List<String> statNames)
+    public synchronized int pushStats(final List<String> statNames)
         throws ImhotepOutOfMemoryException {
         for (final String statName : statNames) {
             this.pushStat(statName);
@@ -2125,14 +2123,14 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     }
 
     @Override
-    public int popStat() {
+    public synchronized int popStat() {
         metricStack.popLookup().close();
         metricStack.statCommands.add("pop");
         return metricStack.getNumStats();
     }
 
     @Override
-    public int getNumStats() {
+    public synchronized int getNumStats() {
         return metricStack.getNumStats();
     }
 
@@ -2789,7 +2787,6 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         }
     }
 
-    @VisibleForTesting
     public <T> T executeBatchRequestSerial(final List<ImhotepCommand> firstCommands, final ImhotepCommand<T> lastCommand) throws ImhotepOutOfMemoryException {
         for (final ImhotepCommand imhotepCommand: firstCommands) {
             imhotepCommand.apply(this);
