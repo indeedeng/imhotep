@@ -1,5 +1,6 @@
 package com.indeed.imhotep.commands;
 
+import com.google.common.collect.ImmutableList;
 import com.indeed.imhotep.api.CommandSerializationParameters;
 import com.indeed.imhotep.api.ImhotepCommand;
 import com.indeed.imhotep.api.RegroupParams;
@@ -36,15 +37,15 @@ public abstract class AbstractImhotepCommand<T> implements ImhotepCommand<T> {
     AbstractImhotepCommand(final String sessionId, final Class<T> resultClass, final RegroupParams regroupParams) {
         this.sessionId = sessionId;
         this.resultClass = resultClass;
-        this.inputGroups = Collections.singletonList(regroupParams.getInputGroups());
-        this.outputGroups = Collections.singletonList(regroupParams.getOutputGroups());
+        this.inputGroups = ImmutableList.copyOf(Collections.singletonList(regroupParams.getInputGroups()));
+        this.outputGroups = ImmutableList.copyOf(Collections.singletonList(regroupParams.getOutputGroups()));
     }
 
     AbstractImhotepCommand(final String sessionId, final Class<T> resultClass, final List<String> inputGroups, final List<String> outputGroups) {
         this.sessionId = sessionId;
         this.resultClass = resultClass;
-        this.inputGroups = inputGroups;
-        this.outputGroups = outputGroups;
+        this.inputGroups = ImmutableList.copyOf(inputGroups);
+        this.outputGroups = ImmutableList.copyOf(outputGroups);
     }
 
     protected abstract ImhotepRequestSender imhotepRequestSenderInitializer();

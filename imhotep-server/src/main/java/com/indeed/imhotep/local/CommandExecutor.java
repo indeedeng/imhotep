@@ -27,8 +27,6 @@ import java.util.concurrent.ExecutionException;
  */
 public class CommandExecutor<T> {
 
-    static final Logger log = Logger.getLogger(CommandExecutor.class);
-
     private final AbstractImhotepMultiSession imhotepMultiSession;
     private final ListeningExecutorService executorService;
     private final ImhotepLocalSession imhotepLocalSession;
@@ -43,7 +41,7 @@ public class CommandExecutor<T> {
         this.lastCommand = lastCommand;
     }
 
-    private T applyCommand(final ImhotepCommand<T> imhotepCommand) {
+    private Object applyCommand(final ImhotepCommand imhotepCommand) {
         ImhotepTask.setup(imhotepMultiSession, imhotepCommand);
         ImhotepTask.registerInnerSession(imhotepLocalSession);
         try (final SilentCloseable ignored = TaskScheduler.CPUScheduler.lockSlot()) {
@@ -53,6 +51,7 @@ public class CommandExecutor<T> {
                 Throwables.propagate(e);
             }
         }
+        ImhotepTask.clear();
         return null;
     }
 

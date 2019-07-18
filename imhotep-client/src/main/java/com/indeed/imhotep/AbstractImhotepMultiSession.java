@@ -197,7 +197,8 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
         threadFactories =
                 new ArrayList<>(Arrays.asList(localThreadFactory,
                         splitThreadFactory,
-                        mergeThreadFactory));
+                        mergeThreadFactory,
+                        commandThreadFactory));
 
         executor = Executors.newCachedThreadPool(localThreadFactory);
         getSplitBufferThreads = Executors.newCachedThreadPool(splitThreadFactory);

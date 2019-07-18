@@ -26,13 +26,10 @@ public class DefUseManager {
 
     // returns a list of futures which should be executed before the gives set of input and output Groups.
     public List<ListenableFuture<Object>> getUpstreamFutures(final List<String> inputGroups, final List<String> outputGroups) {
-        final List<ListenableFuture<Object>> dependentFutures = inputGroups.stream().map(this::getDef).collect(Collectors.toList());
-        outputGroups.forEach(outputGroup -> {
-            if (defUseListMap.containsKey(outputGroup)) {
-                dependentFutures.addAll(getDefAndUses(outputGroup));
-            }
-        });
-        return dependentFutures;
+        return Stream.concat(
+                inputGroups.stream().map(this::getDef),
+                outputGroups.stream().map(this::getDefAndUses).flatMap(List::stream)
+        ).collect(Collectors.toList());
     }
 
     private ListenableFuture<Object> getDef(final String groupName) {
@@ -55,7 +52,7 @@ public class DefUseManager {
     }
 
     public List<ListenableFuture<Object>> getAllDefsUses() {
-        return defUseListMap.values().parallelStream().map(DefUseList::getDefAndUse).flatMap(List::stream).collect(Collectors.toList());
+        return defUseListMap.values().stream().map(DefUseList::getDefAndUse).flatMap(List::stream).collect(Collectors.toList());
     }
 
     private static class DefUseList {
