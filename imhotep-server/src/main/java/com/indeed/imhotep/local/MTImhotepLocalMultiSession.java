@@ -17,6 +17,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
+import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.imhotep.AbstractImhotepMultiSession;
 import com.indeed.imhotep.FTGSIteratorUtil;
 import com.indeed.imhotep.FTGSMerger;
@@ -47,8 +48,12 @@ import com.indeed.imhotep.protobuf.HostAndPort;
 import com.indeed.imhotep.protobuf.StatsSortOrder;
 import com.indeed.imhotep.scheduling.SilentCloseable;
 import com.indeed.imhotep.scheduling.TaskScheduler;
+import com.indeed.imhotep.tracing.TracingUtil;
 import com.indeed.util.core.Either;
 import com.indeed.util.core.io.Closeables2;
+import io.opentracing.ActiveSpan;
+import io.opentracing.Tracer;
+import io.opentracing.util.GlobalTracer;
 import org.apache.log4j.Logger;
 
 import javax.annotation.Nullable;
@@ -381,7 +386,7 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
     }
 
     private ImhotepRemoteSession createImhotepRemoteSession(final String sessionId, final InetSocketAddress address) {
-        return new ImhotepRemoteSession(address.getHostName(), address.getPort(), sessionId, tempFileSizeBytesLeft);
+        return new ImhotepRemoteSession(address.getHostName(), address.getPort(), sessionId, tempFileSizeBytesLeft, ImhotepRemoteSession.DEFAULT_SOCKET_TIMEOUT, 0, TracingUtil.isTracingActive());
     }
 
     private ImhotepRemoteSession[] getRemoteSessions(final InetSocketAddress[] nodes) {
@@ -833,8 +838,18 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
     }
 
     public <T> T executeBatchRequest(final List<ImhotepCommand> firstCommands, final ImhotepCommand<T> lastCommand) throws ImhotepOutOfMemoryException {
-        final T[] buffer = (T[]) Array.newInstance(lastCommand.getResultClass(), sessions.length);
-        executor().executeMemoryException(buffer, session -> session.executeBatchRequest(firstCommands, lastCommand));
-        return lastCommand.combine(Arrays.asList(buffer));
+        final Tracer tracer = TracingUtil.tracerIfInActiveSpan();
+        try (final ActiveSpan activeSpan = tracer.buildSpan("executeBatchRequest").withTag("sessionid", getSessionId()).startActive()) {
+            final T[] buffer = (T[]) Array.newInstance(lastCommand.getResultClass(), sessions.length);
+            executor().executeMemoryException(buffer, session -> {
+                final FlamdexReader flamdexReader = session.flamdexReader;
+                final Tracer.SpanBuilder spanBuilder = tracer.buildSpan(flamdexReader.getDirectory().toString())
+                        .withTag("numDocs", session.numDocs);
+                try (ActiveSpan activeSpan1 = spanBuilder.startActive()) {
+                    return session.executeBatchRequest(firstCommands, lastCommand);
+                }
+            });
+            return lastCommand.combine(Arrays.asList(buffer));
+        }
     }
 }

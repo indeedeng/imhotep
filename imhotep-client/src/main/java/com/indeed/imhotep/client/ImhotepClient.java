@@ -35,10 +35,10 @@ import com.indeed.imhotep.commands.OpenSessions;
 import com.indeed.imhotep.exceptions.ImhotepKnownException;
 import com.indeed.imhotep.shardmasterrpc.RequestResponseClient;
 import com.indeed.imhotep.shardmasterrpc.ShardMaster;
+import com.indeed.imhotep.tracing.TracingUtil;
 import io.opentracing.ActiveSpan;
 import io.opentracing.NoopActiveSpanSource;
 import io.opentracing.Tracer;
-import io.opentracing.util.GlobalTracer;
 import org.apache.log4j.Logger;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
@@ -333,8 +333,8 @@ public class ImhotepClient
         private boolean allowSessionForwarding = false;
         private boolean peerToPeerCache = false;
         private boolean useFtgsPooledConnection = false;
-
         private boolean useBatch = false;
+        private boolean traceImhotepRequests = false;
 
         private int hostCount = 0; // for logging
 
@@ -438,6 +438,11 @@ public class ImhotepClient
             return this;
         }
 
+        public SessionBuilder traceImhotepRequests(final boolean traceImhotepRequests) {
+            this.traceImhotepRequests = traceImhotepRequests;
+            return this;
+        }
+
         /**
          * Returns shards that were selected for the time range requested in the constructor.
          * Shards in the list are sorted chronologically.
@@ -509,13 +514,14 @@ public class ImhotepClient
                                 localTempFileSizeLimit,
                                 allowSessionForwarding,
                                 peerToPeerCache
-                        )
+                        ),
+                        traceImhotepRequests
                 );
             } else {
                 return getSessionForShards(
                         dataset, hostsToShardsMap, mergeThreadLimit, username, clientName, priority, optimizeGroupZeroLookups,
                         socketTimeout, localTempFileSizeLimit, daemonTempFileSizeLimit, sessionTimeout,
-                        allowSessionForwarding, peerToPeerCache, useFtgsPooledConnection
+                        allowSessionForwarding, peerToPeerCache, useFtgsPooledConnection, traceImhotepRequests
                 );
             }
         }
@@ -528,20 +534,22 @@ public class ImhotepClient
                                                final long sessionTimeout,
                                                final boolean allowSessionForwarding,
                                                final boolean p2pCache,
-                                               final boolean useFtgsPooledConnection) {
+                                               final boolean useFtgsPooledConnection,
+                                               final boolean traceImhotepRequests) {
 
         final AtomicLong localTempFileSizeBytesLeft = localTempFileSizeLimit > 0 ? new AtomicLong(localTempFileSizeLimit) : null;
         try {
             final String sessionId = UUID.randomUUID().toString();
             ImhotepRemoteSession[] remoteSessions = internalGetSession(dataset, hostToShardsMap, mergeThreadLimit, username,
                     clientName, priority, optimizeGroupZeroLookups, socketTimeout, sessionId, daemonTempFileSizeLimit,
-                    localTempFileSizeBytesLeft, sessionTimeout, allowSessionForwarding, p2pCache, useFtgsPooledConnection);
+                    localTempFileSizeBytesLeft, sessionTimeout, allowSessionForwarding, p2pCache, useFtgsPooledConnection,
+                    traceImhotepRequests);
 
             final InetSocketAddress[] nodes = new InetSocketAddress[remoteSessions.length];
             for (int i = 0; i < remoteSessions.length; i++) {
                 nodes[i] = remoteSessions[i].getInetSocketAddress();
             }
-            return new RemoteImhotepMultiSession(remoteSessions, sessionId, nodes, localTempFileSizeLimit, localTempFileSizeBytesLeft, username, clientName, priority);
+            return new RemoteImhotepMultiSession(remoteSessions, sessionId, nodes, localTempFileSizeLimit, localTempFileSizeBytesLeft, username, clientName, priority, traceImhotepRequests);
         } catch (Exception e) {
             Throwables.propagateIfInstanceOf(e, ImhotepKnownException.class);
             throw new RuntimeException("unable to open session",  e);
@@ -564,11 +572,12 @@ public class ImhotepClient
                            final long sessionTimeout,
                            boolean allowSessionForwarding,
                            final boolean p2pCache,
-                           final boolean useFtgsPooledConnection) {
+                           final boolean useFtgsPooledConnection,
+                           final boolean traceImhotepRequests) {
 
         final ExecutorService executor = Executors.newCachedThreadPool();
         final List<Future<ImhotepRemoteSession>> futures = new ArrayList<>(shardRequestMap.size());
-        final Tracer tracer = GlobalTracer.get();
+        final Tracer tracer = TracingUtil.tracerIfInActiveSpan();
         try {
             for (final Map.Entry<Host, List<Shard>> entry : shardRequestMap.entrySet()) {
                 final Host host = entry.getKey();
@@ -596,7 +605,9 @@ public class ImhotepClient
                                     allowSessionForwarding,
                                     numDocs,
                                     p2pCache,
-                                    useFtgsPooledConnection);
+                                    useFtgsPooledConnection,
+                                    traceImhotepRequests
+                            );
                         }
                     }
                 }));

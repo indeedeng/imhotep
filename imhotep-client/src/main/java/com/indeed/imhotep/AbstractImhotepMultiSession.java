@@ -26,6 +26,7 @@ import com.indeed.imhotep.protobuf.Operator;
 import com.indeed.imhotep.scheduling.ImhotepTask;
 import com.indeed.imhotep.scheduling.SchedulerType;
 import com.indeed.imhotep.scheduling.TaskScheduler;
+import com.indeed.imhotep.tracing.TracingUtil;
 import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.core.threads.LogOnUncaughtExceptionHandler;
 import io.opentracing.ActiveSpan;
@@ -537,7 +538,7 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
                                       final ThrowingFunction<? super E, ? extends T> function,
                                       @Nullable final ThrowingConsumer<T> cleanupFunction)
             throws ExecutionException {
-        final Tracer tracer = GlobalTracer.get();
+        final Tracer tracer = TracingUtil.tracerIfInActiveSpan();
         final RequestContext requestContext = RequestContext.THREAD_REQUEST_CONTEXT.get();
         final List<Future<T>> futures = new ArrayList<>(things.length);
         final StrictCloser closeOnFailureCloser = new StrictCloser();

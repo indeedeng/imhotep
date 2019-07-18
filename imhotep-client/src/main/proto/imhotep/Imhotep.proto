@@ -342,6 +342,12 @@ message ImhotepRequest {
 
   // for ftgs pooled socket optimization
   optional bool useFtgsPooledConnection = 81 [default = false];
+
+  optional TracingMap tracing_info = 82; // deliberately matches TracingMapOnly for convenience reasons
+}
+
+message TracingMapOnly {
+  optional TracingMap tracing_info = 82; // deliberately matches ImhotepRequest for convenience reasons
 }
 
 message DocStat {
@@ -597,3 +603,13 @@ message FileAttributesMessage {
   required bool isDirectory = 2;
   required uint64 size = 3;
 }
+
+message TracingMap {
+  message KeyValueString {
+    required string key = 1;
+    required string value = 2;
+  }
+  repeated KeyValueString key_values = 1;
+}
+
+

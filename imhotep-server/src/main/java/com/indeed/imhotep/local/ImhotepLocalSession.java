@@ -96,12 +96,17 @@ import com.indeed.imhotep.metrics.Subtraction;
 import com.indeed.imhotep.pool.BuffersPool;
 import com.indeed.imhotep.protobuf.Operator;
 import com.indeed.imhotep.protobuf.QueryMessage;
+import com.indeed.imhotep.scheduling.ImhotepTask;
 import com.indeed.imhotep.scheduling.TaskScheduler;
 import com.indeed.imhotep.service.InstrumentedFlamdexReader;
+import com.indeed.imhotep.tracing.TracingUtil;
 import com.indeed.util.core.Throwables2;
 import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.core.reference.SharedReference;
 import com.indeed.util.core.threads.ThreadSafeBitSet;
+import io.opentracing.ActiveSpan;
+import io.opentracing.Tracer;
+import io.opentracing.util.GlobalTracer;
 import it.unimi.dsi.fastutil.PriorityQueue;
 import it.unimi.dsi.fastutil.ints.IntIterator;
 import it.unimi.dsi.fastutil.objects.ObjectHeapPriorityQueue;
@@ -121,6 +126,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.OptionalLong;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -2800,9 +2806,24 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
 
     public <T> T executeBatchRequest(final List<ImhotepCommand> firstCommands, final ImhotepCommand<T> lastCommand) throws ImhotepOutOfMemoryException {
         for (final ImhotepCommand command: firstCommands) {
-            command.apply(this);
+            applyCommandWithTiming(command);
             TaskScheduler.CPUScheduler.yieldIfNecessary();
         }
-        return lastCommand.apply(this);
+        return applyCommandWithTiming(lastCommand);
     }
+
+    private <T> T applyCommandWithTiming(final ImhotepCommand<T> command) throws ImhotepOutOfMemoryException {
+        final Tracer tracer = TracingUtil.tracerIfInActiveSpan();
+        try (final ActiveSpan activeSpan = tracer.buildSpan(command.getClass().getSimpleName()).startActive()) {
+            final OptionalLong startExecution = ImhotepTask.THREAD_LOCAL_TASK.get().getCurrentExecutionTime();
+            final T result = command.apply(this);
+            if (startExecution.isPresent()) {
+                final long startLong = startExecution.getAsLong();
+                final long endLong = ImhotepTask.THREAD_LOCAL_TASK.get().getCurrentExecutionTime().orElse(startLong);
+                activeSpan.setTag("execTimeNanos", endLong - startLong);
+            }
+            return result;
+        }
+    }
+
 }

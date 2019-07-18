@@ -53,12 +53,18 @@ import com.indeed.imhotep.protobuf.Operator;
 import com.indeed.imhotep.protobuf.QueryRemapMessage;
 import com.indeed.imhotep.protobuf.ShardBasicInfoMessage;
 import com.indeed.imhotep.protobuf.StringFieldAndTerms;
+import com.indeed.imhotep.protobuf.TracingMap;
+import com.indeed.imhotep.protobuf.TracingMapOnly;
+import com.indeed.imhotep.tracing.ProtoTracingInjector;
+import com.indeed.imhotep.tracing.TracingUtil;
 import com.indeed.imhotep.utils.tempfiles.ImhotepTempFiles;
 import com.indeed.imhotep.utils.tempfiles.TempFile;
 import com.indeed.util.core.Pair;
 import com.indeed.util.core.io.Closeables2;
 import io.opentracing.ActiveSpan;
 import io.opentracing.Tracer;
+import io.opentracing.propagation.Format;
+import io.opentracing.propagation.TextMap;
 import io.opentracing.util.GlobalTracer;
 import it.unimi.dsi.fastutil.longs.LongIterators;
 import org.apache.log4j.Logger;
@@ -102,7 +108,7 @@ public class ImhotepRemoteSession
 
     public static final byte DEFAULT_PRIORITY = 0;
 
-    static final int DEFAULT_SOCKET_TIMEOUT = (int)TimeUnit.MINUTES.toMillis(30);
+    public static final int DEFAULT_SOCKET_TIMEOUT = (int)TimeUnit.MINUTES.toMillis(30);
 
     public static final int CURRENT_CLIENT_VERSION = 2; // id to be incremented as changes to the client are done
 
@@ -111,6 +117,7 @@ public class ImhotepRemoteSession
     private final Host hostAndPort;
     private final int socketTimeout;
     private final AtomicLong tempFileSizeBytesLeft;
+    private final boolean includeTracingInformation;
     private boolean closed = false;
 
     private int numStats = 0;
@@ -125,12 +132,12 @@ public class ImhotepRemoteSession
     public ImhotepRemoteSession(final String host, final int port, final String sessionId,
                                 @Nullable final AtomicLong tempFileSizeBytesLeft,
                                 final int socketTimeout) {
-        this(host, port, sessionId, tempFileSizeBytesLeft, socketTimeout, 0);
+        this(host, port, sessionId, tempFileSizeBytesLeft, socketTimeout, 0, false);
     }
 
     public ImhotepRemoteSession(final String host, final int port, final String sessionId,
                                 @Nullable final AtomicLong tempFileSizeBytesLeft,
-                                final int socketTimeout, final long numDocs) {
+                                final int socketTimeout, final long numDocs, final boolean includeTracingInformation) {
         super(sessionId);
         this.host = host;
         this.port = port;
@@ -138,13 +145,16 @@ public class ImhotepRemoteSession
         this.socketTimeout = socketTimeout;
         this.tempFileSizeBytesLeft = tempFileSizeBytesLeft;
         this.numDocs = numDocs;
+        this.includeTracingInformation = includeTracingInformation;
     }
 
     public static ImhotepStatusDump getStatusDump(final String host, final int port) throws IOException {
         final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.GET_STATUS_DUMP)
                 .build();
 
-        final ImhotepResponse response = sendRequest(createSender(request), host, port);
+        final ImhotepRemoteSession session = new ImhotepRemoteSession(host, port, "", null);
+
+        final ImhotepResponse response = session.sendRequest(createSender(request));
 
         return ImhotepStatusDump.fromProto(response.getStatusDump());
     }
@@ -176,7 +186,7 @@ public class ImhotepRemoteSession
 
         return openSession(host, port, dataset, shards, mergeThreadLimit, username, "", DEFAULT_PRIORITY,
                 optimizeGroupZeroLookups, socketTimeout, sessionId, tempFileSizeLimit, tempFileSizeBytesLeft,
-                sessionTimeout, false, numDocs, false, false);
+                sessionTimeout, false, numDocs, false, false, false);
     }
 
 
@@ -187,11 +197,11 @@ public class ImhotepRemoteSession
                                                    @Nullable final AtomicLong tempFileSizeBytesLeft,
                                                    final long sessionTimeout,
                                                    boolean allowSessionForwarding, final long numDocs,
-                                                   final boolean p2pCache, final boolean useFtgsPooledConnection) throws ImhotepOutOfMemoryException, IOException {
+                                                   final boolean p2pCache, final boolean useFtgsPooledConnection, final boolean traceImhotepRequests) throws ImhotepOutOfMemoryException, IOException {
         final Socket socket = newSocket(host, port, socketTimeout);
         final OutputStream os = Streams.newBufferedOutputStream(socket.getOutputStream());
         final InputStream is = Streams.newBufferedInputStream(socket.getInputStream());
-        final Tracer tracer = GlobalTracer.get();
+        final Tracer tracer = TracingUtil.tracerIfInActiveSpan();
         try (final ActiveSpan activeSpan = tracer.buildSpan("OPEN_SESSION").withTag("sessionid", sessionId).withTag("dataset", dataset).withTag("host", host + ":" + port).startActive()) {
             log.trace("sending open request to "+host+":"+port+" for shards "+shards);
             final ImhotepRequest openSessionRequest = getBuilderForType(ImhotepRequest.RequestType.OPEN_SESSION)
@@ -251,7 +261,7 @@ public class ImhotepRemoteSession
                 }
 
                 log.trace("session created, id "+sessionId);
-                return new ImhotepRemoteSession(host, actualPort, sessionId, tempFileSizeBytesLeft, socketTimeout, numDocs);
+                return new ImhotepRemoteSession(host, actualPort, sessionId, tempFileSizeBytesLeft, socketTimeout, numDocs, traceImhotepRequests);
             } catch (final SocketTimeoutException e) {
                 throw buildExceptionAfterSocketTimeout(e, host, port, sessionId);
             }
@@ -273,7 +283,7 @@ public class ImhotepRemoteSession
                 .build();
 
         try {
-            final ImhotepResponse response = sendRequest(request, host, port, socketTimeout);
+            final ImhotepResponse response = sendRequest(request, socketTimeout);
             final long result = response.getTotalDocFreq();
             return result;
         } catch (final IOException e) {
@@ -642,7 +652,7 @@ public class ImhotepRemoteSession
             final InputStream is,
             final OutputStream os,
             final boolean fromPooledConnection) throws IOException, ImhotepOutOfMemoryException {
-        final ImhotepResponse response = checkMemoryException(getSessionId(), sendRequest(createSender(request), is, os, host, port));
+        final ImhotepResponse response = checkMemoryException(getSessionId(), sendRequest(createSender(request), is, os));
         final BufferedInputStream tempFileStream;
         if (fromPooledConnection) {
             try (final BlockInputStream blockIs = new BlockInputStream(is)) {
@@ -695,7 +705,7 @@ public class ImhotepRemoteSession
                 .build();
 
         try {
-            final ImhotepResponse response = sendRequestWithMemoryException(request, host, port, socketTimeout);
+            final ImhotepResponse response = sendRequestWithMemoryException(request, socketTimeout);
             final int result = response.getNumGroups();
             return result;
         } catch (final IOException e) {
@@ -717,7 +727,7 @@ public class ImhotepRemoteSession
 
     protected void sendVoidRequest(final ImhotepRequestSender request) throws ImhotepOutOfMemoryException {
         try {
-            sendRequestWithMemoryException(request, host, port, socketTimeout);
+            sendRequestWithMemoryException(request, socketTimeout);
         } catch (final IOException e) {
             throw newRuntimeException(e);
         }
@@ -781,7 +791,7 @@ public class ImhotepRemoteSession
                 .build();
 
         try {
-            sendRequestWithMemoryException(request, host, port, socketTimeout);
+            sendRequestWithMemoryException(request, socketTimeout);
         } catch (final IOException e) {
             throw newRuntimeException(e);
         }
@@ -811,7 +821,7 @@ public class ImhotepRemoteSession
                 .build();
 
         try {
-            sendRequestWithMemoryException(request, host, port, socketTimeout);
+            sendRequestWithMemoryException(request, socketTimeout);
         } catch (final IOException e) {
             throw newRuntimeException(e);
         }
@@ -833,7 +843,7 @@ public class ImhotepRemoteSession
                 .build();
 
         try {
-            sendRequestWithMemoryException(request, host, port, socketTimeout);
+            sendRequestWithMemoryException(request, socketTimeout);
         } catch (final IOException e) {
             throw newRuntimeException(e);
         }
@@ -854,7 +864,7 @@ public class ImhotepRemoteSession
                 .build();
 
         try {
-            sendRequestWithMemoryException(request, host, port, socketTimeout);
+            sendRequestWithMemoryException(request, socketTimeout);
         } catch (final IOException e) {
             throw newRuntimeException(e);
         }
@@ -874,7 +884,7 @@ public class ImhotepRemoteSession
                 .build();
 
         try {
-            final ImhotepResponse response = sendRequestWithMemoryException(request, host, port, socketTimeout);
+            final ImhotepResponse response = sendRequestWithMemoryException(request, socketTimeout);
             final int result = response.getNumGroups();
             return result;
         } catch (final IOException e) {
@@ -901,7 +911,7 @@ public class ImhotepRemoteSession
 
     public int sendRegroupRequest(final ImhotepRequestSender request) throws ImhotepOutOfMemoryException {
         try {
-            final ImhotepResponse response = sendRequestWithMemoryException(request, host, port, socketTimeout);
+            final ImhotepResponse response = sendRequestWithMemoryException(request, socketTimeout);
             final int result = response.getNumGroups();
             return result;
         } catch (final IOException e) {
@@ -921,7 +931,7 @@ public class ImhotepRemoteSession
                 .setOutputGroups(regroupParams.getOutputGroups())
                 .build();
         try {
-            final ImhotepResponse response = sendRequestWithMemoryException(request, host, port, socketTimeout);
+            final ImhotepResponse response = sendRequestWithMemoryException(request, socketTimeout);
             final int result = response.getNumGroups();
             return result;
         } catch (final IOException e) {
@@ -943,7 +953,7 @@ public class ImhotepRemoteSession
                 .setOutputGroups(regroupParams.getOutputGroups())
                 .build();
         try {
-            final ImhotepResponse response = sendRequestWithMemoryException(request, host, port, socketTimeout);
+            final ImhotepResponse response = sendRequestWithMemoryException(request, socketTimeout);
             final int result = response.getNumGroups();
             return result;
         } catch (final IOException e) {
@@ -961,7 +971,7 @@ public class ImhotepRemoteSession
                 .build();
 
         try {
-            final ImhotepResponse response = sendRequest(request, host, port, socketTimeout);
+            final ImhotepResponse response = sendRequest(request, socketTimeout);
             final List<TermCount> result =
                 ImhotepClientMarshaller.marshal(response.getTopTermsList());
             return result;
@@ -980,7 +990,7 @@ public class ImhotepRemoteSession
                 .build();
 
         try {
-            sendRequestWithMemoryException(request, host, port, socketTimeout);
+            sendRequestWithMemoryException(request, socketTimeout);
         } catch (final IOException e) {
             throw newRuntimeException(e);
         }
@@ -994,7 +1004,7 @@ public class ImhotepRemoteSession
                 .build();
 
         try {
-            sendRequest(request, host, port, socketTimeout);
+            sendRequest(request, socketTimeout);
         } catch (final IOException e) {
             throw newRuntimeException(e);
         }
@@ -1008,7 +1018,7 @@ public class ImhotepRemoteSession
                 .build();
 
         try {
-            final ImhotepResponse response = sendRequestWithMemoryException(request, host, port, socketTimeout);
+            final ImhotepResponse response = sendRequestWithMemoryException(request, socketTimeout);
             numStats = response.getNumStats();
             return numStats;
         } catch (final IOException e) {
@@ -1032,7 +1042,7 @@ public class ImhotepRemoteSession
                 .build();
 
         try {
-            final ImhotepResponse response = sendRequest(request, host, port, socketTimeout);
+            final ImhotepResponse response = sendRequest(request, socketTimeout);
             numStats = response.getNumStats();
             return numStats;
         } catch (final IOException e) {
@@ -1053,7 +1063,7 @@ public class ImhotepRemoteSession
                 .setInputGroups(groupsName)
                 .build();
         try {
-            final ImhotepResponse response = sendRequest(request, host, port, socketTimeout);
+            final ImhotepResponse response = sendRequest(request, socketTimeout);
             final int result = response.getNumGroups();
             return result;
         } catch (final IOException e) {
@@ -1081,7 +1091,7 @@ public class ImhotepRemoteSession
 
         PerformanceStats stats = null;
         try {
-            final ImhotepResponse response = sendRequest(request, host, port, socketTimeout);
+            final ImhotepResponse response = sendRequest(request, socketTimeout);
             if(response.hasPerformanceStats()) {
                 stats = ImhotepClientMarshaller.marshal(response.getPerformanceStats());
             }
@@ -1101,7 +1111,7 @@ public class ImhotepRemoteSession
                 .build();
 
         try {
-            sendRequest(request, host, port, socketTimeout);
+            sendRequest(request, socketTimeout);
         } catch (final IOException e) {
             throw newRuntimeException(e);
         }
@@ -1120,7 +1130,7 @@ public class ImhotepRemoteSession
                 .build();
 
         try {
-            final ImhotepResponse response = sendRequest(request, host, port, socketTimeout);
+            final ImhotepResponse response = sendRequest(request, socketTimeout);
             final PerformanceStats stats = ImhotepClientMarshaller.marshal(response.getPerformanceStats());
             return stats;
         } catch (final IOException e) {
@@ -1150,28 +1160,28 @@ public class ImhotepRemoteSession
         return ImhotepRequest.newBuilder().setRequestType(requestType);
     }
 
-    private static ImhotepResponse sendRequest(final ImhotepRequestSender request, final String host, final int port) throws IOException {
-        return sendRequest(request, host, port, -1);
+    private ImhotepResponse sendRequest(final ImhotepRequestSender request) throws IOException {
+        return sendRequest(request, -1);
     }
 
-    private static ImhotepResponse sendRequest(final ImhotepRequestSender request, final String host, final int port, final int socketTimeout) throws IOException {
+    private ImhotepResponse sendRequest(final ImhotepRequestSender request, final int socketTimeout) throws IOException {
         final Socket socket = newSocket(host, port, socketTimeout);
         final InputStream is = Streams.newBufferedInputStream(socket.getInputStream());
         final OutputStream os = Streams.newBufferedOutputStream(socket.getOutputStream());
         try {
-            return sendRequest(request, is, os, host, port);
+            return sendRequest(request, is, os);
         } finally {
             closeSocket(socket);
         }
     }
 
-    private static ImhotepResponse sendRequest(final ImhotepRequest request, final String host, final int port, final int socketTimeout) throws IOException {
+    private ImhotepResponse sendRequest(final ImhotepRequest request, final int socketTimeout) throws IOException {
         final Socket socket = newSocket(host, port, socketTimeout);
         final InputStream is = Streams.newBufferedInputStream(socket.getInputStream());
         final OutputStream os = Streams.newBufferedOutputStream(socket.getOutputStream());
         final ImhotepRequestSender requestSender = createSender(request);
         try {
-            return sendRequest(requestSender, is, os, host, port);
+            return sendRequest(requestSender, is, os);
         } finally {
             closeSocket(socket);
         }
@@ -1192,7 +1202,7 @@ public class ImhotepRemoteSession
         final Socket socket = newSocket(host, port, socketTimeout);
         final InputStream is = Streams.newBufferedInputStream(socket.getInputStream());
         final OutputStream os = Streams.newBufferedOutputStream(socket.getOutputStream());
-        final Tracer tracer = GlobalTracer.get();
+        final Tracer tracer = TracingUtil.tracerIfInActiveSpan();
         final String sessionId = initialRequest.getSessionId();
         try (final ActiveSpan activeSpan = tracer.buildSpan(initialRequest.getRequestType().name()).withTag("sessionid", sessionId).withTag("host", host + ":" + port).startActive()) {
             ImhotepProtobufShipping.sendProtobufNoFlush(initialRequest, os);
@@ -1208,12 +1218,10 @@ public class ImhotepRemoteSession
         }
     }
 
-    private static ImhotepResponse sendRequestWithMemoryException(
+    private ImhotepResponse sendRequestWithMemoryException(
             final ImhotepRequestSender request,
-            final String host,
-            final int port,
             final int socketTimeout) throws IOException, ImhotepOutOfMemoryException {
-        final ImhotepResponse response = sendRequest(request, host, port, socketTimeout);
+        final ImhotepResponse response = sendRequest(request, socketTimeout);
         if (response.getResponseCode() == ImhotepResponse.ResponseCode.OUT_OF_MEMORY) {
             throw new ImhotepOutOfMemoryException();
         } else {
@@ -1229,25 +1237,34 @@ public class ImhotepRemoteSession
         }
     }
 
-    private static ImhotepResponse sendRequestWithMemoryException(
+    private ImhotepResponse sendRequestWithMemoryException(
             final ImhotepRequest request,
-            final String host,
-            final int port,
             final int socketTimeout) throws IOException, ImhotepOutOfMemoryException {
-        final ImhotepResponse response = sendRequest(request, host, port, socketTimeout);
+        final ImhotepResponse response = sendRequest(request, socketTimeout);
         return checkMemoryException(request.getSessionId(), response);
     }
 
-    private static ImhotepResponse sendRequest(
+    private ImhotepResponse sendRequest(
             final ImhotepRequestSender request,
             final InputStream is,
-            final OutputStream os,
-            final String host,
-            final int port) throws IOException {
-        final Tracer tracer = GlobalTracer.get();
+            final OutputStream os) throws IOException {
+        final Tracer tracer = TracingUtil.tracerIfEnabled(includeTracingInformation);
         final String sessionId = request.getSessionId();
         try (final ActiveSpan activeSpan = tracer.buildSpan(request.getRequestType().name()).withTag("sessionid", sessionId).withTag("host", host + ":" + port).startActive()) {
-            request.writeToStreamNoFlush(os);
+            final TracingMap.Builder tracingBuilder = TracingMap.newBuilder();
+            tracer.inject(activeSpan.context(), Format.Builtin.TEXT_MAP, new TextMap() {
+                @Override
+                public Iterator<Map.Entry<String, String>> iterator() {
+                    throw new UnsupportedOperationException("write-only adapter");
+                }
+
+                @Override
+                public void put(final String key, final String value) {
+                    tracingBuilder.addKeyValues(TracingMap.KeyValueString.newBuilder().setKey(key).setValue(value).build());
+                }
+            });
+            final byte[] tracingBytes = TracingMapOnly.newBuilder().setTracingInfo(tracingBuilder).build().toByteArray();
+            request.writeToStreamNoFlush(os, tracingBytes);
             os.flush();
             final ImhotepResponse response = ImhotepProtobufShipping.readResponse(is);
             if (response.getResponseCode() == ImhotepResponse.ResponseCode.KNOWN_ERROR) {
@@ -1338,12 +1355,15 @@ public class ImhotepRemoteSession
         final Socket socket = newSocket(host, port, socketTimeout);
         final OutputStream os = Streams.newBufferedOutputStream(socket.getOutputStream());
         final InputStream is = Streams.newBufferedInputStream(socket.getInputStream());
-        final Tracer tracer = GlobalTracer.get();
+        final Tracer tracer = TracingUtil.tracerIfEnabled(includeTracingInformation);
 
         try (final ActiveSpan activeSpan = tracer.buildSpan(imhotepRequestSender.getRequestType().name()).withTag("sessionid", getSessionId()).withTag("host", host + ":" + port).startActive()) {
             final List<String> commandClassNameList = Stream.concat(firstCommands.stream(), Stream.of(lastCommand)).map(BatchRemoteImhotepMultiSession::getCommandClassName).collect(Collectors.toList());
             activeSpan.log(Collections.singletonMap("commandNames", commandClassNameList));
-            imhotepRequestSender.writeToStreamNoFlush(os);
+            final ProtoTracingInjector protoTracingInjector = new ProtoTracingInjector();
+            tracer.inject(activeSpan.context(), Format.Builtin.TEXT_MAP, protoTracingInjector);
+            final byte[] tracingBytes = TracingMapOnly.newBuilder().setTracingInfo(protoTracingInjector.extract()).build().toByteArray();
+            imhotepRequestSender.writeToStreamNoFlush(os, tracingBytes);
             os.flush();
 
             for (final ImhotepCommand command : firstCommands) {
@@ -1360,4 +1380,5 @@ public class ImhotepRemoteSession
             closeSocket(socket);
         }
     }
+
 }

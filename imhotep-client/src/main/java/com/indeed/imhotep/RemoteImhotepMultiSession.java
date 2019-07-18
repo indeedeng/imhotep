@@ -70,6 +70,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
     private final InetSocketAddress[] nodes;
 
     private final long localTempFileSizeLimit;
+    final boolean traceImhotepRequests;
 
     public RemoteImhotepMultiSession(final ImhotepRemoteSession[] sessions,
                                      final String sessionId,
@@ -78,11 +79,13 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
                                      final AtomicLong tempFileSizeBytesLeft,
                                      final String userName,
                                      final String clientName,
-                                     final byte priority) {
+                                     final byte priority,
+                                     final boolean traceImhotepRequests) {
         super(sessionId, sessions, tempFileSizeBytesLeft, userName, clientName, priority);
 
         this.nodes = nodes;
         this.localTempFileSizeLimit = localTempFileSizeLimit;
+        this.traceImhotepRequests = traceImhotepRequests;
     }
 
     @Override
@@ -341,6 +344,8 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
             final AtomicLong tempFileSizeBytesLeft = getTempFileSizeBytesLeft(sessionsWithFields);
             final String concatenatedSessionIds = getConcatenatedSessionIds(sessionsWithFields);
 
+            final boolean traceImhotepRequests = remoteSessions.stream().anyMatch(x -> x.traceImhotepRequests);
+
             // Arbitrarily use the executor for the first session.
             // Still allows a human to understand and avoids making global state executors
             // or passing in an executor.
@@ -352,7 +357,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
                 final HostAndPort hostAndPort = pair.getSecond();
                 // Definitely don't close this session
                 //noinspection resource,IOResourceOpenedButNotSafelyClosed
-                final ImhotepRemoteSession remoteSession = new ImhotepRemoteSession(hostAndPort.getHost(), hostAndPort.getPort(), concatenatedSessionIds, tempFileSizeBytesLeft, ImhotepRemoteSession.DEFAULT_SOCKET_TIMEOUT);
+                final ImhotepRemoteSession remoteSession = new ImhotepRemoteSession(hostAndPort.getHost(), hostAndPort.getPort(), concatenatedSessionIds, tempFileSizeBytesLeft, ImhotepRemoteSession.DEFAULT_SOCKET_TIMEOUT, 0, traceImhotepRequests);
                 final MultiFTGSRequest proto = MultiFTGSRequest.newBuilder(baseRequest).setSplitIndex(index).build();
                 return remoteSession.aggregateDistinct(proto);
             });
@@ -412,6 +417,8 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
             final AtomicLong tempFileSizeBytesLeft = getTempFileSizeBytesLeft(sessionsWithFields);
             final String concatenatedSessionIds = getConcatenatedSessionIds(sessionsWithFields);
 
+            final boolean traceImhotepRequests = remoteSessions.stream().anyMatch(x -> x.traceImhotepRequests);
+
             // Arbitrarily use the executor for the first session.
             // Still allows a human to understand and avoids making global state executors
             // or passing in an executor.
@@ -423,7 +430,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
                 final HostAndPort hostAndPort = pair.getSecond();
                 // Definitely don't close this session
                 //noinspection resource
-                final ImhotepRemoteSession remoteSession = new ImhotepRemoteSession(hostAndPort.getHost(), hostAndPort.getPort(), concatenatedSessionIds, tempFileSizeBytesLeft, ImhotepRemoteSession.DEFAULT_SOCKET_TIMEOUT);
+                final ImhotepRemoteSession remoteSession = new ImhotepRemoteSession(hostAndPort.getHost(), hostAndPort.getPort(), concatenatedSessionIds, tempFileSizeBytesLeft, ImhotepRemoteSession.DEFAULT_SOCKET_TIMEOUT, 0, traceImhotepRequests);
                 final MultiFTGSRequest proto = MultiFTGSRequest.newBuilder(baseRequest).setSplitIndex(index).build();
                 return remoteSession.multiFTGS(proto);
             });

@@ -100,14 +100,14 @@ public class OpenSessions extends VoidAbstractImhotepCommand {
         throw new IllegalStateException("Should not call apply() on OpenSessions");
     }
 
-    public RemoteImhotepMultiSession makeSession() {
+    public RemoteImhotepMultiSession makeSession(final boolean traceImhotepRequests) {
         final ImhotepRemoteSession[] remoteSessions = new ImhotepRemoteSession[hostToShards.size()];
         final InetSocketAddress[] nodes = new InetSocketAddress[hostToShards.size()];
         int index = 0;
         for (final Map.Entry<Host, List<Shard>> entry : hostToShards.entrySet()) {
             final Host host = entry.getKey();
             final int numDocs = entry.getValue().stream().mapToInt(Shard::getNumDocs).sum();
-            remoteSessions[index] = new ImhotepRemoteSession(host.hostname, host.port, sessionId, localTempFileSizeBytesLeft, socketTimeout, numDocs);
+            remoteSessions[index] = new ImhotepRemoteSession(host.hostname, host.port, sessionId, localTempFileSizeBytesLeft, socketTimeout, numDocs, traceImhotepRequests);
             nodes[index] = new InetSocketAddress(host.hostname, host.port);
             index += 1;
         }
@@ -119,7 +119,8 @@ public class OpenSessions extends VoidAbstractImhotepCommand {
                 localTempFileSizeBytesLeft,
                 openSessionData.getUsername(),
                 openSessionData.getClientName(),
-                openSessionData.getPriority()
+                openSessionData.getPriority(),
+                traceImhotepRequests
         );
     }
 }

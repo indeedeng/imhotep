@@ -56,8 +56,15 @@ import com.indeed.imhotep.protobuf.QueryRemapMessage;
 import com.indeed.imhotep.protobuf.ShardBasicInfoMessage;
 import com.indeed.imhotep.protobuf.StringFieldAndTerms;
 import com.indeed.imhotep.scheduling.ImhotepTask;
+import com.indeed.imhotep.tracing.ProtoTracingExtractor;
 import com.indeed.util.core.Pair;
 import com.indeed.util.core.io.Closeables2;
+import io.opentracing.ActiveSpan;
+import io.opentracing.NoopTracerFactory;
+import io.opentracing.SpanContext;
+import io.opentracing.Tracer;
+import io.opentracing.propagation.Format;
+import io.opentracing.util.GlobalTracer;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import org.apache.log4j.Logger;
@@ -1105,6 +1112,9 @@ public class ImhotepDaemon implements Instrumentation.Provider {
          * @return true if it's closed, otherwise false
          */
         private boolean internalRun() {
+            // Use real GlobalTracer, as this is the start point
+            final Tracer tracer = GlobalTracer.get();
+
             ImhotepRequest request = null;
             boolean closeSocket = true;
             try {
@@ -1135,22 +1145,32 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                         return true;
                     }
 
-                    requestContext = new RequestContext(request);
-                    RequestContext.THREAD_REQUEST_CONTEXT.set(requestContext);
-
-                    if (request.hasSessionId()) {
-                        NDC.push(request.getSessionId());
+                    final SpanContext parentContext = tracer.extract(Format.Builtin.TEXT_MAP, new ProtoTracingExtractor(request));
+                    final Tracer.SpanBuilder spanBuilder;
+                    if (parentContext != null) {
+                        spanBuilder = tracer.buildSpan(request.getRequestType().toString()).asChildOf(parentContext);
+                    } else {
+                        spanBuilder = NoopTracerFactory.create().buildSpan("");
                     }
 
-                    log.debug("received request of type " + request.getRequestType() +
-                             ", building response");
-                    final ImhotepRequestHandleResult requestResult = handleImhotepRequest(request, is, os);
+                    try (final ActiveSpan activeSpan = spanBuilder.startActive()) {
+                        requestContext = new RequestContext(request);
+                        RequestContext.THREAD_REQUEST_CONTEXT.set(requestContext);
 
-                    response = requestResult.imhotepResponse;
-                    groupStats = requestResult.groupStatsIterator;
-                    closeSocket = requestResult.closeSocket;
-                    if (response != null) {
-                        sendResponseAndGroupStats(response, groupStats, os);
+                        if (request.hasSessionId()) {
+                            NDC.push(request.getSessionId());
+                        }
+
+                        log.debug("received request of type " + request.getRequestType() +
+                                ", building response");
+                        final ImhotepRequestHandleResult requestResult = handleImhotepRequest(request, is, os);
+
+                        response = requestResult.imhotepResponse;
+                        groupStats = requestResult.groupStatsIterator;
+                        closeSocket = requestResult.closeSocket;
+                        if (response != null) {
+                            sendResponseAndGroupStats(response, groupStats, os);
+                        }
                     }
                 } catch (final ImhotepOutOfMemoryException e) {
                     expireSession(request, e);
