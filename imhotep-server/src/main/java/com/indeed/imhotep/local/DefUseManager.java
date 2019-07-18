@@ -35,26 +35,20 @@ public class DefUseManager {
         return dependentFutures;
     }
 
-    public void addDefaultDefinitionsIfAbsent(final List<String> namedGroups) {
-        for (final String namedGroup: namedGroups) {
-            defUseListMap.putIfAbsent(namedGroup, getDefaultDefUseListForGroup());
-        }
-    }
-
     private ListenableFuture<Object> getDef(final String groupName) {
         Preconditions.checkArgument(defUseListMap.containsKey(groupName), "No definition/Uses of NamedGroup " + groupName + " exist");
-        return defUseListMap.get(groupName).def;
+        return defUseListMap.getOrDefault(groupName, getDefaultDefUseListForGroup()).def;
     }
 
     private List<ListenableFuture<Object>> getDefAndUses(final String groupName) {
         Preconditions.checkArgument(defUseListMap.containsKey(groupName), "No definition/Uses of NamedGroup " + groupName + " exist");
-        return defUseListMap.get(groupName).getDefAndUse();
+        return defUseListMap.getOrDefault(groupName, getDefaultDefUseListForGroup()).getDefAndUse();
     }
 
     public void addUses(final List<String> groupNames, final ListenableFuture<Object> usingFuture) {
         for (final String groupName : groupNames) {
             Preconditions.checkArgument(defUseListMap.containsKey(groupName), "Group " + groupName + "doesn't exist.");
-            defUseListMap.get(groupName).uses.add(usingFuture);
+            defUseListMap.putIfAbsent(groupName, getDefaultDefUseListForGroup()).uses.add(usingFuture);
         }
     }
 

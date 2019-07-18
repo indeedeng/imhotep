@@ -429,14 +429,14 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
     }
 
     @Override
-    public PerformanceStats getPerformanceStats(final boolean reset) {
+    public PerformanceStats getPerformanceStats() {
         final PerformanceStats[] stats = new PerformanceStats[sessions.length];
-        executor().executeRuntimeException(stats, imhotepSession -> imhotepSession.getPerformanceStats(reset));
-        return combinePerformanceStats(reset, stats);
+        executor().executeRuntimeException(stats, imhotepSession -> imhotepSession.getPerformanceStats());
+        return combinePerformanceStats(stats);
     }
 
     // Combination rules are different for local sessions vs what is done in RemoteImhotepMultiSession for remote sessions
-    protected PerformanceStats combinePerformanceStats(boolean reset, PerformanceStats[] stats) {
+    protected PerformanceStats combinePerformanceStats(PerformanceStats[] stats) {
         if(stats == null) {
             return null;
         }
@@ -463,11 +463,6 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
         final long tempFileSize = (tempFileSizeBytesLeft == null)? 0 : tempFileSizeBytesLeft.get();
         builder.setFtgsTempFileSize(savedTempFileSizeValue - tempFileSize);
         slotTiming.writeToPerformanceStats(builder);
-        if (reset) {
-           savedTempFileSizeValue = tempFileSize;
-           savedCPUTime = cpuTotalTime;
-           slotTiming.reset();
-        }
 
         return builder.build();
     }
@@ -510,7 +505,7 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
     @Override
     public PerformanceStats closeAndGetPerformanceStats() {
         final PerformanceStats[] perSessionStats = closeWithOptionalPerformanceStats(true);
-        return combinePerformanceStats(false, perSessionStats);
+        return combinePerformanceStats(perSessionStats);
     }
 
     protected void preClose() {

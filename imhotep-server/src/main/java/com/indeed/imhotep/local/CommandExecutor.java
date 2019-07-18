@@ -11,7 +11,6 @@ import com.indeed.imhotep.scheduling.ImhotepTask;
 import com.indeed.imhotep.scheduling.SilentCloseable;
 import com.indeed.imhotep.scheduling.TaskScheduler;
 import org.apache.log4j.Logger;
-import org.springframework.util.concurrent.ListenableFutureTask;
 
 import java.util.List;
 import java.util.concurrent.ExecutionException;
@@ -58,9 +57,6 @@ public class CommandExecutor<T> {
     }
 
     private ListenableFuture<Object> processCommand(final ImhotepCommand imhotepCommand, final DefUseManager defUseManager) {
-        defUseManager.addDefaultDefinitionsIfAbsent(imhotepCommand.getInputGroups());
-        defUseManager.addDefaultDefinitionsIfAbsent(imhotepCommand.getOutputGroups());
-
         final List<ListenableFuture<Object>> upstreamFutures = defUseManager.getUpstreamFutures(imhotepCommand.getInputGroups(), imhotepCommand.getOutputGroups());
         final ListenableFuture<Object> commandFuture = Futures.transform(Futures.allAsList(upstreamFutures), (final List<Object> ignored) -> applyCommand(imhotepCommand), executorService);
 

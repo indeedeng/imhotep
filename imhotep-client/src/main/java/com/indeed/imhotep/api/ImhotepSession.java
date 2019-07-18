@@ -508,15 +508,14 @@ public interface ImhotepSession
 
     /**
      * ImhotepSession is collecting some performance and execution statistics.
-     * @param reset reset all collected stats to zero.
      * @return performance statistics collected since last reset (or since creation of the session)
      */
-    PerformanceStats getPerformanceStats(boolean reset);
+    PerformanceStats getPerformanceStats();
 
     /**
      * Effect is same as calling getPerformanceStats(...) and then close()
      * One method is because we can save one request to a server in case of remote session
-     * @return same as  {@link #getPerformanceStats(boolean)} or null if session is already closed.
+     * @return same as  {@link #getPerformanceStats} or null if session is already closed.
      */
     PerformanceStats closeAndGetPerformanceStats();
 }
