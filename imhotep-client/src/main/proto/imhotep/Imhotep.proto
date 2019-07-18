@@ -291,7 +291,7 @@ message ImhotepRequest {
   repeated QueryMessage deleted___queryMessages = 58;
 
   // for getPerformanceStats
-  optional bool resetPerformanceStats = 59;
+  optional bool deleted__resetPerformanceStats = 59;
 
   // for closeSession
   optional bool returnStatsOnClose = 60;
