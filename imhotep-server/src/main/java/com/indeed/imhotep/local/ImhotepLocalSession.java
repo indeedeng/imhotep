@@ -350,15 +350,13 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             return result;
         }
 
-        try (final SilentCloseable ignored = lockIfNecessaryFTGS(stats, false)) {
-            for (int i = 0; i < stats.size(); i++) {
-                final List<String> stat = stats.get(i);
-                result[i] = new long[docIdToGroup.numGroups];
-                addGroupStats(docIdToGroup, stat, result[i]);
-            }
-
-            return result;
+        for (int i = 0; i < stats.size(); i++) {
+            final List<String> stat = stats.get(i);
+            result[i] = new long[docIdToGroup.numGroups];
+            addGroupStats(docIdToGroup, stat, result[i]);
         }
+
+        return result;
     }
 
     @Override

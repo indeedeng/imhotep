@@ -329,13 +329,6 @@ public class TestCommandParallelExecution implements CommandsTest {
 
     @Override
     @Test
-    public void testRandomMultiRegroup() throws Exception {
-        assertEqualGroupStatsVoid(indices -> imhotepSession -> imhotepSession.randomMultiRegroup(indices.namedGroup, indices.intField, true, "salt", 1, new double[]{0.4, 0.8}, new int[]{0, 1, 0}), true);
-        assertEqualGroupStatsVoid(indices -> imhotepSession -> imhotepSession.randomMultiRegroup(indices.namedGroup, indices.intField, true, "salt", 1, new double[]{0.4, 0.8}, new int[]{1, 2, 3}), false);
-    }
-
-    @Override
-    @Test
     public void testRandomRegroup() throws Exception {
         assertEqualGroupStatsVoid(indices -> imhotepSession -> imhotepSession.randomRegroup(indices.namedGroup, indices.intField, true, "salt123", 0.60, 1, 0, 1), true);
         assertEqualGroupStatsVoid(indices -> imhotepSession -> imhotepSession.randomRegroup(indices.namedGroup, indices.intField, true, "salt123", 0.60, 1, 3, 4), false);

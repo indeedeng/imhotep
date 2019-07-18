@@ -36,19 +36,17 @@ public class DefUseManager {
     }
 
     private ListenableFuture<Object> getDef(final String groupName) {
-        Preconditions.checkArgument(defUseListMap.containsKey(groupName), "No definition/Uses of NamedGroup " + groupName + " exist");
         return defUseListMap.getOrDefault(groupName, getDefaultDefUseListForGroup()).def;
     }
 
     private List<ListenableFuture<Object>> getDefAndUses(final String groupName) {
-        Preconditions.checkArgument(defUseListMap.containsKey(groupName), "No definition/Uses of NamedGroup " + groupName + " exist");
         return defUseListMap.getOrDefault(groupName, getDefaultDefUseListForGroup()).getDefAndUse();
     }
 
     public void addUses(final List<String> groupNames, final ListenableFuture<Object> usingFuture) {
         for (final String groupName : groupNames) {
-            Preconditions.checkArgument(defUseListMap.containsKey(groupName), "Group " + groupName + "doesn't exist.");
-            defUseListMap.putIfAbsent(groupName, getDefaultDefUseListForGroup()).uses.add(usingFuture);
+            defUseListMap.putIfAbsent(groupName, getDefaultDefUseListForGroup());
+            defUseListMap.get(groupName).uses.add(usingFuture);
         }
     }
 
