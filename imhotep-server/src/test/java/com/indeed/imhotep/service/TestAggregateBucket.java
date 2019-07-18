@@ -160,6 +160,41 @@ public class TestAggregateBucket {
                     expectEnd(iterator);
                 }
             }
+            try (
+                    final ImhotepSession session1 = client.sessionBuilder(DATASET1, TODAY.minusDays(2), TODAY).build();
+                    final ImhotepSession session2 = client.sessionBuilder(DATASET2, TODAY.minusDays(2), TODAY).build()
+            ) {
+                session1.regroup(new int[]{1}, new int[]{0}, true);
+                session2.regroup(new int[]{1}, new int[]{2}, true);
+
+                final List<List<String>> stats = new ArrayList<>();
+                stats.add(singletonList("mod3"));
+                stats.add(singletonList("count()"));
+                final AggregateStatTree mod3sum = stat(session1, 0).plus(stat(session2, 0));
+                final AggregateStatTree totalCount = stat(session1, 1).plus(stat(session2, 1));
+                try (final FTGAIterator iterator = aggregateBucketRegroup(
+                        asList(
+                                new RemoteImhotepMultiSession.PerSessionFTGSInfo(session1, "mod3str", stats),
+                                new RemoteImhotepMultiSession.PerSessionFTGSInfo(session2, "mod3str", stats)
+                        ),
+                        mod3sum.divide(totalCount),
+                        false,
+                        1,
+                        2,
+                        1,
+                        false,
+                        true
+                )) {
+                    expectFirstStrField(iterator, "magic");
+                    expectStrTerm(iterator, "0", 4);
+                    expectGroup(iterator, 4, new double[]{0});
+                    expectStrTerm(iterator, "1", 3);
+                    expectGroup(iterator, 3, new double[]{1});
+                    expectStrTerm(iterator, "2", 3);
+                    expectGroup(iterator, 4, new double[]{2});
+                    expectEnd(iterator);
+                }
+            }
         }
     }
 
