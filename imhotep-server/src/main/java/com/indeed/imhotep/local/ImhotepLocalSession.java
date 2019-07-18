@@ -96,7 +96,6 @@ import com.indeed.imhotep.metrics.Subtraction;
 import com.indeed.imhotep.pool.BuffersPool;
 import com.indeed.imhotep.protobuf.Operator;
 import com.indeed.imhotep.protobuf.QueryMessage;
-import com.indeed.imhotep.scheduling.SilentCloseable;
 import com.indeed.imhotep.scheduling.TaskScheduler;
 import com.indeed.imhotep.service.InstrumentedFlamdexReader;
 import com.indeed.util.core.Throwables2;
@@ -125,7 +124,6 @@ import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -165,7 +163,6 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     protected final NamedGroupManager namedGroupLookups;
 
     protected final MetricStack metricStack = new MetricStack();
-    private final ReentrantReadWriteLock metricStackLock = new ReentrantReadWriteLock(); // for reading or writing to the global MetricStack
 
     private final AtomicBoolean closed = new AtomicBoolean(false);
 
