@@ -152,6 +152,7 @@ public class ImhotepRemoteSession
         final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.GET_STATUS_DUMP)
                 .build();
 
+        // deliberately don't close this session -- there is no corresponding remote session to close.
         final ImhotepRemoteSession session = new ImhotepRemoteSession(host, port, "", null);
 
         final ImhotepResponse response = session.sendRequest(createSender(request));
