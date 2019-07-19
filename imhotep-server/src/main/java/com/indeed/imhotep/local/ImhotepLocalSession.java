@@ -2815,13 +2815,17 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     private <T> T applyCommandWithTiming(final ImhotepCommand<T> command) throws ImhotepOutOfMemoryException {
         final Tracer tracer = TracingUtil.tracerIfInActiveSpan();
         try (final ActiveSpan activeSpan = tracer.buildSpan(command.getClass().getSimpleName()).startActive()) {
-            final OptionalLong startExecution = ImhotepTask.THREAD_LOCAL_TASK.get().getCurrentExecutionTime();
+            final ImhotepTask task = ImhotepTask.THREAD_LOCAL_TASK.get();
+            final long startExecution = task.getTotalExecutionTime();
+            final long startWait = task.getTotalWaitTime();
+
             final T result = command.apply(this);
-            if (startExecution.isPresent()) {
-                final long startLong = startExecution.getAsLong();
-                final long endLong = ImhotepTask.THREAD_LOCAL_TASK.get().getCurrentExecutionTime().orElse(startLong);
-                activeSpan.setTag("cpuExecTimeNanos", endLong - startLong);
-            }
+
+            final long endExecution = task.getTotalExecutionTime();
+            final long endWait = task.getTotalWaitTime();
+            activeSpan.setTag("cpuExecTimeNanos", endExecution - startExecution);
+            activeSpan.setTag("cpuWaitTimeNanos", endWait - startWait);
+            
             return result;
         }
     }

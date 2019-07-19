@@ -58,6 +58,7 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
     private volatile long lastExecutionStartTime = 0;
     private volatile long lastWaitStartTime = 0;
     private volatile long totalExecutionTime = 0;
+    private volatile long totalWaitTime = 0;
     private TaskScheduler ownerScheduler = null;
     private final Object executionTimeStatsLock = new Object(); // Lock for changing lastExecutionStartTime, totalExecutionTime, and nextYieldTime atomically
 
@@ -155,6 +156,7 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
         }
         final long nanoTime = System.nanoTime();
         final long waitTime = nanoTime - lastWaitStartTime;
+        totalWaitTime += waitTime;
         if (schedulerWaitTimeCallback != null) {
             schedulerWaitTimeCallback.call(schedulerType, waitTime);
         }
@@ -260,6 +262,10 @@ public class ImhotepTask implements Comparable<ImhotepTask> {
 
     public long getTotalExecutionTime() {
         return totalExecutionTime;
+    }
+
+    public long getTotalWaitTime() {
+        return totalWaitTime;
     }
 
     public long getNextYieldTime() {
