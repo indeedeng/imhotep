@@ -57,6 +57,7 @@ import com.indeed.imhotep.protobuf.ShardBasicInfoMessage;
 import com.indeed.imhotep.protobuf.StringFieldAndTerms;
 import com.indeed.imhotep.scheduling.ImhotepTask;
 import com.indeed.imhotep.tracing.ProtoTracingExtractor;
+import com.indeed.imhotep.tracing.TracingUtil;
 import com.indeed.util.core.Pair;
 import com.indeed.util.core.io.Closeables2;
 import io.opentracing.ActiveSpan;
@@ -1114,6 +1115,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
         private boolean internalRun() {
             // Use real GlobalTracer, as this is the start point
             final Tracer tracer = GlobalTracer.get();
+            TracingUtil.closeActiveSpans();
 
             ImhotepRequest request = null;
             boolean closeSocket = true;

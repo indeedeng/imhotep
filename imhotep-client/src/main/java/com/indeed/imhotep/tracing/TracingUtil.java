@@ -25,4 +25,16 @@ public class TracingUtil {
     public static boolean isTracingActive() {
         return GlobalTracer.get().activeSpan() != null;
     }
+
+    public static void closeActiveSpans() {
+        final Tracer tracer = GlobalTracer.get();
+        while (true) {
+            final ActiveSpan activeSpan = tracer.activeSpan();
+            if (activeSpan == null) {
+                return;
+            } else {
+                activeSpan.close();
+            }
+        }
+    }
 }
