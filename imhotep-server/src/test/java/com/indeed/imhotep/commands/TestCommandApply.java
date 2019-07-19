@@ -160,14 +160,6 @@ public class TestCommandApply implements CommandsTest {
 
     @Override
     @Test
-    public void testRandomMultiRegroup() throws ImhotepOutOfMemoryException {
-        testApplyMethodCallVoid(new RandomMultiRegroup(RegroupParams.DEFAULT, "field", true, RANDOM_SALT, 1, new double[]{0.4, 0.8}, new int[]{3, 4, 6}, SESSION_ID), imhotepSession -> {
-            imhotepSession.randomMultiRegroup(EasyMock.eq(RegroupParams.DEFAULT), EasyMock.eq("field"), EasyMock.eq(true), EasyMock.eq(RANDOM_SALT), EasyMock.eq(1), EasyMock.aryEq(new double[]{0.4, 0.8}), EasyMock.aryEq(new int[]{3, 4, 6}));
-        });
-    }
-
-    @Override
-    @Test
     public void testRandomRegroup() throws ImhotepOutOfMemoryException {
         testApplyMethodCallVoid(new RandomRegroup(RegroupParams.DEFAULT, "field", true, RANDOM_SALT, 0.2, 1, 2, 3, SESSION_ID), imhotepSession -> {
             imhotepSession.randomRegroup(RegroupParams.DEFAULT, "field", true, RANDOM_SALT, 0.2, 1, 2, 3);
@@ -231,6 +223,14 @@ public class TestCommandApply implements CommandsTest {
         final List<String> groupsToDelete = Collections.singletonList("someGroups");
         testApplyMethodCallVoid(new DeleteGroups(groupsToDelete, SESSION_ID), session -> {
             session.deleteGroups(groupsToDelete);
+        });
+    }
+
+    @Override
+    @Test
+    public void testGetNumGroups() throws Exception {
+        testApplyMethodCallInt(new GetNumGroups(ImhotepSession.DEFAULT_GROUPS, SESSION_ID), imhotepSession -> {
+            return imhotepSession.getNumGroups(EasyMock.eq(ImhotepSession.DEFAULT_GROUPS));
         });
     }
 }

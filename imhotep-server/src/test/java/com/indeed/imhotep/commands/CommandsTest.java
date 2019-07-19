@@ -21,9 +21,7 @@ interface CommandsTest {
 
      void testRandomMetricRegroup() throws Exception; 
 
-     void testRandomMultiRegroup() throws Exception; 
-
-     void testRandomRegroup() throws Exception; 
+     void testRandomRegroup() throws Exception;
 
      void testRegexRegroup() throws Exception; 
 
@@ -38,5 +36,7 @@ interface CommandsTest {
      void testResetGroups() throws Exception;
 
      void testDeleteGroups() throws Exception;
+
+     void testGetNumGroups() throws Exception;
 
 }

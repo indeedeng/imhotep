@@ -13,13 +13,10 @@
  */
  package com.indeed.imhotep.api;
 
-import com.indeed.flamdex.query.Query;
 import com.indeed.imhotep.GroupMultiRemapRule;
 import com.indeed.imhotep.Instrumentation;
 import com.indeed.imhotep.QueryRemapRule;
-import com.indeed.imhotep.RegroupCondition;
 import com.indeed.imhotep.TermCount;
-import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
 import com.indeed.imhotep.protobuf.ImhotepRequest;
 import com.indeed.imhotep.protobuf.Operator;
 import com.indeed.imhotep.protobuf.StatsSortOrder;
@@ -226,17 +223,6 @@ public interface ImhotepSession
     }
     int regroup(RegroupParams regroupParams, GroupMultiRemapRule[] rawRules, boolean errorOnCollisions) throws ImhotepOutOfMemoryException;
 
-    /**
-     * Performs a regroup same as the GroupMultiRemapRule[] overload but takes protobuf objects
-     * to avoid serialization costs.
-     */
-    default int regroupWithProtos(final GroupMultiRemapMessage[] rawRuleMessages, final boolean errorOnCollisions) throws ImhotepOutOfMemoryException {
-        return regroupWithProtos(RegroupParams.DEFAULT, rawRuleMessages, errorOnCollisions);
-    }
-    int regroupWithProtos(RegroupParams regroupParams,
-                          GroupMultiRemapMessage[] rawRuleMessages,
-                          boolean errorOnCollisions) throws ImhotepOutOfMemoryException;
-
     default int regroup(final int numRawRules, final Iterator<GroupMultiRemapRule> rawRules, final boolean errorOnCollisions) throws ImhotepOutOfMemoryException {
         return regroup(RegroupParams.DEFAULT, numRawRules, rawRules, errorOnCollisions);
     }
@@ -325,31 +311,6 @@ public interface ImhotepSession
     }
     void randomRegroup(RegroupParams regroupParams, String field, boolean isIntField, String salt, double p, int targetGroup, int negativeGroup, int positiveGroup) throws ImhotepOutOfMemoryException;
 
-    /**
-     * Performs a random regroup, except instead of a binary decision, partitions into groups based on a percentage map.
-     *
-     * The percentage map is an array of split points for the result groups. Each document whose random value is less
-     * than or equal to percentages[i] will be mapped to groups[i], and all remaining documents will be mapped to
-     * groups[groups.length - 1]. Therefore, it is required that the percentage map be (1) in ascending order between
-     * 0.0 and 1.0, and (2) one element shorter than resultGroups.
-     *
-     * For example, if percentages = [0.40, 0.80] and resultGroups = [3, 4, 6], then 40% of documents currently in the
-     * target group will be placed in group 3, 40% will be placed in group 4, and 20% will be placed in group 6.
-     *
-     * All other behavior is the same as randomRegroup(). As always, the grouping is only as random as the salt.
-     *
-     * @param field Field to split randomly over
-     * @param isIntField true if 'field' is an integer field, false if it is a string field
-     * @param salt The salt to use
-     * @param targetGroup The group to apply the random regroup to
-     * @param percentages The group cutoff percentages, works together with resultGroups
-     * @param resultGroups The groups to regroup into, works together with percentages
-     * @throws ImhotepOutOfMemoryException if performing this operation would cause imhotep to go out of memory
-     */
-    default void randomMultiRegroup(final String field, final boolean isIntField, final String salt, final int targetGroup, final double[] percentages, final int[] resultGroups) throws ImhotepOutOfMemoryException {
-        randomMultiRegroup(RegroupParams.DEFAULT, field, isIntField, salt, targetGroup, percentages, resultGroups);
-    }
-    void randomMultiRegroup(RegroupParams regroupParams, String field, boolean isIntField, String salt, int targetGroup, double[] percentages, int[] resultGroups) throws ImhotepOutOfMemoryException;
 
     /**
      * Same as <code>randomRegroup</code> but regrouping is based on metric value
@@ -367,7 +328,18 @@ public interface ImhotepSession
     void randomMetricRegroup(RegroupParams regroupParams, List<String> stat, String salt, double p, int targetGroup, int negativeGroup, int positiveGroup) throws ImhotepOutOfMemoryException;
 
     /**
-     * Same as <code>randomMultiRegroup</code> but regrouping is based on metric value
+     * Performs a random regroup, except instead of a binary decision, partitions into groups based on a percentage map.
+     *
+     * The percentage map is an array of split points for the result groups. Each document whose random value is less
+     * than or equal to percentages[i] will be mapped to groups[i], and all remaining documents will be mapped to
+     * groups[groups.length - 1]. Therefore, it is required that the percentage map be (1) in ascending order between
+     * 0.0 and 1.0, and (2) one element shorter than resultGroups.
+     *
+     * For example, if percentages = [0.40, 0.80] and resultGroups = [3, 4, 6], then 40% of documents currently in the
+     * target group will be placed in group 3, 40% will be placed in group 4, and 20% will be placed in group 6.
+     *
+     * All other behavior is the same as randomRegroup(). As always, the grouping is only as random as the salt.
+     *
      * @param stat the metric
      * @param salt The salt to use
      * @param targetGroup The group to apply the random regroup to
@@ -517,45 +489,6 @@ public interface ImhotepSession
         return getNumGroups(ImhotepSession.DEFAULT_GROUPS);
     }
     int getNumGroups(String groupsName);
-
-    /**
-     * create a per-document dynamic metric
-     * @param name the name of the metric to create
-     * @throws ImhotepOutOfMemoryException in case there's not enough memory
-     */
-    void createDynamicMetric(String name) throws ImhotepOutOfMemoryException;
-
-    /**
-     * add a per-group constant to each element of a dynamic metric, using saturating arithmetic
-     * @param name the name of the metric to update
-     * @param deltas an array of constant values to add for each group
-     * @throws ImhotepOutOfMemoryException in case there's not enough memory
-     */
-    default void updateDynamicMetric(final String name, final int[] deltas) throws ImhotepOutOfMemoryException {
-        updateDynamicMetric(DEFAULT_GROUPS, name, deltas);
-    }
-    void updateDynamicMetric(String groupsName, String name, int[] deltas) throws ImhotepOutOfMemoryException;
-
-    /**
-     * Adjusts the given dynamic metric on a per-document basis where the delta for each condition that matches
-     * is summed up and applied.
-     * The group that a document is in is irrelevant.
-     * Does not currently support inequality conditions.
-     * @param name the name of the metric to update
-     * @param conditions conditions to match against
-     * @param deltas deltas to adjust document by if the corresponding condition matches
-     */
-    void conditionalUpdateDynamicMetric(String name, RegroupCondition[] conditions, int[] deltas);
-
-    default void groupConditionalUpdateDynamicMetric(final String name, final int[] groups, final RegroupCondition[] conditions, final int[] deltas) {
-        groupConditionalUpdateDynamicMetric(DEFAULT_GROUPS, name, groups, conditions, deltas);
-    }
-    void groupConditionalUpdateDynamicMetric(String groupsName, String name, int[] groups, RegroupCondition[] conditions, int[] deltas);
-
-    default void groupQueryUpdateDynamicMetric(final String name, final int[] groups, final Query[] conditions, final int[] deltas) throws ImhotepOutOfMemoryException {
-        groupQueryUpdateDynamicMetric(DEFAULT_GROUPS, name, groups, conditions, deltas);
-    }
-    void groupQueryUpdateDynamicMetric(String groupsName, String name, int[] groups, Query[] conditions, int[] deltas) throws ImhotepOutOfMemoryException;
 
     /**
      * close the session and free up any associated resources

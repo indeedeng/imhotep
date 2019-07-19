@@ -144,13 +144,6 @@ public class TestThrowingImhotepOutOfMemoryExceptions {
     }
 
     @Test(expected = ImhotepOutOfMemoryException.class)
-    public void testRandomMultiRegroup() throws ImhotepOutOfMemoryException {
-        try (final ImhotepSession session = client.sessionBuilder(DATASET, START, END).build()) {
-            session.randomMultiRegroup("sf1", false, "", 1, new double[]{0.5}, new int[]{1, 1000000});
-        }
-    }
-
-    @Test(expected = ImhotepOutOfMemoryException.class)
     public void testRandomMetricRegroup() throws ImhotepOutOfMemoryException {
         try (final ImhotepSession session = client.sessionBuilder(DATASET, START, END).build()) {
             session.randomMetricRegroup(STAT, "", 0.5, 1, 1000000, 1000000);

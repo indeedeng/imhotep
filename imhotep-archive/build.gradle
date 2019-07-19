@@ -1,5 +1,7 @@
 dependencies {
+    compile 'org.apache.zookeeper:zookeeper:3.4.5-cdh5.15.1'
     compile ('org.apache.hadoop:hadoop-common:2.6.0-cdh5.15.1') {
+        exclude group:'org.apache.zookeeper', module:'zookeeper'    // we want the above version
         exclude group:'org.apache.hadoop', module:'hadoop-yarn-api'
         exclude group:'org.apache.hadoop', module:'hadoop-mapreduce-client-app'
         exclude group:'org.apache.hadoop', module:'hadoop-mapreduce-client-core'

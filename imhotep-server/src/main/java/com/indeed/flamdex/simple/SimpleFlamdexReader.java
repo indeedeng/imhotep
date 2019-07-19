@@ -13,7 +13,6 @@
  */
 package com.indeed.flamdex.simple;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
@@ -29,7 +28,6 @@ import com.indeed.flamdex.api.IntValueLookup;
 import com.indeed.flamdex.api.StringTermDocIterator;
 import com.indeed.flamdex.fieldcache.FieldCacherUtil;
 import com.indeed.flamdex.fieldcache.NativeFlamdexFieldCacher;
-import com.indeed.flamdex.fieldcache.UnsortedIntTermDocIterator;
 import com.indeed.flamdex.reader.FlamdexMetadata;
 import com.indeed.flamdex.utils.FlamdexUtils;
 import com.indeed.flamdex.utils.ShardMetadataUtils;
@@ -235,11 +233,6 @@ public class SimpleFlamdexReader extends AbstractFlamdexReader {
     }
 
     @Override
-    protected UnsortedIntTermDocIterator createUnsortedIntTermDocIterator(final String field) {
-        return getIntTermDocIterator(field, true);
-    }
-
-    @Override
     public IntTermDocIterator getIntTermDocIterator(final String field) {
         return getIntTermDocIterator(field, false);
     }
@@ -297,11 +290,6 @@ public class SimpleFlamdexReader extends AbstractFlamdexReader {
         try (SimpleIntTermIterator iterator = getUnsortedIntTermIterator(metric)) {
             return cacheField(iterator, metric, fieldCacher);
         }
-    }
-
-    @VisibleForTesting
-    public final IntValueLookup getMetricJava(final String metric) throws FlamdexOutOfMemoryException {
-        return super.getMetric(metric);
     }
 
     private IntValueLookup cacheField(final SimpleIntTermIterator iterator,

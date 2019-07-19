@@ -16,17 +16,8 @@
 import com.google.common.base.Throwables;
 import com.indeed.flamdex.api.FlamdexOutOfMemoryException;
 import com.indeed.flamdex.api.FlamdexReader;
-import com.indeed.flamdex.api.GenericIntTermDocIterator;
-import com.indeed.flamdex.api.GenericStringTermDocIterator;
-import com.indeed.flamdex.api.IntTermDocIterator;
-import com.indeed.flamdex.api.IntValueLookup;
-import com.indeed.flamdex.api.StringTermDocIterator;
 import com.indeed.flamdex.api.StringValueLookup;
-import com.indeed.flamdex.fieldcache.FieldCacher;
 import com.indeed.flamdex.fieldcache.FieldCacherUtil;
-import com.indeed.flamdex.fieldcache.UnsortedIntTermDocIterator;
-import com.indeed.flamdex.fieldcache.UnsortedIntTermDocIteratorImpl;
-import com.indeed.imhotep.RaceCache;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -42,15 +33,14 @@ import java.util.concurrent.ConcurrentMap;
  */
 public abstract class AbstractFlamdexReader implements FlamdexReader {
     protected final Path directory;
-    protected int numDocs;
+    protected final int numDocs;
     protected final boolean useMMapMetrics;
 
     public static final class MinMax {
         public long min;
         public long max;
     }
-    
-    private final RaceCache<String, FieldCacher, RuntimeException> intFieldCachers = RaceCache.create(this::createCacher, ignored -> {});
+
     protected final ConcurrentMap<String, MinMax> metricMinMaxes;
 
     protected AbstractFlamdexReader(final Path directory, final int numDocs, final boolean useMMapMetrics) {
@@ -61,20 +51,7 @@ public abstract class AbstractFlamdexReader implements FlamdexReader {
         this.metricMinMaxes = new ConcurrentHashMap<>();
     }
 
-    // this implementation will be correct for any FlamdexReader, but
-    // subclasses may want to override for efficiency reasons
-    protected UnsortedIntTermDocIterator createUnsortedIntTermDocIterator(final String field) {
-        return UnsortedIntTermDocIteratorImpl.create(this, field);
-    }
-
     @Override
-    public IntValueLookup getMetric(final String metric) throws FlamdexOutOfMemoryException {
-        final FieldCacher fieldCacher = intFieldCachers.getOrLoad(metric);
-        try (UnsortedIntTermDocIterator iterator = createUnsortedIntTermDocIterator(metric)) {
-            return cacheField(iterator, metric, fieldCacher);
-        }
-    }
-
     public StringValueLookup getStringLookup(final String field) throws FlamdexOutOfMemoryException {
         try {
             return FieldCacherUtil.newStringValueLookup(field, this);
@@ -83,56 +60,6 @@ public abstract class AbstractFlamdexReader implements FlamdexReader {
         }
     }
 
-    private IntValueLookup cacheField(final UnsortedIntTermDocIterator iterator,
-                                      final String metric,
-                                      final FieldCacher fieldCacher) {
-        final MinMax minMax = metricMinMaxes.get(metric);
-        if (useMMapMetrics) {
-            try {
-                return fieldCacher.newMMapFieldCache(iterator,
-                                                     numDocs,
-                                                     metric,
-                                                     directory,
-                                                     minMax.min,
-                                                     minMax.max);
-            } catch (final IOException e) {
-                throw new RuntimeException(e);
-            }
-        }
-        return fieldCacher.newFieldCache(iterator, numDocs, minMax.min, minMax.max);
-    }
-
-    @Override
-    public long memoryRequired(final String metric) {
-        if (useMMapMetrics) {
-            return 0;
-        }
-
-        final FieldCacher fieldCacher = intFieldCachers.getOrLoad(metric);
-        return fieldCacher.memoryRequired(numDocs);
-    }
-
-    private FieldCacher createCacher(String metric) {
-        final MinMax minMax = new MinMax();
-        final FieldCacher cacher = FieldCacherUtil.getCacherForField(metric, this, minMax);
-        metricMinMaxes.put(metric, minMax);
-        return cacher;
-    }
-
-    @Override
-    public IntTermDocIterator getIntTermDocIterator(final String field) {
-        return new GenericIntTermDocIterator(getIntTermIterator(field), getDocIdStream());
-    }
-
-    @Override
-    public StringTermDocIterator getStringTermDocIterator(final String field) {
-        return new GenericStringTermDocIterator(getStringTermIterator(field), getDocIdStream());
-    }
-
-    protected void setNumDocs(final int nDocs) {
-        this.numDocs = nDocs;
-    }
-    
     @Override
     public int getNumDocs() {
         return numDocs;

@@ -61,6 +61,6 @@ public class LoggingEventListener implements EventListener {
 
     @Override
     public void expired(final TempFileState tempFileState) {
-        log(tempFileState.getStackTraceElements(), "A temp file object is referenced for a long time without GCed.", tempFileState);
+        log(tempFileState.getStackTraceElements(), "A temp file object has opened i/o stream or not deleted for a long time.", tempFileState);
     }
 }

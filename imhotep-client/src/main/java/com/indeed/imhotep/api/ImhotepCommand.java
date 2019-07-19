@@ -9,13 +9,15 @@ import com.indeed.imhotep.GroupMultiRemapRule;
 import com.indeed.imhotep.commands.ConsolidateGroups;
 import com.indeed.imhotep.commands.DeleteGroups;
 import com.indeed.imhotep.commands.GetGroupStats;
+import com.indeed.imhotep.commands.GetNumGroups;
 import com.indeed.imhotep.commands.IntOrRegroup;
 import com.indeed.imhotep.commands.MetricRegroup;
 import com.indeed.imhotep.commands.MultiRegroup;
+import com.indeed.imhotep.commands.OpenSession;
+import com.indeed.imhotep.commands.OpenSessionData;
 import com.indeed.imhotep.commands.QueryRegroup;
 import com.indeed.imhotep.commands.RandomMetricMultiRegroup;
 import com.indeed.imhotep.commands.RandomMetricRegroup;
-import com.indeed.imhotep.commands.RandomMultiRegroup;
 import com.indeed.imhotep.commands.RandomRegroup;
 import com.indeed.imhotep.commands.RegexRegroup;
 import com.indeed.imhotep.commands.ResetGroups;
@@ -47,7 +49,7 @@ public interface ImhotepCommand<T> extends HasSessionId {
     /**
      * Write Imhotep Request to outputStream.
      */
-    void writeToOutputStream(OutputStream os) throws IOException;
+    void writeToOutputStream(OutputStream os, final CommandSerializationParameters serializationParameters) throws IOException;
 
     /**
      * Read the response on client side.
@@ -127,17 +129,6 @@ public interface ImhotepCommand<T> extends HasSessionId {
                         request.getTargetGroup(),
                         request.getNegativeGroup(),
                         request.getPositiveGroup(),
-                        request.getSessionId()
-                );
-            case RANDOM_MULTI_REGROUP:
-                return new RandomMultiRegroup(
-                        RegroupParams.fromImhotepRequest(request),
-                        request.getField(),
-                        request.getIsIntField(),
-                        request.getSalt(),
-                        request.getTargetGroup(),
-                        Doubles.toArray(request.getPercentagesList()),
-                        Ints.toArray(request.getResultGroupsList()),
                         request.getSessionId()
                 );
             case RANDOM_REGROUP:
@@ -221,6 +212,18 @@ public interface ImhotepCommand<T> extends HasSessionId {
                 return new DeleteGroups(
                         request.getGroupsToDeleteList(),
                         request.getSessionId()
+                );
+            case GET_NUM_GROUPS:
+                return new GetNumGroups(
+                        request.getInputGroups(),
+                        request.getSessionId()
+                );
+            case OPEN_SESSION:
+                return new OpenSession(
+                        request.getSessionId(),
+                        OpenSessionData.readFromImhotepRequest(request),
+                        request.getShardsList(),
+                        request.getClientVersion()
                 );
             default:
                 throw new IllegalArgumentException("unsupported request type in batch request: " +

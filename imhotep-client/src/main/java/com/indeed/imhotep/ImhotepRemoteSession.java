@@ -20,7 +20,6 @@ import com.google.common.io.ByteStreams;
 import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
-import com.indeed.flamdex.query.Query;
 import com.indeed.imhotep.api.CommandSerializationParameters;
 import com.indeed.imhotep.api.FTGAIterator;
 import com.indeed.imhotep.api.FTGSIterator;
@@ -32,7 +31,6 @@ import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.PerformanceStats;
 import com.indeed.imhotep.api.RegroupParams;
 import com.indeed.imhotep.client.Host;
-import com.indeed.imhotep.connection.ImhotepConnection;
 import com.indeed.imhotep.connection.ImhotepConnectionPool;
 import com.indeed.imhotep.connection.ImhotepConnectionPoolWrapper;
 import com.indeed.imhotep.io.BlockInputStream;
@@ -47,16 +45,13 @@ import com.indeed.imhotep.io.WriteLimitExceededException;
 import com.indeed.imhotep.marshal.ImhotepClientMarshaller;
 import com.indeed.imhotep.protobuf.DocStat;
 import com.indeed.imhotep.protobuf.FieldAggregateBucketRegroupRequest;
-import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
 import com.indeed.imhotep.protobuf.HostAndPort;
 import com.indeed.imhotep.protobuf.ImhotepRequest;
 import com.indeed.imhotep.protobuf.ImhotepResponse;
 import com.indeed.imhotep.protobuf.IntFieldAndTerms;
 import com.indeed.imhotep.protobuf.MultiFTGSRequest;
 import com.indeed.imhotep.protobuf.Operator;
-import com.indeed.imhotep.protobuf.QueryMessage;
 import com.indeed.imhotep.protobuf.QueryRemapMessage;
-import com.indeed.imhotep.protobuf.RegroupConditionMessage;
 import com.indeed.imhotep.protobuf.ShardBasicInfoMessage;
 import com.indeed.imhotep.protobuf.StringFieldAndTerms;
 import com.indeed.imhotep.utils.tempfiles.ImhotepTempFiles;
@@ -74,11 +69,9 @@ import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
@@ -112,7 +105,7 @@ public class ImhotepRemoteSession
 
     static final int DEFAULT_SOCKET_TIMEOUT = (int)TimeUnit.MINUTES.toMillis(30);
 
-    private static final int CURRENT_CLIENT_VERSION = 2; // id to be incremented as changes to the client are done
+    public static final int CURRENT_CLIENT_VERSION = 2; // id to be incremented as changes to the client are done
 
     private final String host;
     private final int port;
@@ -124,10 +117,6 @@ public class ImhotepRemoteSession
     private int numStats = 0;
 
     private final long numDocs;
-
-    // cached for use by SubmitRequestEvent
-    private final String sourceAddr;
-    private final String targetAddr;
 
     public ImhotepRemoteSession(final String host, final int port, final String sessionId,
                                 final AtomicLong tempFileSizeBytesLeft) {
@@ -150,25 +139,6 @@ public class ImhotepRemoteSession
         this.socketTimeout = socketTimeout;
         this.tempFileSizeBytesLeft = tempFileSizeBytesLeft;
         this.numDocs = numDocs;
-
-        String tmpAddr;
-        try {
-            tmpAddr = InetAddress.getLocalHost().toString();
-        }
-        catch (final Exception ex) {
-            tmpAddr = "";
-            log.warn("[" + getSessionId() + "] Cannot initialize sourceAddr", ex);
-        }
-        this.sourceAddr = tmpAddr;
-
-        try {
-            tmpAddr = InetAddress.getByName(host).toString();
-        }
-        catch (final Exception ex) {
-            tmpAddr = host;
-            log.warn("[" + getSessionId() + "] Cannot initialize targetAddr", ex);
-        }
-        this.targetAddr = tmpAddr;
     }
 
     public static ImhotepStatusDump getStatusDump(final String host, final int port) throws IOException {
@@ -648,16 +618,21 @@ public class ImhotepRemoteSession
             final ImhotepTempFiles.Type tempFileType,
             final boolean useFtgsPooledConnection) throws IOException, ImhotepOutOfMemoryException {
         if (useFtgsPooledConnection) {
-            return CONNECTION_POOL.withConnectionBinaryException(hostAndPort, new ImhotepConnectionPool.BinaryThrowingFunction<ImhotepConnection, Pair<ImhotepResponse, InputStream>, IOException, ImhotepOutOfMemoryException>() {
-                @Override
-                public Pair<ImhotepResponse, InputStream> apply(final ImhotepConnection connection) throws IOException, ImhotepOutOfMemoryException {
-                    return sendRequestAndSaveResponseWithSocket(request, tempFileType, connection.getSocket(), true);
-                }
-            });
+            return CONNECTION_POOL.withBufferedSocketStream(hostAndPort,
+                    (ImhotepConnectionPool.SocketStreamUser2Throwings<Pair<ImhotepResponse, InputStream>, IOException, ImhotepOutOfMemoryException>)
+                            (is, os) -> {
+                                try {
+                                    return sendRequestAndSaveResponseWithSocket(request, tempFileType, is, os, true);
+                                } finally {
+                                    Closeables2.closeAll(log, is, os);
+                                }
+                            });
         } else {
             Pair<ImhotepResponse, InputStream> result = null;
             try (final Socket socket = newSocket(host, port, socketTimeout)) {
-                result = sendRequestAndSaveResponseWithSocket(request, tempFileType, socket, false);
+                final InputStream is = Streams.newBufferedInputStream(socket.getInputStream());
+                final OutputStream os = Streams.newBufferedOutputStream(socket.getOutputStream());
+                result = sendRequestAndSaveResponseWithSocket(request, tempFileType, is, os, false);
                 return result;
             } catch (final Throwable e) {
                 // In case socket.close() threw an exception
@@ -672,11 +647,9 @@ public class ImhotepRemoteSession
     private Pair<ImhotepResponse, InputStream> sendRequestAndSaveResponseWithSocket(
             final ImhotepRequest request,
             final ImhotepTempFiles.Type tempFileType,
-            final Socket socket,
+            final InputStream is,
+            final OutputStream os,
             final boolean fromPooledConnection) throws IOException, ImhotepOutOfMemoryException {
-        final InputStream is = Streams.newBufferedInputStream(socket.getInputStream());
-        final OutputStream os = Streams.newBufferedOutputStream(socket.getOutputStream());
-
         final ImhotepResponse response = checkMemoryException(getSessionId(), sendRequest(createSender(request), is, os, host, port));
         final BufferedInputStream tempFileStream;
         if (fromPooledConnection) {
@@ -695,15 +668,6 @@ public class ImhotepRemoteSession
                        final boolean errorOnCollisions) throws ImhotepOutOfMemoryException {
         final GroupMultiRemapRuleSender ruleSender =
                 GroupMultiRemapRuleSender.createFromRules(Arrays.asList(rawRules).iterator(), false);
-        return regroupWithSender(regroupParams, ruleSender, errorOnCollisions);
-    }
-
-    @Override
-    public int regroupWithProtos(final RegroupParams regroupParams,
-                                 final GroupMultiRemapMessage[] rawRuleMessages,
-                                 final boolean errorOnCollisions) throws ImhotepOutOfMemoryException {
-        final RequestTools.GroupMultiRemapRuleSender ruleSender =
-                GroupMultiRemapRuleSender.createFromMessages(Arrays.asList(rawRuleMessages).iterator(), false);
         return regroupWithSender(regroupParams, ruleSender, errorOnCollisions);
     }
 
@@ -850,34 +814,6 @@ public class ImhotepRemoteSession
                 .setTargetGroup(targetGroup)
                 .setNegativeGroup(negativeGroup)
                 .setPositiveGroup(positiveGroup)
-                .setInputGroups(regroupParams.getInputGroups())
-                .setOutputGroups(regroupParams.getOutputGroups())
-                .build();
-
-        try {
-            sendRequestWithMemoryException(request, host, port, socketTimeout);
-        } catch (final IOException e) {
-            throw newRuntimeException(e);
-        }
-    }
-
-    @Override
-    public void randomMultiRegroup(
-            final RegroupParams regroupParams,
-            final String field,
-            final boolean isIntField,
-            final String salt,
-            final int targetGroup,
-            final double[] percentages,
-            final int[] resultGroups) throws ImhotepOutOfMemoryException {
-        final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.RANDOM_MULTI_REGROUP)
-                .setSessionId(getSessionId())
-                .setField(field)
-                .setIsIntField(isIntField)
-                .setSalt(salt)
-                .setTargetGroup(targetGroup)
-                .addAllPercentages(Doubles.asList(percentages))
-                .addAllResultGroups(Ints.asList(resultGroups))
                 .setInputGroups(regroupParams.getInputGroups())
                 .setOutputGroups(regroupParams.getOutputGroups())
                 .build();
@@ -1130,96 +1066,6 @@ public class ImhotepRemoteSession
             return result;
         } catch (final IOException e) {
             throw Throwables.propagate(e);
-        }
-    }
-
-    @Override
-    public void createDynamicMetric(final String name) throws ImhotepOutOfMemoryException {
-        final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.CREATE_DYNAMIC_METRIC)
-                .setSessionId(getSessionId())
-                .setDynamicMetricName(name)
-                .build();
-
-        try {
-            sendRequestWithMemoryException(request, host, port, socketTimeout);
-        } catch (final IOException e) {
-            throw newRuntimeException(e);
-        }
-    }
-
-    @Override
-    public void updateDynamicMetric(final String groupsName, final String name, final int[] deltas) {
-        final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.UPDATE_DYNAMIC_METRIC)
-                .setSessionId(getSessionId())
-                .setDynamicMetricName(name)
-                .addAllDynamicMetricDeltas(Ints.asList(deltas))
-                .setInputGroups(groupsName)
-                .build();
-
-        try {
-            sendRequest(request, host, port, socketTimeout);
-        } catch (final SocketTimeoutException e) {
-            throw newRuntimeException(buildExceptionAfterSocketTimeout(e, host, port, null));
-        } catch (final IOException e) {
-            throw newRuntimeException(e);
-        }
-    }
-
-    @Override
-    public void conditionalUpdateDynamicMetric(final String name, final RegroupCondition[] conditions, final int[] deltas) {
-        final List<RegroupConditionMessage> conditionMessages = ImhotepClientMarshaller.marshal(conditions);
-
-        final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.CONDITIONAL_UPDATE_DYNAMIC_METRIC)
-                .setSessionId(getSessionId())
-                .setDynamicMetricName(name)
-                .addAllConditions(conditionMessages)
-                .addAllDynamicMetricDeltas(Ints.asList(deltas))
-                .build();
-        try {
-            sendRequest(request, host, port, socketTimeout);
-        } catch (final IOException e) {
-            throw newRuntimeException(e);
-        }
-    }
-
-    @Override
-    public void groupConditionalUpdateDynamicMetric(final String groupsName, final String name, final int[] groups, final RegroupCondition[] conditions, final int[] deltas) {
-        final List<RegroupConditionMessage> conditionMessages = ImhotepClientMarshaller.marshal(conditions);
-
-        final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.GROUP_CONDITIONAL_UPDATE_DYNAMIC_METRIC)
-                .setSessionId(getSessionId())
-                .setDynamicMetricName(name)
-                .addAllGroups(Ints.asList(groups))
-                .addAllConditions(conditionMessages)
-                .addAllDynamicMetricDeltas(Ints.asList(deltas))
-                .setInputGroups(groupsName)
-                .build();
-        try {
-            sendRequest(request, host, port, socketTimeout);
-        } catch (final IOException e) {
-            throw newRuntimeException(e);
-        }
-    }
-
-    @Override
-    public void groupQueryUpdateDynamicMetric(final String groupsName, final String name, final int[] groups, final Query[] conditions, final int[] deltas) {
-        final List<QueryMessage> queryMessages = new ArrayList<>();
-        for (final Query q : conditions) {
-            queryMessages.add(ImhotepClientMarshaller.marshal(q));
-        }
-
-        final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.GROUP_QUERY_UPDATE_DYNAMIC_METRIC)
-                .setSessionId(getSessionId())
-                .setDynamicMetricName(name)
-                .addAllGroups(Ints.asList(groups))
-                .addAllQueryMessages(queryMessages)
-                .addAllDynamicMetricDeltas(Ints.asList(deltas))
-                .setInputGroups(groupsName)
-                .build();
-        try {
-            sendRequest(request, host, port, socketTimeout);
-        } catch (final IOException e) {
-            throw newRuntimeException(e);
         }
     }
 
@@ -1509,9 +1355,9 @@ public class ImhotepRemoteSession
             os.flush();
 
             for (final ImhotepCommand command : firstCommands) {
-                command.writeToOutputStream(os);
+                command.writeToOutputStream(os, this);
             }
-            lastCommand.writeToOutputStream(os);
+            lastCommand.writeToOutputStream(os, this);
             os.flush();
 
             return lastCommand.readResponse(is, this);

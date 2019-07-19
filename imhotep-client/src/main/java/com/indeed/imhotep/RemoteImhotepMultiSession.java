@@ -36,7 +36,6 @@ import com.indeed.imhotep.metrics.aggregate.AggregateStatTree;
 import com.indeed.imhotep.protobuf.AggregateStat;
 import com.indeed.imhotep.protobuf.DocStat;
 import com.indeed.imhotep.protobuf.FieldAggregateBucketRegroupRequest;
-import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
 import com.indeed.imhotep.protobuf.HostAndPort;
 import com.indeed.imhotep.protobuf.ImhotepRequest;
 import com.indeed.imhotep.protobuf.MultiFTGSRequest;
@@ -214,15 +213,6 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
         return regroupWithRuleSender(regroupParams, ruleSender, errorOnCollisions);
     }
 
-    @Override
-    public int regroupWithProtos(final RegroupParams regroupParams, final GroupMultiRemapMessage[] rawRuleMessages, final boolean errorOnCollisions) throws ImhotepOutOfMemoryException {
-        final GroupMultiRemapRuleSender ruleSender =
-                GroupMultiRemapRuleSender.createFromMessages(
-                        Arrays.asList(rawRuleMessages).iterator(),
-                        sessions.length > 1);
-        return regroupWithRuleSender(regroupParams, ruleSender, errorOnCollisions);
-    }
-
     public int regroupWithRuleSender(final RegroupParams regroupParams, final GroupMultiRemapRuleSender ruleSender, final boolean errorOnCollisions) throws ImhotepOutOfMemoryException {
         executor().executeMemoryException(integerBuf, session -> session.regroupWithSender(regroupParams, ruleSender, errorOnCollisions));
         return Collections.max(Arrays.asList(integerBuf));
@@ -271,10 +261,6 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
         final ImhotepRequestSender request = createSender(sessions[0].buildGroupRemapRequest(regroupParams, fromGroups, toGroups, filterOutNotTargeted));
         executor().executeMemoryException(integerBuf, session -> session.sendRegroupRequest(request));
         return Collections.max(Arrays.asList(integerBuf));
-    }
-
-    public BatchRemoteImhotepMultiSession toBatch(){
-        return new BatchRemoteImhotepMultiSession(this);
     }
 
     public static class PerSessionFTGSInfo {
@@ -668,7 +654,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
 
     <T> T processImhotepBatchRequest(final List<ImhotepCommand> firstCommands, final ImhotepCommand<T> lastCommand ) throws ImhotepOutOfMemoryException {
         final T[] buffer = (T[]) Array.newInstance(lastCommand.getResultClass(), sessions.length);
-        executor().executeMemoryException(buffer, session -> session.sendImhotepBatchRequest(firstCommands, lastCommand));
+        closeIfCloseableOnFailExecutor().executeMemoryException(buffer, session -> session.sendImhotepBatchRequest(firstCommands, lastCommand));
         return lastCommand.combine(Arrays.asList(buffer));
     }
 }

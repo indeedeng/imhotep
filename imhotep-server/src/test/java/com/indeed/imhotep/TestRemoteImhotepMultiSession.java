@@ -7,7 +7,6 @@ import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.client.ImhotepClient;
-import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
 import com.indeed.imhotep.service.ImhotepShardCreator;
 import com.indeed.imhotep.service.ShardMasterAndImhotepDaemonClusterRunner;
 import org.apache.commons.io.FileUtils;
@@ -65,12 +64,8 @@ public class TestRemoteImhotepMultiSession {
 
         final ImhotepClient client = clusterRunner.createClient();
         final ImhotepSession session = client.sessionBuilder(dataset, date, date.plusDays(duration)).build();
-        final GroupMultiRemapMessage message =
-                GroupMultiRemapMessage.newBuilder()
-                        .setTargetGroup(1)
-                        .setNegativeGroup(2)
-                        .build();
-        final int groupCount = session.regroupWithProtos(new GroupMultiRemapMessage[] {message}, true);
+        final GroupMultiRemapRule rule = new GroupMultiRemapRule(1, 2, new int[0], new RegroupCondition[0]);
+        final int groupCount = session.regroup(new GroupMultiRemapRule[] {rule}, true);
         assertEquals(3, groupCount);
         final long[] stats = session.getGroupStats(Collections.singletonList("count()"));
         assertArrayEquals(new long[] {0, 0, duration * docsPerShard}, stats);

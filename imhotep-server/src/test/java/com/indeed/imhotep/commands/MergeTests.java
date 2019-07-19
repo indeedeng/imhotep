@@ -136,12 +136,6 @@ public class MergeTests implements CommandsTest {
 
     @Override
     @Test
-    public void testRandomMultiRegroup() {
-        assertVoidMerge(new RandomMultiRegroup(TEST_REGROUP_PARAMS, "fieldName", false, RANDOM_SALT, 1, new double[]{0.4, 0.8}, new int[]{3, 4, 6}, SESSION_ID));
-    }
-
-    @Override
-    @Test
     public void testRandomRegroup() {
         assertVoidMerge(new RandomRegroup(TEST_REGROUP_PARAMS, "fieldName", true, RANDOM_SALT, 0.03, 1, 2, 3, SESSION_ID));
     }
@@ -179,6 +173,7 @@ public class MergeTests implements CommandsTest {
     }
 
     @Override
+    @Test
     public void testResetGroups() throws Exception {
         assertVoidMerge(new ResetGroups("foo", SESSION_ID));
     }
@@ -187,5 +182,11 @@ public class MergeTests implements CommandsTest {
     @Test
     public void testDeleteGroups() throws Exception {
         assertVoidMerge(new DeleteGroups(Collections.singletonList(ImhotepSession.DEFAULT_GROUPS), SESSION_ID));
+    }
+
+    @Override
+    @Test
+    public void testGetNumGroups() throws Exception {
+        assertMaxMerge(new GetNumGroups(TEST_INPUT_GROUPS_NAME, SESSION_ID));
     }
 }

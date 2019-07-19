@@ -16,7 +16,6 @@
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.primitives.Ints;
-import com.google.common.primitives.Longs;
 import com.indeed.flamdex.MakeAFlamdex;
 import com.indeed.flamdex.MemoryFlamdex;
 import com.indeed.flamdex.api.FlamdexReader;
@@ -35,7 +34,6 @@ import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.api.PerformanceStats;
 import com.indeed.imhotep.api.RegroupParams;
 import com.indeed.imhotep.exceptions.MultiValuedFieldUidTimestampException;
-import com.indeed.imhotep.group.IterativeHasher;
 import com.indeed.imhotep.group.IterativeHasherUtils;
 import com.indeed.imhotep.io.TestFileUtils;
 import com.indeed.imhotep.protobuf.Operator;
@@ -442,33 +440,6 @@ public class TestImhotepLocalSession {
         }
     }
 
-    @Test
-    public void testDynamicMetric() throws ImhotepOutOfMemoryException {
-        final FlamdexReader r = MakeAFlamdex.make();
-        try (ImhotepLocalSession session = new ImhotepJavaLocalSession("testLocalSession", r, null)) {
-            session.createDynamicMetric("foo");
-
-            final List<String> dynamicStat = singletonList("dynamic foo");
-            assertEquals(Longs.asList(0, 0), Longs.asList(session.getGroupStats(dynamicStat)));
-
-            session.updateDynamicMetric("foo", new int[]{0, 1});
-            assertEquals(Longs.asList(0, 20), Longs.asList(session.getGroupStats(dynamicStat)));
-
-            session.regroup(new GroupMultiRemapRule[]{new GroupMultiRemapRule(1, 1, new int[]{2}, new RegroupCondition[]{new RegroupCondition("if2", true, 0, null, false)})});
-            assertEquals(Longs.asList(0, 15, 5), Longs.asList(session.getGroupStats(dynamicStat)));
-
-            session.updateDynamicMetric("foo", new int[]{0, 0, -2});
-            assertEquals(Longs.asList(0, 15, -5), Longs.asList(session.getGroupStats(dynamicStat)));
-
-            // reset all to group 1
-            session.regroup(new GroupMultiRemapRule[]{
-                    new GroupMultiRemapRule(1, 1, new int[]{1}, new RegroupCondition[]{new RegroupCondition("if2", true, 0, null, false)}),
-                    new GroupMultiRemapRule(2, 1, new int[]{1}, new RegroupCondition[]{new RegroupCondition("if2", true, 0, null, false)})
-            });
-            assertEquals(Longs.asList(0, 10), Longs.asList(session.getGroupStats(dynamicStat)).subList(0, 2));
-        }
-    }
-
     private static int getGroupIndex(final double value, final double[] percentages) {
         final IterativeHasherUtils.GroupChooser chooser =
                 IterativeHasherUtils.createChooser(percentages);
@@ -477,7 +448,7 @@ public class TestImhotepLocalSession {
     }
 
     @Test
-    public void testRandomMultiRegroupIndexCalculation() throws ImhotepOutOfMemoryException {
+    public void testRandomMetricMultiRegroupIndexCalculation() throws ImhotepOutOfMemoryException {
 
         // normal case -- 0.5 falls in the [0.4, 0.7) bucket, which is the
         // fourth (index == 3) in the list of:
@@ -513,7 +484,7 @@ public class TestImhotepLocalSession {
     }
 
     @Test
-    public void testRandomMultiRegroup_ensureValidMultiRegroupArrays() throws ImhotepOutOfMemoryException {
+    public void testRandomMetricMultiRegroup_ensureValidMultiRegroupArrays() throws ImhotepOutOfMemoryException {
         final FlamdexReader r = MakeAFlamdex.make();
         try (ImhotepLocalSession session = new ImhotepJavaLocalSession("testLocalSession", r, null)) {
 
@@ -565,66 +536,6 @@ public class TestImhotepLocalSession {
                 fail("ensureValidMultiRegroupArrays didn't throw IllegalArgumentException");
             } catch (final IllegalArgumentException e) {
             } // expected
-        }
-    }
-
-    @Test
-    public void testRandomMultiRegroup() throws ImhotepOutOfMemoryException {
-        final FlamdexReader r = MakeAFlamdex.make();
-        try (ImhotepLocalSession session = new ImhotepJavaLocalSession("testLocalSession", r, null)) {
-
-            // Expected
-            // ( @see MakeAFlamdex.make() )
-            final String regroupField = "sf1";
-            final double[] percentages = new double[]{0.10, 0.50};
-            final int[] resultGroups = new int[]{5, 6, 7};
-
-            final String[] docIdToTerm = new String[]{"", // 0
-                    "a", // 1
-                    null, // 2
-                    "hello world", // 3
-                    null, // 4
-                    "", // 5
-                    "a", // 6
-                    null, // 7
-                    "a", // 8
-                    "hello world", // 9
-                    null, // 10
-                    null, // 11
-                    null, // 12
-                    null, // 13
-                    null, // 14
-                    null, // 15
-                    "hello world", // 16
-                    null, // 17
-                    null, // 18
-                    "a" // 19
-            };
-
-            final String salt = "mySalt";
-            final IterativeHasher.StringHasher hasher =
-                    new IterativeHasher.Murmur3Hasher(salt).stringHasher();
-
-            final IterativeHasherUtils.GroupChooser chooser = IterativeHasherUtils.createChooser(percentages);
-            final Map<String, Integer> termToGroup = Maps.newHashMap();
-            for (final String term : Arrays.asList("", "a", "hello world")) {
-                final int hash = hasher.calculateHash(term);
-                final int groupIndex = chooser.getGroup(hash);
-                termToGroup.put(term, resultGroups[groupIndex]);
-            }
-            termToGroup.put(null, 1);
-
-            // Actual
-            session.randomMultiRegroup(regroupField, false, salt, 1, percentages, resultGroups);
-
-            // Make sure they're in the correct groups
-            final int[] docIdToGroup = new int[20];
-            session.exportDocIdToGroupId(docIdToGroup);
-            for (int docId = 0; docId < 20; docId++) {
-                final int actualGroup = docIdToGroup[docId];
-                final int expectedGroup = termToGroup.get(docIdToTerm[docId]);
-                assertEquals("doc id #" + docId + " was misgrouped", expectedGroup, actualGroup);
-            }
         }
     }
 
@@ -1652,51 +1563,6 @@ public class TestImhotepLocalSession {
         for (final String term : map.keySet()) {
             final List<Integer> docs = map.get(term);
             r.addStringTerm(fieldName, term, docs);
-        }
-    }
-
-    @Test
-    public void testConditionalUpdateDynamicMetric() throws ImhotepOutOfMemoryException {
-        final int[] iCanCount = new int[10];
-        for (int i = 0; i < iCanCount.length; i++) {
-            iCanCount[i] = i;
-        }
-        final MockFlamdexReader r = new MockFlamdexReader();
-        r.addIntTerm("if1", 0, 0, 2, 4, 6, 8);
-        r.addIntTerm("if1", 1, 1, 3, 5, 7, 9);
-        r.addStringTerm("sf1", "even", 0, 2, 4, 6, 8);
-        r.addStringTerm("sf1", "odd", 1, 3, 5, 7, 9);
-        try (ImhotepLocalSession session = new ImhotepJavaLocalSession("testLocalSession", r, null)) {
-            final String METRIC_NAME = "test metric!";
-            session.createDynamicMetric(METRIC_NAME);
-            final long[] exported = new long[10];
-            // Should be a no-op
-            session.conditionalUpdateDynamicMetric(METRIC_NAME,
-                    new RegroupCondition[]{
-                            new RegroupCondition("if1",
-                                    true,
-                                    0,
-                                    null,
-                                    false),
-                            new RegroupCondition("sf1",
-                                    false,
-                                    0,
-                                    "even",
-                                    false)},
-                    new int[]{100, -100});
-            final DynamicMetric metric = session.getDynamicMetrics().get(METRIC_NAME);
-            metric.lookup(iCanCount, exported, 10);
-            Assert.assertArrayEquals(new long[10], exported);
-            // Should increase odd terms by 10
-            session.conditionalUpdateDynamicMetric(METRIC_NAME,
-                    new RegroupCondition[]{new RegroupCondition("if1",
-                            true,
-                            1,
-                            null,
-                            false)},
-                    new int[]{10});
-            metric.lookup(iCanCount, exported, 10);
-            Assert.assertArrayEquals(new long[]{0, 10, 0, 10, 0, 10, 0, 10, 0, 10}, exported);
         }
     }
 

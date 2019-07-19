@@ -258,15 +258,6 @@ public final class LocalSessionManager implements SessionManager {
         return uniqueUsernames.size();
     }
 
-    public List<String> getShardsForSession(final String sessionId) {
-        final Session session = internalGetSession(sessionId);
-        final List<String> ret = new ArrayList<>(session.shardToFlamdexReader.size());
-        for (final Path path : session.shardToFlamdexReader.keySet()) {
-            ret.add(path.toString());
-        }
-        return ret;
-    }
-
     public List<ImhotepStatusDump.SessionDump> getSessionDump() {
         final Map<String, Session> clone = cloneSessionMap();
 
