@@ -34,6 +34,7 @@ import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
 /**
@@ -56,6 +57,7 @@ public class TaskScheduler implements SilentCloseable {
     private final int totalSlots;
     private final long historyLengthNanos;
     private final long batchNanos;
+    private AtomicLong totalExecutionTime = new AtomicLong(0);
     private final SchedulerType schedulerType;
     private final MetricStatsEmitter statsEmitter;
 
@@ -138,6 +140,8 @@ public class TaskScheduler implements SilentCloseable {
         statsEmitter.histogram("scheduler." + schedulerType + ".waiting.users", waitingUsersCount);
         statsEmitter.histogram("scheduler." + schedulerType + ".waiting.tasks", waitingTasksCount);
         statsEmitter.histogram("scheduler." + schedulerType + ".running.tasks", runningTasksCount);
+        statsEmitter.count("scheduler." + schedulerType + ".tasks.totalExecutionTime", totalExecutionTime.getAndSet(0));
+        statsEmitter.count("scheduler." + schedulerType + ".tasks.maximumExecutionTimeMillis", totalSlots*DATADOG_STATS_REPORTING_FREQUENCY_MILLIS); // to compare totalExecutionTime against
     }
 
     private synchronized void cleanup() {
@@ -289,6 +293,7 @@ public class TaskScheduler implements SilentCloseable {
             return false;
         }
         final long consumption = task.stopped(schedulerType);
+        totalExecutionTime.addAndGet(consumption);
         final OwnerAndPriority ownerAndPriority = new OwnerAndPriority(task.userName, task.priority);
         final ConsumptionTracker consumptionTracker = ownerToConsumptionTracker.computeIfAbsent(ownerAndPriority,
                 (ignored) -> new ConsumptionTracker(historyLengthNanos, batchNanos));
