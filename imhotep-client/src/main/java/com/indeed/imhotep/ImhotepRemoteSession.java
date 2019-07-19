@@ -1252,19 +1252,9 @@ public class ImhotepRemoteSession
         final Tracer tracer = TracingUtil.tracerIfEnabled(includeTracingInformation);
         final String sessionId = request.getSessionId();
         try (final ActiveSpan activeSpan = tracer.buildSpan(request.getRequestType().name()).withTag("sessionid", sessionId).withTag("host", host + ":" + port).startActive()) {
-            final TracingMap.Builder tracingBuilder = TracingMap.newBuilder();
-            tracer.inject(activeSpan.context(), Format.Builtin.TEXT_MAP, new TextMap() {
-                @Override
-                public Iterator<Map.Entry<String, String>> iterator() {
-                    throw new UnsupportedOperationException("write-only adapter");
-                }
-
-                @Override
-                public void put(final String key, final String value) {
-                    tracingBuilder.addKeyValues(TracingMap.KeyValueString.newBuilder().setKey(key).setValue(value).build());
-                }
-            });
-            final byte[] tracingBytes = TracingMapOnly.newBuilder().setTracingInfo(tracingBuilder).build().toByteArray();
+            final ProtoTracingInjector tracingInjector = new ProtoTracingInjector();
+            tracer.inject(activeSpan.context(), Format.Builtin.TEXT_MAP, tracingInjector);
+            final byte[] tracingBytes = TracingMapOnly.newBuilder().setTracingInfo(tracingInjector.extract()).build().toByteArray();
             request.writeToStreamNoFlush(os, tracingBytes);
             os.flush();
             final ImhotepResponse response = ImhotepProtobufShipping.readResponse(is);
