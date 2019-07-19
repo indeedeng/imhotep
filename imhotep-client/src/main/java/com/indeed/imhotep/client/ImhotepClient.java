@@ -513,9 +513,9 @@ public class ImhotepClient
                                 socketTimeout,
                                 localTempFileSizeLimit,
                                 allowSessionForwarding,
-                                peerToPeerCache
-                        ),
-                        traceImhotepRequests
+                                peerToPeerCache,
+                                traceImhotepRequests
+                        )
                 );
             } else {
                 return getSessionForShards(

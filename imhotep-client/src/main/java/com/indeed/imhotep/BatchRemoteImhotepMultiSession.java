@@ -55,9 +55,9 @@ public class BatchRemoteImhotepMultiSession extends AbstractImhotepSession {
 
     private final List<ImhotepCommand> commands = new ArrayList<>();
 
-    public BatchRemoteImhotepMultiSession(final OpenSessions openSessions, final boolean traceImhotepRequests) {
+    public BatchRemoteImhotepMultiSession(final OpenSessions openSessions) {
         super(openSessions.getSessionId());
-        remoteImhotepMultiSession = openSessions.makeSession(traceImhotepRequests);
+        remoteImhotepMultiSession = openSessions.makeSession();
         commands.add(openSessions);
     }
 

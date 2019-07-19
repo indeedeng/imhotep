@@ -219,8 +219,8 @@ public class TestImhotepCommandDeserialization implements CommandsTest {
                 60,
                 100L,
                 false,
-                false
-        );
+                false,
+                traceImhotepRequests);
 
         {
             final List<ShardBasicInfoMessage> shards = new ArrayList<>();

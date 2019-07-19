@@ -39,6 +39,7 @@ public class OpenSessions extends VoidAbstractImhotepCommand {
     private final AtomicLong localTempFileSizeBytesLeft;
     public final boolean allowSessionForwarding;
     public final boolean p2pCache;
+    public final boolean traceImhotepRequests;
 
     public OpenSessions(
             final Map<Host, List<Shard>> hostToShards,
@@ -46,8 +47,8 @@ public class OpenSessions extends VoidAbstractImhotepCommand {
             final int socketTimeout,
             final long localTempFileSizeLimit,
             final boolean allowSessionForwarding,
-            final boolean p2pCache
-    ) {
+            final boolean p2pCache,
+            final boolean traceImhotepRequests) {
         super(UUID.randomUUID().toString());
         this.hostToShards = hostToShards;
         this.openSessionData = openSessionData;
@@ -57,6 +58,7 @@ public class OpenSessions extends VoidAbstractImhotepCommand {
         Preconditions.checkArgument(!allowSessionForwarding, "Batch OpenSessions does not currently support session forwarding");
         this.allowSessionForwarding = allowSessionForwarding;
         this.p2pCache = p2pCache;
+        this.traceImhotepRequests = traceImhotepRequests;
     }
 
 
@@ -100,7 +102,7 @@ public class OpenSessions extends VoidAbstractImhotepCommand {
         throw new IllegalStateException("Should not call apply() on OpenSessions");
     }
 
-    public RemoteImhotepMultiSession makeSession(final boolean traceImhotepRequests) {
+    public RemoteImhotepMultiSession makeSession() {
         final ImhotepRemoteSession[] remoteSessions = new ImhotepRemoteSession[hostToShards.size()];
         final InetSocketAddress[] nodes = new InetSocketAddress[hostToShards.size()];
         int index = 0;
