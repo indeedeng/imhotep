@@ -38,6 +38,9 @@ public class RequestTools {
         default void writeToStreamNoFlush(final OutputStream os) throws IOException {
             writeToStreamNoFlush(os, EMPTY_BYTE_ARRAY);
         }
+        // extraBytes parameter allows sending additional information in the protobuf
+        // that varies across the different use-sites of this sender.
+        // This is primarily used for sending different OpenTracing contexts.
         void writeToStreamNoFlush(final OutputStream os, final byte[] extraBytes) throws IOException;
 
         ImhotepRequest.RequestType getRequestType();
