@@ -20,7 +20,7 @@ import com.indeed.flamdex.MemoryFlamdex;
 import com.indeed.flamdex.writer.FlamdexDocument;
 import com.indeed.imhotep.FTGSIteratorUtil;
 import com.indeed.imhotep.RemoteImhotepMultiSession;
-import com.indeed.imhotep.RemoteImhotepMultiSession.SessionField;
+import com.indeed.imhotep.RemoteImhotepMultiSession.PerSessionFTGSInfo;
 import com.indeed.imhotep.api.FTGAIterator;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
@@ -201,7 +201,7 @@ public class TestMultiFTGS {
 
             // GROUP BY country SELECT count()
             try (FTGAIterator iterator = multiFtgs(
-                    singletonList(new SessionField(session, "country", stats)),
+                    singletonList(new PerSessionFTGSInfo(session, "country", stats)),
                     Lists.newArrayList(count),
                     Lists.newArrayList(),
                     false,
@@ -225,7 +225,7 @@ public class TestMultiFTGS {
 
             // GROUP BY country HAVING count() > 2, SELECT count()
             try (FTGAIterator iterator = multiFtgs(
-                    singletonList(new SessionField(session, "country", stats)),
+                    singletonList(new PerSessionFTGSInfo(session, "country", stats)),
                     Lists.newArrayList(count),
                     Lists.newArrayList(count.gt(constant(2.0))),
                     false,
@@ -247,7 +247,7 @@ public class TestMultiFTGS {
 
             // GROUP BY q HAVING count() > 2, SELECT count()
             try (FTGAIterator iterator = multiFtgs(
-                    singletonList(new SessionField(session, "q", stats)),
+                    singletonList(new PerSessionFTGSInfo(session, "q", stats)),
                     Lists.newArrayList(count),
                     Lists.newArrayList(count.gt(constant(2.0))),
                     false,
@@ -267,7 +267,7 @@ public class TestMultiFTGS {
 
             // GROUP BY q HAVING count() > 100, SELECT count()
             try (FTGAIterator iterator = multiFtgs(
-                    singletonList(new SessionField(session, "q", stats)),
+                    singletonList(new PerSessionFTGSInfo(session, "q", stats)),
                     Lists.newArrayList(count),
                     Lists.newArrayList(count.gt(constant(100.0))),
                     false,
@@ -284,7 +284,7 @@ public class TestMultiFTGS {
 
             // GROUP BY q HAVING count() >= 2, SELECT count()
             try (FTGAIterator iterator = multiFtgs(
-                    singletonList(new SessionField(session, "q", stats)),
+                    singletonList(new PerSessionFTGSInfo(session, "q", stats)),
                     Lists.newArrayList(count),
                     Lists.newArrayList(count.gte(constant(2.0))),
                     false,
@@ -317,7 +317,7 @@ public class TestMultiFTGS {
             // GROUP BY q SELECT clicked / impressions
             // Also exercises having stats on the stack that aren't relevant.
             try (FTGAIterator iterator = multiFtgs(
-                    singletonList(new SessionField(session, "q", stats)),
+                    singletonList(new PerSessionFTGSInfo(session, "q", stats)),
                     Lists.newArrayList(clicks.divide(impressions)),
                     Lists.newArrayList(),
                     false,
@@ -350,7 +350,7 @@ public class TestMultiFTGS {
             // GROUP BY q HAVING clicked / impressions >= 0.25 SELECT count()
             // Also exercises having stats on the stack that aren't relevant.
             try (FTGAIterator iterator = multiFtgs(
-                    singletonList(new SessionField(session, "q", stats)),
+                    singletonList(new PerSessionFTGSInfo(session, "q", stats)),
                     Lists.newArrayList(count),
                     Lists.newArrayList(clicks.divide(impressions).gte(constant(0.25))),
                     false,
@@ -482,8 +482,8 @@ public class TestMultiFTGS {
             // GROUP BY country
             try (FTGAIterator iterator = multiFtgs(
                     ImmutableList.of(
-                            new SessionField(session1, "country", stats1),
-                            new SessionField(session2, "country", stats2)
+                            new PerSessionFTGSInfo(session1, "country", stats1),
+                            new PerSessionFTGSInfo(session2, "country", stats2)
                     ),
                     Lists.newArrayList(),
                     Lists.newArrayList(),
@@ -517,8 +517,8 @@ public class TestMultiFTGS {
             // GROUP BY country SELECT dataset1.count(), dataset2.count(), count()
             try (FTGAIterator iterator = multiFtgs(
                     ImmutableList.of(
-                            new SessionField(session1, "country", stats1),
-                            new SessionField(session2, "country", stats2)
+                            new PerSessionFTGSInfo(session1, "country", stats1),
+                            new PerSessionFTGSInfo(session2, "country", stats2)
                     ),
                     Lists.newArrayList(count1, count2, count1.plus(count2)),
                     Lists.newArrayList(),
@@ -546,8 +546,8 @@ public class TestMultiFTGS {
             // GROUP BY country HAVING dataset1.count() > dataset2.count()
             try (FTGAIterator iterator = multiFtgs(
                     ImmutableList.of(
-                            new SessionField(session1, "country", stats1),
-                            new SessionField(session2, "country", stats2)
+                            new PerSessionFTGSInfo(session1, "country", stats1),
+                            new PerSessionFTGSInfo(session2, "country", stats2)
                     ),
                     Lists.newArrayList(),
                     Lists.newArrayList(count1.gt(count2)),
@@ -571,8 +571,8 @@ public class TestMultiFTGS {
             // GROUP BY country LIMIT 1
             try (FTGAIterator iterator = multiFtgs(
                     ImmutableList.of(
-                            new SessionField(session1, "country", stats1),
-                            new SessionField(session2, "country", stats2)
+                            new PerSessionFTGSInfo(session1, "country", stats1),
+                            new PerSessionFTGSInfo(session2, "country", stats2)
                     ),
                     Lists.newArrayList(),
                     Lists.newArrayList(),
@@ -602,8 +602,8 @@ public class TestMultiFTGS {
             // GROUP BY country LIMIT 3
             try (FTGAIterator iterator = RemoteImhotepMultiSession.multiFtgs(
                     ImmutableList.of(
-                            new SessionField(session1, "country", stats1),
-                            new SessionField(session2, "country", stats2)
+                            new PerSessionFTGSInfo(session1, "country", stats1),
+                            new PerSessionFTGSInfo(session2, "country", stats2)
                     ),
                     Lists.newArrayList(),
                     Lists.newArrayList(),
@@ -642,8 +642,8 @@ public class TestMultiFTGS {
             // GROUP BY country LIMIT 100
             try (FTGAIterator iterator = RemoteImhotepMultiSession.multiFtgs(
                     ImmutableList.of(
-                            new SessionField(session1, "country", stats1),
-                            new SessionField(session2, "country", stats2)
+                            new PerSessionFTGSInfo(session1, "country", stats1),
+                            new PerSessionFTGSInfo(session2, "country", stats2)
                     ),
                     Lists.newArrayList(),
                     Lists.newArrayList(),
@@ -684,8 +684,8 @@ public class TestMultiFTGS {
             // GROUP BY country HAVING count() > 10 LIMIT 1
             try (FTGAIterator iterator = multiFtgs(
                     ImmutableList.of(
-                            new SessionField(session1, "country", stats1),
-                            new SessionField(session2, "country", stats2)
+                            new PerSessionFTGSInfo(session1, "country", stats1),
+                            new PerSessionFTGSInfo(session2, "country", stats2)
                     ),
                     Lists.newArrayList(),
                     Lists.newArrayList(count1.plus(count2).gt(constant(10.0))),
@@ -716,8 +716,8 @@ public class TestMultiFTGS {
             // GROUP BY country[1 BY count()]
             try (FTGAIterator iterator = multiFtgs(
                     ImmutableList.of(
-                            new SessionField(session1, "country", stats1),
-                            new SessionField(session2, "country", stats2)
+                            new PerSessionFTGSInfo(session1, "country", stats1),
+                            new PerSessionFTGSInfo(session2, "country", stats2)
                     ),
                     Lists.newArrayList(count1.plus(count2)),
                     Lists.newArrayList(),
@@ -739,8 +739,8 @@ public class TestMultiFTGS {
             // GROUP BY country[BOTTOM 1 BY count()]
             try (FTGAIterator iterator = multiFtgs(
                     ImmutableList.of(
-                            new SessionField(session1, "country", stats1),
-                            new SessionField(session2, "country", stats2)
+                            new PerSessionFTGSInfo(session1, "country", stats1),
+                            new PerSessionFTGSInfo(session2, "country", stats2)
                     ),
                     Lists.newArrayList(count1.plus(count2)),
                     Lists.newArrayList(),
@@ -762,8 +762,8 @@ public class TestMultiFTGS {
             // GROUP BY country[1 BY dataset2.count()]
             try (FTGAIterator iterator = multiFtgs(
                     ImmutableList.of(
-                            new SessionField(session1, "country", stats1),
-                            new SessionField(session2, "country", stats2)
+                            new PerSessionFTGSInfo(session1, "country", stats1),
+                            new PerSessionFTGSInfo(session2, "country", stats2)
                     ),
                     Lists.newArrayList(count2),
                     Lists.newArrayList(),
@@ -785,8 +785,8 @@ public class TestMultiFTGS {
             // GROUP BY country[BOTTOM 1 BY dataset2.count()]
             try (FTGAIterator iterator = multiFtgs(
                     ImmutableList.of(
-                            new SessionField(session1, "country", stats1),
-                            new SessionField(session2, "country", stats2)
+                            new PerSessionFTGSInfo(session1, "country", stats1),
+                            new PerSessionFTGSInfo(session2, "country", stats2)
                     ),
                     Lists.newArrayList(count2),
                     Lists.newArrayList(),
@@ -808,8 +808,8 @@ public class TestMultiFTGS {
             // GROUP BY country[2 BY dataset1.count() - dataset2.count()] SELECT dataset1.count()
             try (FTGAIterator iterator = multiFtgs(
                     ImmutableList.of(
-                            new SessionField(session1, "country", stats1),
-                            new SessionField(session2, "country", stats2)
+                            new PerSessionFTGSInfo(session1, "country", stats1),
+                            new PerSessionFTGSInfo(session2, "country", stats2)
                     ),
                     Lists.newArrayList(count1, count1.minus(count2)),
                     Lists.newArrayList(),
@@ -834,8 +834,8 @@ public class TestMultiFTGS {
             // GROUP BY country[1 BY count()] HAVING dataset1.count() <= 20
             try (FTGAIterator iterator = multiFtgs(
                     ImmutableList.of(
-                            new SessionField(session1, "country", stats1),
-                            new SessionField(session2, "country", stats2)
+                            new PerSessionFTGSInfo(session1, "country", stats1),
+                            new PerSessionFTGSInfo(session2, "country", stats2)
                     ),
                     Lists.newArrayList(count1.plus(count2)),
                     Lists.newArrayList(count1.lte(constant(20))),
@@ -857,8 +857,8 @@ public class TestMultiFTGS {
             // GROUP BY country[BOTTOM 1 BY count()] HAVING dataset1.count() <= 20
             try (FTGAIterator iterator = multiFtgs(
                     ImmutableList.of(
-                            new SessionField(session1, "country", stats1),
-                            new SessionField(session2, "country", stats2)
+                            new PerSessionFTGSInfo(session1, "country", stats1),
+                            new PerSessionFTGSInfo(session2, "country", stats2)
                     ),
                     Lists.newArrayList(count1.plus(count2)),
                     Lists.newArrayList(count1.lte(constant(20))),
@@ -883,8 +883,8 @@ public class TestMultiFTGS {
             // GROUP BY country
             try (FTGAIterator iterator = multiFtgs(
                     ImmutableList.of(
-                            new SessionField(session1, "country", stats1),
-                            new SessionField(session2, "country", stats2)
+                            new PerSessionFTGSInfo(session1, "country", stats1),
+                            new PerSessionFTGSInfo(session2, "country", stats2)
                     ),
                     Lists.newArrayList(),
                     Lists.newArrayList(),
@@ -912,7 +912,7 @@ public class TestMultiFTGS {
     }
 
     private FTGAIterator multiFtgs(
-            final List<SessionField> sessionsWithFields,
+            final List<PerSessionFTGSInfo> sessionsWithFields,
             final List<AggregateStatTree> selects,
             final List<AggregateStatTree> filters,
             final boolean isIntField,
@@ -1026,7 +1026,7 @@ public class TestMultiFTGS {
 
     private FTGAIterator makeLimitIterator(final ImhotepSession session, final int termLimit) throws ImhotepOutOfMemoryException {
         return RemoteImhotepMultiSession.multiFtgs(
-                ImmutableList.of(new SessionField(session, "field", singletonList(singletonList("count()")))),
+                ImmutableList.of(new PerSessionFTGSInfo(session, "field", singletonList(singletonList("count()")))),
                 ImmutableList.of(AggregateStatTree.stat(session, 0)),
                 ImmutableList.of(),
                 false,

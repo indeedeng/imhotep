@@ -218,6 +218,10 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
         instrumentation.removeObserver(observer);
     }
 
+    public AtomicLong getTempFileSizeBytesLeft() {
+        return tempFileSizeBytesLeft;
+    }
+
     @Override
     public long getTotalDocFreq(final String[] intFields, final String[] stringFields) {
         executor().executeRuntimeException(totalDocFreqBuf, session -> session.getTotalDocFreq(intFields, stringFields));
@@ -612,11 +616,11 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
         };
     }
 
-    protected <R> Executor<R> executor() {
+    public <R> Executor<R> executor() {
         return new Executor<>();
     }
 
-    protected <R extends Closeable> Executor<R> closeOnFailExecutor() {
+    public <R extends Closeable> Executor<R> closeOnFailExecutor() {
         return new Executor<R>().cleanupFunction(Closeable::close);
     }
 
@@ -630,7 +634,7 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
 
     @Accessors(fluent = true, chain = true)
     @Setter
-    protected class Executor<R> {
+    public class Executor<R> {
         private ExecutorService executorService = executor;
         @Nullable
         private ThrowingConsumer<R> cleanupFunction = null;
@@ -697,11 +701,11 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
         }
     }
 
-    protected interface ThrowingFunction<K, V> {
+    public interface ThrowingFunction<K, V> {
         V apply(K k) throws Exception;
     }
 
-    protected interface ThrowingConsumer<K> {
+    public interface ThrowingConsumer<K> {
         void applyVoid(K k) throws Exception;
         default <R> ThrowingFunction<K, R> toFunction() {
             return k -> {

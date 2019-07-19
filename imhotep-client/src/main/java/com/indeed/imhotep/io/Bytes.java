@@ -24,10 +24,22 @@ public final class Bytes {
     private Bytes() {}
 
     public static void intToBytes(final int x, final byte[] b) {
-        Preconditions.checkArgument(b != null && b.length == 4, "Need a byte array with length 4");
+        Preconditions.checkArgument((b != null) && (b.length == 4), "Need a byte array with length 4");
         b[0] = (byte)((x>>>24));
         b[1] = (byte)((x>>>16));
         b[2] = (byte)((x>>>8));
         b[3] = (byte)(x);
+    }
+
+    @SuppressWarnings("ResultOfMethodCallIgnored")
+    public static boolean equals(final byte[] a, final byte[] b, final int length) {
+        Preconditions.checkPositionIndex(length, a.length);
+        Preconditions.checkPositionIndex(length, b.length);
+        for (int i = 0; i < length; ++i) {
+            if (a[i] != b[i]) {
+                return false;
+            }
+        }
+        return true;
     }
 }

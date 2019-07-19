@@ -46,6 +46,7 @@ import com.indeed.imhotep.io.ImhotepProtobufShipping;
 import com.indeed.imhotep.io.NioPathUtil;
 import com.indeed.imhotep.io.Streams;
 import com.indeed.imhotep.marshal.ImhotepDaemonMarshaller;
+import com.indeed.imhotep.protobuf.FieldAggregateBucketRegroupRequest;
 import com.indeed.imhotep.protobuf.GroupMultiRemapMessage;
 import com.indeed.imhotep.protobuf.HostAndPort;
 import com.indeed.imhotep.protobuf.ImhotepRequest;
@@ -938,6 +939,19 @@ public class ImhotepDaemon implements Instrumentation.Provider {
             return builder.build();
         }
 
+        private ImhotepResponse fieldAggregateBucketRegroup(
+                final ImhotepRequest          request,
+                final ImhotepResponse.Builder builder)
+                throws ImhotepOutOfMemoryException {
+            final FieldAggregateBucketRegroupRequest fieldAggregateBucketRegroup = request.getFieldAggregateBucketRegroup();
+            final int numGroups = service.handleFieldAggregateBucketRegroup(
+                    fieldAggregateBucketRegroup,
+                    fieldAggregateBucketRegroup.getSessionIdList(),
+                    fieldAggregateBucketRegroup.getNodesList().toArray(new HostAndPort[0])
+            );
+            return builder.setNumGroups(numGroups).build();
+        }
+
         private void shutdown(
                 final ImhotepRequest request,
                 final InputStream    is,
@@ -1088,6 +1102,9 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                     break;
                 case DELETE_GROUPS:
                     response = deleteGroups(request, builder);
+                    break;
+                case FIELD_AGGREGATE_BUCKET_REGROUP:
+                    response = fieldAggregateBucketRegroup(request, builder);
                     break;
                 case SHUTDOWN:
                     shutdown(request, is, os);
