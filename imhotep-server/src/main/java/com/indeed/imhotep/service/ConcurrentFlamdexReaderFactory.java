@@ -15,6 +15,7 @@
 package com.indeed.imhotep.service;
 
 import com.google.common.base.Throwables;
+import com.indeed.flamdex.api.FlamdexReader;
 import com.indeed.imhotep.MemoryReservationContext;
 import com.indeed.imhotep.MemoryReserver;
 import com.indeed.imhotep.SlotTiming;
@@ -142,11 +143,8 @@ public class ConcurrentFlamdexReaderFactory {
         }
 
         private SharedReference<CachedFlamdexReader> createFlamdexReader(final Path path, final int numDocs) throws IOException {
-            if (numDocs <= 0) {
-                return SharedReference.create(new CachedFlamdexReader(new MemoryReservationContext(memory), factory.openReader(path)));
-            } else {
-                return SharedReference.create(new CachedFlamdexReader(new MemoryReservationContext(memory), factory.openReader(path, numDocs)));
-            }
+            final FlamdexReader flamdexReader = (numDocs <= 0) ? factory.openReader(path) : factory.openReader(path, numDocs);
+            return SharedReference.create(new CachedFlamdexReader(new MemoryReservationContext(memory), flamdexReader));
         }
     }
 

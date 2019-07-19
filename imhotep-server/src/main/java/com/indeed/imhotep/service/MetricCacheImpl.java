@@ -13,7 +13,6 @@
  */
  package com.indeed.imhotep.service;
 
-import com.google.common.base.Function;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Collections2;
 import com.google.common.collect.Lists;
@@ -32,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.function.Function;
 
 /**
  * @author jplaisance
@@ -68,7 +68,7 @@ public final class MetricCacheImpl implements MetricCache {
         final IntValueLookup intValueLookup = loadMetric.apply(metric).get();
         final SharedReference<IntValueLookup> ref = SharedReference.create(intValueLookup, () -> closeMetric.close(Maps.immutableEntry(metric, intValueLookup)));
         while (true) {
-            final SharedReference<IntValueLookup> oldRef = metrics.putIfAbsent(metric, ref);
+            final SharedReference<IntValueLookup> oldRef = metrics.putIfAbsent(metric, Config.isCloseMetricsWhenUnused() ? ref : ref.copy());
             if (oldRef == null) {
                 return new CachedIntValueLookup(ref);
             } else {
@@ -146,12 +146,26 @@ public final class MetricCacheImpl implements MetricCache {
                     (metric) -> () -> {
                         try (final SharedReference<IntValueLookup> copy = metric.getValue().tryCopy()) {
                             if (copy != null) {
-                                log.error("Metric '" + metric.getKey() + "' has leaked in MetricCacheImpl");
+                                if (Config.isCloseMetricsWhenUnused()) {
+                                    log.error("Metric '" + metric.getKey() + "' has leaked in MetricCacheImpl");
+                                }
                                 closeMetric.close(Maps.immutableEntry(metric.getKey(), copy.get()));
                             }
                         }
                     }
             ));
+        }
+    }
+
+    private static final class Config {
+        private static boolean closeMetricsWhenUnused = "true".equalsIgnoreCase(System.getProperties().getProperty("com.indeed.imhotep.service.MetricCacheImpl.closeUnused"));
+
+        public static boolean isCloseMetricsWhenUnused() {
+            return closeMetricsWhenUnused;
+        }
+
+        public static void setCloseMetricsWhenUnused(final boolean closeMetricsWhenUnused) {
+            Config.closeMetricsWhenUnused = closeMetricsWhenUnused;
         }
     }
 }
