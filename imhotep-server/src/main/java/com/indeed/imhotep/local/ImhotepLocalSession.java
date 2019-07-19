@@ -2820,7 +2820,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             if (startExecution.isPresent()) {
                 final long startLong = startExecution.getAsLong();
                 final long endLong = ImhotepTask.THREAD_LOCAL_TASK.get().getCurrentExecutionTime().orElse(startLong);
-                activeSpan.setTag("execTimeNanos", endLong - startLong);
+                activeSpan.setTag("cpuExecTimeNanos", endLong - startLong);
             }
             return result;
         }
