@@ -611,5 +611,3 @@ message TracingMap {
   }
   repeated KeyValueString key_values = 1;
 }
-
-
