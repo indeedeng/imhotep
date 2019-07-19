@@ -10,7 +10,6 @@ import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.scheduling.ImhotepTask;
 import com.indeed.imhotep.scheduling.SilentCloseable;
 import com.indeed.imhotep.scheduling.TaskScheduler;
-import org.apache.log4j.Logger;
 
 import java.util.List;
 import java.util.concurrent.ExecutionException;
@@ -72,15 +71,11 @@ public class CommandExecutor<T> {
         final ListenableFuture<Object> lastCommandFuture = processCommand(lastCommand, defUseManager);
 
         final List<ListenableFuture<Object>> allFutures = defUseManager.getAllDefsUses();
-        allFutures.add(lastCommandFuture);
         try {
-            return  (T) Futures.transform(Futures.allAsList(allFutures), (final List<Object> inputs) -> inputs.get(inputs.size() - 1), executorService).get();
+            return  (T) Futures.transform(Futures.allAsList(allFutures), (final List<Object> inputs) -> inputs.get(inputs.indexOf(lastCommandFuture)) , executorService).get();
         } catch (final ExecutionException e) {
-            if (e.getCause() instanceof ImhotepOutOfMemoryException) {
-                throw new ImhotepOutOfMemoryException(e.getCause());
-            } else {
-                throw e;
-            }
+            Throwables.propagateIfInstanceOf(e.getCause(), ImhotepOutOfMemoryException.class);
+            throw e;
         }
     }
 }

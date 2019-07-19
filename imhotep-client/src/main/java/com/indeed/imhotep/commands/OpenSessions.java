@@ -49,7 +49,7 @@ public class OpenSessions extends VoidAbstractImhotepCommand {
             final boolean allowSessionForwarding,
             final boolean p2pCache
     ) {
-        super(UUID.randomUUID().toString(), Collections.emptyList(), Collections.emptyList());
+        super(UUID.randomUUID().toString(), Collections.emptyList(), Collections.singletonList(ImhotepSession.DEFAULT_GROUPS));
         this.hostToShards = hostToShards;
         this.openSessionData = openSessionData;
         this.socketTimeout = socketTimeout;

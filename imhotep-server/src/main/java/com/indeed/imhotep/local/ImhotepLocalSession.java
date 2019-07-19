@@ -122,7 +122,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -164,7 +163,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
 
     protected final MetricStack metricStack = new MetricStack();
 
-    private final AtomicBoolean closed = new AtomicBoolean(false);
+    private boolean closed = false;
 
     private final Exception constructorStackTrace;
 
@@ -257,7 +256,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     }
 
     @Override
-    public synchronized PerformanceStats getPerformanceStats() {
+    public PerformanceStats getPerformanceStats() {
         final InstrumentedFlamdexReader.PerformanceStats flamdexPerformanceStats = instrumentedFlamdexReader.getPerformanceStats();
         final long fieldFilesReadSize = flamdexPerformanceStats.fieldFilesReadSize;
         final long metricsMemorySize = flamdexPerformanceStats.metricsMemorySize;
@@ -273,13 +272,13 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     }
 
     @Override
-    public PerformanceStats closeAndGetPerformanceStats() {
-        if(closed.getAndSet(true)) {
+    public synchronized PerformanceStats closeAndGetPerformanceStats() {
+        if(closed) {
             return null;
         }
 
         final PerformanceStats stats = getPerformanceStats();
-        tryClose();
+        close();
         return stats;
     }
 
@@ -310,7 +309,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     }
 
     @Override
-    public synchronized long getTotalDocFreq(final String[] intFields, final String[] stringFields) {
+    public long getTotalDocFreq(final String[] intFields, final String[] stringFields) {
         long ret = 0L;
 
         for (final String intField : intFields) {
@@ -2141,9 +2140,13 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     }
 
     @Override
-    public void close() {
-        if (!closed.getAndSet(true)) {
-            tryClose();
+    public synchronized void close() {
+        if (!closed) {
+            try {
+                tryClose();
+            } finally {
+                closed = true;
+            }
         }
     }
 
@@ -2170,7 +2173,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
 
     @Override
     protected void finalize() {
-        if (!closed.get()) {
+        if (!closed) {
             log.error("ImhotepLocalSession [" + getSessionId() + "] was not closed!!!!!!! stack trace at construction:",
                       constructorStackTrace);
             close();

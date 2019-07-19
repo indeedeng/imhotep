@@ -9,7 +9,6 @@ import com.indeed.imhotep.BatchRemoteImhotepMultiSession;
 import com.indeed.imhotep.GroupMultiRemapRule;
 import com.indeed.imhotep.QueryRemapRule;
 import com.indeed.imhotep.RegroupCondition;
-import com.indeed.imhotep.RemoteImhotepMultiSession;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
 import com.indeed.imhotep.api.RegroupParams;

@@ -2,6 +2,7 @@ package com.indeed.imhotep.scheduling;
 
 import com.indeed.imhotep.AbstractImhotepMultiSession;
 import com.indeed.imhotep.AbstractImhotepSession;
+import com.indeed.imhotep.BatchRemoteImhotepMultiSession;
 import com.indeed.imhotep.RequestContext;
 import com.indeed.imhotep.api.ImhotepCommand;
 
@@ -39,7 +40,7 @@ public class TaskSnapshot {
     @Nullable
     public final StackTraceElement[] stackTrace;
     @Nullable
-    public final Class imhotepCommandClass;
+    public final ImhotepCommand imhotepCommand;
 
     public TaskSnapshot(
             final long taskID,
@@ -73,7 +74,7 @@ public class TaskSnapshot {
         this.timeSinceLastWaitStart = Duration.ZERO.plusNanos(nanoTime - lastWaitStartTime);
         this.totalExecutionTimeMillis = TimeUnit.MILLISECONDS.convert((totalExecutionTime + nanoTime - lastExecutionStartTime), TimeUnit.NANOSECONDS);
         this.stackTrace = stackTrace;
-        this.imhotepCommandClass = imhotepCommand.getClass();
+        this.imhotepCommand = imhotepCommand;
 
         // innerSession access is dangerous
         // It must be ensured that any methods that are called from here are
@@ -99,6 +100,10 @@ public class TaskSnapshot {
 
     public String getTimeSinceLastWaitStart() {
         return this.timeSinceLastWaitStart.toString();
+    }
+
+    public String getImhotepCommand() {
+        return (imhotepCommand == null) ? "null" : BatchRemoteImhotepMultiSession.getCommandClassName(imhotepCommand);
     }
 
     @Nullable

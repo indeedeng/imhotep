@@ -1,6 +1,5 @@
 package com.indeed.imhotep.local;
 
-import com.google.common.base.Preconditions;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 
@@ -21,7 +20,7 @@ public class DefUseManager {
     private final Map<String, DefUseList> defUseListMap = new HashMap<>();
 
     private static DefUseList getDefaultDefUseListForGroup() {
-        return new DefUseList(Futures.immediateFuture(null), new ArrayList<>());
+        return new DefUseList(Futures.<Void>immediateFuture(null), new ArrayList<>());
     }
 
     // returns a list of futures which should be executed before the gives set of input and output Groups.
