@@ -21,7 +21,6 @@ import org.junit.runners.Parameterized;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
@@ -84,7 +83,7 @@ public class TestAggregateBucket {
                 final List<List<String>> stats = new ArrayList<>();
                 stats.add(singletonList("count()"));
                 final AggregateStatTree count = stat(session, 0);
-                try (final FTGAIterator iterator = aggregateBucketRegroup(
+                try (final FTGAIterator iterator = aggregateBucketRegroupAndGetFTGA(
                         singletonList(new RemoteImhotepMultiSession.PerSessionFTGSInfo(session, "mod3", stats)),
                         count,
                         true,
@@ -108,7 +107,7 @@ public class TestAggregateBucket {
                 final List<List<String>> stats = new ArrayList<>();
                 stats.add(singletonList("count()"));
                 final AggregateStatTree count = stat(session, 0);
-                try (final FTGAIterator iterator = aggregateBucketRegroup(
+                try (final FTGAIterator iterator = aggregateBucketRegroupAndGetFTGA(
                         singletonList(new RemoteImhotepMultiSession.PerSessionFTGSInfo(session, "mod3str", stats)),
                         count,
                         false,
@@ -137,7 +136,7 @@ public class TestAggregateBucket {
                 stats.add(singletonList("count()"));
                 final AggregateStatTree mod3sum = stat(session1, 0).plus(stat(session2, 0));
                 final AggregateStatTree totalCount = stat(session1, 1).plus(stat(session2, 1));
-                try (final FTGAIterator iterator = aggregateBucketRegroup(
+                try (final FTGAIterator iterator = aggregateBucketRegroupAndGetFTGA(
                         asList(
                                 new RemoteImhotepMultiSession.PerSessionFTGSInfo(session1, "mod3str", stats),
                                 new RemoteImhotepMultiSession.PerSessionFTGSInfo(session2, "mod3str", stats)
@@ -172,7 +171,7 @@ public class TestAggregateBucket {
                 stats.add(singletonList("count()"));
                 final AggregateStatTree mod3sum = stat(session1, 0).plus(stat(session2, 0));
                 final AggregateStatTree totalCount = stat(session1, 1).plus(stat(session2, 1));
-                try (final FTGAIterator iterator = aggregateBucketRegroup(
+                try (final FTGAIterator iterator = aggregateBucketRegroupAndGetFTGA(
                         asList(
                                 new RemoteImhotepMultiSession.PerSessionFTGSInfo(session1, "mod3str", stats),
                                 new RemoteImhotepMultiSession.PerSessionFTGSInfo(session2, "mod3str", stats)
@@ -210,7 +209,7 @@ public class TestAggregateBucket {
         assertFalse(iter.fieldIsIntType());
     }
 
-    private static FTGAIterator aggregateBucketRegroup(
+    private static FTGAIterator aggregateBucketRegroupAndGetFTGA(
             final List<RemoteImhotepMultiSession.PerSessionFTGSInfo> sessionsWithFields,
             final AggregateStatTree metric,
             final boolean isIntField,
