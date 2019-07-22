@@ -68,7 +68,7 @@ public final class MetricCacheImpl implements MetricCache {
         final IntValueLookup intValueLookup = loadMetric.apply(metric).get();
         final SharedReference<IntValueLookup> ref = SharedReference.create(intValueLookup, () -> closeMetric.close(Maps.immutableEntry(metric, intValueLookup)));
         while (true) {
-            final SharedReference<IntValueLookup> oldRef = metrics.putIfAbsent(metric, Config.isCloseMetricsWhenUnused() ? ref : ref.copy());
+            final SharedReference<IntValueLookup> oldRef = metrics.putIfAbsent(metric, ref);
             if (oldRef == null) {
                 return new CachedIntValueLookup(ref);
             } else {
@@ -79,6 +79,9 @@ public final class MetricCacheImpl implements MetricCache {
                 }
                 final boolean replaced = metrics.replace(metric, oldRef, ref);
                 if (replaced) {
+                    if (!Config.isCloseMetricsWhenUnused()) {
+                        ref.copy(); // Leak here to close metric only on close session
+                    }
                     return new CachedIntValueLookup(ref);
                 }
             }
@@ -158,7 +161,7 @@ public final class MetricCacheImpl implements MetricCache {
     }
 
     private static final class Config {
-        private static boolean closeMetricsWhenUnused = "true".equalsIgnoreCase(System.getProperties().getProperty("com.indeed.imhotep.service.MetricCacheImpl.closeUnused"));
+        private static boolean closeMetricsWhenUnused = "true".equalsIgnoreCase(System.getProperty("com.indeed.imhotep.service.MetricCacheImpl.closeUnused"));
 
         public static boolean isCloseMetricsWhenUnused() {
             return closeMetricsWhenUnused;
