@@ -841,7 +841,7 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
         final Tracer tracer = TracingUtil.tracerIfInActiveSpan();
         try (final ActiveSpan activeSpan = tracer.buildSpan("executeBatchRequest").withTag("sessionid", getSessionId()).startActive()) {
             final T[] buffer = (T[]) Array.newInstance(lastCommand.getResultClass(), sessions.length);
-            executor().executeMemoryException(buffer, session -> {
+            closeIfCloseableOnFailExecutor().executeMemoryException(buffer, session -> {
                 final FlamdexReader flamdexReader = session.flamdexReader;
                 final Tracer.SpanBuilder spanBuilder = tracer.buildSpan(flamdexReader.getDirectory().toString())
                         .withTag("numDocs", session.numDocs);

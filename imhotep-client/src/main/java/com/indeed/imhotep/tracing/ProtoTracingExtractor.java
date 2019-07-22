@@ -1,6 +1,7 @@
 package com.indeed.imhotep.tracing;
 
 import com.google.common.collect.Iterators;
+import com.google.common.collect.Maps;
 import com.indeed.imhotep.protobuf.ImhotepRequest;
 import io.opentracing.propagation.TextMap;
 
@@ -19,12 +20,12 @@ public class ProtoTracingExtractor implements TextMap {
     public Iterator<Map.Entry<String, String>> iterator() {
         return Iterators.transform(
                 request.getTracingInfo().getKeyValuesList().iterator(),
-                x -> new AbstractMap.SimpleEntry<>(x.getKey(), x.getValue())
+                x -> Maps.immutableEntry(x.getKey(), x.getValue())
         );
     }
 
     @Override
     public void put(final String key, final String value) {
-        throw new UnsupportedOperationException("You need to implement this");
+        throw new UnsupportedOperationException("This is a read-only adapter");
     }
 }

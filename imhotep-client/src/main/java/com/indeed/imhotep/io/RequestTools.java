@@ -88,9 +88,7 @@ public class RequestTools {
             private final byte[] cachedRequest;
 
             public static Cached create(final ImhotepRequest request) {
-                final int requestSize = ImhotepProtobufShipping.getFullSizeInStream(request);
                 final byte[] bytes = request.toByteArray();
-                Preconditions.checkState(((bytes.length + 4) == requestSize), "Unexpected size of cached request");
                 return new Cached(bytes, request.hasSessionId() ? request.getSessionId() : null, request.getRequestType());
             }
 

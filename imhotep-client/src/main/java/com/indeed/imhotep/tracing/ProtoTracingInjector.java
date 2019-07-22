@@ -11,7 +11,7 @@ public class ProtoTracingInjector implements TextMap {
 
     @Override
     public Iterator<Map.Entry<String, String>> iterator() {
-        throw new UnsupportedOperationException("write-only adapter");
+        throw new UnsupportedOperationException("This is a write-only adapter");
     }
 
     @Override

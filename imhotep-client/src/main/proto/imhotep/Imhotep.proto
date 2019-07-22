@@ -346,6 +346,10 @@ message ImhotepRequest {
   optional TracingMap tracing_info = 82; // deliberately matches TracingMapOnly for convenience reasons
 }
 
+// This message type exists so that we can concatenate it after an arbitrary ImhotepRequest
+// to create an ImhotepRequest that also includes the given tracing info.
+// This is desirable because we often want to cache the bytes for most of the ImhotepRequest
+// but the tracing information varies across all of the servers.
 message TracingMapOnly {
   optional TracingMap tracing_info = 82; // deliberately matches ImhotepRequest for convenience reasons
 }
