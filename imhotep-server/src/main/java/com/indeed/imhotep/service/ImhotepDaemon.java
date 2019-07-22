@@ -320,7 +320,8 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                                 request.getSessionId(),
                                 tempFileSizeBytesLeft,
                                 request.getSessionTimeout(),
-                                request.getUseFtgsPooledConnection()
+                                request.getUseFtgsPooledConnection(),
+                                request.getReservedMemoryLimitBytes()
                         );
                 NDC.push(sessionId);
                 builder.setSessionId(sessionId);
@@ -893,7 +894,8 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                         openSession.getSessionId(),
                         tempFileSizeBytesLeft,
                         openSessionData.getSessionTimeout(),
-                        openSessionData.isUseFtgsPooledConnection()
+                        openSessionData.isUseFtgsPooledConnection(),
+                        openSession.reservedMemoryLimitBytes
                 );
                 commands.remove(0);
 

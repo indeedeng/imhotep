@@ -346,6 +346,9 @@ message ImhotepRequest {
 
   // for aggregate regroup
   optional FieldAggregateBucketRegroupRequest fieldAggregateBucketRegroup = 82;
+
+  // for OPEN_SESSION
+  optional int64 reserved_memory_limit_bytes = 83 [default = -1];
 }
 
 message DocStat {

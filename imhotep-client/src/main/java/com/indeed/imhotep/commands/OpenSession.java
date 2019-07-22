@@ -14,17 +14,19 @@ public class OpenSession extends VoidAbstractImhotepCommand {
     public final OpenSessionData openSessionData;
     public final List<ShardBasicInfoMessage> shards;
     public final int clientVersion;
+    public final long reservedMemoryLimitBytes;
 
     public OpenSession(
             final String sessionId,
             final OpenSessionData openSessionData,
             final List<ShardBasicInfoMessage> shards,
-            final int clientVersion
-    ) {
+            final int clientVersion,
+            final long reservedMemoryLimitBytes) {
         super(sessionId);
         this.openSessionData = openSessionData;
         this.shards = shards;
         this.clientVersion = clientVersion;
+        this.reservedMemoryLimitBytes = reservedMemoryLimitBytes;
     }
 
     @Override

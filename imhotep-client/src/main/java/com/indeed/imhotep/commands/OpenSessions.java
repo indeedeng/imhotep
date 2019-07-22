@@ -1,5 +1,6 @@
 package com.indeed.imhotep.commands;
 
+import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
 import com.indeed.imhotep.ImhotepRemoteSession;
 import com.indeed.imhotep.RemoteImhotepMultiSession;
@@ -18,6 +19,7 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -39,6 +41,7 @@ public class OpenSessions extends VoidAbstractImhotepCommand {
     private final AtomicLong localTempFileSizeBytesLeft;
     public final boolean allowSessionForwarding;
     public final boolean p2pCache;
+    private final Map<Host, Long> hostToMemoryLimitBytes;
 
     public OpenSessions(
             final Map<Host, List<Shard>> hostToShards,
@@ -46,8 +49,8 @@ public class OpenSessions extends VoidAbstractImhotepCommand {
             final int socketTimeout,
             final long localTempFileSizeLimit,
             final boolean allowSessionForwarding,
-            final boolean p2pCache
-    ) {
+            final boolean p2pCache,
+            final Map<Host, Long> daemonMemoryUsageLimitBytes) {
         super(UUID.randomUUID().toString());
         this.hostToShards = hostToShards;
         this.openSessionData = openSessionData;
@@ -57,6 +60,7 @@ public class OpenSessions extends VoidAbstractImhotepCommand {
         Preconditions.checkArgument(!allowSessionForwarding, "Batch OpenSessions does not currently support session forwarding");
         this.allowSessionForwarding = allowSessionForwarding;
         this.p2pCache = p2pCache;
+        hostToMemoryLimitBytes = daemonMemoryUsageLimitBytes;
     }
 
 
@@ -90,7 +94,8 @@ public class OpenSessions extends VoidAbstractImhotepCommand {
                 ).collect(Collectors.toList()))
                 .setClientVersion(CURRENT_CLIENT_VERSION)
                 .setSessionId(sessionId)
-                .setAllowSessionForwarding(allowSessionForwarding);
+                .setAllowSessionForwarding(allowSessionForwarding)
+                .setReservedMemoryLimitBytes(hostToMemoryLimitBytes.getOrDefault(serializationParameters.getHostAndPort(), -1L));
         openSessionData.writeToImhotepRequest(request);
         new RequestTools.ImhotepRequestSender.Simple(request.build()).writeToStreamNoFlush(os);
     }

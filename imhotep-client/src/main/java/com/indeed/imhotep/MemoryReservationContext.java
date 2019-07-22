@@ -14,12 +14,14 @@
  package com.indeed.imhotep;
 
 import com.google.common.base.Throwables;
+import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 
 /**
 * @author jsadun
 */
 public final class MemoryReservationContext extends MemoryReserver {
     private final MemoryReserver memoryReserver;
+    private final long allocationLimit;
 
     private long reservationSize = 0;
     /* We track two maximum memory values:
@@ -32,7 +34,12 @@ public final class MemoryReservationContext extends MemoryReserver {
     private boolean closed = false;
 
     public MemoryReservationContext(final MemoryReserver memoryReserver) {
+        this(memoryReserver, Long.MAX_VALUE);
+    }
+
+    public MemoryReservationContext(final MemoryReserver memoryReserver, final long allocationLimit) {
         this.memoryReserver = memoryReserver;
+        this.allocationLimit = (allocationLimit > 0) ? allocationLimit : Long.MAX_VALUE;
     }
 
     public void resetCurrentMaxUsedMemory() {
@@ -58,6 +65,9 @@ public final class MemoryReservationContext extends MemoryReserver {
     public synchronized boolean claimMemory(final long numBytes) {
         if (closed) {
             throw new IllegalStateException("cannot allocate memory after reservation context has been closed");
+        }
+        if ((reservationSize + numBytes) > allocationLimit) {
+            return false;
         }
         if (memoryReserver.claimMemory(numBytes)) {
             reservationSize += numBytes;

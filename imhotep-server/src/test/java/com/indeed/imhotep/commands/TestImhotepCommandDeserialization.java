@@ -219,8 +219,8 @@ public class TestImhotepCommandDeserialization implements CommandsTest {
                 60,
                 100L,
                 false,
-                false
-        );
+                false,
+                clusterMemoryUsageLimitMB, daemonMemoryUsageLimitMB);
 
         {
             final List<ShardBasicInfoMessage> shards = new ArrayList<>();
@@ -235,8 +235,8 @@ public class TestImhotepCommandDeserialization implements CommandsTest {
                             openSessions.getSessionId(),
                             openSessionData,
                             shards,
-                            ImhotepRemoteSession.CURRENT_CLIENT_VERSION
-                    ),
+                            ImhotepRemoteSession.CURRENT_CLIENT_VERSION,
+                            request.getReservedMemoryLimitMb()),
                     readSerializedAndDeserialized(
                             openSessions,
                             makeSerializationParameters("host1", 1234)
@@ -263,8 +263,8 @@ public class TestImhotepCommandDeserialization implements CommandsTest {
                             openSessions.getSessionId(),
                             openSessionData,
                             shards,
-                            ImhotepRemoteSession.CURRENT_CLIENT_VERSION
-                    ),
+                            ImhotepRemoteSession.CURRENT_CLIENT_VERSION,
+                            request.getReservedMemoryLimitMb()),
                     readSerializedAndDeserialized(
                             openSessions,
                             makeSerializationParameters("host1", 1235)
@@ -285,8 +285,8 @@ public class TestImhotepCommandDeserialization implements CommandsTest {
                             openSessions.getSessionId(),
                             openSessionData,
                             shards,
-                            ImhotepRemoteSession.CURRENT_CLIENT_VERSION
-                    ),
+                            ImhotepRemoteSession.CURRENT_CLIENT_VERSION,
+                            request.getReservedMemoryLimitMb()),
                     readSerializedAndDeserialized(
                             openSessions,
                             makeSerializationParameters("host2", 1234)

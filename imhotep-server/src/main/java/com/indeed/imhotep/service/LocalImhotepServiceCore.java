@@ -348,7 +348,9 @@ public class LocalImhotepServiceCore
             String sessionId,
             AtomicLong tempFileSizeBytesLeft,
             long sessionTimeout,
-            final boolean useFtgsPooledConnection) throws ImhotepOutOfMemoryException {
+            final boolean useFtgsPooledConnection,
+            final long reservedMemoryLimitBytes
+    ) throws ImhotepOutOfMemoryException {
         if (Strings.isNullOrEmpty(sessionId)) {
             sessionId = generateSessionId();
         }
@@ -367,7 +369,7 @@ public class LocalImhotepServiceCore
         final ImhotepLocalSession[] localSessions =
                 new ImhotepLocalSession[shardRequestList.size()];
 
-        final MemoryReservationContext multiSessionMemoryContext = new MemoryReservationContext(memory);
+        final MemoryReservationContext multiSessionMemoryContext = new MemoryReservationContext(memory, reservedMemoryLimitBytes);
 
         try {
             // Construct flamdex readers

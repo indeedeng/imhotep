@@ -223,7 +223,8 @@ public interface ImhotepCommand<T> extends HasSessionId {
                         request.getSessionId(),
                         OpenSessionData.readFromImhotepRequest(request),
                         request.getShardsList(),
-                        request.getClientVersion()
+                        request.getClientVersion(),
+                        request.getReservedMemoryLimitBytes()
                 );
             default:
                 throw new IllegalArgumentException("unsupported request type in batch request: " +
