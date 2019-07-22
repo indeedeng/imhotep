@@ -832,7 +832,8 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                 final ImhotepResponse.Builder builder) {
             final PerformanceStats stats =
                     service.handleGetPerformanceStats(
-                            request.getSessionId());
+                            request.getSessionId(),
+                            request.getResetPerformanceStats());
             builder.setPerformanceStats(ImhotepDaemonMarshaller.marshal(stats));
             return builder.build();
         }

@@ -430,14 +430,14 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
     }
 
     @Override
-    public PerformanceStats getPerformanceStats() {
+    public PerformanceStats getPerformanceStats(final boolean reset) {
         final PerformanceStats[] stats = new PerformanceStats[sessions.length];
-        executor().executeRuntimeException(stats, imhotepSession -> imhotepSession.getPerformanceStats());
-        return combinePerformanceStats(stats);
+        executor().executeRuntimeException(stats, imhotepSession -> imhotepSession.getPerformanceStats(reset));
+        return combinePerformanceStats(reset, stats);
     }
 
     // Combination rules are different for local sessions vs what is done in RemoteImhotepMultiSession for remote sessions
-    protected PerformanceStats combinePerformanceStats(PerformanceStats[] stats) {
+    protected PerformanceStats combinePerformanceStats(final boolean reset, PerformanceStats[] stats) {
         if(stats == null) {
             return null;
         }
@@ -506,7 +506,7 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
     @Override
     public PerformanceStats closeAndGetPerformanceStats() {
         final PerformanceStats[] perSessionStats = closeWithOptionalPerformanceStats(true);
-        return combinePerformanceStats(perSessionStats);
+        return combinePerformanceStats(false, perSessionStats);
     }
 
     protected void preClose() {

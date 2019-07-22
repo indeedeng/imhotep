@@ -1670,7 +1670,7 @@ public class TestImhotepLocalSession {
                 new MemoryReservationContext(new ImhotepMemoryPool(Long.MAX_VALUE)),
                 null)) {
 
-            final PerformanceStats stats = session.getPerformanceStats();
+            final PerformanceStats stats = session.getPerformanceStats(false);
             // It's hard to create reasonable test for getPerformanceStats.
             // Just checking that all values make sence.
             Assert.assertTrue(stats.cpuTime >= 0);

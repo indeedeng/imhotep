@@ -71,7 +71,7 @@ public interface ImhotepServiceCore {
     void handleCloseSession(String sessionId, Exception e);
     void handleResetGroups(String sessionId, String groupsName) throws ImhotepOutOfMemoryException;
     int handleGetNumGroups(String sessionId, String groupsName);
-    PerformanceStats handleGetPerformanceStats(String sessionId);
+    PerformanceStats handleGetPerformanceStats(String sessionId, boolean reset);
     PerformanceStats handleCloseAndGetPerformanceStats(String sessionId);
     // open session methods return session id
     String handleOpenSession(String dataset, List<ShardBasicInfoMessage> shardRequestList, String username, String clientName,

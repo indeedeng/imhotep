@@ -281,8 +281,8 @@ public class BatchRemoteImhotepMultiSession extends AbstractImhotepSession {
     }
 
     @Override
-    public PerformanceStats getPerformanceStats() {
-        return remoteImhotepMultiSession.getPerformanceStats();
+    public PerformanceStats getPerformanceStats(final boolean reset) {
+        return remoteImhotepMultiSession.getPerformanceStats(reset);
     }
 
     @Override

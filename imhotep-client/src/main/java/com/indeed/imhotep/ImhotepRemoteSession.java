@@ -1115,9 +1115,10 @@ public class ImhotepRemoteSession
     }
 
     @Override
-    public PerformanceStats getPerformanceStats() {
+    public PerformanceStats getPerformanceStats(final boolean reset) {
         final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.GET_PERFORMANCE_STATS)
                 .setSessionId(getSessionId())
+                .setResetPerformanceStats(reset)
                 .build();
 
         try {

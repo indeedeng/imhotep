@@ -72,7 +72,8 @@ public class CommandExecutor<T> {
 
         final List<ListenableFuture<Object>> allFutures = defUseManager.getAllDefsUses();
         try {
-            return  (T) Futures.transform(Futures.allAsList(allFutures), (final List<Object> inputs) -> inputs.get(allFutures.indexOf(lastCommandFuture)) , executorService).get();
+              Futures.<List<Object>, Void>transform(Futures.allAsList(allFutures), (final List<Object> inputs) -> null, executorService).get();
+              return (T)lastCommandFuture.get();
         } catch (final ExecutionException e) {
             Throwables.propagateIfInstanceOf(e.getCause(), ImhotepOutOfMemoryException.class);
             throw e;

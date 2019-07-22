@@ -142,6 +142,8 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     static final int MAX_NUMBER_STATS = 64;
     public static final int BUFFER_SIZE = 2048;
     private final AtomicLong tempFileSizeBytesLeft;
+    private long savedTempFileSizeValue;
+    private PerformanceStats resetPerformanceStats = new PerformanceStats(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, ImmutableMap.of());
 
     protected final int numDocs;
 
@@ -256,19 +258,25 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     }
 
     @Override
-    public PerformanceStats getPerformanceStats() {
+    public PerformanceStats getPerformanceStats(final boolean reset) {
         final InstrumentedFlamdexReader.PerformanceStats flamdexPerformanceStats = instrumentedFlamdexReader.getPerformanceStats();
         final long fieldFilesReadSize = flamdexPerformanceStats.fieldFilesReadSize;
         final long metricsMemorySize = flamdexPerformanceStats.metricsMemorySize;
         final long tempFileSize = (tempFileSizeBytesLeft == null) ? 0 : tempFileSizeBytesLeft.get();
         final PerformanceStats result =
                 new PerformanceStats(
-                        0,
+                        0, // calculated in MultiSession
                         memory.getCurrentMaxUsedMemory() + metricsMemorySize,
-                        tempFileSize,
-                        fieldFilesReadSize,
+                        savedTempFileSizeValue - tempFileSize,
+                        fieldFilesReadSize - resetPerformanceStats.fieldFilesReadSize,
                         0, 0, 0, 0, 0, 0, ImmutableMap.of());
+        if (reset) {
+            resetPerformanceStats = result;
+            memory.resetCurrentMaxUsedMemory();
+            savedTempFileSizeValue = tempFileSize;
+        }
         return result;
+
     }
 
     @Override
@@ -277,7 +285,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             return null;
         }
 
-        final PerformanceStats stats = getPerformanceStats();
+        final PerformanceStats stats = getPerformanceStats(false);
         close();
         return stats;
     }

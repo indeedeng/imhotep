@@ -37,8 +37,8 @@ public abstract class AbstractImhotepCommand<T> implements ImhotepCommand<T> {
     AbstractImhotepCommand(final String sessionId, final Class<T> resultClass, final RegroupParams regroupParams) {
         this.sessionId = sessionId;
         this.resultClass = resultClass;
-        this.inputGroups = ImmutableList.copyOf(Collections.singletonList(regroupParams.getInputGroups()));
-        this.outputGroups = ImmutableList.copyOf(Collections.singletonList(regroupParams.getOutputGroups()));
+        this.inputGroups = ImmutableList.of(regroupParams.getInputGroups());
+        this.outputGroups = ImmutableList.of(regroupParams.getOutputGroups());
     }
 
     AbstractImhotepCommand(final String sessionId, final Class<T> resultClass, final List<String> inputGroups, final List<String> outputGroups) {

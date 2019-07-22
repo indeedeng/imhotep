@@ -703,8 +703,8 @@ public abstract class AbstractImhotepServiceCore
     }
 
     @Override
-    public PerformanceStats handleGetPerformanceStats(final String sessionId) {
-        return doWithSession(sessionId, (Function<MTImhotepLocalMultiSession, PerformanceStats>) imhotepSession -> imhotepSession.getPerformanceStats());
+    public PerformanceStats handleGetPerformanceStats(final String sessionId, final boolean reset) {
+        return doWithSession(sessionId, (Function<MTImhotepLocalMultiSession, PerformanceStats>) imhotepSession -> imhotepSession.getPerformanceStats(reset));
     }
 
     @Override

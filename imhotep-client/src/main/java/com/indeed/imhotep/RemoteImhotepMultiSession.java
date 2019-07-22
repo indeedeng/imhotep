@@ -228,7 +228,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
 
     // Combination rules are different for remote sessions vs what is done in AbstractImhotepMultiSession for local sessions
     @Override
-    protected PerformanceStats combinePerformanceStats(PerformanceStats[] stats) {
+    protected PerformanceStats combinePerformanceStats(boolean reset, PerformanceStats[] stats) {
         if(stats == null) {
             return null;
         }

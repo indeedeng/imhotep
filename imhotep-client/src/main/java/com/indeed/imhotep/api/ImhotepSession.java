@@ -510,7 +510,7 @@ public interface ImhotepSession
      * ImhotepSession is collecting some performance and execution statistics.
      * @return performance statistics collected since last reset (or since creation of the session)
      */
-    PerformanceStats getPerformanceStats();
+    PerformanceStats getPerformanceStats(final boolean reset);
 
     /**
      * Effect is same as calling getPerformanceStats(...) and then close()
