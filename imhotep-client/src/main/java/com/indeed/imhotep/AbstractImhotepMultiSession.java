@@ -464,6 +464,11 @@ public abstract class AbstractImhotepMultiSession<T extends AbstractImhotepSessi
         final long tempFileSize = (tempFileSizeBytesLeft == null)? 0 : tempFileSizeBytesLeft.get();
         builder.setFtgsTempFileSize(savedTempFileSizeValue - tempFileSize);
         slotTiming.writeToPerformanceStats(builder);
+        if (reset) {
+            savedTempFileSizeValue = tempFileSize;
+            savedCPUTime = cpuTotalTime;
+            slotTiming.reset();
+        }
 
         return builder.build();
     }
