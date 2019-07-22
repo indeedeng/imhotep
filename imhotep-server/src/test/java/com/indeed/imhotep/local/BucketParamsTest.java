@@ -8,7 +8,7 @@ public class BucketParamsTest {
 
     @Test
     public void testGutters() {
-        final BucketParams bucketParams = new BucketParams(0, 10, 2, false, false);
+        final BucketParams bucketParams = new BucketParams(0, 10, 5, false, false);
         assertEquals(7, bucketParams.getResultNumGroups(1));
         assertEquals(14, bucketParams.getResultNumGroups(2));
         assertEquals(0, bucketParams.getBucketIdForAbsent(0));
@@ -25,7 +25,7 @@ public class BucketParamsTest {
 
     @Test
     public void testDefaults() {
-        final BucketParams bucketParams = new BucketParams(0, 10, 2, false, true);
+        final BucketParams bucketParams = new BucketParams(0, 10, 5, false, true);
         assertEquals(6, bucketParams.getResultNumGroups(1));
         assertEquals(12, bucketParams.getResultNumGroups(2));
         assertEquals(0, bucketParams.getBucketIdForAbsent(0));
@@ -42,7 +42,7 @@ public class BucketParamsTest {
 
     @Test
     public void testNoGutters() {
-        final BucketParams bucketParams = new BucketParams(0, 10, 2, true, false);
+        final BucketParams bucketParams = new BucketParams(0, 10, 5, true, false);
         assertEquals(5, bucketParams.getResultNumGroups(1));
         assertEquals(10, bucketParams.getResultNumGroups(2));
         assertEquals(0, bucketParams.getBucketIdForAbsent(0));

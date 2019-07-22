@@ -89,7 +89,7 @@ public class TestAggregateBucket {
                         true,
                         2,
                         4,
-                        1,
+                        2,
                         false,
                         false
                 )) {
@@ -113,7 +113,7 @@ public class TestAggregateBucket {
                         false,
                         3,
                         5,
-                        1,
+                        2,
                         false,
                         false
                 )) {
@@ -213,13 +213,13 @@ public class TestAggregateBucket {
             final List<RemoteImhotepMultiSession.PerSessionFTGSInfo> sessionsWithFields,
             final AggregateStatTree metric,
             final boolean isIntField,
-            final long min,
-            final long max,
-            final long interval,
+            final double min,
+            final double max,
+            final int numBuckets,
             final boolean excludeGutters,
             final boolean withDefault
     ) throws ImhotepOutOfMemoryException {
-        RemoteImhotepMultiSession.aggregateBucketRegroup(sessionsWithFields, metric, isIntField, min, max, interval, excludeGutters, withDefault);
+        RemoteImhotepMultiSession.aggregateBucketRegroup(sessionsWithFields, metric, isIntField, min, max, numBuckets, excludeGutters, withDefault);
         return RemoteImhotepMultiSession.multiFtgs(sessionsWithFields, singletonList(metric), emptyList(), isIntField, 0, -1, true, StatsSortOrder.UNDEFINED);
     }
 
