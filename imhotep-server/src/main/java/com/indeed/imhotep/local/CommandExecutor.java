@@ -50,7 +50,7 @@ public class CommandExecutor<T> {
                 return imhotepCommand.apply(imhotepLocalSession);
             } catch (final ImhotepOutOfMemoryException e) {
                 // wraps IOOME with RunTimeException, may have successive wraps later too
-                // make sure to propagate to MultiSession with an instanceOf check
+                // make sure to propagate to LocalSession with an instanceOf check
                 throw Throwables.propagate(e);
             }
         } finally {
