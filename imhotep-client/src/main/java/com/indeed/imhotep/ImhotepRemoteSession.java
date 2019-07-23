@@ -1248,7 +1248,8 @@ public class ImhotepRemoteSession
     private ImhotepResponse sendRequest(
             final ImhotepRequestSender request,
             final InputStream is,
-            final OutputStream os) throws IOException {
+            final OutputStream os
+    ) throws IOException {
         final Tracer tracer = TracingUtil.tracerIfEnabled(includeTracingInformation);
         final String sessionId = request.getSessionId();
         try (final ActiveSpan activeSpan = tracer.buildSpan(request.getRequestType().name()).withTag("sessionid", sessionId).withTag("host", host + ":" + port).startActive()) {
