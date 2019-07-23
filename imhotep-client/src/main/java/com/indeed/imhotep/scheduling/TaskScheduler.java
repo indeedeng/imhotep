@@ -34,6 +34,7 @@ import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
@@ -58,6 +59,7 @@ public class TaskScheduler implements SilentCloseable {
     private final long historyLengthNanos;
     private final long batchNanos;
     private AtomicLong totalExecutionTime = new AtomicLong(0);
+    private AtomicInteger totalCompletedTasks = new AtomicInteger(0);
     private final SchedulerType schedulerType;
     private final MetricStatsEmitter statsEmitter;
 
@@ -142,6 +144,7 @@ public class TaskScheduler implements SilentCloseable {
         statsEmitter.histogram("scheduler." + schedulerType + ".running.tasks", runningTasksCount);
         statsEmitter.count("scheduler." + schedulerType + ".tasks.totalExecutionTime", totalExecutionTime.getAndSet(0));
         statsEmitter.count("scheduler." + schedulerType + ".tasks.maximumExecutionTimeMillis", totalSlots*DATADOG_STATS_REPORTING_FREQUENCY_MILLIS); // to compare totalExecutionTime against
+        statsEmitter.count("scheduler." + schedulerType + ".tasks.totalCompletedTasks", totalCompletedTasks.getAndSet(0));
     }
 
     private synchronized void cleanup() {
@@ -223,7 +226,7 @@ public class TaskScheduler implements SilentCloseable {
             return () -> {}; // can't lock with no task
         }
 
-        final boolean hadAlock = stopped(task, true, true);
+        final boolean hadAlock = stopped(task, true, true, StopType.YIELD);
         if(!hadAlock) {
             return () -> {};
         } else {
@@ -255,7 +258,7 @@ public class TaskScheduler implements SilentCloseable {
             return;
         }
 
-        final boolean hadAlock = stopped(task, true, false);
+        final boolean hadAlock = stopped(task, true, false, StopType.YIELD);
         if (hadAlock) {
             schedule(task);
         }
@@ -285,7 +288,7 @@ public class TaskScheduler implements SilentCloseable {
     }
 
     /** returns true iff a task was running */
-    synchronized boolean stopped(ImhotepTask task, boolean ignoreNotRunning, boolean scheduleNextTask) {
+    synchronized boolean stopped(final ImhotepTask task, boolean ignoreNotRunning, boolean scheduleNextTask, final StopType stopType) {
         if(!runningTasks.remove(task)) {
             if(!ignoreNotRunning) {
                 statsEmitter.count("scheduler." + schedulerType + ".stop.already.stopped", 1);
@@ -294,6 +297,9 @@ public class TaskScheduler implements SilentCloseable {
         }
         final long consumption = task.stopped(schedulerType);
         totalExecutionTime.addAndGet(consumption);
+        if (stopType == StopType.CLOSE) {
+            totalCompletedTasks.incrementAndGet();
+        }
         final OwnerAndPriority ownerAndPriority = new OwnerAndPriority(task.userName, task.priority);
         final ConsumptionTracker consumptionTracker = ownerToConsumptionTracker.computeIfAbsent(ownerAndPriority,
                 (ignored) -> new ConsumptionTracker(historyLengthNanos, batchNanos));
@@ -391,5 +397,10 @@ public class TaskScheduler implements SilentCloseable {
 
     public SchedulerType getSchedulerType() {
         return schedulerType;
+    }
+
+    public enum StopType {
+        YIELD,  // task to be scheduled again later
+        CLOSE   // task never to be scheduled again
     }
 }
