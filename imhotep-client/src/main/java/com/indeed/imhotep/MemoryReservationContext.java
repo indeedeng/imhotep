@@ -14,7 +14,6 @@
  package com.indeed.imhotep;
 
 import com.google.common.base.Throwables;
-import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 
 /**
 * @author jsadun
@@ -62,19 +61,19 @@ public final class MemoryReservationContext extends MemoryReserver {
         return memoryReserver.totalMemory();
     }
 
-    public synchronized boolean claimMemory(final long numBytes) {
+    public synchronized AllocationResult claimMemory(final long numBytes) {
         if (closed) {
             throw new IllegalStateException("cannot allocate memory after reservation context has been closed");
         }
         if ((reservationSize + numBytes) > allocationLimit) {
-            return false;
+            return AllocationResult.EXCEEDS_LOCAL_LIMIT;
         }
-        if (memoryReserver.claimMemory(numBytes)) {
+        final AllocationResult allocationResult = memoryReserver.claimMemory(numBytes);
+        if (allocationResult == AllocationResult.ALLOCATED) {
             reservationSize += numBytes;
             updateMax(reservationSize);
-            return true;
         }
-        return false;
+        return allocationResult;
     }
 
     public synchronized void releaseMemory(final long numBytes) {

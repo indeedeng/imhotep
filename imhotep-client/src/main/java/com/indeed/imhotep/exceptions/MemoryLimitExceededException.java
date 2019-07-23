@@ -11,13 +11,18 @@
  * express or implied. See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.indeed.flamdex.api;
+package com.indeed.imhotep.exceptions;
 
-/**
- * @author jsgroth
- */
-public class FlamdexOutOfMemoryException extends Exception {
-    public FlamdexOutOfMemoryException(final String message) {
-        super(message);
+public class MemoryLimitExceededException extends ImhotepKnownException {
+    public MemoryLimitExceededException() {
+        super();
+    }
+
+    public MemoryLimitExceededException(final String s) {
+        super(s);
+    }
+
+    public MemoryLimitExceededException(final String message, final Throwable cause) {
+        super(message, cause);
     }
 }

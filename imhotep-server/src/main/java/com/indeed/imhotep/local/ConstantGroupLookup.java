@@ -80,10 +80,8 @@ final class ConstantGroupLookup extends GroupLookup {
 
     @Override
     public GroupLookup makeCopy(final MemoryReservationContext memory) throws ImhotepOutOfMemoryException {
-        if (!memory.claimMemory(memoryUsed())) {
-            // can't happen right now but who knows in the future?
-            throw new ImhotepOutOfMemoryException();
-        }
+        // can't fail right now but who knows in the future?
+        memory.claimMemoryOrThrowIOOME(memoryUsed());
         final ConstantGroupLookup constantGroupLookup = new ConstantGroupLookup(constant, size);
         constantGroupLookup.numGroups = numGroups;
         return constantGroupLookup;

@@ -48,6 +48,7 @@ import com.indeed.imhotep.GroupStatsDummyIterator;
 import com.indeed.imhotep.ImhotepMemoryPool;
 import com.indeed.imhotep.Instrumentation;
 import com.indeed.imhotep.MemoryReservationContext;
+import com.indeed.imhotep.MemoryReserver;
 import com.indeed.imhotep.QueryRemapRule;
 import com.indeed.imhotep.RegroupCondition;
 import com.indeed.imhotep.TermCount;
@@ -501,9 +502,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         final int numConditions = GroupMultiRemapRules.countRemapConditions(rawRules);
         final int highestTarget;
         final int targetGroupBytes = Math.max(numRules * 4, numConditions * 8);
-        if (!memory.claimMemory(targetGroupBytes)) {
-            throw newImhotepOutOfMemoryException();
-        }
+        claimOrThrowIOOME(targetGroupBytes);
         try {
             highestTarget = GroupMultiRemapRules.validateTargets(rawRules);
             GroupMultiRemapRules.validateEqualitySplits(rawRules);
@@ -533,9 +532,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         final GroupLookup newDocIdToGroup = newGroupLookupWithPlaceholders(docIdToGroup, placeholderGroup);
 
         try {
-            if (!memory.claimMemory(totalInternalRegroupBytes)) {
-                throw newImhotepOutOfMemoryException();
-            }
+            claimOrThrowIOOME(totalInternalRegroupBytes);
             final int[] docIdBuf = memoryPool.getIntBuffer(BUFFER_SIZE, true);
             try {
                 MultiRegroupInternals.internalMultiRegroup(docIdToGroup,
@@ -557,9 +554,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
 
             final int targetGroupToRuleBytes =
                     Math.max(highestTarget + 1, docIdToGroup.getNumGroups()) * 8;
-            if (!memory.claimMemory(targetGroupToRuleBytes)) {
-                throw newImhotepOutOfMemoryException();
-            }
+            claimOrThrowIOOME(targetGroupToRuleBytes);
             try {
                 MultiRegroupInternals.internalMultiRegroupCleanup(docIdToGroup,
                                                                   docIdToGroup.getNumGroups(),
@@ -1584,9 +1579,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         final GroupLookup outputGroups = namedGroupLookups.ensureWriteable(regroupParams, bucketParams.getResultNumGroups(inputGroups.getNumGroups()));
 
         final long memoryUsage = (BUFFER_SIZE * Ints.BYTES * 3) + ((long)inputGroups.getNumGroups() * Ints.BYTES) + getBitSetMemoryUsage();
-        if (!memory.claimMemory(memoryUsage)) {
-            throw newImhotepOutOfMemoryException();
-        }
+        claimOrThrowIOOME(memoryUsage);
         try {
             Preconditions.checkArgument(ftgsIterator.nextField());
             Preconditions.checkState("magic".equals(ftgsIterator.fieldName()), "MultiFTGSIterator has field name \"%s\", expected \"magic\"", ftgsIterator.fieldName());
@@ -2036,9 +2029,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
             final Query query = ImhotepDaemonMarshaller.marshal(queryMessage);
 
             final int bitSetMemory = (flamdexReader.getNumDocs() + 64) / 64 * 8;
-            if (!memory.claimMemory(bitSetMemory)) {
-                throw newImhotepOutOfMemoryException();
-            }
+            claimOrThrowIOOME(bitSetMemory);
             try {
                 final FastBitSet bitSet = new FastBitSet(flamdexReader.getNumDocs());
                 final FastBitSetPooler bitSetPooler = new ImhotepBitSetPooler(memory);
@@ -2449,9 +2440,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         throws ImhotepOutOfMemoryException {
         final long memoryUsage = getBitSetMemoryUsage();
 
-        if (!memory.claimMemory(memoryUsage)) {
-            throw newImhotepOutOfMemoryException();
-        }
+        claimOrThrowIOOME(memoryUsage);
 
         return new BitSetIntValueLookup(FlamdexUtils.cacheHasIntTerm(field, term, flamdexReader),
                                         memoryUsage);
@@ -2461,9 +2450,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         throws ImhotepOutOfMemoryException {
         final long memoryUsage = getBitSetMemoryUsage();
 
-        if (!memory.claimMemory(memoryUsage)) {
-            throw newImhotepOutOfMemoryException();
-        }
+        claimOrThrowIOOME(memoryUsage);
 
         return new BitSetIntValueLookup(
                                         FlamdexUtils.cacheHasStringTerm(field, term, flamdexReader),
@@ -2477,9 +2464,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
 
         final long memoryUsage = getBitSetMemoryUsage();
 
-        if (!memory.claimMemory(memoryUsage)) {
-            throw newImhotepOutOfMemoryException();
-        }
+        claimOrThrowIOOME(memoryUsage);
 
         return new BitSetIntValueLookup(
                 FlamdexUtils.cacheHasIntField(field, flamdexReader),
@@ -2494,9 +2479,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
 
         final long memoryUsage = getBitSetMemoryUsage();
 
-        if (!memory.claimMemory(memoryUsage)) {
-            throw newImhotepOutOfMemoryException();
-        }
+        claimOrThrowIOOME(memoryUsage);
 
         return new BitSetIntValueLookup(
                 FlamdexUtils.cacheHasStringField(field, flamdexReader),
@@ -2507,9 +2490,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     private IntValueLookup hasRegexFilter(final String field, final String regex) throws ImhotepOutOfMemoryException {
         final long memoryUsage = getBitSetMemoryUsage();
 
-        if (!memory.claimMemory(memoryUsage)) {
-            throw newImhotepOutOfMemoryException();
-        }
+        claimOrThrowIOOME(memoryUsage);
 
         return new BitSetIntValueLookup(
                 FlamdexUtils.cacheRegex(field, regex, flamdexReader),
@@ -2520,9 +2501,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     private IntValueLookup fieldEqualFilter(final String field1, final String field2) throws ImhotepOutOfMemoryException {
         final long memoryUsage = getBitSetMemoryUsage();
 
-        if (!memory.claimMemory(memoryUsage)) {
-            throw newImhotepOutOfMemoryException();
-        }
+        claimOrThrowIOOME(memoryUsage);
 
         return new BitSetIntValueLookup(
                 FlamdexUtils.cacheFieldEqual(field1, field2, flamdexReader),
@@ -2533,9 +2512,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     private IntValueLookup matchByRegex(final String field, final String regex, final int matchIndex) throws ImhotepOutOfMemoryException {
         final long memoryUsage = 8 * flamdexReader.getNumDocs();
 
-        if (!memory.claimMemory(memoryUsage)) {
-            throw newImhotepOutOfMemoryException();
-        }
+        claimOrThrowIOOME(memoryUsage);
 
         return new MemoryReservingIntValueLookupWrapper(FlamdexUtils.cacheRegExpCapturedLong(field, flamdexReader, Pattern.compile(regex), matchIndex));
     }
@@ -2562,9 +2539,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
 
         final long memoryUsage = flamdexReader.getNumDocs();
 
-        if (!memory.claimMemory(memoryUsage)) {
-            throw newImhotepOutOfMemoryException();
-        }
+        claimOrThrowIOOME(memoryUsage);
 
         final byte[] array = new byte[flamdexReader.getNumDocs()];
 
@@ -2597,9 +2572,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     private IntValueLookup stringLenLookup(final String field) throws ImhotepOutOfMemoryException {
         final long memoryUsage = 2 * flamdexReader.getNumDocs();
 
-        if (!memory.claimMemory(memoryUsage)) {
-            throw newImhotepOutOfMemoryException();
-        }
+        claimOrThrowIOOME(memoryUsage);
 
         final char[] result = new char[flamdexReader.getNumDocs()];
         char max = Character.MAX_VALUE;
@@ -2649,9 +2622,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         throws ImhotepOutOfMemoryException {
         final long memoryUsage = 4 * flamdexReader.getNumDocs();
 
-        if (!memory.claimMemory(memoryUsage)) {
-            throw newImhotepOutOfMemoryException();
-        }
+        claimOrThrowIOOME(memoryUsage);
 
         final int[] array = new int[flamdexReader.getNumDocs()];
         int min = Integer.MAX_VALUE;
@@ -2700,9 +2671,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     private IntValueLookup randomLookupForChooser(final String field, final boolean isIntField, final String salt, final IterativeHasherUtils.GroupChooser groupChooser, final int maxGroup) throws ImhotepOutOfMemoryException {
         // TODO: Size this based on maxGroup. No need to have a full int[].
         final long memoryUsage = 4 * flamdexReader.getNumDocs();
-        if (!memory.claimMemory(memoryUsage)) {
-            throw newImhotepOutOfMemoryException();
-        }
+        claimOrThrowIOOME(memoryUsage);
         final int[] array = new int[flamdexReader.getNumDocs()];
 
         try(final IterativeHasherUtils.TermHashIterator iterator =
@@ -2750,9 +2719,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     private IntValueLookup randomMetricLookupForChooser(final IntValueLookup lookup, final String salt, final IterativeHasherUtils.GroupChooser chooser, final int maxGroup) throws ImhotepOutOfMemoryException {
         // TODO: Size this based on maxGroup. No need to have a full int[].
         final long memoryUsage = 4 * flamdexReader.getNumDocs();
-        if (!memory.claimMemory(memoryUsage)) {
-            throw newImhotepOutOfMemoryException();
-        }
+        claimOrThrowIOOME(memoryUsage);
         final int[] array = new int[flamdexReader.getNumDocs()];
 
         // Using ConsistentLongHasher to be consistent with randomMetricRegroup to the extent that we can.
@@ -2796,9 +2763,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
     private IntValueLookup uidToUnixtimeLookup(final String field) throws ImhotepOutOfMemoryException {
         // use 64 bits to avoid year 2038 problem
         final long memoryUsage = 8 * flamdexReader.getNumDocs();
-        if (!memory.claimMemory(memoryUsage)) {
-            throw newImhotepOutOfMemoryException();
-        }
+        claimOrThrowIOOME(memoryUsage);
         final long[] array = new long[flamdexReader.getNumDocs()];
         Arrays.fill(array, -1);
 
@@ -2845,6 +2810,13 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         }
 
         return new MemoryReservingIntValueLookupWrapper(new LongArrayIntValueLookup(array));
+    }
+
+    void claimOrThrowIOOME(final long memoryUsage) throws ImhotepOutOfMemoryException {
+        final MemoryReserver.AllocationResult allocationResult = memory.claimMemory(memoryUsage);
+        if (allocationResult != MemoryReserver.AllocationResult.ALLOCATED) {
+            throw newImhotepOutOfMemoryException(allocationResult);
+        }
     }
 
     private int getBitSetMemoryUsage() {

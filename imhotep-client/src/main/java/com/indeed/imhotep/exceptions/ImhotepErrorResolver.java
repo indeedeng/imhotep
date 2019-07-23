@@ -14,6 +14,7 @@
 
 package com.indeed.imhotep.exceptions;
 
+import com.indeed.imhotep.MemoryReserver;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.io.TempFileSizeLimitExceededException;
 import com.indeed.imhotep.io.WriteLimitExceededException;
@@ -30,6 +31,10 @@ public class ImhotepErrorResolver {
     public static Exception resolve(final Exception e) {
         final String error = ExceptionUtils.getRootCauseMessage(e);
         if (error.contains(ImhotepOutOfMemoryException.class.getSimpleName())) {
+            if (error.contains(MemoryReserver.AllocationResult.EXCEEDS_LOCAL_LIMIT.msg)) {
+                return new MemoryLimitExceededException("Query failed trying to use more memory than it was allocated. " +
+                    "Reduce memory by reducing the number of documents in the query or reducing the cardinality of grouping operations.", e);
+            }
             return new ImhotepOverloadedException("Imhotep is overloaded with all memory in use. " +
                     "Please wait before retrying.", e);
         }
