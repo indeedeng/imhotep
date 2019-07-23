@@ -32,7 +32,9 @@ public class CommandExecutor<T> {
     private final List<ImhotepCommand> firstCommands;
     private final ImhotepCommand<T> lastCommand;
 
-    public CommandExecutor(final AbstractImhotepMultiSession imhotepMultiSession, final ListeningExecutorService executorService, final ImhotepLocalSession imhotepLocalSession, final List<ImhotepCommand> firstCommands, final ImhotepCommand<T> lastCommand) {
+    public CommandExecutor(final AbstractImhotepMultiSession imhotepMultiSession, final ListeningExecutorService executorService,
+                           final ImhotepLocalSession imhotepLocalSession, final List<ImhotepCommand> firstCommands,
+                           final ImhotepCommand<T> lastCommand) {
         this.imhotepMultiSession = imhotepMultiSession;
         this.executorService = executorService;
         this.imhotepLocalSession = imhotepLocalSession;
@@ -47,11 +49,11 @@ public class CommandExecutor<T> {
             try {
                 return imhotepCommand.apply(imhotepLocalSession);
             } catch (final ImhotepOutOfMemoryException e) {
-                Throwables.propagate(e);
+                throw Throwables.propagate(e);
             }
+        } finally {
+            ImhotepTask.clear();
         }
-        ImhotepTask.clear();
-        return null;
     }
 
     private ListenableFuture<Object> processCommand(final ImhotepCommand imhotepCommand, final DefUseManager defUseManager) {
@@ -75,7 +77,7 @@ public class CommandExecutor<T> {
             Futures.allAsList(allFutures).get();  // wait for all execution to complete
             return (T)lastCommandFuture.get();
         } catch (final ExecutionException e) {
-            Throwables.propagateIfInstanceOf(e.getCause(), ImhotepOutOfMemoryException.class);
+            Throwables.propagateIfInstanceOf(e.getCause().getCause(), ImhotepOutOfMemoryException.class);
             throw Throwables.propagate(e);
         }
     }
