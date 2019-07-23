@@ -143,7 +143,7 @@ public class TaskScheduler implements SilentCloseable {
         statsEmitter.histogram("scheduler." + schedulerType + ".waiting.tasks", waitingTasksCount);
         statsEmitter.histogram("scheduler." + schedulerType + ".running.tasks", runningTasksCount);
         statsEmitter.count("scheduler." + schedulerType + ".tasks.totalExecutionTime", totalExecutionTime.getAndSet(0));
-        statsEmitter.count("scheduler." + schedulerType + ".tasks.maximumExecutionTimeMillis", totalSlots*DATADOG_STATS_REPORTING_FREQUENCY_MILLIS); // to compare totalExecutionTime against
+        statsEmitter.count("scheduler." + schedulerType + ".tasks.maximumPossibleExecutionTime", totalSlots*DATADOG_STATS_REPORTING_FREQUENCY_MILLIS); // to compare totalExecutionTime against
         statsEmitter.count("scheduler." + schedulerType + ".tasks.totalCompletedTasks", totalCompletedTasks.getAndSet(0));
     }
 
