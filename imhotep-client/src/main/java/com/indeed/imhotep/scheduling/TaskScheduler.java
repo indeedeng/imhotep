@@ -58,8 +58,8 @@ public class TaskScheduler implements SilentCloseable {
     private final int totalSlots;
     private final long historyLengthNanos;
     private final long batchNanos;
-    private AtomicLong totalExecutionTime = new AtomicLong(0);
-    private AtomicInteger totalCompletedTasks = new AtomicInteger(0);
+    private final AtomicLong totalExecutionTime = new AtomicLong(0);
+    private final AtomicInteger totalCompletedTasks = new AtomicInteger(0);
     private final SchedulerType schedulerType;
     private final MetricStatsEmitter statsEmitter;
 
