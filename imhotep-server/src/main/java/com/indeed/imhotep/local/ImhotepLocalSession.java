@@ -2802,7 +2802,7 @@ public abstract class ImhotepLocalSession extends AbstractImhotepSession {
         return lastCommand.apply(this);
     }
 
-    public <T> T executeBatchRequestParallel(final CommandExecutor<T> commandExecutor) throws ImhotepOutOfMemoryException, ExecutionException, InterruptedException {
+    public <T> T executeBatchRequestParallel(final CommandExecutor<T> commandExecutor) throws ImhotepOutOfMemoryException, InterruptedException {
         return commandExecutor.processCommands(new DefUseManager());
     }
 }
