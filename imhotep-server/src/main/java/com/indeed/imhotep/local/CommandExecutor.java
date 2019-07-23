@@ -49,6 +49,8 @@ public class CommandExecutor<T> {
             try {
                 return imhotepCommand.apply(imhotepLocalSession);
             } catch (final ImhotepOutOfMemoryException e) {
+                // wraps IOOME with RunTimeException, may have successive wraps later too
+                // make sure to propagate to MultiSession with an instanceOf check
                 throw Throwables.propagate(e);
             }
         } finally {
@@ -77,6 +79,7 @@ public class CommandExecutor<T> {
             Futures.allAsList(allFutures).get();  // wait for all execution to complete
             return (T)lastCommandFuture.get();
         } catch (final ExecutionException e) {
+            // IOOME wrapped twice, once by Futures.get() and by applyCommand call in Futures.transform
             Throwables.propagateIfInstanceOf(e.getCause().getCause(), ImhotepOutOfMemoryException.class);
             throw Throwables.propagate(e);
         }
