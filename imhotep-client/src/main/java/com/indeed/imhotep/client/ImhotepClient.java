@@ -583,18 +583,11 @@ public class ImhotepClient
         final List<Future<ImhotepRemoteSession>> futures = new ArrayList<>(shardRequestMap.size());
         final Tracer tracer = GlobalTracer.get();
         try {
-
-            final Map<Host, Long> hostToNumDocs = shardRequestMap.entrySet().stream()
-                    .collect(Collectors.toMap(
-                            Map.Entry::getKey,
-                            e -> e.getValue().stream().mapToLong(Shard::getNumDocs).sum()
-                    ));
-
             for (final Map.Entry<Host, List<Shard>> entry : shardRequestMap.entrySet()) {
                 final Host host = entry.getKey();
                 final List<Shard> shardList = entry.getValue();
 
-                final long numDocs = hostToNumDocs.get(host);
+                final long numDocs = shardRequestMap.get(host).stream().mapToInt(Shard::getNumDocs).asLongStream().sum();
                 final long memoryLimitBytes = daemonMemoryUsageLimitBytes.getOrDefault(host, -1L);
                 final ActiveSpan.Continuation continuation = getContinuation(tracer);
 
