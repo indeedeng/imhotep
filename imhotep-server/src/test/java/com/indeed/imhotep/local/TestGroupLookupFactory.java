@@ -43,8 +43,8 @@ public class TestGroupLookupFactory {
             }
 
             @Override
-            public boolean claimMemory(final long numBytes) {
-                return true;
+            public AllocationResult claimMemory(final long numBytes) {
+                return AllocationResult.ALLOCATED;
             }
 
             @Override

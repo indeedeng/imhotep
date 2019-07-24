@@ -22,8 +22,8 @@ public class NamedGroupManagerTest {
         }
 
         @Override
-        public boolean claimMemory(final long numBytes) {
-            return true;
+        public AllocationResult claimMemory(final long numBytes) {
+            return AllocationResult.ALLOCATED;
         }
 
         @Override

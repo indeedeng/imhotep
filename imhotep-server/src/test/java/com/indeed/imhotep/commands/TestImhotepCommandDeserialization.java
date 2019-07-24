@@ -220,7 +220,8 @@ public class TestImhotepCommandDeserialization implements CommandsTest {
                 100L,
                 false,
                 false,
-                clusterMemoryUsageLimitMB, daemonMemoryUsageLimitMB);
+                ImmutableMap.of(new Host("host1", 1234), 1L, new Host("host2", 1234), 2L, new Host("host2", 1234), 3L)
+        );
 
         {
             final List<ShardBasicInfoMessage> shards = new ArrayList<>();
@@ -236,7 +237,8 @@ public class TestImhotepCommandDeserialization implements CommandsTest {
                             openSessionData,
                             shards,
                             ImhotepRemoteSession.CURRENT_CLIENT_VERSION,
-                            request.getReservedMemoryLimitMb()),
+                            1
+                    ),
                     readSerializedAndDeserialized(
                             openSessions,
                             makeSerializationParameters("host1", 1234)
@@ -264,7 +266,7 @@ public class TestImhotepCommandDeserialization implements CommandsTest {
                             openSessionData,
                             shards,
                             ImhotepRemoteSession.CURRENT_CLIENT_VERSION,
-                            request.getReservedMemoryLimitMb()),
+                            2),
                     readSerializedAndDeserialized(
                             openSessions,
                             makeSerializationParameters("host1", 1235)
@@ -286,7 +288,7 @@ public class TestImhotepCommandDeserialization implements CommandsTest {
                             openSessionData,
                             shards,
                             ImhotepRemoteSession.CURRENT_CLIENT_VERSION,
-                            request.getReservedMemoryLimitMb()),
+                            3),
                     readSerializedAndDeserialized(
                             openSessions,
                             makeSerializationParameters("host2", 1234)

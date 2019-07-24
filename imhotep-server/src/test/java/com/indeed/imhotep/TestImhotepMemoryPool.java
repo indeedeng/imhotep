@@ -57,7 +57,7 @@ public class TestImhotepMemoryPool {
                     public void run() {
                         while (true) {
                             final long l = (rand.nextLong() & Long.MAX_VALUE) % (1024*1024);
-                            if (!pool.claimMemory(l)) {
+                            if (pool.claimMemory(l) != MemoryReserver.AllocationResult.ALLOCATED) {
                                 break;
                             }
                             allocated += l;
