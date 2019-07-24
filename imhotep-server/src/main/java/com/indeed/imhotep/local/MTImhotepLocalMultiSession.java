@@ -94,6 +94,8 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
 
     private final boolean useFtgsPooledConnection;
 
+    private final boolean executeBatchInParallel;
+
     public MTImhotepLocalMultiSession(final String sessionId,
                                       final ImhotepLocalSession[] sessions,
                                       final MemoryReservationContext memory,
@@ -102,11 +104,13 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
                                       final String clientName,
                                       final byte priority,
                                       final SlotTiming slotTiming,
-                                      final boolean useFtgsPooledConnection)
+                                      final boolean useFtgsPooledConnection,
+                                      final boolean executeBatchInParallel)
     {
         super(sessionId, sessions, tempFileSizeBytesLeft, userName, clientName, priority, slotTiming);
         this.memory = memory;
         this.useFtgsPooledConnection = useFtgsPooledConnection;
+        this.executeBatchInParallel = executeBatchInParallel;
         this.closed.set(false);
     }
 
@@ -932,9 +936,19 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
         return FTGSIteratorUtil.persist(log, getSessionId(), iterator);
     }
 
-    public <T> T executeBatchRequest(final List<ImhotepCommand> firstCommands, final ImhotepCommand<T> lastCommand) throws ImhotepOutOfMemoryException {
+    public <T> T executeBatchRequestSerial(final List<ImhotepCommand> firstCommands, final ImhotepCommand<T> lastCommand) throws ImhotepOutOfMemoryException {
         final T[] buffer = (T[]) Array.newInstance(lastCommand.getResultClass(), sessions.length);
-        executor().executeMemoryException(buffer, session -> session.executeBatchRequest(firstCommands, lastCommand));
+        closeIfCloseableOnFailExecutor().executeMemoryException(buffer, session -> session.executeBatchRequestSerial(firstCommands, lastCommand));
+        return lastCommand.combine(Arrays.asList(buffer));
+    }
+
+    public <T> T executeBatchRequest(final List<ImhotepCommand> firstCommands, final ImhotepCommand<T> lastCommand) throws ImhotepOutOfMemoryException {
+        if (!executeBatchInParallel) {
+            return executeBatchRequestSerial(firstCommands, lastCommand);
+        }
+
+        final T[] buffer = (T[]) Array.newInstance(lastCommand.getResultClass(), sessions.length);
+        closeIfCloseableOnFailExecutor().lockCPU(false).executeMemoryException(buffer, session -> session.<T>executeBatchRequestParallel(new CommandExecutor<>(this, commandThreads, session, firstCommands, lastCommand)));
         return lastCommand.combine(Arrays.asList(buffer));
     }
 

@@ -23,7 +23,7 @@ public class RandomRegroup extends VoidAbstractImhotepCommand {
 
     public RandomRegroup(final RegroupParams regroupParams, final String field, final boolean isIntField, final String salt, final double p, final int targetGroup,
                          final int negativeGroup, final int positiveGroup, final String sessionId) {
-        super(sessionId);
+        super(sessionId, regroupParams);
         this.regroupParams = regroupParams;
         this.field = field;
         this.isIntField = isIntField;

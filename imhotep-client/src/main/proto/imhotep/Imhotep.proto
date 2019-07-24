@@ -346,6 +346,9 @@ message ImhotepRequest {
 
   // for aggregate regroup
   optional FieldAggregateBucketRegroupRequest fieldAggregateBucketRegroup = 82;
+
+  // for executing batch request in parallel
+  optional bool executeBatchInParallel = 83 [default = false];
 }
 
 message DocStat {

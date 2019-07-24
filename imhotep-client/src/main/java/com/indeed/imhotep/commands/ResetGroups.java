@@ -7,13 +7,15 @@ import com.indeed.imhotep.protobuf.ImhotepRequest;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
 
+import java.util.Collections;
+
 @EqualsAndHashCode(callSuper = true)
 @ToString
 public class ResetGroups extends VoidAbstractImhotepCommand {
     private final String groupsName;
 
     public ResetGroups(final String groupsName, final String sessionId) {
-        super(sessionId);
+        super(sessionId, Collections.singletonList(groupsName), Collections.singletonList(groupsName));
         this.groupsName = groupsName;
     }
 

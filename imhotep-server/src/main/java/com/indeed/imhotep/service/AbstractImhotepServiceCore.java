@@ -884,7 +884,8 @@ public abstract class AbstractImhotepServiceCore
             String sessionId,
             AtomicLong tempFileSizeBytesLeft,
             final long sessionTimeout,
-            final boolean useFtgsPooledConnection
+            final boolean useFtgsPooledConnection,
+            final boolean executeBatchInParallel
     ) throws ImhotepOutOfMemoryException;
 
     @Override

@@ -6,6 +6,7 @@ import com.indeed.imhotep.SlotTiming;
 import com.indeed.imhotep.api.ImhotepCommand;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
+import com.indeed.imhotep.api.RegroupParams;
 import com.indeed.imhotep.io.RequestTools;
 import com.indeed.imhotep.local.ImhotepJavaLocalSession;
 import com.indeed.imhotep.local.ImhotepLocalSession;
@@ -39,7 +40,7 @@ public class TestCommandYield {
     private static TaskScheduler oldCPUScheduler = TaskScheduler.CPUScheduler;
 
     private ImhotepCommand<Void> getSleepingCommand(final long milliSeconds, final String commandId) {
-        return new VoidAbstractImhotepCommand(SESSIONID) {
+        return new VoidAbstractImhotepCommand(SESSIONID, RegroupParams.DEFAULT) {
             @Override
             public void applyVoid(final ImhotepSession imhotepSession) {
                 synchronized (scheduleOrder) {
@@ -91,7 +92,7 @@ public class TestCommandYield {
 
                 ImhotepTask.setup(username, clientName, (byte)0, new SlotTiming());
                 try (final SilentCloseable slot = TaskScheduler.CPUScheduler.lockSlot()) {
-                    imhotepLocalSession.executeBatchRequest(firstCommands, lastCommand);
+                    imhotepLocalSession.executeBatchRequestSerial(firstCommands, lastCommand);
                 }
             } catch (final ImhotepOutOfMemoryException e) {
                 Throwables.propagate(e);
@@ -182,7 +183,7 @@ public class TestCommandYield {
                     Throwables.propagate(e);
                 }
             });
-            }
+        }
         final TaskScheduler old = TaskScheduler.CPUScheduler;
         TaskScheduler.CPUScheduler = new TaskScheduler(slotsCount, TimeUnit.SECONDS.toNanos(60) , TimeUnit.SECONDS.toNanos(1),
                 100 /*executionChunkMillis*/, SchedulerType.CPU, MetricStatsEmitter.NULL_EMITTER);

@@ -14,6 +14,7 @@ public class OpenSessionData {
     long daemonTempFileSizeLimit;
     long sessionTimeout;
     boolean useFtgsPooledConnection;
+    boolean executeBatchInParallel;
 
     public void writeToImhotepRequest(final ImhotepRequest.Builder request) {
         request
@@ -25,7 +26,8 @@ public class OpenSessionData {
                 .setOptimizeGroupZeroLookups(optimizeGroupZeroLookups)
                 .setTempFileSizeLimit(daemonTempFileSizeLimit)
                 .setSessionTimeout(sessionTimeout)
-                .setUseFtgsPooledConnection(useFtgsPooledConnection);
+                .setUseFtgsPooledConnection(useFtgsPooledConnection)
+                .setExecuteBatchInParallel(executeBatchInParallel);
     }
 
     public static OpenSessionData readFromImhotepRequest(final ImhotepRequest request) {
@@ -38,7 +40,8 @@ public class OpenSessionData {
                 request.getOptimizeGroupZeroLookups(),
                 request.getTempFileSizeLimit(),
                 request.getSessionTimeout(),
-                request.getUseFtgsPooledConnection()
+                request.getUseFtgsPooledConnection(),
+                request.getExecuteBatchInParallel()
         );
     }
 }

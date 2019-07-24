@@ -1,10 +1,7 @@
 package com.indeed.imhotep.api;
 
-import com.google.common.base.Objects;
 import com.indeed.imhotep.protobuf.ImhotepRequest;
 import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.ToString;
 
 @Data
 public class RegroupParams {
