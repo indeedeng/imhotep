@@ -58,8 +58,8 @@ public class TaskScheduler implements SilentCloseable {
     private final int totalSlots;
     private final long historyLengthNanos;
     private final long batchNanos;
-    private final AtomicLong executionTimeForStats = new AtomicLong(0);
-    private final AtomicInteger completedTasksCountForStats = new AtomicInteger(0);
+    private final AtomicLong executionTimeSinceLastReport = new AtomicLong(0);
+    private final AtomicInteger completedTasksSinceLastReport = new AtomicInteger(0);
     private final SchedulerType schedulerType;
     private final MetricStatsEmitter statsEmitter;
 
@@ -142,9 +142,9 @@ public class TaskScheduler implements SilentCloseable {
         statsEmitter.histogram("scheduler." + schedulerType + ".waiting.users", waitingUsersCount);
         statsEmitter.histogram("scheduler." + schedulerType + ".waiting.tasks", waitingTasksCount);
         statsEmitter.histogram("scheduler." + schedulerType + ".running.tasks", runningTasksCount);
-        statsEmitter.count("scheduler." + schedulerType + ".tasks.executionTime", executionTimeForStats.getAndSet(0));
+        statsEmitter.count("scheduler." + schedulerType + ".tasks.executionTime", executionTimeSinceLastReport.getAndSet(0));
         statsEmitter.count("scheduler." + schedulerType + ".tasks.maximumPossibleExecutionTime", totalSlots*DATADOG_STATS_REPORTING_FREQUENCY_MILLIS); // to compare totalExecutionTime against
-        statsEmitter.count("scheduler." + schedulerType + ".tasks.completedTasks", completedTasksCountForStats.getAndSet(0));
+        statsEmitter.count("scheduler." + schedulerType + ".tasks.completedTasks", completedTasksSinceLastReport.getAndSet(0));
     }
 
     private synchronized void cleanup() {
@@ -296,9 +296,9 @@ public class TaskScheduler implements SilentCloseable {
             return false;
         }
         final long consumption = task.stopped(schedulerType);
-        executionTimeForStats.addAndGet(consumption);
+        executionTimeSinceLastReport.addAndGet(consumption);
         if (stopType == StopType.CLOSE) {
-            completedTasksCountForStats.incrementAndGet();
+            completedTasksSinceLastReport.incrementAndGet();
         }
         final OwnerAndPriority ownerAndPriority = new OwnerAndPriority(task.userName, task.priority);
         final ConsumptionTracker consumptionTracker = ownerToConsumptionTracker.computeIfAbsent(ownerAndPriority,
