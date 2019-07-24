@@ -33,7 +33,7 @@ public class ImhotepErrorResolver {
         if (error.contains(ImhotepOutOfMemoryException.class.getSimpleName())) {
             if (error.contains(MemoryReserver.AllocationResult.EXCEEDS_LOCAL_LIMIT.msg)) {
                 return new MemoryLimitExceededException("Query failed trying to use more memory than it was allocated. " +
-                    "Reduce memory by reducing the number of documents in the query or reducing the cardinality of grouping operations.", e);
+                    "Reduce memory by reducing the number of documents, reducing the cardinality of grouping operations, or reducing the number metrics selected.", e);
             }
             return new ImhotepOverloadedException("Imhotep is overloaded with all memory in use. " +
                     "Please wait before retrying.", e);
