@@ -1173,10 +1173,8 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                     }
                 } catch (final ImhotepOutOfMemoryException e) {
                     expireSession(request, e);
-                    final ImhotepResponse.ResponseCode oom =
-                        ImhotepResponse.ResponseCode.OUT_OF_MEMORY;
                     log.warn("ImhotepOutOfMemoryException while servicing request", e);
-                    sendResponse(ImhotepResponse.newBuilder().setResponseCode(oom).build(), os);
+                    sendResponse(newErrorResponse(e), os);
                 } catch (final IOException e) {
                     // IMTEPD-571: Ignore the socket timeout exception, which would be caused frequently by the connection pool
                     if (!(e instanceof SocketTimeoutException)) {

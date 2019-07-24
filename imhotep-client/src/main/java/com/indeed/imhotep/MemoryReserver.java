@@ -29,7 +29,7 @@ public abstract class MemoryReserver implements Closeable {
     public enum AllocationResult {
         ALLOCATED("success"),
         EXCEEDS_GLOBAL_LIMIT("The machine ran out of memory. Please wait a few minutes and try again."),
-        EXCEEDS_LOCAL_LIMIT("The query exceeded the memory allocated to it. Please reduce resource usage.");
+        EXCEEDS_LOCAL_LIMIT("The query exceeded the memory allocated to it.");
 
 
         public final String msg;

@@ -1,5 +1,7 @@
 package com.indeed.imhotep.utils;
 
+import com.indeed.imhotep.AbstractImhotepSession;
+import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.exceptions.GenericImhotepKnownException;
 import com.indeed.imhotep.exceptions.ImhotepKnownException;
 import com.indeed.imhotep.protobuf.ImhotepResponse;
@@ -35,6 +37,17 @@ public class ImhotepExceptionUtils {
             @Nullable final String sessionId) {
         final String reasonMessage = buildExceptionMessage(response, host, port, sessionId);
         return new NoSuchFileException(response.getExceptionMessage(), null, reasonMessage);
+    }
+
+    public static ImhotepOutOfMemoryException buildImhotepOutOfMemoryExceptionFromResponse(
+            final ImhotepResponse response,
+            final String host,
+            final int port,
+            @Nullable final String sessionId) {
+        if (response.getExceptionMessage().isEmpty()) {
+            return AbstractImhotepSession.newImhotepOutOfMemoryException(sessionId);
+        }
+        return new ImhotepOutOfMemoryException(buildExceptionMessage(response, host, port, sessionId));
     }
 
     public static ImhotepKnownException buildImhotepKnownExceptionFromResponse(

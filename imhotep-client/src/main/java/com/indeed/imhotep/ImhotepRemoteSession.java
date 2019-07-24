@@ -85,6 +85,7 @@ import java.util.stream.Stream;
 import static com.indeed.imhotep.utils.ImhotepExceptionUtils.buildExceptionAfterSocketTimeout;
 import static com.indeed.imhotep.utils.ImhotepExceptionUtils.buildIOExceptionFromResponse;
 import static com.indeed.imhotep.utils.ImhotepExceptionUtils.buildImhotepKnownExceptionFromResponse;
+import static com.indeed.imhotep.utils.ImhotepExceptionUtils.buildImhotepOutOfMemoryExceptionFromResponse;
 
 /**
  * @author jsgroth
@@ -201,9 +202,7 @@ public class ImhotepRemoteSession
                 log.trace("waiting for confirmation from "+host+":"+port);
                 final ImhotepResponse response = ImhotepProtobufShipping.readResponse(is);
                 if (response.getResponseCode() == ImhotepResponse.ResponseCode.OUT_OF_MEMORY) {
-                    throw new ImhotepOutOfMemoryException(createMessageWithSessionId(
-                            "OutOfMemory error when creating session",
-                            (sessionId == null) ? "" : sessionId));
+                    throw buildImhotepOutOfMemoryExceptionFromResponse(response, host, port, sessionId);
                 }
                 if (response.getResponseCode() == ImhotepResponse.ResponseCode.KNOWN_ERROR) {
                     throw buildImhotepKnownExceptionFromResponse(response, host, port, sessionId);
@@ -621,7 +620,7 @@ public class ImhotepRemoteSession
             final InputStream is,
             final OutputStream os,
             final boolean fromPooledConnection) throws IOException, ImhotepOutOfMemoryException {
-        final ImhotepResponse response = checkMemoryException(getSessionId(), sendRequest(createSender(request), is, os, host, port));
+        final ImhotepResponse response = checkMemoryException(getSessionId(), sendRequest(createSender(request), is, os, host, port), host, port);
         final BufferedInputStream tempFileStream;
         if (fromPooledConnection) {
             try (final BlockInputStream blockIs = new BlockInputStream(is)) {
@@ -1191,18 +1190,24 @@ public class ImhotepRemoteSession
             final ImhotepRequestSender request,
             final String host,
             final int port,
-            final int socketTimeout) throws IOException, ImhotepOutOfMemoryException {
+            final int socketTimeout
+    ) throws IOException, ImhotepOutOfMemoryException {
         final ImhotepResponse response = sendRequest(request, host, port, socketTimeout);
         if (response.getResponseCode() == ImhotepResponse.ResponseCode.OUT_OF_MEMORY) {
-            throw new ImhotepOutOfMemoryException();
+            throw buildImhotepOutOfMemoryExceptionFromResponse(response, host, port, request.getSessionId());
         } else {
             return response;
         }
     }
 
-    private static ImhotepResponse checkMemoryException(@Nullable final String sessionId, final ImhotepResponse response) throws ImhotepOutOfMemoryException {
+    private static ImhotepResponse checkMemoryException(
+            @Nullable final String sessionId,
+            final ImhotepResponse response,
+            final String host,
+            final int port
+    ) throws ImhotepOutOfMemoryException {
         if (response.getResponseCode() == ImhotepResponse.ResponseCode.OUT_OF_MEMORY) {
-            throw new ImhotepOutOfMemoryException(createMessageWithSessionId("OutOfMemory error", sessionId));
+            throw buildImhotepOutOfMemoryExceptionFromResponse(response, host, port, sessionId);
         } else {
             return response;
         }
@@ -1214,7 +1219,7 @@ public class ImhotepRemoteSession
             final int port,
             final int socketTimeout) throws IOException, ImhotepOutOfMemoryException {
         final ImhotepResponse response = sendRequest(request, host, port, socketTimeout);
-        return checkMemoryException(request.getSessionId(), response);
+        return checkMemoryException(request.getSessionId(), response, host, port);
     }
 
     private static ImhotepResponse sendRequest(
@@ -1260,7 +1265,7 @@ public class ImhotepRemoteSession
         } else if (response.getResponseCode() == ImhotepResponse.ResponseCode.OTHER_ERROR) {
             throw buildIOExceptionFromResponse(response, host, port, sessionId);
         } else if (response.getResponseCode() == ImhotepResponse.ResponseCode.OUT_OF_MEMORY) {
-            throw newImhotepOutOfMemoryException(sessionId);
+            throw buildImhotepOutOfMemoryExceptionFromResponse(response, host, port, sessionId);
         } else if (response.getResponseCode() == ImhotepResponse.ResponseCode.OK) {
             return response;
         } else {

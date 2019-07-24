@@ -220,7 +220,7 @@ public class TestImhotepCommandDeserialization implements CommandsTest {
                 100L,
                 false,
                 false,
-                ImmutableMap.of(new Host("host1", 1234), 1L, new Host("host2", 1234), 2L, new Host("host2", 1234), 3L)
+                ImmutableMap.of(new Host("host1", 1234), 1L, new Host("host1", 1235), 2L, new Host("host2", 1234), 3L)
         );
 
         {
