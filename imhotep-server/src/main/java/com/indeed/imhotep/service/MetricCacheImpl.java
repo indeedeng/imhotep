@@ -69,22 +69,20 @@ public final class MetricCacheImpl implements MetricCache {
         final SharedReference<IntValueLookup> ref = SharedReference.create(intValueLookup, () -> closeMetric.close(Maps.immutableEntry(metric, intValueLookup)));
         while (true) {
             final SharedReference<IntValueLookup> oldRef = metrics.putIfAbsent(metric, ref);
-            if (oldRef == null) {
-                return new CachedIntValueLookup(ref);
-            } else {
-                SharedReference<IntValueLookup> copy = oldRef.tryCopy();
+            if (oldRef != null) {
+                final SharedReference<IntValueLookup> copy = oldRef.tryCopy();
                 if (copy != null) {
                     Closeables2.closeQuietly(ref, log);
                     return new CachedIntValueLookup(copy);
                 }
-                final boolean replaced = metrics.replace(metric, oldRef, ref);
-                if (replaced) {
-                    if (!Config.isCloseMetricsWhenUnused()) {
-                        ref.copy(); // Leak here to close metric only on close session
-                    }
-                    return new CachedIntValueLookup(ref);
+                if (!metrics.replace(metric, oldRef, ref)) {
+                    continue;
                 }
             }
+            if (!Config.isCloseMetricsWhenUnused()) {
+                ref.copy(); // Leak here to close metric only on close session
+            }
+            return new CachedIntValueLookup(ref);
         }
     }
 
