@@ -142,7 +142,6 @@ public final class MetricCacheImpl implements MetricCache {
     public void close() {
         if (!closed) {
             closed = true;
-            //TODO this is only necessary if we leak metrics. if we can verify that there aren't leaks it should be removed.
             Closeables2.closeAll(log, Collections2.transform(metrics.entrySet(),
                     (metric) -> () -> {
                         try (final SharedReference<IntValueLookup> copy = metric.getValue().tryCopy()) {
