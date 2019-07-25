@@ -308,7 +308,7 @@ public class BatchRemoteImhotepMultiSession extends AbstractImhotepSession {
         return remoteImhotepMultiSession.getTempFilesBytesWritten();
     }
 
-    static String getCommandClassName(final ImhotepCommand imhotepCommand) {
+    public static String getCommandClassName(final ImhotepCommand imhotepCommand) {
         return imhotepCommand.getClass().getSimpleName();
     }
 

@@ -4,6 +4,7 @@ import com.indeed.imhotep.ImhotepRemoteSession;
 import com.indeed.imhotep.api.CommandSerializationParameters;
 import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.api.ImhotepSession;
+import com.indeed.imhotep.api.RegroupParams;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -11,8 +12,12 @@ import java.util.List;
 
 public abstract class VoidAbstractImhotepCommand extends AbstractImhotepCommand<Void> {
 
-    VoidAbstractImhotepCommand(final String sessionId) {
-        super(sessionId, Void.class);
+    VoidAbstractImhotepCommand(final String sessionId, final RegroupParams regroupParams) {
+        super(sessionId, Void.class, regroupParams);
+    }
+
+    VoidAbstractImhotepCommand(final String sessionId, final List<String> inputGroups, final List<String> outputGroups) {
+        super(sessionId, Void.class, inputGroups, outputGroups);
     }
 
     @Override

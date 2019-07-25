@@ -334,6 +334,7 @@ public class ImhotepClient
         private boolean allowSessionForwarding = false;
         private boolean peerToPeerCache = false;
         private boolean useFtgsPooledConnection = false;
+        private boolean executeBatchInParallel = false;
 
         private boolean useBatch = false;
 
@@ -400,6 +401,11 @@ public class ImhotepClient
 
         public SessionBuilder useFtgsPooledConnection(final boolean useFtgsPooledConnection) {
             this.useFtgsPooledConnection = useFtgsPooledConnection;
+            return this;
+        }
+
+        public SessionBuilder executeBatchInParallel(final boolean executeBatchInParallel) {
+            this.executeBatchInParallel = executeBatchInParallel;
             return this;
         }
 
@@ -511,7 +517,8 @@ public class ImhotepClient
                                         optimizeGroupZeroLookups,
                                         daemonTempFileSizeLimit,
                                         sessionTimeout,
-                                        useFtgsPooledConnection
+                                        useFtgsPooledConnection,
+                                        executeBatchInParallel
                                 ),
                                 socketTimeout,
                                 localTempFileSizeLimit,
@@ -524,7 +531,7 @@ public class ImhotepClient
                 return getSessionForShards(
                         dataset, hostsToShardsMap, mergeThreadLimit, username, clientName, priority, optimizeGroupZeroLookups,
                         socketTimeout, localTempFileSizeLimit, daemonTempFileSizeLimit, sessionTimeout,
-                        allowSessionForwarding, peerToPeerCache, useFtgsPooledConnection,
+                        allowSessionForwarding, peerToPeerCache, useFtgsPooledConnection, executeBatchInParallel,
                         daemonMemoryUsageLimitsBytes
                 );
             }
@@ -539,6 +546,7 @@ public class ImhotepClient
                                                final boolean allowSessionForwarding,
                                                final boolean p2pCache,
                                                final boolean useFtgsPooledConnection,
+                                               final boolean executeBatchInParallel,
                                                @Nullable final Map<Host, Long> daemonUsageLimitBytes) {
 
         final AtomicLong localTempFileSizeBytesLeft = localTempFileSizeLimit > 0 ? new AtomicLong(localTempFileSizeLimit) : null;
@@ -547,7 +555,7 @@ public class ImhotepClient
             ImhotepRemoteSession[] remoteSessions = internalGetSession(dataset, hostToShardsMap, mergeThreadLimit, username,
                     clientName, priority, optimizeGroupZeroLookups, socketTimeout, sessionId, daemonTempFileSizeLimit,
                     localTempFileSizeBytesLeft, sessionTimeout, allowSessionForwarding, p2pCache, useFtgsPooledConnection,
-                    daemonUsageLimitBytes);
+                    executeBatchInParallel, daemonUsageLimitBytes);
 
             final InetSocketAddress[] nodes = new InetSocketAddress[remoteSessions.length];
             for (int i = 0; i < remoteSessions.length; i++) {
@@ -577,6 +585,7 @@ public class ImhotepClient
                            boolean allowSessionForwarding,
                            final boolean p2pCache,
                            final boolean useFtgsPooledConnection,
+                           final boolean executeBatchInParallel,
                            final Map<Host, Long> daemonMemoryUsageLimitBytes) {
 
         final ExecutorService executor = Executors.newCachedThreadPool();
@@ -611,6 +620,7 @@ public class ImhotepClient
                                     numDocs,
                                     p2pCache,
                                     useFtgsPooledConnection,
+                                    executeBatchInParallel,
                                     memoryLimitBytes
                             );
                         }

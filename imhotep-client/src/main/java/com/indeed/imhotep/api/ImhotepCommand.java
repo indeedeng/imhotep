@@ -62,6 +62,16 @@ public interface ImhotepCommand<T> extends HasSessionId {
     Class<T> getResultClass();
 
     /**
+     * List of Input Named Group the command is dependent on.
+     */
+    List<String> getInputGroups();
+
+    /**
+     * List of Output Named Groups the command will be adding / replacing.
+     */
+    List<String> getOutputGroups();
+
+    /**
      * Apply the command on imhotepSession
      */
     T apply(ImhotepSession session) throws ImhotepOutOfMemoryException;

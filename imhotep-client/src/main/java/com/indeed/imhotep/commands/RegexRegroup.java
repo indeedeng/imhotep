@@ -20,7 +20,7 @@ public class RegexRegroup extends VoidAbstractImhotepCommand {
     private final int positiveGroup;
 
     public RegexRegroup(final RegroupParams regroupParams, final String field, final String regex, final int targetGroup, final int negativeGroup, final int positiveGroup, final String sessionId) {
-        super(sessionId);
+        super(sessionId, regroupParams);
         this.regroupParams = regroupParams;
         this.field = field;
         this.regex = regex;

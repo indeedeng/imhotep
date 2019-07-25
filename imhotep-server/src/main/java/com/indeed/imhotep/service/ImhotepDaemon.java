@@ -321,6 +321,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                                 tempFileSizeBytesLeft,
                                 request.getSessionTimeout(),
                                 request.getUseFtgsPooledConnection(),
+                                request.getExecuteBatchInParallel(),
                                 request.getReservedMemoryLimitBytes()
                         );
                 NDC.push(sessionId);
@@ -895,6 +896,7 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                         tempFileSizeBytesLeft,
                         openSessionData.getSessionTimeout(),
                         openSessionData.isUseFtgsPooledConnection(),
+                        openSessionData.isExecuteBatchInParallel(),
                         openSession.reservedMemoryLimitBytes
                 );
                 commands.remove(0);

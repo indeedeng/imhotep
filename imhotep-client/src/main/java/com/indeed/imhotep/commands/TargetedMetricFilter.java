@@ -30,7 +30,7 @@ public class TargetedMetricFilter extends AbstractImhotepCommand<Integer> {
     private final int positiveGroup;
 
     public TargetedMetricFilter(final RegroupParams regroupParams, final List<String> stat, final long min, final long max, final int targetGroup, final int negativeGroup, final int positiveGroup, final String sessionId) {
-        super(sessionId, Integer.class);
+        super(sessionId, Integer.class, regroupParams);
         this.regroupParams = regroupParams;
         this.stat = stat;
         this.min = min;

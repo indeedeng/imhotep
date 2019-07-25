@@ -28,7 +28,7 @@ public class UntargetedMetricFilter extends AbstractImhotepCommand<Integer> {
     private final boolean negate;
 
     public UntargetedMetricFilter(final RegroupParams regroupParams, final List<String> stat, final long min, final long max, final boolean negate, final String sessionId) {
-        super(sessionId, Integer.class);
+        super(sessionId, Integer.class, regroupParams);
         this.regroupParams = regroupParams;
         this.stat = stat;
         this.min = min;

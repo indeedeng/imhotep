@@ -347,8 +347,11 @@ message ImhotepRequest {
   // for aggregate regroup
   optional FieldAggregateBucketRegroupRequest fieldAggregateBucketRegroup = 82;
 
+  // for executing batch request in parallel
+  optional bool executeBatchInParallel = 83 [default = false];
+
   // for OPEN_SESSION
-  optional int64 reserved_memory_limit_bytes = 83 [default = -1];
+  optional int64 reserved_memory_limit_bytes = 84 [default = -1];
 }
 
 message DocStat {

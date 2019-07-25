@@ -14,7 +14,7 @@ public class DeleteGroups extends VoidAbstractImhotepCommand {
     private final List<String> groupsToDelete;
 
     public DeleteGroups(final List<String> groupsToDelete, final String sessionId) {
-        super(sessionId);
+        super(sessionId, groupsToDelete, groupsToDelete);
         this.groupsToDelete = groupsToDelete;
     }
 

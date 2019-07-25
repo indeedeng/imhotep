@@ -29,7 +29,7 @@ public class MetricRegroup extends AbstractImhotepCommand<Integer> {
     private final boolean noGutters;
 
     private MetricRegroup(final RegroupParams regroupParams, final List<String> stats, final long min, final long max, final long intervalSize, final boolean noGutters, final String sessionId) {
-        super(sessionId, Integer.class);
+        super(sessionId, Integer.class, regroupParams);
         this.regroupParams = regroupParams;
         this.stats = stats;
         this.min = min;
