@@ -116,9 +116,7 @@ public class GroupLookupFactory {
 
         final GroupLookupCreator lookupCreator = findCreator(maxGroup);
         final long memoryUsage = lookupCreator.calcMemUsageForSize(size);
-        if (!memory.claimMemory(memoryUsage)) {
-            throw new ImhotepOutOfMemoryException();
-        }
+        memory.claimMemoryOrThrowIOOME(memoryUsage);
         return lookupCreator.createLookup(size);
     }
 
@@ -155,7 +153,7 @@ public class GroupLookupFactory {
             }
 
             /* try to shrink the GroupLookup */
-            if(!memory.claimMemory(newMemoryUsage)) {
+            if(memory.claimMemory(newMemoryUsage) != MemoryReserver.AllocationResult.ALLOCATED) {
                 /* not enough memory to create new lookup. */
                 return existingGL;
             }

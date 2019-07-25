@@ -25,6 +25,7 @@ import com.indeed.flamdex.api.StringTermIterator;
 import com.indeed.flamdex.api.StringValueLookup;
 import com.indeed.imhotep.ImhotepStatusDump;
 import com.indeed.imhotep.MemoryReservationContext;
+import com.indeed.imhotep.MemoryReserver;
 import com.indeed.util.core.io.Closeables2;
 import com.indeed.util.core.reference.ReloadableSharedReference;
 import it.unimi.dsi.fastutil.ints.IntIterator;
@@ -64,8 +65,9 @@ public class CachedFlamdexReader implements FlamdexReader, MetricCache {
         metricCache = new MetricCacheImpl(
                 metric -> {
                     final long memoryUsed = wrapped.memoryRequired(metric);
-                    if (!memory.claimMemory(memoryUsed)) {
-                        return Left.of(new FlamdexOutOfMemoryException());
+                    final MemoryReserver.AllocationResult allocationResult = memory.claimMemory(memoryUsed);
+                    if (allocationResult != MemoryReserver.AllocationResult.ALLOCATED) {
+                        return Left.of(new FlamdexOutOfMemoryException(allocationResult.msg));
                     }
                     final IntValueLookup lookup;
                     try {
@@ -75,13 +77,16 @@ public class CachedFlamdexReader implements FlamdexReader, MetricCache {
                             if (memoryUsed > lookup.memoryUsed()) {
                                 memory.releaseMemory(memoryUsed - lookup.memoryUsed());
                             } else {
-                                memory.claimMemory(lookup.memoryUsed() - memoryUsed);
+                                final MemoryReserver.AllocationResult allocationResult1 = memory.claimMemory(lookup.memoryUsed() - memoryUsed);
+                                if (allocationResult1 != MemoryReserver.AllocationResult.ALLOCATED) {
+                                    throw new FlamdexOutOfMemoryException(allocationResult1.msg);
+                                }
                             }
                         }
                     } catch (final RuntimeException e) {
                         memory.releaseMemory(memoryUsed);
                         throw e;
-                    } catch (final FlamdexOutOfMemoryException e) { // not sure why this would be thrown, but just in case...
+                    } catch (final FlamdexOutOfMemoryException e) {
                         memory.releaseMemory(memoryUsed);
                         return Left.of(e);
                     }

@@ -180,8 +180,8 @@ public abstract class AbstractImhotepSession implements ImhotepSession {
         return new RuntimeException(createMessageWithSessionId(message), cause);
     }
 
-    public ImhotepOutOfMemoryException newImhotepOutOfMemoryException() {
-        return new ImhotepOutOfMemoryException(createMessageWithSessionId("Not enough memory"));
+    public ImhotepOutOfMemoryException newImhotepOutOfMemoryException(final MemoryReserver.AllocationResult allocationResult) {
+        return new ImhotepOutOfMemoryException(createMessageWithSessionId(allocationResult.msg));
     }
 
     public static ImhotepOutOfMemoryException newImhotepOutOfMemoryException(final String sessionId) {

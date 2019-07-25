@@ -1,6 +1,7 @@
 package com.indeed.imhotep.utils;
 
 import com.google.common.base.Throwables;
+import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
 import com.indeed.imhotep.exceptions.ImhotepKnownException;
 import com.indeed.imhotep.protobuf.ImhotepResponse;
 
@@ -19,7 +20,9 @@ public class ImhotepResponseUtils {
                 .setExceptionType(e.getClass().getName())
                 .setExceptionMessage(e.getMessage() != null ? e.getMessage() : "")
                 .setExceptionStackTrace(Throwables.getStackTraceAsString(e));
-        if ((e instanceof ImhotepKnownException)) {
+        if (e instanceof ImhotepOutOfMemoryException) {
+            builder.setResponseCode(ImhotepResponse.ResponseCode.OUT_OF_MEMORY);
+        } else if (e instanceof ImhotepKnownException) {
             builder.setResponseCode(ImhotepResponse.ResponseCode.KNOWN_ERROR);
         } else {
             builder.setResponseCode(ImhotepResponse.ResponseCode.OTHER_ERROR);

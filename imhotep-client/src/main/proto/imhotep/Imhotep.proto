@@ -350,7 +350,10 @@ message ImhotepRequest {
   // for executing batch request in parallel
   optional bool executeBatchInParallel = 83 [default = false];
 
-  optional TracingMap tracing_info = 84; // deliberately matches TracingMapOnly for convenience reasons
+  // for OPEN_SESSION
+  optional int64 reserved_memory_limit_bytes = 84 [default = -1];
+
+  optional TracingMap tracing_info = 85; // deliberately matches TracingMapOnly for convenience reasons
 }
 
 // This message type exists so that we can concatenate it after an arbitrary ImhotepRequest
@@ -358,7 +361,7 @@ message ImhotepRequest {
 // This is desirable because we often want to cache the bytes for most of the ImhotepRequest
 // but the tracing information varies across all of the servers.
 message TracingMapOnly {
-  optional TracingMap tracing_info = 84; // deliberately matches ImhotepRequest for convenience reasons
+  optional TracingMap tracing_info = 85; // deliberately matches ImhotepRequest for convenience reasons
 }
 
 message DocStat {

@@ -93,9 +93,7 @@ final class CharGroupLookup extends GroupLookup implements ArrayBasedGroupLookup
 
     @Override
     public GroupLookup makeCopy(final MemoryReservationContext memory) throws ImhotepOutOfMemoryException {
-        if (!memory.claimMemory(memoryUsed())) {
-            throw new ImhotepOutOfMemoryException();
-        }
+        memory.claimMemoryOrThrowIOOME(memoryUsed());
         final CharGroupLookup charGroupLookup = new CharGroupLookup(Arrays.copyOf(docIdToGroup, docIdToGroup.length));
         charGroupLookup.numGroups = numGroups;
         return charGroupLookup;

@@ -33,9 +33,7 @@ public class CachedMetric implements IntValueLookup {
             final MemoryReserver memory) throws ImhotepOutOfMemoryException {
         this.memory = memory;
 
-        if (!memory.claimMemory(numDocs * 8L)) {
-            throw new ImhotepOutOfMemoryException();
-        }
+        memory.claimMemoryOrThrowIOOME(numDocs * 8L);
 
         this.values = new long[numDocs];
         fillValues(original);

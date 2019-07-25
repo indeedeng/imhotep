@@ -89,9 +89,7 @@ final class IntGroupLookup extends GroupLookup implements ArrayBasedGroupLookup 
 
     @Override
     public GroupLookup makeCopy(final MemoryReservationContext memory) throws ImhotepOutOfMemoryException {
-        if (!memory.claimMemory(memoryUsed())) {
-            throw new ImhotepOutOfMemoryException();
-        }
+        memory.claimMemoryOrThrowIOOME(memoryUsed());
         final IntGroupLookup intGroupLookup = new IntGroupLookup(Arrays.copyOf(docIdToGroup, docIdToGroup.length));
         intGroupLookup.numGroups = numGroups;
         return intGroupLookup;

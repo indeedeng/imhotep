@@ -1,5 +1,6 @@
 package com.indeed.imhotep.commands;
 
+import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
 import com.indeed.imhotep.ImhotepRemoteSession;
 import com.indeed.imhotep.RemoteImhotepMultiSession;
@@ -40,6 +41,7 @@ public class OpenSessions extends VoidAbstractImhotepCommand {
     private final AtomicLong localTempFileSizeBytesLeft;
     public final boolean allowSessionForwarding;
     public final boolean p2pCache;
+    private final Map<Host, Long> hostToMemoryLimitBytes;
     public final boolean traceImhotepRequests;
 
     public OpenSessions(
@@ -49,6 +51,7 @@ public class OpenSessions extends VoidAbstractImhotepCommand {
             final long localTempFileSizeLimit,
             final boolean allowSessionForwarding,
             final boolean p2pCache,
+            final Map<Host, Long> daemonMemoryUsageLimitBytes,
             final boolean traceImhotepRequests) {
         super(UUID.randomUUID().toString(), Collections.emptyList(), Collections.singletonList(ImhotepSession.DEFAULT_GROUPS));
         this.hostToShards = hostToShards;
@@ -59,6 +62,7 @@ public class OpenSessions extends VoidAbstractImhotepCommand {
         Preconditions.checkArgument(!allowSessionForwarding, "Batch OpenSessions does not currently support session forwarding");
         this.allowSessionForwarding = allowSessionForwarding;
         this.p2pCache = p2pCache;
+        hostToMemoryLimitBytes = daemonMemoryUsageLimitBytes;
         this.traceImhotepRequests = traceImhotepRequests;
     }
 
@@ -93,7 +97,8 @@ public class OpenSessions extends VoidAbstractImhotepCommand {
                 ).collect(Collectors.toList()))
                 .setClientVersion(CURRENT_CLIENT_VERSION)
                 .setSessionId(sessionId)
-                .setAllowSessionForwarding(allowSessionForwarding);
+                .setAllowSessionForwarding(allowSessionForwarding)
+                .setReservedMemoryLimitBytes(hostToMemoryLimitBytes.getOrDefault(serializationParameters.getHostAndPort(), -1L));
         openSessionData.writeToImhotepRequest(request);
         new RequestTools.ImhotepRequestSender.Simple(request.build()).writeToStreamNoFlush(os);
     }

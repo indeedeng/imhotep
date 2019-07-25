@@ -20,6 +20,7 @@ import com.google.common.base.Throwables;
 */
 public final class MemoryReservationContext extends MemoryReserver {
     private final MemoryReserver memoryReserver;
+    private final long allocationLimit;
 
     private long reservationSize = 0;
     /* We track two maximum memory values:
@@ -32,7 +33,12 @@ public final class MemoryReservationContext extends MemoryReserver {
     private boolean closed = false;
 
     public MemoryReservationContext(final MemoryReserver memoryReserver) {
+        this(memoryReserver, Long.MAX_VALUE);
+    }
+
+    public MemoryReservationContext(final MemoryReserver memoryReserver, final long allocationLimit) {
         this.memoryReserver = memoryReserver;
+        this.allocationLimit = (allocationLimit > 0) ? allocationLimit : Long.MAX_VALUE;
     }
 
     public void resetCurrentMaxUsedMemory() {
@@ -55,16 +61,19 @@ public final class MemoryReservationContext extends MemoryReserver {
         return memoryReserver.totalMemory();
     }
 
-    public synchronized boolean claimMemory(final long numBytes) {
+    public synchronized AllocationResult claimMemory(final long numBytes) {
         if (closed) {
             throw new IllegalStateException("cannot allocate memory after reservation context has been closed");
         }
-        if (memoryReserver.claimMemory(numBytes)) {
+        if ((reservationSize + numBytes) > allocationLimit) {
+            return AllocationResult.EXCEEDS_LOCAL_LIMIT;
+        }
+        final AllocationResult allocationResult = memoryReserver.claimMemory(numBytes);
+        if (allocationResult == AllocationResult.ALLOCATED) {
             reservationSize += numBytes;
             updateMax(reservationSize);
-            return true;
         }
-        return false;
+        return allocationResult;
     }
 
     public synchronized void releaseMemory(final long numBytes) {

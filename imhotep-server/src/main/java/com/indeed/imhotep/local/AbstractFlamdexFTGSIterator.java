@@ -78,9 +78,7 @@ public abstract class AbstractFlamdexFTGSIterator implements FTGSIterator {
         this.docIdToGroup = docIdToGroup;
 
         reservedMemory = Long.BYTES * stack.getNumStats() * docIdToGroup.getNumGroups();
-        if (!session.memory.claimMemory(reservedMemory)) {
-            throw session.newImhotepOutOfMemoryException();
-        }
+        session.claimOrThrowIOOME(reservedMemory);
 
         this.termGrpStats = new long[stack.getNumStats()][docIdToGroup.getNumGroups()];
         this.groupsSeen = new int[docIdToGroup.getNumGroups()];

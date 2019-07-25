@@ -221,8 +221,9 @@ public class TestImhotepCommandDeserialization implements CommandsTest {
                 100L,
                 false,
                 false,
-                false);
-
+                ImmutableMap.of(new Host("host1", 1234), 1L, new Host("host1", 1235), 2L, new Host("host2", 1234), 3L),
+                false
+        );
         {
             final List<ShardBasicInfoMessage> shards = new ArrayList<>();
             shards.add(
@@ -236,7 +237,8 @@ public class TestImhotepCommandDeserialization implements CommandsTest {
                             openSessions.getSessionId(),
                             openSessionData,
                             shards,
-                            ImhotepRemoteSession.CURRENT_CLIENT_VERSION
+                            ImhotepRemoteSession.CURRENT_CLIENT_VERSION,
+                            1
                     ),
                     readSerializedAndDeserialized(
                             openSessions,
@@ -264,8 +266,8 @@ public class TestImhotepCommandDeserialization implements CommandsTest {
                             openSessions.getSessionId(),
                             openSessionData,
                             shards,
-                            ImhotepRemoteSession.CURRENT_CLIENT_VERSION
-                    ),
+                            ImhotepRemoteSession.CURRENT_CLIENT_VERSION,
+                            2),
                     readSerializedAndDeserialized(
                             openSessions,
                             makeSerializationParameters("host1", 1235)
@@ -286,8 +288,8 @@ public class TestImhotepCommandDeserialization implements CommandsTest {
                             openSessions.getSessionId(),
                             openSessionData,
                             shards,
-                            ImhotepRemoteSession.CURRENT_CLIENT_VERSION
-                    ),
+                            ImhotepRemoteSession.CURRENT_CLIENT_VERSION,
+                            3),
                     readSerializedAndDeserialized(
                             openSessions,
                             makeSerializationParameters("host2", 1234)

@@ -329,7 +329,8 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                                 tempFileSizeBytesLeft,
                                 request.getSessionTimeout(),
                                 request.getUseFtgsPooledConnection(),
-                                request.getExecuteBatchInParallel()
+                                request.getExecuteBatchInParallel(),
+                                request.getReservedMemoryLimitBytes()
                         );
                 NDC.push(sessionId);
                 builder.setSessionId(sessionId);
@@ -903,7 +904,8 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                         tempFileSizeBytesLeft,
                         openSessionData.getSessionTimeout(),
                         openSessionData.isUseFtgsPooledConnection(),
-                        openSessionData.isExecuteBatchInParallel()
+                        openSessionData.isExecuteBatchInParallel(),
+                        openSession.reservedMemoryLimitBytes
                 );
                 commands.remove(0);
 
@@ -1195,10 +1197,8 @@ public class ImhotepDaemon implements Instrumentation.Provider {
                     }
                 } catch (final ImhotepOutOfMemoryException e) {
                     expireSession(request, e);
-                    final ImhotepResponse.ResponseCode oom =
-                        ImhotepResponse.ResponseCode.OUT_OF_MEMORY;
                     log.warn("ImhotepOutOfMemoryException while servicing request", e);
-                    sendResponse(ImhotepResponse.newBuilder().setResponseCode(oom).build(), os);
+                    sendResponse(newErrorResponse(e), os);
                 } catch (final IOException e) {
                     // IMTEPD-571: Ignore the socket timeout exception, which would be caused frequently by the connection pool
                     if (!(e instanceof SocketTimeoutException)) {

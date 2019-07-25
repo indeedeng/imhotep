@@ -137,9 +137,7 @@ final class BitSetGroupLookup extends GroupLookup {
 
     @Override
     public BitSetGroupLookup makeCopy(final MemoryReservationContext memory) throws ImhotepOutOfMemoryException {
-        if (!memory.claimMemory(memoryUsed())) {
-            throw new ImhotepOutOfMemoryException();
-        }
+        memory.claimMemoryOrThrowIOOME(memoryUsed());
         final BitSetGroupLookup bitSetGroupLookup = new BitSetGroupLookup(new FastBitSet(this.bitSet), size, nonZeroGroup);
         bitSetGroupLookup.numGroups = numGroups;
         return bitSetGroupLookup;

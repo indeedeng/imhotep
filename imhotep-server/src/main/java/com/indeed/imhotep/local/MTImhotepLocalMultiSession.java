@@ -29,6 +29,7 @@ import com.indeed.imhotep.GroupStatsIteratorCombiner;
 import com.indeed.imhotep.ImhotepRemoteSession;
 import com.indeed.imhotep.InputStreamFTGAIterator;
 import com.indeed.imhotep.MemoryReservationContext;
+import com.indeed.imhotep.MemoryReserver;
 import com.indeed.imhotep.MultiSessionMerger;
 import com.indeed.imhotep.SlotTiming;
 import com.indeed.imhotep.SortedFTGSInterleaver;
@@ -739,8 +740,9 @@ public class MTImhotepLocalMultiSession extends AbstractImhotepMultiSession<Imho
         final int totalNumStats = Arrays.stream(numStats).sum();
 
         final long claimedMemory = totalNumStats * numGroups * Long.BYTES;
-        if (!memory.claimMemory(claimedMemory)) {
-            throw newImhotepOutOfMemoryException();
+        final MemoryReserver.AllocationResult allocationResult = memory.claimMemory(claimedMemory);
+        if (allocationResult != MemoryReserver.AllocationResult.ALLOCATED) {
+            throw newImhotepOutOfMemoryException(allocationResult);
         }
         try {
             // g = group

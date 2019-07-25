@@ -49,16 +49,16 @@ public final class ImhotepMemoryPool extends MemoryReserver {
         return capacityInBytes;
     }
 
-    public boolean claimMemory(final long numBytes) {
+    public AllocationResult claimMemory(final long numBytes) {
         if (numBytes < 0) {
-            return false;
+            return AllocationResult.EXCEEDS_GLOBAL_LIMIT;
         }
         final long used = sizeInBytes.addAndGet(numBytes);
         if (used > capacityInBytes || used < 0) {
             sizeInBytes.addAndGet(-numBytes);
-            return false;
+            return AllocationResult.EXCEEDS_GLOBAL_LIMIT;
         }
-        return true;
+        return AllocationResult.ALLOCATED;
     }
 
     public void releaseMemory(final long numBytes) {

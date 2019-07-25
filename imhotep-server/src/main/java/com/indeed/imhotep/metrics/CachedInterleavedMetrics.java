@@ -41,9 +41,7 @@ public class CachedInterleavedMetrics {
         this.numDocs = numDocs;
         this.stride = lookups.length;
 
-        if (!memory.claimMemory(numDocs * 8L * stride)) {
-            throw new ImhotepOutOfMemoryException();
-        }
+        memory.claimMemoryOrThrowIOOME(numDocs * 8L * stride);
         interleavedData = new long[numDocs * stride];
         mins = new long[stride];
         maxes = new long[stride];

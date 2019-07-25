@@ -30,8 +30,9 @@ public class ImhotepBitSetPooler implements FastBitSetPooler {
 
     @Override
     public FastBitSet create(final int size) throws FlamdexOutOfMemoryException {
-        if (!memory.claimMemory(memoryUsage(size))) {
-            throw new FlamdexOutOfMemoryException();
+        final MemoryReserver.AllocationResult allocationResult = memory.claimMemory(memoryUsage(size));
+        if (allocationResult != MemoryReserver.AllocationResult.ALLOCATED) {
+            throw new FlamdexOutOfMemoryException(allocationResult.msg);
         }
         return new FastBitSet(size);
     }

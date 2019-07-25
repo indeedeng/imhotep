@@ -93,9 +93,7 @@ final class ByteGroupLookup extends GroupLookup implements ArrayBasedGroupLookup
 
     @Override
     public GroupLookup makeCopy(final MemoryReservationContext memory) throws ImhotepOutOfMemoryException {
-        if (!memory.claimMemory(memoryUsed())) {
-            throw new ImhotepOutOfMemoryException();
-        }
+        memory.claimMemoryOrThrowIOOME(memoryUsed());
         final ByteGroupLookup byteGroupLookup = new ByteGroupLookup(Arrays.copyOf(docIdToGroup, docIdToGroup.length));
         byteGroupLookup.numGroups = numGroups;
         return byteGroupLookup;

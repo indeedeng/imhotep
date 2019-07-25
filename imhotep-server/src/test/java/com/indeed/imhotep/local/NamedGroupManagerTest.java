@@ -22,8 +22,8 @@ public class NamedGroupManagerTest {
         }
 
         @Override
-        public boolean claimMemory(final long numBytes) {
-            return true;
+        public AllocationResult claimMemory(final long numBytes) {
+            return AllocationResult.ALLOCATED;
         }
 
         @Override
@@ -66,7 +66,7 @@ public class NamedGroupManagerTest {
     }
 
     @Test
-    public void testGetPutDelete() {
+    public void testGetPutDelete() throws ImhotepOutOfMemoryException {
         final MemoryReservationContext memory = new MemoryReservationContext(new ImhotepMemoryPool(10_000));
         final NamedGroupManager namedGroupManager = new NamedGroupManager(memory);
 
@@ -84,7 +84,7 @@ public class NamedGroupManagerTest {
 
         final ByteGroupLookup b = new ByteGroupLookup(500);
 
-        memory.claimMemory(b.memoryUsed());
+        memory.claimMemoryOrThrowIOOME(b.memoryUsed());
         namedGroupManager.put("b", b);
         Assert.assertEquals(b.memoryUsed(), memory.usedMemory());
         Assert.assertSame(b, namedGroupManager.get("b"));
@@ -92,7 +92,7 @@ public class NamedGroupManagerTest {
         namedGroupManager.put("b", new ConstantGroupLookup(1, 500));
         Assert.assertEquals(0, memory.usedMemory());
 
-        memory.claimMemory(b.memoryUsed());
+        memory.claimMemoryOrThrowIOOME(b.memoryUsed());
         namedGroupManager.put("b", b);
         Assert.assertEquals(b.memoryUsed(), memory.usedMemory());
 
@@ -110,7 +110,7 @@ public class NamedGroupManagerTest {
 
         final ByteGroupLookup b = new ByteGroupLookup(500);
 
-        memory.claimMemory(b.memoryUsed());
+        memory.claimMemoryOrThrowIOOME(b.memoryUsed());
         namedGroupManager.put("b", b);
 
         final GroupLookup b2 = namedGroupManager.copyInto(new RegroupParams("b", "b2"));

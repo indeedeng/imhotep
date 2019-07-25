@@ -13,6 +13,8 @@
  */
  package com.indeed.imhotep;
 
+import com.indeed.imhotep.api.ImhotepOutOfMemoryException;
+
 import java.io.Closeable;
 
 /**
@@ -24,7 +26,27 @@ public abstract class MemoryReserver implements Closeable {
 
     public abstract long totalMemory();
 
-    public abstract boolean claimMemory(long numBytes);
+    public enum AllocationResult {
+        ALLOCATED("success"),
+        EXCEEDS_GLOBAL_LIMIT("The machine ran out of memory. Please wait a few minutes and try again."),
+        EXCEEDS_LOCAL_LIMIT("The query exceeded the memory allocated to it.");
+
+
+        public final String msg;
+
+        AllocationResult(final String msg) {
+            this.msg = msg;
+        }
+    }
+
+    public abstract AllocationResult claimMemory(long numBytes);
+
+    public void claimMemoryOrThrowIOOME(long numBytes) throws ImhotepOutOfMemoryException {
+        final AllocationResult allocationResult = claimMemory(numBytes);
+        if (allocationResult != AllocationResult.ALLOCATED) {
+            throw new ImhotepOutOfMemoryException(allocationResult.msg);
+        }
+    }
 
     public abstract void releaseMemory(long numBytes);
 
