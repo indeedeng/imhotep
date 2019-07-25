@@ -156,6 +156,7 @@ message ImhotepRequest {
     BATCH_REQUESTS = 56;
     CONSOLIDATE_GROUPS = 57;
     DELETE_GROUPS = 58;
+    FIELD_AGGREGATE_BUCKET_REGROUP = 59;
     SHUTDOWN = 255;
   }
 
@@ -343,7 +344,10 @@ message ImhotepRequest {
   // for ftgs pooled socket optimization
   optional bool useFtgsPooledConnection = 81 [default = false];
 
-  optional TracingMap tracing_info = 82; // deliberately matches TracingMapOnly for convenience reasons
+  // for aggregate regroup
+  optional FieldAggregateBucketRegroupRequest fieldAggregateBucketRegroup = 82;
+
+  optional TracingMap tracing_info = 83; // deliberately matches TracingMapOnly for convenience reasons
 }
 
 // This message type exists so that we can concatenate it after an arbitrary ImhotepRequest
@@ -351,7 +355,7 @@ message ImhotepRequest {
 // This is desirable because we often want to cache the bytes for most of the ImhotepRequest
 // but the tracing information varies across all of the servers.
 message TracingMapOnly {
-  optional TracingMap tracing_info = 82; // deliberately matches ImhotepRequest for convenience reasons
+  optional TracingMap tracing_info = 83; // deliberately matches ImhotepRequest for convenience reasons
 }
 
 message DocStat {
@@ -412,6 +416,33 @@ message MultiFTGSRequest {
   optional int32 sortStat = 8 [default = -1];
   optional bool sortedFTGS = 9 [default = true];
   optional StatsSortOrder StatsSortOrder = 12;
+  optional int32 numReplica = 13 [default = 1];
+  optional int32 replicaId = 14 [default = 0];
+}
+
+message FieldAggregateBucketRegroupRequest {
+  message FieldAggregateBucketRegroupSession {
+    repeated HostAndPort nodes = 1;
+    optional string sessionId = 2;
+    optional string field = 3;
+    repeated DocStat stats = 4;
+    optional bool hasStats = 5 [default=false];
+    optional string inputGroup = 6 [default="DEFAULT"];
+    optional string outputGroup = 7 [default="DEFAULT"];
+  }
+  repeated string sessionId = 1;
+  repeated FieldAggregateBucketRegroupSession sessionInfo = 2;
+  optional int32 myIndex = 3;
+  repeated AggregateStat metric = 4;
+  optional int64 min = 5;
+  optional int64 max = 6;
+  optional int64 interval = 7;
+  optional bool excludeGutters = 8;
+  optional bool withDefault = 9;
+
+  optional bool isIntField = 10;
+  repeated HostAndPort nodes = 11;
+  optional int64 localTempFileSizeLimit = 12;
 }
 
 message ImhotepResponse {

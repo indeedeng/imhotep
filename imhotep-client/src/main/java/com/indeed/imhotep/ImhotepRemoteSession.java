@@ -44,6 +44,7 @@ import com.indeed.imhotep.io.TempFileSizeLimitExceededException;
 import com.indeed.imhotep.io.WriteLimitExceededException;
 import com.indeed.imhotep.marshal.ImhotepClientMarshaller;
 import com.indeed.imhotep.protobuf.DocStat;
+import com.indeed.imhotep.protobuf.FieldAggregateBucketRegroupRequest;
 import com.indeed.imhotep.protobuf.HostAndPort;
 import com.indeed.imhotep.protobuf.ImhotepRequest;
 import com.indeed.imhotep.protobuf.ImhotepResponse;
@@ -357,6 +358,13 @@ public class ImhotepRemoteSession
                 .setMultiFtgsRequest(proto)
                 .build();
         return sendGroupStatsIteratorRequest(request);
+    }
+
+    int fieldAggregateBucketRegroup(final FieldAggregateBucketRegroupRequest proto) throws ImhotepOutOfMemoryException {
+        final ImhotepRequest request = getBuilderForType(ImhotepRequest.RequestType.FIELD_AGGREGATE_BUCKET_REGROUP)
+                .setFieldAggregateBucketRegroup(proto)
+                .build();
+        return sendRegroupRequest(createSender(request));
     }
 
     @Override

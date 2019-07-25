@@ -189,7 +189,7 @@ public class TestThrowingImhotepOutOfMemoryExceptions {
     public void testMultiFTGS() throws ImhotepOutOfMemoryException {
         try (final ImhotepSession session = client.sessionBuilder(DATASET, START, END).build()) {
             RemoteImhotepMultiSession.multiFtgs(
-                    Collections.singletonList(new RemoteImhotepMultiSession.SessionField(session, "sf1", Collections.singletonList(STAT))),
+                    Collections.singletonList(new RemoteImhotepMultiSession.PerSessionFTGSInfo(session, "sf1", Collections.singletonList(STAT))),
                     Collections.singletonList(AggregateStatTree.constant(1)),
                     Collections.singletonList(AggregateStatTree.constant(true)),
                     false,
@@ -205,7 +205,7 @@ public class TestThrowingImhotepOutOfMemoryExceptions {
     public void testGetAggregateDistinct() throws ImhotepOutOfMemoryException {
         try (final ImhotepSession session = client.sessionBuilder(DATASET, START, END).build()) {
             RemoteImhotepMultiSession.aggregateDistinct(
-                    Collections.singletonList(new RemoteImhotepMultiSession.SessionField(session, "sf1", Collections.singletonList(STAT))),
+                    Collections.singletonList(new RemoteImhotepMultiSession.PerSessionFTGSInfo(session, "sf1", Collections.singletonList(STAT))),
                     Collections.singletonList(AggregateStatTree.constant(true)),
                     false
             );
