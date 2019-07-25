@@ -24,7 +24,7 @@ public class RandomMetricRegroup extends VoidAbstractImhotepCommand {
     private final int positiveGroup;
 
     public RandomMetricRegroup(final RegroupParams regroupParams, final List<String> stat, final String salt, final double p, final int targetGroup, final int negativeGroup, final int positiveGroup, final String sessionId) {
-        super(sessionId);
+        super(sessionId, regroupParams);
         this.regroupParams = regroupParams;
         this.stat = stat;
         this.salt = salt;

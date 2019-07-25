@@ -188,7 +188,7 @@ public class ImhotepRemoteSession
 
         return openSession(host, port, dataset, shards, mergeThreadLimit, username, "", DEFAULT_PRIORITY,
                 optimizeGroupZeroLookups, socketTimeout, sessionId, tempFileSizeLimit, tempFileSizeBytesLeft,
-                sessionTimeout, false, numDocs, false, false, false);
+                sessionTimeout, false, numDocs, false, false, false, false);
     }
 
 
@@ -199,7 +199,8 @@ public class ImhotepRemoteSession
                                                    @Nullable final AtomicLong tempFileSizeBytesLeft,
                                                    final long sessionTimeout,
                                                    boolean allowSessionForwarding, final long numDocs,
-                                                   final boolean p2pCache, final boolean useFtgsPooledConnection, final boolean traceImhotepRequests) throws ImhotepOutOfMemoryException, IOException {
+                                                   final boolean p2pCache, final boolean useFtgsPooledConnection,
+                                                   final boolean executeBatchInParallel, final boolean traceImhotepRequests) throws ImhotepOutOfMemoryException, IOException {
         final Socket socket = newSocket(host, port, socketTimeout);
         final OutputStream os = Streams.newBufferedOutputStream(socket.getOutputStream());
         final InputStream is = Streams.newBufferedInputStream(socket.getInputStream());
@@ -234,6 +235,7 @@ public class ImhotepRemoteSession
                     .setSessionTimeout(sessionTimeout)
                     .setAllowSessionForwarding(allowSessionForwarding)
                     .setUseFtgsPooledConnection(useFtgsPooledConnection)
+                    .setExecuteBatchInParallel(executeBatchInParallel)
                     .build();
             try {
                 ImhotepProtobufShipping.sendProtobuf(openSessionRequest, os);

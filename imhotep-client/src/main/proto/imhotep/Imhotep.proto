@@ -347,7 +347,10 @@ message ImhotepRequest {
   // for aggregate regroup
   optional FieldAggregateBucketRegroupRequest fieldAggregateBucketRegroup = 82;
 
-  optional TracingMap tracing_info = 83; // deliberately matches TracingMapOnly for convenience reasons
+  // for executing batch request in parallel
+  optional bool executeBatchInParallel = 83 [default = false];
+
+  optional TracingMap tracing_info = 84; // deliberately matches TracingMapOnly for convenience reasons
 }
 
 // This message type exists so that we can concatenate it after an arbitrary ImhotepRequest
@@ -355,7 +358,7 @@ message ImhotepRequest {
 // This is desirable because we often want to cache the bytes for most of the ImhotepRequest
 // but the tracing information varies across all of the servers.
 message TracingMapOnly {
-  optional TracingMap tracing_info = 83; // deliberately matches ImhotepRequest for convenience reasons
+  optional TracingMap tracing_info = 84; // deliberately matches ImhotepRequest for convenience reasons
 }
 
 message DocStat {

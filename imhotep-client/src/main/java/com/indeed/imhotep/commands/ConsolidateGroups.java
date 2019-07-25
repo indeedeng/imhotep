@@ -8,6 +8,7 @@ import com.indeed.imhotep.protobuf.Operator;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
 
+import java.util.Collections;
 import java.util.List;
 
 @EqualsAndHashCode(callSuper = true)
@@ -18,7 +19,7 @@ public class ConsolidateGroups extends VoidAbstractImhotepCommand {
     private final String outputGroups;
 
     public ConsolidateGroups(final List<String> inputGroups, final Operator operation, final String outputGroups, final String sessionId) {
-        super(sessionId);
+        super(sessionId, inputGroups, Collections.singletonList(outputGroups));
         this.inputGroups = inputGroups;
         this.operation = operation;
         this.outputGroups = outputGroups;

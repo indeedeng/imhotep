@@ -192,7 +192,7 @@ public class InstrumentedFlamdexReader
         }
     }
 
-    public PerformanceStats getPerformanceStats() {
+    public synchronized PerformanceStats getPerformanceStats() {
         long fieldFilesReadSize = 0;
         for (long fieldSize : fields.values()) {
             fieldFilesReadSize += fieldSize;

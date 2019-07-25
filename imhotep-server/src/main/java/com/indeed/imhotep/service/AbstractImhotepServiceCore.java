@@ -566,7 +566,8 @@ public abstract class AbstractImhotepServiceCore
                     tempFileSizeBytesLeft,
                     username,
                     clientName,
-                    priority
+                    priority,
+                    true // this will trace iff we're tracing on the server side here
             );
             perSessionFTGSInfos.add(new RemoteImhotepMultiSession.PerSessionFTGSInfo(remoteMultiSession, sessionInfo.getField(), sessionInfo.getStatsList().stream().map(DocStat::getStatList).collect(Collectors.toList())));
         }
@@ -884,7 +885,8 @@ public abstract class AbstractImhotepServiceCore
             String sessionId,
             AtomicLong tempFileSizeBytesLeft,
             final long sessionTimeout,
-            final boolean useFtgsPooledConnection
+            final boolean useFtgsPooledConnection,
+            final boolean executeBatchInParallel
     ) throws ImhotepOutOfMemoryException;
 
     @Override

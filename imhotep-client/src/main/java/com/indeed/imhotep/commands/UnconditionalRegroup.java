@@ -27,7 +27,7 @@ public class UnconditionalRegroup extends AbstractImhotepCommand<Integer> {
     private final boolean filterOutNotTargeted;
 
     public UnconditionalRegroup(final RegroupParams regroupParams, final int[] fromGroups, final int[] toGroups, final boolean filterOutNotTargeted, final String sessionId) {
-        super(sessionId, Integer.class);
+        super(sessionId, Integer.class, regroupParams);
         this.regroupParams = regroupParams;
         this.fromGroups = fromGroups;
         this.toGroups = toGroups;

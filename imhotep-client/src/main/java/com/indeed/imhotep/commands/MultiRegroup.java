@@ -35,7 +35,7 @@ public class MultiRegroup extends AbstractImhotepCommand<Integer> {
     private final boolean errorOnCollision;
 
     private MultiRegroup(final RegroupParams regroupParams, final GroupMultiRemapRule[] rules, final boolean errorOnCollision, final String sessionId) {
-        super(sessionId, Integer.class);
+        super(sessionId, Integer.class, regroupParams);
         this.regroupParams = regroupParams;
         this.rules = rules;
         this.errorOnCollision = errorOnCollision;
