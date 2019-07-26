@@ -497,9 +497,9 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
             final List<PerSessionFTGSInfo> sessionsWithFields,
             final AggregateStatTree metric,
             final boolean isIntField,
-            final long min,
-            final long max,
-            final long interval,
+            final double min,
+            final double max,
+            final int numBuckets,
             final boolean excludeGutters,
             final boolean withDefault
     ) throws ImhotepOutOfMemoryException {
@@ -512,7 +512,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
                 .setIsIntField(isIntField)
                 .setMin(min)
                 .setMax(max)
-                .setInterval(interval)
+                .setNumBuckets(numBuckets)
                 .setExcludeGutters(excludeGutters)
                 .setWithDefault(withDefault);
 

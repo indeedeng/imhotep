@@ -571,7 +571,7 @@ public abstract class AbstractImhotepServiceCore
             );
             perSessionFTGSInfos.add(new RemoteImhotepMultiSession.PerSessionFTGSInfo(remoteMultiSession, sessionInfo.getField(), sessionInfo.getStatsList().stream().map(DocStat::getStatList).collect(Collectors.toList())));
         }
-        final BucketParams bucketParams = new BucketParams(request.getMin(), request.getMax(), request.getInterval(), request.getExcludeGutters(), request.getWithDefault());
+        final BucketParams bucketParams = new BucketParams(request.getMin(), request.getMax(), request.getNumBuckets(), request.getExcludeGutters(), request.getWithDefault());
 
         TempFile tempFile = null;
         try {

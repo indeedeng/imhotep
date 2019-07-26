@@ -440,15 +440,19 @@ message FieldAggregateBucketRegroupRequest {
   repeated FieldAggregateBucketRegroupSession sessionInfo = 2;
   optional int32 myIndex = 3;
   repeated AggregateStat metric = 4;
-  optional int64 min = 5;
-  optional int64 max = 6;
-  optional int64 interval = 7;
+  optional int64 deleted___min = 5;
+  optional int64 deleted___max = 6;
+  optional int64 deleted___interval = 7;
   optional bool excludeGutters = 8;
   optional bool withDefault = 9;
 
   optional bool isIntField = 10;
   repeated HostAndPort nodes = 11;
   optional int64 localTempFileSizeLimit = 12;
+
+  optional double min = 13;
+  optional double max = 14;
+  optional int32 numBuckets = 15;
 }
 
 message ImhotepResponse {
