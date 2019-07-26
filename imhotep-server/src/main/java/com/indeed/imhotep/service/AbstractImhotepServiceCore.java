@@ -589,7 +589,8 @@ public abstract class AbstractImhotepServiceCore
                             true,
                             StatsSortOrder.UNDEFINED,
                             request.getMyIndex(),
-                            nodes.length
+                            nodes.length,
+                            Arrays.asList(nodes)
                     );
                     final AggregateBucketFTGSIterator ftgs = new AggregateBucketFTGSIterator(ftga, bucketParams)
             ) {
