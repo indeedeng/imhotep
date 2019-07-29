@@ -24,6 +24,7 @@ import com.indeed.util.serialization.IntSerializer;
 import com.indeed.util.serialization.LongSerializer;
 import org.apache.log4j.Logger;
 
+import javax.annotation.Nullable;
 import java.io.IOException;
 import java.nio.file.Path;
 
@@ -111,60 +112,72 @@ final class SimpleIntTermIteratorImpl implements SimpleIntTermIterator {
         }
     }
 
-    public void internalReset(final long term) throws IOException {
-        if (indexPath != null) {
-            final LongPair p;
-            if (use64BitIndex) {
-                if (index64 == null) {
-                    index64 = closer.register(new ImmutableBTreeIndex.Reader<>(indexPath,
-                            new LongSerializer(),
-                            new LongPairSerializer(),
-                            false
-                    ));
-                }
-                Generation.Entry<Long, LongPair> e = index64.floor(term);
-                if (e == null) {
-                    e = index64.first();
-                }
-                lastTerm = e.getKey();
-                p = e.getValue();
-            } else {
-                if (index == null) {
-                    index = closer.register(new ImmutableBTreeIndex.Reader<>(indexPath,
-                            new IntSerializer(),
-                            new LongPairSerializer(),
-                            false
-                    ));
-                }
-                Generation.Entry<Integer, LongPair> e = index.floor((int)term);
-                if (e == null) {
-                    e = index.first();
-                }
-                lastTerm = e.getKey();
-                p = e.getValue();
+    private void resetToFirst() {
+        lastTerm = 0;
+        lastTermOffset = 0L;
+        lastTermDocFreq = 0;
+
+        bufferLen = 0;
+        bufferOffset = 0L;
+        bufferPtr = 0;
+
+        bufferNext = false;
+        done = false;
+    }
+
+    @Nullable
+    private Generation.Entry<Long, LongPair> suggestFromIndex(final long term) throws IOException {
+        if (indexPath == null) {
+            return null;
+        }
+        if (use64BitIndex) {
+            if (index64 == null) {
+                index64 = closer.register(new ImmutableBTreeIndex.Reader<>(indexPath,
+                        new LongSerializer(),
+                        new LongPairSerializer(),
+                        false
+                ));
             }
+            return index64.floor(term);
+        } else {
+            if (index == null) {
+                index = closer.register(new ImmutableBTreeIndex.Reader<>(indexPath,
+                        new IntSerializer(),
+                        new LongPairSerializer(),
+                        false
+                ));
+            }
+            @Nullable final Generation.Entry<Integer, LongPair> intEntry;
+            if (term > Integer.MAX_VALUE) {
+                intEntry = index.last();
+            } else if (term < Integer.MIN_VALUE) {
+                intEntry = null;
+            } else {
+                intEntry = index.floor((int) term);
+            }
+            if (intEntry == null) {
+                return null;
+            } else {
+                return Generation.Entry.create((long) intEntry.getKey(), intEntry.getValue());
+            }
+        }
+    }
 
-            refillBuffer(p.getFirst());
-            lastTermOffset = p.getSecond();
-            lastTermDocFreq = (int)readVLong();
+    private void internalReset(final long term) throws IOException {
+        @Nullable final Generation.Entry<Long, LongPair> suggestion = suggestFromIndex(term);
+        if (suggestion != null) {
+            lastTerm = suggestion.getKey();
+            refillBuffer(suggestion.getValue().getFirst());
+            lastTermOffset = suggestion.getValue().getSecond();
+            lastTermDocFreq = (int) readVLong();
             done = false;
-
-            while (lastTerm < term && next()) {}
             bufferNext = true;
         } else {
-            lastTerm = 0;
-            lastTermOffset = 0L;
-            lastTermDocFreq = 0;
-
-            bufferLen = 0;
-            bufferOffset = 0L;
-            bufferPtr = 0;
-
-            done = false;
-
-            while (next() && lastTerm < term) {}
-            bufferNext = true;
+            resetToFirst();
         }
+        while (next() && (lastTerm < term)) {
+        }
+        bufferNext = true;
     }
 
     @Override

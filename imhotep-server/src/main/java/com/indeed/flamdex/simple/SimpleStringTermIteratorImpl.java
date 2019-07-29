@@ -23,6 +23,7 @@ import com.indeed.util.mmap.MMapBuffer;
 import com.indeed.util.serialization.StringSerializer;
 import org.apache.log4j.Logger;
 
+import javax.annotation.Nullable;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.CharacterCodingException;
@@ -104,46 +105,50 @@ final class SimpleStringTermIteratorImpl implements SimpleStringTermIterator {
         lastTermOffset = 0L;
         lastTermDocFreq = 0;
         lastString = null;
+        lastTermCommonPrefixLen = 0;
 
         bufferLen = 0;
         bufferOffset = 0L;
         bufferPtr = 0;
 
         done = false;
-        lastTermCommonPrefixLen = 0;
+        bufferNext = false;
     }
 
-    private void internalReset(final String term) throws IOException {
-        final byte[] targetBytes = term.getBytes(Charsets.UTF_8);
-        if (indexPath != null) {
-            if (index == null) {
-                index = new ImmutableBTreeIndex.Reader<>(indexPath,
+    @Nullable
+    private Generation.Entry<String, LongPair> suggestFromIndex(final String term) throws IOException {
+        if (indexPath == null) {
+            return null;
+        }
+        if (index == null) {
+            index = new ImmutableBTreeIndex.Reader<>(indexPath,
                     new StringSerializer(),
                     new LongPairSerializer(),
                     false
-                );
-            }
-            final Generation.Entry<String, LongPair> e = index.floor(term);
-            if (e == null) {
-                resetToFirst();
-            } else {
-                lastTermBytes = e.getKey().getBytes(Charsets.UTF_8);
-                lastTermByteBuffer = ByteBuffer.wrap(lastTermBytes);
-                lastTermLength = lastTermBytes.length;
-                lastString = null;
-                final LongPair p = e.getValue();
-                refillBuffer(p.getFirst());
-                lastTermOffset = p.getSecond();
-                lastTermDocFreq = (int) readVLong();
-                done = false;
-                lastTermCommonPrefixLen = 0;
-                bufferNext = true;
-            }
+            );
+        }
+        return index.floor(term);
+    }
+
+    private void internalReset(final String term) throws IOException {
+        @Nullable final Generation.Entry<String, LongPair> e = suggestFromIndex(term);
+        if (e != null) {
+            lastTermBytes = e.getKey().getBytes(Charsets.UTF_8);
+            lastTermByteBuffer = ByteBuffer.wrap(lastTermBytes);
+            lastTermLength = lastTermBytes.length;
+            lastString = null;
+            final LongPair p = e.getValue();
+            refillBuffer(p.getFirst());
+            lastTermOffset = p.getSecond();
+            lastTermDocFreq = (int) readVLong();
+            lastTermCommonPrefixLen = 0;
+            done = false;
+            bufferNext = true;
         } else {
             resetToFirst();
         }
+        final byte[] targetBytes = term.getBytes(Charsets.UTF_8);
         // Now, next() should return the last element that is known to be less or equals to the target term.
-
         while (next()) {
             if (AbstractBatchedFTGMerger.compareBytes(lastTermBytes, lastTermLength, targetBytes, targetBytes.length) >= 0) {
                 break;
