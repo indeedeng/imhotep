@@ -329,7 +329,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
             @Nullable final int[] parentGroups
     ) throws ImhotepOutOfMemoryException {
         final MultiFTGSRequest.Builder builder = MultiFTGSRequest.newBuilder();
-        final List<RemoteImhotepMultiSession> remoteSessions = processSessionFields(sessionsWithFields, builder);
+        final List<RemoteImhotepMultiSession> remoteSessions = processSessionFields(sessionsWithFields, builder, null);
         builder
                 .addAllFilter(AggregateStatTree.allAsList(filters))
                 .setIsIntField(isIntField);
@@ -397,7 +397,8 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
                 sorted,
                 statsSortOrder,
                 0,
-                1
+                1,
+                null
         );
     }
 
@@ -425,10 +426,11 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
             final boolean sorted,
             final StatsSortOrder statsSortOrder,
             final int replicaId,
-            final int numReplica
+            final int numReplica,
+            @Nullable final List<HostAndPort> orderedAllNodes
     ) throws ImhotepOutOfMemoryException {
         final MultiFTGSRequest.Builder builder = MultiFTGSRequest.newBuilder();
-        final List<RemoteImhotepMultiSession> remoteSessions = processSessionFields(sessionsWithFields, builder);
+        final List<RemoteImhotepMultiSession> remoteSessions = processSessionFields(sessionsWithFields, builder, orderedAllNodes);
 
         builder
                 .addAllSelect(selects)
@@ -577,7 +579,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
     }
 
     // Adds nodes and sessionInfos to the given builder, and extracts the list of imhotep sessions
-    private static List<RemoteImhotepMultiSession> processSessionFields(final List<PerSessionFTGSInfo> sessionsWithFields, final MultiFTGSRequest.Builder builder) {
+    private static List<RemoteImhotepMultiSession> processSessionFields(final List<PerSessionFTGSInfo> sessionsWithFields, final MultiFTGSRequest.Builder builder, @Nullable final List<HostAndPort> orderedAllNodes) {
         final List<RemoteImhotepMultiSession> remoteSessions = new ArrayList<>();
         final Set<HostAndPort> allNodes = new HashSet<>();
 
@@ -606,9 +608,12 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
 
             sessionBuilder.setGroupsName(perSessionFTGSInfo.groupsName);
         }
-
-        final List<HostAndPort> allNodesList = Lists.newArrayList(allNodes);
-        builder.addAllNodes(allNodesList);
+        if (orderedAllNodes != null) {
+            builder.addAllNodes(orderedAllNodes);
+        } else {
+            final List<HostAndPort> allNodesList = Lists.newArrayList(allNodes);
+            builder.addAllNodes(allNodesList);
+        }
         return remoteSessions;
     }
 
