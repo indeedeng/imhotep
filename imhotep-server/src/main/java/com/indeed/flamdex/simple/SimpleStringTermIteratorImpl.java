@@ -131,23 +131,30 @@ final class SimpleStringTermIteratorImpl implements SimpleStringTermIterator {
     }
 
     private void internalReset(final String term) throws IOException {
-        @Nullable final Generation.Entry<String, LongPair> e = suggestFromIndex(term);
-        if (e != null) {
-            lastTermBytes = e.getKey().getBytes(Charsets.UTF_8);
+        final byte[] targetBytes = term.getBytes(Charsets.UTF_8);
+        @Nullable final Generation.Entry<String, LongPair> suggestion = suggestFromIndex(term);
+        @Nullable final byte[] suggestionKeyBytes = (suggestion == null) ? null : suggestion.getKey().getBytes(Charsets.UTF_8);
+        final boolean hasValidLastTerm = (bufferOffset != 0) || (bufferPtr != 0);
+        final boolean canUseLastTerm = hasValidLastTerm && (AbstractBatchedFTGMerger.compareBytes(lastTermBytes, lastTermLength, targetBytes, targetBytes.length) <= 0); // We can use ==0 case by using bufferNext
+        final boolean suggestIsBetterThanLastTerm = (!canUseLastTerm) || ((suggestion != null) && (AbstractBatchedFTGMerger.compareBytes(suggestionKeyBytes, suggestionKeyBytes.length, lastTermBytes, lastTermLength) > 0));
+        if ((suggestion != null) && suggestIsBetterThanLastTerm) {
+            lastTermBytes = suggestionKeyBytes;
             lastTermByteBuffer = ByteBuffer.wrap(lastTermBytes);
             lastTermLength = lastTermBytes.length;
             lastString = null;
-            final LongPair p = e.getValue();
+            final LongPair p = suggestion.getValue();
             refillBuffer(p.getFirst());
             lastTermOffset = p.getSecond();
             lastTermDocFreq = (int) readVLong();
             lastTermCommonPrefixLen = 0;
             done = false;
             bufferNext = true;
-        } else {
+        } else if (!canUseLastTerm) {
             resetToFirst();
+        } else {
+            done = false;
+            bufferNext = true;
         }
-        final byte[] targetBytes = term.getBytes(Charsets.UTF_8);
         // Now, next() should return the last element that is known to be less or equals to the target term.
         while (next()) {
             if (AbstractBatchedFTGMerger.compareBytes(lastTermBytes, lastTermLength, targetBytes, targetBytes.length) >= 0) {

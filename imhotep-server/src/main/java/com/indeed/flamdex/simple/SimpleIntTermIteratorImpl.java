@@ -165,15 +165,21 @@ final class SimpleIntTermIteratorImpl implements SimpleIntTermIterator {
 
     private void internalReset(final long term) throws IOException {
         @Nullable final Generation.Entry<Long, LongPair> suggestion = suggestFromIndex(term);
-        if (suggestion != null) {
+        final boolean hasValidLastTerm = (bufferOffset != 0) || (bufferPtr != 0);
+        final boolean canUseLastTerm = hasValidLastTerm && (lastTerm <= term); // We can use ==0 case by using bufferNext
+        final boolean suggestIsBetterThanLastTerm = (!canUseLastTerm) || ((suggestion != null) && (suggestion.getKey() > lastTerm));
+        if ((suggestion != null) && suggestIsBetterThanLastTerm) {
             lastTerm = suggestion.getKey();
             refillBuffer(suggestion.getValue().getFirst());
             lastTermOffset = suggestion.getValue().getSecond();
             lastTermDocFreq = (int) readVLong();
             done = false;
             bufferNext = true;
-        } else {
+        } else if (!canUseLastTerm) {
             resetToFirst();
+        } else {
+            done = false;
+            bufferNext = true;
         }
         while (next() && (lastTerm < term)) {
         }
