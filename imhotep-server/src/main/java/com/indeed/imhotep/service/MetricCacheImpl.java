@@ -157,7 +157,7 @@ public final class MetricCacheImpl implements MetricCache {
         }
     }
 
-    private static final class Config {
+    public static final class Config {
         private static boolean closeMetricsWhenUnused = "true".equalsIgnoreCase(System.getProperty("com.indeed.imhotep.service.MetricCacheImpl.closeUnused"));
 
         public static boolean isCloseMetricsWhenUnused() {

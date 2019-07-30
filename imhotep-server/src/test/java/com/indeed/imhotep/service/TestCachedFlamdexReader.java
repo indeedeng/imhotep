@@ -23,6 +23,8 @@ import com.indeed.imhotep.ImhotepMemoryPool;
 import com.indeed.imhotep.MemoryReservationContext;
 import com.indeed.imhotep.MemoryReserver;
 import com.indeed.util.core.reference.AtomicSharedReference;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -40,6 +42,18 @@ import static org.junit.Assert.fail;
  * @author jsgroth
  */
 public class TestCachedFlamdexReader {
+    private static boolean CLOSE_METRICS_WHEN_UNUSED;
+
+    @BeforeClass
+    public static void setMetricCacheImplConfig() {
+        CLOSE_METRICS_WHEN_UNUSED = MetricCacheImpl.Config.isCloseMetricsWhenUnused();
+        MetricCacheImpl.Config.setCloseMetricsWhenUnused(true);
+    }
+
+    @AfterClass
+    public static void resetMetricCacheImplConfig() {
+        MetricCacheImpl.Config.setCloseMetricsWhenUnused(CLOSE_METRICS_WHEN_UNUSED);
+    }
 
     @Test
     public void testClosing() throws FlamdexOutOfMemoryException, IOException {
