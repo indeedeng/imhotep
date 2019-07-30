@@ -15,7 +15,7 @@
 
 import com.google.common.base.Charsets;
 import com.google.common.collect.Maps;
-import com.google.common.io.InputSupplier;
+import com.google.common.io.CharSource;
 import com.google.common.io.Resources;
 import com.indeed.flamdex.reader.MockFlamdexReader;
 import com.indeed.imhotep.io.TestFileUtils;
@@ -44,11 +44,11 @@ public class YamlFlamdexParser {
     private static final Logger LOG = Logger.getLogger(YamlFlamdexParser.class);
 
     public static MockFlamdexReader parseFromClasspathResource(final String resource) throws IOException {
-        return parseFromYaml(Resources.newReaderSupplier(Resources.getResource(resource), Charsets.UTF_8));
+        return parseFromYaml(Resources.asCharSource(Resources.getResource(resource), Charsets.UTF_8));
     }
 
-    public static MockFlamdexReader parseFromYaml(final InputSupplier<? extends Reader> inputSupplier) throws IOException {
-        final Reader reader = inputSupplier.getInput();
+    public static MockFlamdexReader parseFromYaml(final CharSource charSource) throws IOException {
+        final Reader reader = charSource.openStream();
         final YamlFlamdexReader yfr;
         try {
             final Yaml yaml = new Yaml();
