@@ -22,6 +22,7 @@ import org.junit.runners.Parameterized;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
 
@@ -34,6 +35,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+// TODO: Add tests using filter
 @RunWith(Parameterized.class)
 public class TestAggregateBucket {
     private static final DateTime TODAY = DateTime.now().withTimeAtStartOfDay();
@@ -85,6 +87,7 @@ public class TestAggregateBucket {
                 final AggregateStatTree count = stat(session, 0);
                 try (final FTGAIterator iterator = aggregateBucketRegroupAndGetFTGA(
                         singletonList(new RemoteImhotepMultiSession.PerSessionFTGSInfo(session, "mod3", stats)),
+                        Optional.empty(),
                         count,
                         true,
                         2,
@@ -109,6 +112,7 @@ public class TestAggregateBucket {
                 final AggregateStatTree count = stat(session, 0);
                 try (final FTGAIterator iterator = aggregateBucketRegroupAndGetFTGA(
                         singletonList(new RemoteImhotepMultiSession.PerSessionFTGSInfo(session, "mod3str", stats)),
+                        Optional.empty(),
                         count,
                         false,
                         3,
@@ -141,6 +145,7 @@ public class TestAggregateBucket {
                                 new RemoteImhotepMultiSession.PerSessionFTGSInfo(session1, "mod3str", stats),
                                 new RemoteImhotepMultiSession.PerSessionFTGSInfo(session2, "mod3str", stats)
                         ),
+                        Optional.empty(),
                         mod3sum.divide(totalCount),
                         false,
                         1,
@@ -176,6 +181,7 @@ public class TestAggregateBucket {
                                 new RemoteImhotepMultiSession.PerSessionFTGSInfo(session1, "mod3str", stats),
                                 new RemoteImhotepMultiSession.PerSessionFTGSInfo(session2, "mod3str", stats)
                         ),
+                        Optional.empty(),
                         mod3sum.divide(totalCount),
                         false,
                         1,
@@ -211,6 +217,7 @@ public class TestAggregateBucket {
 
     private static FTGAIterator aggregateBucketRegroupAndGetFTGA(
             final List<RemoteImhotepMultiSession.PerSessionFTGSInfo> sessionsWithFields,
+            final Optional<AggregateStatTree> filter,
             final AggregateStatTree metric,
             final boolean isIntField,
             final double min,
@@ -219,7 +226,7 @@ public class TestAggregateBucket {
             final boolean excludeGutters,
             final boolean withDefault
     ) throws ImhotepOutOfMemoryException {
-        RemoteImhotepMultiSession.aggregateBucketRegroup(sessionsWithFields, metric, isIntField, min, max, numBuckets, excludeGutters, withDefault);
+        RemoteImhotepMultiSession.aggregateBucketRegroup(sessionsWithFields, filter, metric, isIntField, min, max, numBuckets, excludeGutters, withDefault);
         return RemoteImhotepMultiSession.multiFtgs(sessionsWithFields, singletonList(metric), emptyList(), isIntField, 0, -1, true, StatsSortOrder.UNDEFINED);
     }
 

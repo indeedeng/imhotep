@@ -582,7 +582,7 @@ public abstract class AbstractImhotepServiceCore
                     final FTGAIterator ftga = RemoteImhotepMultiSession.multiFtgs(
                             perSessionFTGSInfos,
                             request.getMetricList(),
-                            Collections.emptyList(),
+                            request.getPerTermFilterList(),
                             request.getIsIntField(),
                             0,
                             0,

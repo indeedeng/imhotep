@@ -59,6 +59,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicLong;
@@ -497,6 +498,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
     // Since each node will require exactly the same FTGA, we'll use replicaId/numReplica args of multiFtgs method.
     public static int aggregateBucketRegroup(
             final List<PerSessionFTGSInfo> sessionsWithFields,
+            final Optional<AggregateStatTree> termFilter,
             final AggregateStatTree metric,
             final boolean isIntField,
             final double min,
@@ -509,7 +511,9 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
         final Pair<List<RemoteImhotepMultiSession>, Map<HostAndPort, List<String>>> remoteSessionsAndSessionIds = processSessionFields(sessionsWithFields, builder);
         final List<RemoteImhotepMultiSession> remoteSessions = remoteSessionsAndSessionIds.getFirst();
         final Map<HostAndPort, List<String>> sessionIdsPerHost = remoteSessionsAndSessionIds.getSecond();
+
         builder
+                .addAllPerTermFilter(termFilter.map(AggregateStatTree::asList).orElse(Collections.emptyList()))
                 .addAllMetric(metric.asList())
                 .setIsIntField(isIntField)
                 .setMin(min)
