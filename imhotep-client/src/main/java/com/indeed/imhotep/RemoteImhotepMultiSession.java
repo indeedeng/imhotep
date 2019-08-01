@@ -355,7 +355,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
             // Still allows a human to understand and avoids making global state executors
             // or passing in an executor.
             remoteSessions.get(0)
-                    .executor()
+                    .closeOnFailExecutor()
                     .lockCPU(false)
                     .execute(subCounts, indexedServers, pair -> {
                 final int index = pair.getFirst();
@@ -461,7 +461,7 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
             // Still allows a human to understand and avoids making global state executors
             // or passing in an executor.
             remoteSessions.get(0)
-                    .executor()
+                    .closeOnFailExecutor()
                     .lockCPU(false)
                     .executeMemoryException(subIterators, indexedServers, pair -> {
                         final int index = pair.getFirst();
@@ -472,23 +472,21 @@ public class RemoteImhotepMultiSession extends AbstractImhotepMultiSession<Imhot
                         final MultiFTGSRequest proto = MultiFTGSRequest.newBuilder(baseRequest).setSplitIndex(index).build();
                         return remoteSession.multiFTGS(proto);
                     });
+
+            final FTGSModifiers modifiers = new FTGSModifiers(termLimit, sortStat, sorted, statsSortOrder);
+            final FTGAIterator interleaver;
+            if (sorted) {
+                //noinspection resource
+                interleaver = new SortedFTGAInterleaver(subIterators);
+            } else {
+                //noinspection resource
+                interleaver = new UnsortedFTGAIterator(subIterators);
+            }
+            return modifiers.wrap(interleaver);
         } catch (final Throwable t) {
             Closeables2.closeQuietly(closeOnFailCloser, log);
             throw t;
         }
-
-        final FTGSModifiers modifiers = new FTGSModifiers(termLimit, sortStat, sorted, statsSortOrder);
-
-        final FTGAIterator interleaver;
-        if (sorted) {
-            //noinspection resource
-            interleaver = new SortedFTGAInterleaver(subIterators);
-        } else {
-            //noinspection resource
-            interleaver = new UnsortedFTGAIterator(subIterators);
-        }
-
-        return modifiers.wrap(interleaver);
     }
 
     // In each node, we first pull FTGA for the metric from all the nodes, calculate the output group for each term/group pair
