@@ -35,7 +35,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-// TODO: Add tests using filter
 @RunWith(Parameterized.class)
 public class TestAggregateBucket {
     private static final DateTime TODAY = DateTime.now().withTimeAtStartOfDay();
@@ -197,6 +196,88 @@ public class TestAggregateBucket {
                     expectGroup(iterator, 3, new double[]{1});
                     expectStrTerm(iterator, "2", 3);
                     expectGroup(iterator, 4, new double[]{2});
+                    expectEnd(iterator);
+                }
+            }
+            try (
+                    final ImhotepSession session1 = client.sessionBuilder(DATASET1, TODAY.minusDays(2), TODAY).build();
+                    final ImhotepSession session2 = client.sessionBuilder(DATASET2, TODAY.minusDays(2), TODAY).build()
+            ) {
+                session1.regroup(new int[]{1}, new int[]{0}, true);
+                session2.regroup(new int[]{1}, new int[]{2}, true);
+
+                final List<List<String>> stats = new ArrayList<>();
+                stats.add(singletonList("mod3"));
+                stats.add(singletonList("count()"));
+                final AggregateStatTree mod3sum = stat(session1, 0).plus(stat(session2, 0));
+                final AggregateStatTree totalCount = stat(session1, 1).plus(stat(session2, 1));
+                try (final FTGAIterator iterator = aggregateBucketRegroupAndGetFTGA(
+                        asList(
+                                new RemoteImhotepMultiSession.PerSessionFTGSInfo(session1, "mod3str", stats),
+                                new RemoteImhotepMultiSession.PerSessionFTGSInfo(session2, "mod3str", stats)
+                        ),
+                        Optional.of(mod3sum.eq(totalCount)),
+                        mod3sum.divide(totalCount),
+                        false,
+                        1,
+                        2,
+                        1,
+                        false,
+                        true
+                )) {
+                    expectFirstStrField(iterator, "magic");
+                    expectStrTerm(iterator, "0", 4);
+                    expectGroup(iterator, 4, new double[]{0});
+                    expectStrTerm(iterator, "1", 3);
+                    expectGroup(iterator, 3, new double[]{1});
+                    expectStrTerm(iterator, "2", 3);
+                    expectGroup(iterator, 4, new double[]{2});
+                    expectEnd(iterator);
+                }
+                session1.resetGroups();
+                session2.resetGroups();
+                session1.regroup(new int[]{1}, new int[]{0}, true);
+                session2.regroup(new int[]{1}, new int[]{2}, true);
+                try (final FTGAIterator iterator = aggregateBucketRegroupAndGetFTGA(
+                        asList(
+                                new RemoteImhotepMultiSession.PerSessionFTGSInfo(session1, "mod3str", stats),
+                                new RemoteImhotepMultiSession.PerSessionFTGSInfo(session2, "mod3str", stats)
+                        ),
+                        Optional.of(mod3sum.eq(totalCount)),
+                        mod3sum.divide(totalCount),
+                        false,
+                        1,
+                        2,
+                        1,
+                        false,
+                        false
+                )) {
+                    expectFirstStrField(iterator, "magic");
+                    expectStrTerm(iterator, "1", 3);
+                    expectGroup(iterator, 4, new double[]{1});
+                    expectEnd(iterator);
+                }
+                session1.resetGroups();
+                session2.resetGroups();
+                session1.regroup(new int[]{1}, new int[]{0}, true);
+                session2.regroup(new int[]{1}, new int[]{2}, true);
+                try (final FTGAIterator iterator = aggregateBucketRegroupAndGetFTGA(
+                        asList(
+                                new RemoteImhotepMultiSession.PerSessionFTGSInfo(session1, "mod3str", stats),
+                                new RemoteImhotepMultiSession.PerSessionFTGSInfo(session2, "mod3str", stats)
+                        ),
+                        Optional.of(mod3sum.eq(totalCount)),
+                        mod3sum.divide(totalCount),
+                        false,
+                        1,
+                        2,
+                        1,
+                        true,
+                        false
+                )) {
+                    expectFirstStrField(iterator, "magic");
+                    expectStrTerm(iterator, "1", 3);
+                    expectGroup(iterator, 2, new double[]{1});
                     expectEnd(iterator);
                 }
             }
