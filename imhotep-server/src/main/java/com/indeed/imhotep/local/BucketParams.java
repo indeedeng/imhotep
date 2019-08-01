@@ -9,6 +9,8 @@ public class BucketParams {
     private final double max;
     private final double interval;
     private final int numBuckets;
+    private final boolean excludeGutters;
+    private final boolean withDefault;
     private final int numBucketsIncludingGutter;
     private final int lowerGutter;
     private final int upperGutter;
@@ -20,6 +22,8 @@ public class BucketParams {
         this.max = max;
         this.interval = (max - min) / numBuckets;
         this.numBuckets = numBuckets;
+        this.excludeGutters = excludeGutters;
+        this.withDefault = withDefault;
         this.numBucketsIncludingGutter = (excludeGutters ? 0 : (withDefault ? 1 : 2)) + numBuckets;
         this.lowerGutter = excludeGutters ? 0 : (numBuckets + 1);
         this.upperGutter = excludeGutters ? 0 : (numBuckets + (withDefault ? 1 : 2));
@@ -39,6 +43,34 @@ public class BucketParams {
             return upperGutter;
         }
         return bucket + 1;
+    }
+
+    public double getMin() {
+        return min;
+    }
+
+    public double getMax() {
+        return max;
+    }
+
+    public double getInterval() {
+        return interval;
+    }
+
+    public int getNumBuckets() {
+        return numBuckets;
+    }
+
+    public boolean isExcludeGutters() {
+        return excludeGutters;
+    }
+
+    public boolean isWithDefault() {
+        return withDefault;
+    }
+
+    public int getNumBucketsIncludingGutter() {
+        return numBucketsIncludingGutter;
     }
 
     public int getResultNumGroups(final int originalNumGroups) {
