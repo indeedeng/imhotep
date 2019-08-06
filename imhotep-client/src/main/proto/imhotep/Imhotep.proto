@@ -439,6 +439,7 @@ message FieldAggregateBucketRegroupRequest {
   repeated string sessionId = 1;
   repeated FieldAggregateBucketRegroupSession sessionInfo = 2;
   optional int32 myIndex = 3;
+  repeated AggregateStat perTermFilter = 16;
   repeated AggregateStat metric = 4;
   optional int64 deleted___min = 5;
   optional int64 deleted___max = 6;
