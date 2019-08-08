@@ -13,7 +13,6 @@
  */
  package com.indeed.imhotep.service;
 
-import com.google.common.base.Function;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Collections2;
 import com.google.common.collect.Lists;
@@ -32,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.function.Function;
 
 /**
  * @author jplaisance
@@ -69,19 +69,20 @@ public final class MetricCacheImpl implements MetricCache {
         final SharedReference<IntValueLookup> ref = SharedReference.create(intValueLookup, () -> closeMetric.close(Maps.immutableEntry(metric, intValueLookup)));
         while (true) {
             final SharedReference<IntValueLookup> oldRef = metrics.putIfAbsent(metric, ref);
-            if (oldRef == null) {
-                return new CachedIntValueLookup(ref);
-            } else {
-                SharedReference<IntValueLookup> copy = oldRef.tryCopy();
+            if (oldRef != null) {
+                final SharedReference<IntValueLookup> copy = oldRef.tryCopy();
                 if (copy != null) {
                     Closeables2.closeQuietly(ref, log);
                     return new CachedIntValueLookup(copy);
                 }
-                final boolean replaced = metrics.replace(metric, oldRef, ref);
-                if (replaced) {
-                    return new CachedIntValueLookup(ref);
+                if (!metrics.replace(metric, oldRef, ref)) {
+                    continue;
                 }
             }
+            if (!Config.isCloseMetricsWhenUnused()) {
+                ref.copy(); // Leak here to close metric only on close session
+            }
+            return new CachedIntValueLookup(ref);
         }
     }
 
@@ -141,17 +142,30 @@ public final class MetricCacheImpl implements MetricCache {
     public void close() {
         if (!closed) {
             closed = true;
-            //TODO this is only necessary if we leak metrics. if we can verify that there aren't leaks it should be removed.
             Closeables2.closeAll(log, Collections2.transform(metrics.entrySet(),
                     (metric) -> () -> {
                         try (final SharedReference<IntValueLookup> copy = metric.getValue().tryCopy()) {
                             if (copy != null) {
-                                log.error("Metric '" + metric.getKey() + "' has leaked in MetricCacheImpl");
+                                if (Config.isCloseMetricsWhenUnused()) {
+                                    log.error("Metric '" + metric.getKey() + "' has leaked in MetricCacheImpl");
+                                }
                                 closeMetric.close(Maps.immutableEntry(metric.getKey(), copy.get()));
                             }
                         }
                     }
             ));
+        }
+    }
+
+    public static final class Config {
+        private static boolean closeMetricsWhenUnused = "true".equalsIgnoreCase(System.getProperty("com.indeed.imhotep.service.MetricCacheImpl.closeUnused"));
+
+        public static boolean isCloseMetricsWhenUnused() {
+            return closeMetricsWhenUnused;
+        }
+
+        public static void setCloseMetricsWhenUnused(final boolean closeMetricsWhenUnused) {
+            Config.closeMetricsWhenUnused = closeMetricsWhenUnused;
         }
     }
 }
