@@ -94,11 +94,11 @@ Each document corresponds to a Wikipedia article that was served in that hour:
 | numRequests | Number of requests for the article in that hour
 | bytesServed | Number of bytes served for the article in that hour
 
-[The most popular E entry](http://imhotep.indeed.tech/iql/q/MRMA7X) in that hour was `English_alphabet`.
+[The most popular E entry](../../images/wikipedia2.png){:target="_blank" rel="noopener"} in that hour was `English_alphabet`.
 
 | title | categories+ | titleWords+ | linksOut+ | numRequests | bytesServed | 
 | ----- | ----- | ----- | ----- | ----- | ----- | ----- |
-| <span class="smallcode">`English_alphabet`</span> | <span class="xscode">`All_Wikipedia_articles_needing_clarification All_articles_needing_additional_references All_articles_with_unsourced_statements Articles_containing_Old_English-language_text Articles_needing_additional_references_from_June_2011 Articles_with_hAudio_microformats Articles_with_unsourced_statements_from_January_2011 Articles_with_unsourced_statements_from_July_2010 Articles_with_unsourced_statements_from_March_2014 English_spelling Latin_alphabets Wikipedia_articles_needing_clarification_from_August_2013`</span> | <span class="smallcode">`English alphabet`</span> |  <span class="xscode"><a href="http://imhotep.indeed.tech/iql/q/PEYGN6">`A Adjective Aircraft Alphabet_song American_English American_braille American_manual_alphabet Ampersand Anglo-Saxon_futhorc Anglo-Saxons Ansuz_(rune) Apostrophe B Body_cavity British_English Byrhtfert ...`</a></span> | <span class="smallcode">`960`</span> | <span class="smallcode">`21124206`</span> |
+| <span class="smallcode">`English_alphabet`</span> | <span class="xscode">`All_Wikipedia_articles_needing_clarification All_articles_needing_additional_references All_articles_with_unsourced_statements Articles_containing_Old_English-language_text Articles_needing_additional_references_from_June_2011 Articles_with_hAudio_microformats Articles_with_unsourced_statements_from_January_2011 Articles_with_unsourced_statements_from_July_2010 Articles_with_unsourced_statements_from_March_2014 English_spelling Latin_alphabets Wikipedia_articles_needing_clarification_from_August_2013`</span> | <span class="smallcode">`English alphabet`</span> |  <span class="xscode"><a href="../../images/wikipedia3.png" target="_blank" rel="noopener">`A Adjective Aircraft Alphabet_song American_English American_braille American_manual_alphabet Ampersand Anglo-Saxon_futhorc Anglo-Saxons Ansuz_(rune) Apostrophe B Body_cavity British_English Byrhtfert ...`</a></span> | <span class="smallcode">`960`</span> | <span class="smallcode">`21124206`</span> |
 
 
 | TSV Data Size (raw uncompressed) | Imhotep Data Size |
