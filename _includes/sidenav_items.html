@@ -1,24 +1,49 @@
 <nav>
 
- <h2>Indeed Imhotep</p>
- 
- <h3 data-toc-skip>Introduction</h3>
+  <button type="button" class="collapsible">Indeed Imhotep</button>
+  <div class="content"> 
   <a href="{{ site.baseurl }}/">Learn about Imhotep</a>
 	{% include docs_ul.html items='architecture-overview builder-directory data-file-requirements terminology' %}
-	
-  
-  <h3 data-toc-skip>Imhotep Setup</h3>
+</div>
+
+<button type="button" class="collapsible">Imhotep Setup</button>
+<div class="content">
   {% include docs_ul.html items='quick-start evaluate-docker aws tsv' %}
+</div>
 
- <h3 data-toc-skip>IQL Syntax</h3>
+<button type="button" class="collapsible">IQL Syntax</button>
+<div class="content">
   {% include docs_ul.html items='overview timerange filtering aggregating metrics pivot shortcuts' %}
+</div>
 
- <h3 data-toc-skip>Application Usage</h3>
+<button type="button" class="collapsible">Application Usage</button>
+<div class="content">
   {% include docs_ul.html items='sample-data sample-queries troubleshooting' %}
-  
-  <h3 data-toc-skip>Contributing Guidelines</h3>
+</div> 
+ 
+<button type="button" class="collapsible">Contributing Guidelines</button>
+<div class="content">
   {% include docs_ul.html items='contributing' %}
+</div> 
 
  <br style="clear: left;" />
 
 </nav>
+
+<script>
+  var coll = document.getElementsByClassName("collapsible");
+  var i;
+  
+  for (i = 0; i < coll.length; i++) {
+    coll[i].addEventListener("click", function() {
+      this.classList.toggle("active");
+      var content = this.nextElementSibling;
+      if (content.style.display === "block") {
+        content.style.display = "none";
+      } else {
+        content.style.display = "block";
+      }
+    });
+  }
+  </script>
+  
