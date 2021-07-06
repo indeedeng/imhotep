@@ -79,6 +79,9 @@ If the number of expected groups is a value that your system can handle, run the
 
 ### Make the largest group the last
 If ascending order on all columns from left to right is not necessary, try making the largest group the last grouping and make it non-exploded by adding square brackets to the field name. This allows the result to be streamed instead of stored in memory.
+
+<div class="table-wrapper">
+
 <table>
   <tr>
     <th>Use</th>
@@ -91,7 +94,7 @@ If ascending order on all columns from left to right is not necessary, try makin
 <code>group by city[500000], country[50]</code></td>
   </tr>
 </table>
-
+</div>
 
 
 The `group by city[500000], country[50]` is especially problematic because IQL can’t verify in advance how many terms will be returned. If the requested number is too high, IQL uses too much memory and requires time to recover.

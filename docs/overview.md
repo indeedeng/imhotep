@@ -25,6 +25,9 @@ To explore your Imhotep data, use IQL, which is a query language similar to SQL.
 4. If you don't see a newly created dataset, clear your cache: select **Settings > Clear cache**.
 
 The query editor includes the following controls:
+
+<div class="table-wrapper">
+
 <table>
    <tr>
     <td valign="top"><code>from</code></td>
@@ -45,11 +48,13 @@ The query editor includes the following controls:
     <td valign="top"><code>Settings > Row limit</code></td>
     <td valign="top">The maximum number of rows to return. When you run any query, all rows are computed and cached, even if you specify a row limit. This means that specifying a row limit has no effect on the load the query places on the backend.</td></tr>
 </table>
+</div>
 <br>
 
 As you construct your query, an autocomplete list shows available fields.
 
 ## Additional options
+
 
 | | |
 | ---- | ----- |
@@ -58,6 +63,8 @@ As you construct your query, an autocomplete list shows available fields.
 | `Help` links to this documentation. |
 | `Pivot` allows you to summarize your query results and change views. [Read more][pivot]. |
 | `Graph` allows you to present your query results in a graph format. |
+
+
 
 ## Sharing a Query
 To share a query with others, copy the URL.

@@ -7,6 +7,9 @@ permalink: /docs/aggregating/
 Use the optional **group by** clause to group documents and retrieve aggregated stats. Separate each group definition from another with a comma. Unlike SQL, if you leave this control empty, the IQL web client places all documents into a single group and returns one row.
 
 The following group definitions are available:
+
+<div class="table-wrapper">
+
 <table>
   <tr>
     <th>Group Definition</th>
@@ -37,5 +40,6 @@ The following group definitions are available:
 
 </table>
 
+</div>
 
 [timerange]: {{ site.baseurl }}/docs/timerange

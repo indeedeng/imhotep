@@ -50,6 +50,9 @@ Use AWS CloudFormation to create a stack on AWS.
   <pre>http://indeedeng-imhotep-build.s3.amazonaws.com/cloudFormation_cluster_launch.json</pre></li>
   <li>Click <strong>Next</strong> to define the following parameters:
  <br><br></li>
+
+<div class="table-wrapper">
+
 <table>
   <thead>
   <th>Parameter</th>
@@ -98,6 +101,7 @@ Use AWS CloudFormation to create a stack on AWS.
   </tr>
   </tbody>
 </table>
+</div>
 
   <li>Click <strong>Next</strong> through the remaining options of the stack setup until you see a <strong>Review</strong> page with the options you defined.</li>
   <li>Allow the template to create IAM resources: from the <strong>Review</strong> page, scroll down to the <strong>Capabilities</strong> section and select the acknowledgment.</li>

@@ -5,6 +5,9 @@ permalink: /docs/timerange/
 ---
 
 The required **timerange** filter allows you to specify a time range with a calendar popup or by entering the start and end dates:
+
+<div class="table-wrapper">
+
 <table>
   <tr>
     <th>Method</th>
@@ -27,4 +30,5 @@ The required **timerange** filter allows you to specify a time range with a cale
     <td><code>yesterday</code><br><code>5d</code><br><code>5days</code><br><code>5daysago</code><br><code>"5 days ago"</code></td>
   </tr>
 </table>
+</div>
 
