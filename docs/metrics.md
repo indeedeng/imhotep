@@ -10,6 +10,9 @@ Use the optional **select** clause to compute metrics for your aggregated groups
 - If you leave this control empty, IQL returns a count of all documents in each group. 
 
 The following metrics are available:
+
+<div class="table-wrapper">
+
 <table>
   <tr>
     <th>Metric</th>
@@ -55,4 +58,4 @@ The following metrics are available:
   </tr>
 
 </table>
-
+</div>

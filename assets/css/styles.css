@@ -1,4 +1,3 @@
-
 article {
     padding: 0 20px 20px;
     margin: 0 10px;
@@ -36,6 +35,15 @@ span.xscode code {
 span.smallcode,span.xscode a code {
     color: #39c;
 }
+
+.index-desktop { display: none; }
+
+@media screen and (min-width: 384px) {
+    .index-desktop { display: table; }
+    .index-mobile { display: none; }
+}
+
+.table-wrapper { overflow-x: auto; }
 
 .ui-allocation-bar{
     display:block;

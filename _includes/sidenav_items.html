@@ -1,25 +1,24 @@
 <nav>
 
- <h2>Indeed Imhotep</p>
+  <h2>Indeed Imhotep</p>
+  
+  <h3 data-toc-skip>Introduction</h3>
+   <a href="{{ site.baseurl }}/">Learn about Imhotep</a>
+   {% include docs_ul.html items='architecture-overview builder-directory data-file-requirements terminology' %}
+   
+   
+   <h3 data-toc-skip>Imhotep Setup</h3>
+   {% include docs_ul.html items='quick-start evaluate-docker aws tsv' %}
  
- <h3 data-toc-skip>Introduction</h3>
-  <a href="{{ site.baseurl }}/">Learn about Imhotep</a>
-	{% include docs_ul.html items='architecture-overview builder-directory data-file-requirements terminology' %}
-	
-  
-  
-  <h3 data-toc-skip>Imhotep Setup</h3>
-  {% include docs_ul.html items='quick-start evaluate-docker aws tsv' %}
-
- <h3 data-toc-skip>IQL Syntax</h3>
-  {% include docs_ul.html items='overview timerange filtering aggregating metrics pivot shortcuts' %}
-
- <h3 data-toc-skip>Application Usage</h3>
-  {% include docs_ul.html items='sample-data sample-queries troubleshooting' %}
-  
-  <h3 data-toc-skip>Contributing Guidelines</h3>
-  {% include docs_ul.html items='contributing' %}
-
- <br style="clear: left;" />
-
-</nav>
+  <h3 data-toc-skip>IQL Syntax</h3>
+   {% include docs_ul.html items='overview timerange filtering aggregating metrics pivot shortcuts' %}
+ 
+  <h3 data-toc-skip>Application Usage</h3>
+   {% include docs_ul.html items='sample-data sample-queries troubleshooting' %}
+   
+   <h3 data-toc-skip>Contributing Guidelines</h3>
+   {% include docs_ul.html items='contributing' %}
+ 
+  <br style="clear: left;" />
+ 
+ </nav>

@@ -3,6 +3,7 @@ layout: default
 title: Data File Requirements
 permalink: /docs/data-file-requirements/
 ---
+
 ## Page Contents
 
 * [Helper Script for Uploads](#helper-script-for-uploads)
@@ -37,6 +38,9 @@ Imhotep partitions your data into shards by the time denoted in the filename. Wh
 You can specify one full day, one full hour, or a range. If you specify a range, the end time is exclusive to the range.
 
 The time denoted in the filename must be expressed in UTC-6. For example, for a file named `20140801.tsv`, the range of expected times in the file would be 2014-07-31 18:00:00 UTC (inclusive) to 2014-08-01 18:00:00 UTC (exclusive). Note that times in the file must be expressed as Unix timestamps (seconds or milliseconds since 1970).
+
+<div class="table-wrapper">
+
 <table>
   <tr>
     <th>Supported formats</th>
@@ -59,7 +63,9 @@ The time denoted in the filename must be expressed in UTC-6. For example, for a 
     <td valign="top">The file contains data for the first 3 hours of one day.<br>The file contains data for two full days.</td>
    </tr>
   </table>
-  
+
+ </div>
+
 ### <strong>Optional prefixes and suffixes in the filename must be strings</strong>
 
 You can add a string prefix or suffix, or both, to your filename. The builder ignores prefixes and suffixes that are strings. For example, the builder correctly ignores `QA_report` and `_combined` in the  `QA_report_20141013_combined.tsv` filename.
