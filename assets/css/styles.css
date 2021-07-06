@@ -77,27 +77,3 @@ span.smallcode,span.xscode a code {
 .ui-color8{background-color:#D9D9D9;}
 .ui-color9{background-color:#BC80BD;}
 .ui-color10{background-color:#CCEBC5;}
-
-.collapsible {
-    background-color: #ffffff;
-    color: #444;
-    cursor: pointer;
-    padding: 18px;
-    width: 100%;
-    border: none;
-    text-align: left;
-    outline: none;
-    font-size: 15px;
-}
-
-.active, .collapsible:hover {
-    background-color: #eee;
-}
-
-.content {
-    padding: 0 18px;
-    display: none;
-    overflow: hidden;
-    background-color: #ffffff;
- }  
-
